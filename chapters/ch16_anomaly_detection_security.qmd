@@ -1,40 +1,1880 @@
-# Anomaly Detection and Security {{#sec-anomaly-detection-security}}
+# Anomaly Detection and Security {#sec-anomaly-detection-security}
 
-:::{{.callout-note}}
+:::{.callout-note}
 ## Chapter Overview
-This chapter covers embedding-based fraud detection, cybersecurity threat hunting, and 3 more topics.
+Anomaly detection identifies rare, suspicious patterns that deviate from normal behavior—critical for fraud prevention, security monitoring, and quality control. This chapter applies embeddings to security and anomaly detection at scale: fraud detection systems that identify unusual transaction patterns through outliers in embedding space, cybersecurity threat hunting using behavioral embeddings of users and network entities to detect compromises, manufacturing quality control with product embeddings that flag defects through deviation from normal specifications, financial risk assessment via company and transaction embeddings that identify elevated risk profiles, and behavioral anomaly detection that flags account takeovers and insider threats by measuring drift from established embedding patterns. These techniques transform anomaly detection from rule-based systems to learned representations that adapt to evolving threats.
 :::
+
+After building recommendation systems (@sec-recommendation-systems), embeddings enable a fundamentally different approach to **anomaly detection**. Traditional anomaly detection relies on hand-crafted rules (if transaction amount > $10K, flag), statistical thresholds (flag values beyond 3σ), or supervised classifiers (requires labeled anomalies). **Embedding-based anomaly detection** learns normal behavior as dense clusters in embedding space, then identifies anomalies as points far from any cluster—enabling unsupervised detection, adaptation to concept drift, and detection of novel attack patterns never seen before.
 
 ## Embedding-Based Fraud Detection
 
-[Content to be written: Details about embedding-based fraud detection]
+Financial fraud costs billions annually, with attackers constantly evolving tactics. **Embedding-based fraud detection** represents transactions, users, and merchants as vectors, identifying fraud as outliers in learned embedding spaces—detecting both known fraud patterns and novel attacks.
+
+### The Fraud Detection Challenge
+
+Traditional fraud detection faces limitations:
+- **Rule-based systems**: Brittle, high false positives, easy to circumvent
+- **Supervised learning**: Requires labeled fraud (rare, expensive), can't detect novel attacks
+- **Feature engineering**: Manual, domain-specific, doesn't capture complex patterns
+
+**Embedding approach**: Learn transaction embeddings capturing behavior patterns. Normal transactions cluster together; fraud transactions lie in sparse regions or form small, distinct clusters.
+
+```python
+"""
+Embedding-Based Fraud Detection
+
+Architecture:
+1. Transaction encoder: Maps transactions to embeddings
+2. User/merchant encoders: Embeddings for entities
+3. Graph embeddings: Capture transaction network
+4. Anomaly scoring: Distance-based or density-based
+
+Techniques:
+- Autoencoder: Reconstruct transactions, high reconstruction error = anomaly
+- Isolation Forest: Embeddings as features for isolation
+- LSTM: Sequential transaction patterns, flag deviations
+- Graph Neural Networks: Network structure for money laundering
+
+Production considerations:
+- Online learning: Update embeddings as new transactions arrive
+- Low latency: <50ms per transaction for real-time blocking
+- Explainability: Surface features causing high anomaly score
+- False positive management: Balance detection vs user friction
+"""
+
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from typing import List, Dict, Optional, Tuple, Set
+from dataclasses import dataclass
+from datetime import datetime
+import time
+
+@dataclass
+class Transaction:
+    """
+    Financial transaction
+
+    Attributes:
+        transaction_id: Unique identifier
+        user_id: User making transaction
+        merchant_id: Merchant receiving payment
+        amount: Transaction amount
+        timestamp: When transaction occurred
+        location: Transaction location (lat, lon)
+        device_id: Device used
+        features: Additional features (category, etc.)
+        is_fraud: Ground truth label (if available)
+    """
+    transaction_id: str
+    user_id: str
+    merchant_id: str
+    amount: float
+    timestamp: float
+    location: Optional[Tuple[float, float]] = None
+    device_id: Optional[str] = None
+    features: Dict[str, any] = None
+    is_fraud: Optional[bool] = None
+
+    def __post_init__(self):
+        if self.features is None:
+            self.features = {}
+
+class TransactionEncoder(nn.Module):
+    """
+    Encode transactions to embeddings
+
+    Architecture:
+    - Numerical features: Amount, time of day, day of week
+    - Categorical features: Merchant category, location, device
+    - User/merchant embeddings: Entity representations
+    - MLP: Combine features into transaction embedding
+
+    Training:
+    - Autoencoder: Reconstruct transaction features
+    - Contrastive learning: Similar transactions close, different transactions far
+    """
+
+    def __init__(
+        self,
+        embedding_dim: int = 128,
+        num_users: int = 1000000,
+        num_merchants: int = 100000,
+        num_devices: int = 10000
+    ):
+        super().__init__()
+        self.embedding_dim = embedding_dim
+
+        # Entity embeddings
+        self.user_embedding = nn.Embedding(num_users, embedding_dim // 4)
+        self.merchant_embedding = nn.Embedding(num_merchants, embedding_dim // 4)
+        self.device_embedding = nn.Embedding(num_devices, embedding_dim // 4)
+
+        # Feature encoder
+        self.feature_encoder = nn.Sequential(
+            nn.Linear(embedding_dim // 4 + 10, 128),  # +10 for numerical features
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(128, embedding_dim)
+        )
+
+    def forward(
+        self,
+        user_ids: torch.Tensor,
+        merchant_ids: torch.Tensor,
+        device_ids: torch.Tensor,
+        numerical_features: torch.Tensor
+    ) -> torch.Tensor:
+        """
+        Encode transactions
+
+        Args:
+            user_ids: User IDs (batch_size,)
+            merchant_ids: Merchant IDs (batch_size,)
+            device_ids: Device IDs (batch_size,)
+            numerical_features: Numerical features (batch_size, num_features)
+
+        Returns:
+            Transaction embeddings (batch_size, embedding_dim)
+        """
+        # Embed entities
+        user_emb = self.user_embedding(user_ids)
+        merchant_emb = self.merchant_embedding(merchant_ids)
+        device_emb = self.device_embedding(device_ids)
+
+        # Combine entity embeddings
+        entity_emb = (user_emb + merchant_emb + device_emb) / 3.0
+
+        # Concatenate with numerical features
+        combined = torch.cat([entity_emb, numerical_features], dim=1)
+
+        # Encode
+        transaction_emb = self.feature_encoder(combined)
+
+        # Normalize
+        transaction_emb = F.normalize(transaction_emb, p=2, dim=1)
+
+        return transaction_emb
+
+class TransactionAutoencoder(nn.Module):
+    """
+    Autoencoder for fraud detection
+
+    Architecture:
+    - Encoder: Transaction → low-dim embedding
+    - Decoder: Embedding → reconstructed transaction
+    - Training: Minimize reconstruction error on normal transactions
+
+    Inference:
+    - Encode transaction
+    - Compute reconstruction error
+    - High error = anomaly (fraud)
+
+    Why it works:
+    - Normal transactions have low reconstruction error (seen during training)
+    - Fraud transactions have high error (novel patterns)
+    """
+
+    def __init__(
+        self,
+        input_dim: int = 128,
+        latent_dim: int = 32
+    ):
+        super().__init__()
+
+        # Encoder
+        self.encoder = nn.Sequential(
+            nn.Linear(input_dim, 64),
+            nn.ReLU(),
+            nn.Linear(64, latent_dim)
+        )
+
+        # Decoder
+        self.decoder = nn.Sequential(
+            nn.Linear(latent_dim, 64),
+            nn.ReLU(),
+            nn.Linear(64, input_dim)
+        )
+
+    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Encode and decode
+
+        Args:
+            x: Input embeddings (batch_size, input_dim)
+
+        Returns:
+            (latent, reconstructed) embeddings
+        """
+        latent = self.encoder(x)
+        reconstructed = self.decoder(latent)
+        return latent, reconstructed
+
+    def compute_anomaly_score(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Compute anomaly score (reconstruction error)
+
+        Args:
+            x: Input embeddings (batch_size, input_dim)
+
+        Returns:
+            Anomaly scores (batch_size,)
+        """
+        _, reconstructed = self.forward(x)
+        # MSE reconstruction error
+        scores = ((x - reconstructed) ** 2).mean(dim=1)
+        return scores
+
+class FraudDetectionSystem:
+    """
+    Production fraud detection system
+
+    Components:
+    1. Transaction encoder: Transaction → embedding
+    2. Anomaly detector: Autoencoder or distance-based
+    3. Threshold calibration: Set score threshold for alerts
+    4. Online learning: Update model with new transactions
+
+    Features:
+    - Real-time scoring (<50ms)
+    - Online model updates
+    - Explainability: Feature attribution
+    - Feedback loop: Incorporate fraud labels
+    """
+
+    def __init__(
+        self,
+        embedding_dim: int = 128,
+        anomaly_threshold: float = 0.95,  # 95th percentile
+        device: str = 'cuda'
+    ):
+        """
+        Args:
+            embedding_dim: Embedding dimension
+            anomaly_threshold: Percentile for anomaly cutoff
+            device: Device for computation
+        """
+        self.embedding_dim = embedding_dim
+        self.anomaly_threshold = anomaly_threshold
+        self.device = device if torch.cuda.is_available() else 'cpu'
+
+        # Transaction encoder
+        self.transaction_encoder = TransactionEncoder(
+            embedding_dim=embedding_dim
+        ).to(self.device)
+
+        # Autoencoder for anomaly detection
+        self.autoencoder = TransactionAutoencoder(
+            input_dim=embedding_dim,
+            latent_dim=32
+        ).to(self.device)
+
+        # Threshold (learned from normal transactions)
+        self.score_threshold: Optional[float] = None
+
+        # Entity mappings
+        self.user_id_to_idx: Dict[str, int] = {}
+        self.merchant_id_to_idx: Dict[str, int] = {}
+        self.device_id_to_idx: Dict[str, int] = {}
+
+        # Statistics for online updates
+        self.transaction_count = 0
+        self.fraud_count = 0
+
+        print(f"Initialized Fraud Detection System")
+        print(f"  Embedding dimension: {embedding_dim}")
+        print(f"  Anomaly threshold: {anomaly_threshold}")
+
+    def build_entity_mappings(self, transactions: List[Transaction]):
+        """Build entity ID to index mappings"""
+        users = set(t.user_id for t in transactions)
+        merchants = set(t.merchant_id for t in transactions)
+        devices = set(t.device_id for t in transactions if t.device_id)
+
+        self.user_id_to_idx = {uid: idx for idx, uid in enumerate(users)}
+        self.merchant_id_to_idx = {mid: idx for idx, mid in enumerate(merchants)}
+        self.device_id_to_idx = {did: idx for idx, did in enumerate(devices)}
+
+        print(f"Built entity mappings:")
+        print(f"  Users: {len(self.user_id_to_idx)}")
+        print(f"  Merchants: {len(self.merchant_id_to_idx)}")
+        print(f"  Devices: {len(self.device_id_to_idx)}")
+
+    def extract_features(self, transaction: Transaction) -> np.ndarray:
+        """
+        Extract numerical features from transaction
+
+        Features:
+        - Log amount
+        - Hour of day (normalized)
+        - Day of week (normalized)
+        - Days since user's first transaction
+        - Transaction velocity (# transactions in last hour)
+        - Amount deviation from user's average
+        """
+        # Simple feature extraction (in production: more features)
+        hour = (transaction.timestamp % 86400) / 3600  # Hour of day
+        day_of_week = ((transaction.timestamp // 86400) % 7) / 7  # Day of week
+        log_amount = np.log1p(transaction.amount)
+
+        # Placeholder for additional features
+        features = np.array([
+            log_amount / 10.0,  # Normalize
+            hour / 24.0,
+            day_of_week,
+            0.0,  # Placeholder: days since first transaction
+            0.0,  # Placeholder: transaction velocity
+            0.0,  # Placeholder: amount deviation
+            0.0, 0.0, 0.0, 0.0  # Additional feature placeholders
+        ], dtype=np.float32)
+
+        return features
+
+    def train_autoencoder(
+        self,
+        transactions: List[Transaction],
+        num_epochs: int = 10,
+        batch_size: int = 256
+    ):
+        """
+        Train autoencoder on normal transactions
+
+        Args:
+            transactions: Training transactions (should be mostly normal)
+            num_epochs: Training epochs
+            batch_size: Batch size
+        """
+        print(f"\nTraining autoencoder on {len(transactions)} transactions...")
+
+        # Build mappings
+        self.build_entity_mappings(transactions)
+
+        # Prepare data
+        embeddings = []
+
+        for transaction in transactions:
+            # Get indices
+            user_idx = self.user_id_to_idx.get(transaction.user_id, 0)
+            merchant_idx = self.merchant_id_to_idx.get(transaction.merchant_id, 0)
+            device_idx = self.device_id_to_idx.get(transaction.device_id, 0)
+
+            # Extract features
+            num_features = self.extract_features(transaction)
+
+            # Encode
+            user_ids = torch.tensor([user_idx], dtype=torch.long).to(self.device)
+            merchant_ids = torch.tensor([merchant_idx], dtype=torch.long).to(self.device)
+            device_ids = torch.tensor([device_idx], dtype=torch.long).to(self.device)
+            num_features_tensor = torch.from_numpy(num_features).unsqueeze(0).to(self.device)
+
+            with torch.no_grad():
+                emb = self.transaction_encoder(user_ids, merchant_ids, device_ids, num_features_tensor)
+                embeddings.append(emb.cpu().numpy()[0])
+
+        embeddings = np.array(embeddings)
+        embeddings_tensor = torch.from_numpy(embeddings).to(self.device)
+
+        # Train autoencoder
+        optimizer = torch.optim.Adam(self.autoencoder.parameters(), lr=0.001)
+        criterion = nn.MSELoss()
+
+        self.autoencoder.train()
+
+        for epoch in range(num_epochs):
+            total_loss = 0.0
+            num_batches = 0
+
+            # Mini-batch training
+            for i in range(0, len(embeddings), batch_size):
+                batch = embeddings_tensor[i:i+batch_size]
+
+                # Forward pass
+                _, reconstructed = self.autoencoder(batch)
+
+                # Compute loss
+                loss = criterion(reconstructed, batch)
+
+                # Backward pass
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+
+                total_loss += loss.item()
+                num_batches += 1
+
+            avg_loss = total_loss / num_batches
+            print(f"Epoch {epoch+1}/{num_epochs}, Loss: {avg_loss:.4f}")
+
+        print("✓ Training complete")
+
+        # Calibrate threshold on training data
+        self._calibrate_threshold(embeddings_tensor)
+
+    def _calibrate_threshold(self, embeddings: torch.Tensor):
+        """
+        Calibrate anomaly score threshold
+
+        Sets threshold at specified percentile of scores on normal data
+
+        Args:
+            embeddings: Normal transaction embeddings
+        """
+        self.autoencoder.eval()
+
+        with torch.no_grad():
+            scores = self.autoencoder.compute_anomaly_score(embeddings)
+            scores_np = scores.cpu().numpy()
+
+        # Set threshold at specified percentile
+        self.score_threshold = np.percentile(scores_np, self.anomaly_threshold * 100)
+
+        print(f"✓ Calibrated threshold: {self.score_threshold:.4f}")
+        print(f"  {self.anomaly_threshold:.1%} of training data below threshold")
+
+    def detect_fraud(
+        self,
+        transaction: Transaction,
+        return_score: bool = False
+    ) -> Tuple[bool, float]:
+        """
+        Detect if transaction is fraudulent
+
+        Args:
+            transaction: Transaction to check
+            return_score: Whether to return anomaly score
+
+        Returns:
+            (is_fraud, anomaly_score)
+        """
+        if self.score_threshold is None:
+            raise ValueError("Model not trained. Call train_autoencoder() first.")
+
+        self.transaction_encoder.eval()
+        self.autoencoder.eval()
+
+        # Get indices
+        user_idx = self.user_id_to_idx.get(transaction.user_id, 0)
+        merchant_idx = self.merchant_id_to_idx.get(transaction.merchant_id, 0)
+        device_idx = self.device_id_to_idx.get(transaction.device_id, 0)
+
+        # Extract features
+        num_features = self.extract_features(transaction)
+
+        # Encode transaction
+        user_ids = torch.tensor([user_idx], dtype=torch.long).to(self.device)
+        merchant_ids = torch.tensor([merchant_idx], dtype=torch.long).to(self.device)
+        device_ids = torch.tensor([device_idx], dtype=torch.long).to(self.device)
+        num_features_tensor = torch.from_numpy(num_features).unsqueeze(0).to(self.device)
+
+        with torch.no_grad():
+            emb = self.transaction_encoder(user_ids, merchant_ids, device_ids, num_features_tensor)
+
+            # Compute anomaly score
+            anomaly_score = self.autoencoder.compute_anomaly_score(emb).item()
+
+        # Flag if score above threshold
+        is_fraud = anomaly_score > self.score_threshold
+
+        self.transaction_count += 1
+        if is_fraud:
+            self.fraud_count += 1
+
+        return is_fraud, anomaly_score
+
+# Example: Credit card fraud detection
+def fraud_detection_example():
+    """
+    Credit card fraud detection
+
+    Use case:
+    - 10M transactions/day
+    - 0.1% fraud rate (10K fraud transactions)
+    - Detect fraud in real-time (<50ms)
+
+    Challenge: Highly imbalanced (99.9% normal)
+
+    Approach: Autoencoder trained on normal transactions
+    """
+
+    # Initialize system
+    system = FraudDetectionSystem(embedding_dim=64, anomaly_threshold=0.95)
+
+    # Generate synthetic normal transactions
+    normal_transactions = []
+    for i in range(1000):
+        transaction = Transaction(
+            transaction_id=f'txn_{i}',
+            user_id=f'user_{i % 100}',
+            merchant_id=f'merchant_{i % 50}',
+            amount=20 + np.random.rand() * 100,  # $20-$120
+            timestamp=time.time() - (1000 - i) * 3600,  # Last 1000 hours
+            device_id=f'device_{i % 200}',
+            is_fraud=False
+        )
+        normal_transactions.append(transaction)
+
+    print("=== Training Fraud Detection System ===")
+
+    # Train on normal transactions
+    system.train_autoencoder(normal_transactions, num_epochs=5, batch_size=64)
+
+    # Test on normal transaction
+    print("\n=== Testing on Normal Transaction ===")
+    test_normal = Transaction(
+        transaction_id='test_normal',
+        user_id='user_0',
+        merchant_id='merchant_0',
+        amount=50.0,
+        timestamp=time.time(),
+        device_id='device_0'
+    )
+
+    is_fraud, score = system.detect_fraud(test_normal)
+    print(f"Transaction: ${test_normal.amount:.2f}")
+    print(f"Anomaly score: {score:.4f}")
+    print(f"Fraud detected: {is_fraud}")
+
+    # Test on anomalous transaction
+    print("\n=== Testing on Anomalous Transaction ===")
+    test_fraud = Transaction(
+        transaction_id='test_fraud',
+        user_id='user_999',  # New user
+        merchant_id='merchant_99',  # New merchant
+        amount=5000.0,  # Large amount
+        timestamp=time.time(),
+        device_id='device_999'  # New device
+    )
+
+    is_fraud, score = system.detect_fraud(test_fraud)
+    print(f"Transaction: ${test_fraud.amount:.2f}")
+    print(f"Anomaly score: {score:.4f}")
+    print(f"Fraud detected: {is_fraud}")
+
+    # Statistics
+    print(f"\n=== System Statistics ===")
+    print(f"Total transactions processed: {system.transaction_count}")
+    print(f"Fraud detected: {system.fraud_count}")
+    print(f"Fraud rate: {system.fraud_count / system.transaction_count:.2%}")
+
+# Uncomment to run:
+# fraud_detection_example()
+```
+
+:::{.callout-tip}
+## Fraud Detection Best Practices
+
+**Architecture:**
+- **Autoencoder approach**: Train on normal transactions, high reconstruction error = fraud
+- **Entity embeddings**: Learn user/merchant representations (fraud users form distinct clusters)
+- **Sequential modeling**: LSTM over transaction history (flag deviations from normal sequence)
+- **Graph embeddings**: Capture money laundering rings (abnormal network patterns)
+
+**Training:**
+- **Clean training data**: Remove known fraud from training (autoencoders learn normal patterns only)
+- **Imbalanced data**: Expect 99%+ normal transactions
+- **Online learning**: Update embeddings daily with new normal transactions
+- **Hard negative mining**: Sample edge cases (high-value normal transactions)
+
+**Production:**
+- **Latency**: <50ms for real-time blocking
+- **Explainability**: SHAP values on features causing high score
+- **Threshold tuning**: Balance false positives (user friction) vs false negatives (fraud losses)
+- **A/B testing**: Measure impact on fraud reduction and user experience
+:::
+
+:::{.callout-warning}
+## False Positive Management
+
+Fraud detection faces extreme class imbalance (0.1% fraud rate). High false positive rates create user friction:
+- Block legitimate transaction → user frustration, lost sales
+- Alert user for verification → abandonment, support costs
+
+**Mitigation strategies:**
+- **Two-stage system**: High-recall first stage (flag suspicious), high-precision second stage (human review)
+- **Progressive friction**: Soft decline (ask for additional verification) before hard decline
+- **User whitelist**: Trust established users with consistent behavior
+- **Feedback loop**: Incorporate user feedback (approved flagged transactions)
+
+**Target metrics:**
+- Precision: 30-50% (of flagged transactions, 30-50% are actual fraud)
+- Recall: 70-90% (catch 70-90% of fraud)
+- False positive rate: <0.5% (flag <0.5% of normal transactions)
+:::
 
 ## Cybersecurity Threat Hunting
 
-[Content to be written: Details about cybersecurity threat hunting]
+Cybersecurity teams hunt for threats—APTs, compromised accounts, insider threats—in massive logs. **Embedding-based threat hunting** learns behavioral embeddings of users, devices, and network entities, detecting anomalies that indicate compromise or malicious activity.
+
+### The Threat Hunting Challenge
+
+Traditional Security Information and Event Management (SIEM) systems use rules:
+- Rule: If user logs in from new country, alert
+- Rule: If outbound data transfer > 10GB, alert
+
+**Limitations:**
+- High false positives (legitimate travel, legitimate data transfers)
+- Evasion: Attackers split transfers, use slow exfiltration
+- Cannot detect novel attacks (zero-day exploits, new TTPs)
+
+**Embedding approach**: Learn normal behavior embeddings for each user/device. Anomalies = deviation from learned patterns.
+
+```python
+"""
+Cybersecurity Threat Hunting with Embeddings
+
+Architecture:
+1. Event encoder: Network/system events → embeddings
+2. User behavior model: Sequence of user actions
+3. Device baseline: Normal device activity patterns
+4. Anomaly detection: Deviation from user/device baselines
+
+Event types:
+- Login events (success, failure, location, device)
+- File access events (read, write, delete)
+- Network events (connections, data transfers)
+- Process events (exec, terminate)
+
+Threats detected:
+- Account compromise (unusual login location, time, device)
+- Lateral movement (unusual process execution, network connections)
+- Data exfiltration (unusual outbound transfers)
+- Insider threats (access to sensitive files outside normal behavior)
+"""
+
+import numpy as np
+import torch
+import torch.nn as nn
+from typing import List, Dict, Optional, Tuple
+from dataclasses import dataclass
+from collections import deque
+
+@dataclass
+class SecurityEvent:
+    """
+    Security event from logs
+
+    Attributes:
+        event_id: Unique identifier
+        event_type: Type (login, file_access, network, process)
+        user_id: User associated with event
+        device_id: Device associated with event
+        timestamp: When event occurred
+        features: Event-specific features
+        is_malicious: Ground truth label (if available)
+    """
+    event_id: str
+    event_type: str
+    user_id: str
+    device_id: str
+    timestamp: float
+    features: Dict[str, any]
+    is_malicious: Optional[bool] = None
+
+class UserBehaviorModel(nn.Module):
+    """
+    Model user behavior as sequence of events
+
+    Architecture:
+    - LSTM: Sequence of user events
+    - Attention: Weight recent events more
+    - Output: User behavior embedding
+
+    Training:
+    - Predict next event from history
+    - Self-supervised on user logs
+
+    Inference:
+    - Encode user's recent events
+    - Compare to learned baseline
+    - Large deviation = anomaly
+    """
+
+    def __init__(
+        self,
+        event_dim: int = 64,
+        hidden_dim: int = 128,
+        num_event_types: int = 20
+    ):
+        super().__init__()
+
+        # Event type embedding
+        self.event_type_embedding = nn.Embedding(num_event_types, event_dim)
+
+        # LSTM for sequential modeling
+        self.lstm = nn.LSTM(
+            input_size=event_dim,
+            hidden_size=hidden_dim,
+            num_layers=2,
+            batch_first=True
+        )
+
+        # Attention
+        self.attention = nn.Linear(hidden_dim, 1)
+
+        # Output projection
+        self.output_projection = nn.Linear(hidden_dim, event_dim)
+
+    def forward(
+        self,
+        event_sequences: torch.Tensor
+    ) -> torch.Tensor:
+        """
+        Encode user behavior from event sequence
+
+        Args:
+            event_sequences: Event type IDs (batch, seq_len)
+
+        Returns:
+            User behavior embeddings (batch, event_dim)
+        """
+        # Embed events
+        event_embs = self.event_type_embedding(event_sequences)  # (batch, seq_len, event_dim)
+
+        # LSTM encoding
+        lstm_out, _ = self.lstm(event_embs)  # (batch, seq_len, hidden_dim)
+
+        # Attention mechanism
+        attn_weights = self.attention(lstm_out)  # (batch, seq_len, 1)
+        attn_weights = torch.softmax(attn_weights, dim=1)
+
+        # Weighted sum
+        behavior_emb = (lstm_out * attn_weights).sum(dim=1)  # (batch, hidden_dim)
+
+        # Project
+        behavior_emb = self.output_projection(behavior_emb)  # (batch, event_dim)
+
+        # Normalize
+        behavior_emb = F.normalize(behavior_emb, p=2, dim=1)
+
+        return behavior_emb
+
+class ThreatHuntingSystem:
+    """
+    Cybersecurity threat hunting system
+
+    Components:
+    1. User behavior baselines: Normal behavior for each user
+    2. Device baselines: Normal activity for each device
+    3. Anomaly detector: Deviation from baselines
+    4. Alert prioritization: Rank anomalies by severity
+
+    Features:
+    - Real-time monitoring
+    - User Entity Behavior Analytics (UEBA)
+    - Threat intelligence integration
+    - Investigation workflow
+    """
+
+    def __init__(
+        self,
+        event_dim: int = 64,
+        anomaly_threshold: float = 0.90
+    ):
+        """
+        Args:
+            event_dim: Event embedding dimension
+            anomaly_threshold: Percentile for anomaly cutoff
+        """
+        self.event_dim = event_dim
+        self.anomaly_threshold = anomaly_threshold
+
+        # User behavior model
+        self.behavior_model = UserBehaviorModel(event_dim=event_dim)
+        self.behavior_model.eval()
+
+        # User baselines: user_id -> baseline embedding
+        self.user_baselines: Dict[str, np.ndarray] = {}
+
+        # Device baselines: device_id -> baseline embedding
+        self.device_baselines: Dict[str, np.ndarray] = {}
+
+        # Event history: user_id -> deque of recent events
+        self.user_event_history: Dict[str, deque] = {}
+
+        # Threshold for anomaly scores
+        self.score_threshold: Optional[float] = None
+
+        # Event type mapping
+        self.event_type_to_idx = {
+            'login_success': 0,
+            'login_failure': 1,
+            'file_read': 2,
+            'file_write': 3,
+            'file_delete': 4,
+            'network_connection': 5,
+            'process_start': 6,
+            'process_terminate': 7
+        }
+
+        print(f"Initialized Threat Hunting System")
+        print(f"  Event dimension: {event_dim}")
+        print(f"  Anomaly threshold: {anomaly_threshold}")
+
+    def build_user_baseline(
+        self,
+        user_id: str,
+        events: List[SecurityEvent]
+    ):
+        """
+        Build behavioral baseline for user
+
+        Args:
+            user_id: User ID
+            events: Historical events for user (normal behavior)
+        """
+        # Extract event types
+        event_types = [
+            self.event_type_to_idx.get(event.event_type, 0)
+            for event in events
+        ]
+
+        # Encode event sequence
+        event_seq = torch.tensor([event_types], dtype=torch.long)
+
+        with torch.no_grad():
+            baseline_emb = self.behavior_model(event_seq)
+            self.user_baselines[user_id] = baseline_emb.numpy()[0]
+
+    def detect_threat(
+        self,
+        user_id: str,
+        recent_events: List[SecurityEvent]
+    ) -> Tuple[bool, float]:
+        """
+        Detect threats based on deviation from user baseline
+
+        Args:
+            user_id: User ID
+            recent_events: Recent events for user
+
+        Returns:
+            (is_threat, anomaly_score)
+        """
+        if user_id not in self.user_baselines:
+            # No baseline: Cannot detect anomaly
+            return False, 0.0
+
+        # Get baseline
+        baseline_emb = self.user_baselines[user_id]
+
+        # Encode recent events
+        event_types = [
+            self.event_type_to_idx.get(event.event_type, 0)
+            for event in recent_events
+        ]
+        event_seq = torch.tensor([event_types], dtype=torch.long)
+
+        with torch.no_grad():
+            current_emb = self.behavior_model(event_seq).numpy()[0]
+
+        # Compute distance from baseline
+        distance = np.linalg.norm(current_emb - baseline_emb)
+
+        # Flag if distance above threshold
+        # In production: Learn threshold from training data
+        is_threat = distance > 0.5  # Placeholder threshold
+
+        return is_threat, float(distance)
+
+# Example: Insider threat detection
+def threat_hunting_example():
+    """
+    Insider threat detection
+
+    Scenario:
+    - Employee with access to sensitive files
+    - Normal behavior: Log in 9-5, access project files
+    - Threat: Log in at 2am, access HR/finance files, large download
+
+    Detection: Deviation from learned baseline
+    """
+
+    # Initialize system
+    system = ThreatHuntingSystem(event_dim=64)
+
+    # Build baseline for normal user
+    normal_events = [
+        SecurityEvent(
+            event_id=f'event_{i}',
+            event_type='login_success',
+            user_id='employee_123',
+            device_id='laptop_456',
+            timestamp=time.time() - (100 - i) * 3600,
+            features={'location': 'office', 'time_of_day': 'business_hours'}
+        )
+        for i in range(0, 50, 5)
+    ]
+
+    # Add file access events
+    for i in range(10):
+        normal_events.append(
+            SecurityEvent(
+                event_id=f'file_event_{i}',
+                event_type='file_read',
+                user_id='employee_123',
+                device_id='laptop_456',
+                timestamp=time.time() - (100 - i * 5) * 3600,
+                features={'file_path': '/projects/project_a/data.xlsx'}
+            )
+        )
+
+    print("=== Building User Baseline ===")
+    system.build_user_baseline('employee_123', normal_events)
+    print(f"✓ Built baseline for employee_123 from {len(normal_events)} events")
+
+    # Test: Normal behavior
+    print("\n=== Testing Normal Behavior ===")
+    test_normal = [
+        SecurityEvent(
+            event_id='test_1',
+            event_type='login_success',
+            user_id='employee_123',
+            device_id='laptop_456',
+            timestamp=time.time(),
+            features={'location': 'office', 'time_of_day': 'business_hours'}
+        ),
+        SecurityEvent(
+            event_id='test_2',
+            event_type='file_read',
+            user_id='employee_123',
+            device_id='laptop_456',
+            timestamp=time.time() + 100,
+            features={'file_path': '/projects/project_a/report.pdf'}
+        )
+    ]
+
+    is_threat, score = system.detect_threat('employee_123', test_normal)
+    print(f"Recent events: {len(test_normal)}")
+    print(f"Anomaly score: {score:.4f}")
+    print(f"Threat detected: {is_threat}")
+
+    # Test: Anomalous behavior (insider threat)
+    print("\n=== Testing Anomalous Behavior ===")
+    test_anomaly = [
+        SecurityEvent(
+            event_id='test_3',
+            event_type='login_success',
+            user_id='employee_123',
+            device_id='laptop_456',
+            timestamp=time.time(),
+            features={'location': 'home', 'time_of_day': '2am'}  # Unusual time/location
+        ),
+        SecurityEvent(
+            event_id='test_4',
+            event_type='file_read',
+            user_id='employee_123',
+            device_id='laptop_456',
+            timestamp=time.time() + 100,
+            features={'file_path': '/hr/salaries.xlsx'}  # Sensitive file
+        ),
+        SecurityEvent(
+            event_id='test_5',
+            event_type='network_connection',
+            user_id='employee_123',
+            device_id='laptop_456',
+            timestamp=time.time() + 200,
+            features={'destination': 'personal_cloud_storage', 'bytes': 500000000}  # Large upload
+        )
+    ]
+
+    is_threat, score = system.detect_threat('employee_123', test_anomaly)
+    print(f"Recent events: {len(test_anomaly)}")
+    print(f"Anomaly score: {score:.4f}")
+    print(f"Threat detected: {is_threat}")
+
+# Uncomment to run:
+# threat_hunting_example()
+```
+
+:::{.callout-tip}
+## Threat Hunting Best Practices
+
+**Baselines:**
+- **Per-user baselines**: Each user has unique normal behavior
+- **Per-device baselines**: Each device has characteristic patterns
+- **Time-aware**: Behavior varies by time of day, day of week
+- **Context-aware**: Location, VPN usage, remote vs office
+
+**Features:**
+- **Login patterns**: Time, location, device, success/failure rate
+- **File access**: Paths accessed, read/write/delete ratios
+- **Network activity**: Connections, data volumes, destinations
+- **Process execution**: Binaries run, arguments, parent processes
+
+**Detection:**
+- **Sequential anomalies**: Unusual sequence of events (login → sensitive file → large upload)
+- **Statistical anomalies**: Unusual frequency, volume, or timing
+- **Behavioral drift**: Gradual change in behavior (slow compromise)
+- **Peer group analysis**: Deviation from similar users (same role, department)
+
+**Production:**
+- **Low latency**: <1 second for real-time alerting
+- **Prioritization**: Rank alerts by severity (combine multiple signals)
+- **Investigation workflow**: Provide context for analysts (what's unusual, why)
+- **Feedback loop**: Incorporate analyst decisions (true positive, false positive)
+:::
 
 ## Manufacturing Quality Control
 
-[Content to be written: Details about manufacturing quality control]
+Manufacturing produces millions of units, with defects causing recalls and safety issues. **Embedding-based quality control** represents products as vectors from sensor data, images, and measurements, detecting defects as outliers from normal specifications.
+
+### The Quality Control Challenge
+
+Traditional quality control uses thresholds:
+- If dimension < 10mm or > 12mm, reject
+- If surface roughness > 0.5µm, reject
+
+**Limitations:**
+- High dimensional data (100+ measurements)
+- Correlated features (defects manifest as combinations of features)
+- Rare defects (< 0.1%) missed by simple thresholds
+
+**Embedding approach**: Learn product embeddings from sensor/image data. Normal products cluster tightly; defects are outliers.
+
+```python
+"""
+Manufacturing Quality Control with Embeddings
+
+Architecture:
+1. Product encoder: Sensor data + images → embedding
+2. Normal cluster: Tight cluster of defect-free products
+3. Defect detection: Distance from normal cluster
+4. Defect classification: Identify defect type
+
+Data sources:
+- Sensor measurements (dimensions, weight, temperature, etc.)
+- Images (surface quality, alignment, completeness)
+- Process parameters (machine settings, environmental conditions)
+
+Applications:
+- Automotive: Detect paint defects, alignment issues
+- Electronics: Detect solder defects, component misplacement
+- Pharmaceuticals: Detect contamination, incorrect dosage
+"""
+
+import numpy as np
+import torch
+import torch.nn as nn
+from typing import List, Dict, Optional, Tuple
+from dataclasses import dataclass
+from PIL import Image
+
+@dataclass
+class Product:
+    """
+    Manufactured product with quality measurements
+
+    Attributes:
+        product_id: Unique identifier
+        measurements: Sensor measurements
+        image: Product image (optional)
+        process_params: Manufacturing process parameters
+        is_defective: Ground truth label
+        defect_type: Type of defect (if defective)
+    """
+    product_id: str
+    measurements: np.ndarray
+    image: Optional[Image.Image] = None
+    process_params: Optional[Dict[str, float]] = None
+    is_defective: bool = False
+    defect_type: Optional[str] = None
+
+class ProductEncoder(nn.Module):
+    """
+    Encode product to embedding
+
+    Architecture:
+    - Measurement encoder: MLP for sensor data
+    - Image encoder: CNN for product images
+    - Fusion: Combine measurements + images
+    """
+
+    def __init__(
+        self,
+        measurement_dim: int = 100,
+        image_embedding_dim: int = 256,
+        output_dim: int = 128
+    ):
+        super().__init__()
+
+        # Measurement encoder
+        self.measurement_encoder = nn.Sequential(
+            nn.Linear(measurement_dim, 256),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(256, 128)
+        )
+
+        # Image encoder (simplified CNN)
+        self.image_encoder = nn.Sequential(
+            nn.Conv2d(3, 32, kernel_size=3, stride=2, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1),
+            nn.ReLU(),
+            nn.AdaptiveAvgPool2d((1, 1)),
+            nn.Flatten(),
+            nn.Linear(64, image_embedding_dim)
+        )
+
+        # Fusion layer
+        self.fusion = nn.Linear(128 + image_embedding_dim, output_dim)
+
+    def forward(
+        self,
+        measurements: torch.Tensor,
+        images: Optional[torch.Tensor] = None
+    ) -> torch.Tensor:
+        """
+        Encode product
+
+        Args:
+            measurements: Sensor measurements (batch, measurement_dim)
+            images: Product images (batch, 3, H, W) (optional)
+
+        Returns:
+            Product embeddings (batch, output_dim)
+        """
+        # Encode measurements
+        measurement_emb = self.measurement_encoder(measurements)
+
+        # Encode images if available
+        if images is not None:
+            image_emb = self.image_encoder(images)
+        else:
+            # No image: Use zero embedding
+            image_emb = torch.zeros(measurements.size(0), 256).to(measurements.device)
+
+        # Fuse
+        combined = torch.cat([measurement_emb, image_emb], dim=1)
+        product_emb = self.fusion(combined)
+
+        # Normalize
+        product_emb = F.normalize(product_emb, p=2, dim=1)
+
+        return product_emb
+
+class QualityControlSystem:
+    """
+    Manufacturing quality control system
+
+    Components:
+    1. Product encoder: Product data → embedding
+    2. Normal cluster: Centroid and radius of defect-free products
+    3. Defect detector: Distance from normal cluster
+    4. Defect classifier: Identify defect type (optional)
+
+    Features:
+    - Real-time quality assessment
+    - Defect localization (which features are abnormal)
+    - Process monitoring (drift detection)
+    """
+
+    def __init__(
+        self,
+        embedding_dim: int = 128,
+        anomaly_threshold: float = 0.95
+    ):
+        """
+        Args:
+            embedding_dim: Embedding dimension
+            anomaly_threshold: Percentile for anomaly cutoff
+        """
+        self.embedding_dim = embedding_dim
+        self.anomaly_threshold = anomaly_threshold
+
+        # Product encoder
+        self.encoder = ProductEncoder(output_dim=embedding_dim)
+        self.encoder.eval()
+
+        # Normal cluster
+        self.cluster_centroid: Optional[np.ndarray] = None
+        self.cluster_radius: Optional[float] = None
+
+        # Statistics
+        self.products_inspected = 0
+        self.defects_detected = 0
+
+        print(f"Initialized Quality Control System")
+        print(f"  Embedding dimension: {embedding_dim}")
+
+    def build_normal_cluster(self, products: List[Product]):
+        """
+        Build cluster of normal (defect-free) products
+
+        Args:
+            products: Defect-free products for building baseline
+        """
+        print(f"Building normal cluster from {len(products)} products...")
+
+        embeddings = []
+
+        for product in products:
+            # Encode product
+            measurements = torch.from_numpy(product.measurements).unsqueeze(0).float()
+
+            with torch.no_grad():
+                emb = self.encoder(measurements)
+                embeddings.append(emb.numpy()[0])
+
+        embeddings = np.array(embeddings)
+
+        # Compute cluster centroid
+        self.cluster_centroid = np.mean(embeddings, axis=0)
+
+        # Compute distances from centroid
+        distances = np.linalg.norm(embeddings - self.cluster_centroid, axis=1)
+
+        # Set radius at specified percentile
+        self.cluster_radius = np.percentile(distances, self.anomaly_threshold * 100)
+
+        print(f"✓ Built normal cluster")
+        print(f"  Centroid: {self.cluster_centroid.shape}")
+        print(f"  Radius (95th percentile): {self.cluster_radius:.4f}")
+
+    def inspect_product(
+        self,
+        product: Product
+    ) -> Tuple[bool, float]:
+        """
+        Inspect product for defects
+
+        Args:
+            product: Product to inspect
+
+        Returns:
+            (is_defective, distance_from_normal)
+        """
+        if self.cluster_centroid is None:
+            raise ValueError("Normal cluster not built. Call build_normal_cluster() first.")
+
+        # Encode product
+        measurements = torch.from_numpy(product.measurements).unsqueeze(0).float()
+
+        with torch.no_grad():
+            emb = self.encoder(measurements).numpy()[0]
+
+        # Compute distance from cluster centroid
+        distance = np.linalg.norm(emb - self.cluster_centroid)
+
+        # Flag if outside cluster radius
+        is_defective = distance > self.cluster_radius
+
+        self.products_inspected += 1
+        if is_defective:
+            self.defects_detected += 1
+
+        return is_defective, float(distance)
+
+# Example: Electronics manufacturing
+def quality_control_example():
+    """
+    PCB (Printed Circuit Board) quality control
+
+    Use case:
+    - 1M PCBs/day
+    - 0.05% defect rate (500 defects)
+    - Defect types: solder defects, component misplacement, shorts
+
+    Detection: Visual inspection + electrical measurements
+    """
+
+    # Initialize system
+    system = QualityControlSystem(embedding_dim=64)
+
+    # Generate synthetic normal products
+    normal_products = []
+    for i in range(500):
+        # Normal measurements: Mean around 0, small variance
+        measurements = np.random.randn(100).astype(np.float32) * 0.1
+
+        product = Product(
+            product_id=f'product_{i}',
+            measurements=measurements,
+            is_defective=False
+        )
+        normal_products.append(product)
+
+    print("=== Building Normal Cluster ===")
+    system.build_normal_cluster(normal_products)
+
+    # Test: Normal product
+    print("\n=== Inspecting Normal Product ===")
+    test_normal = Product(
+        product_id='test_normal',
+        measurements=np.random.randn(100).astype(np.float32) * 0.1,
+        is_defective=False
+    )
+
+    is_defective, distance = system.inspect_product(test_normal)
+    print(f"Product ID: {test_normal.product_id}")
+    print(f"Distance from normal: {distance:.4f}")
+    print(f"Defective: {is_defective}")
+
+    # Test: Defective product
+    print("\n=== Inspecting Defective Product ===")
+    # Defective: Large deviation in measurements
+    defect_measurements = np.random.randn(100).astype(np.float32) * 0.1
+    defect_measurements[0:10] += 2.0  # Anomaly in first 10 measurements
+
+    test_defective = Product(
+        product_id='test_defective',
+        measurements=defect_measurements,
+        is_defective=True,
+        defect_type='solder_defect'
+    )
+
+    is_defective, distance = system.inspect_product(test_defective)
+    print(f"Product ID: {test_defective.product_id}")
+    print(f"Distance from normal: {distance:.4f}")
+    print(f"Defective: {is_defective}")
+
+    # Statistics
+    print(f"\n=== System Statistics ===")
+    print(f"Products inspected: {system.products_inspected}")
+    print(f"Defects detected: {system.defects_detected}")
+    print(f"Defect rate: {system.defects_detected / system.products_inspected:.2%}")
+
+# Uncomment to run:
+# quality_control_example()
+```
+
+:::{.callout-tip}
+## Quality Control Best Practices
+
+**Data collection:**
+- **Multi-modal**: Combine sensor measurements, images, process parameters
+- **High frequency**: Inspect every product (100% inspection)
+- **Temporal**: Track drift over time (machine wear, calibration)
+- **Provenance**: Link to production line, shift, machine
+
+**Modeling:**
+- **Unsupervised**: Defects are rare, labeled data limited
+- **Cluster-based**: Normal products form tight cluster
+- **Autoencoder**: Reconstruct normal products, high error = defect
+- **One-class SVM**: Learn boundary around normal products
+
+**Production:**
+- **Real-time**: Inspect at line speed (milliseconds per product)
+- **Inline integration**: Automatic rejection of defects
+- **Root cause analysis**: Identify which features are abnormal
+- **Process control**: Alert when cluster drifts (machine degradation)
+
+**Evaluation:**
+- **Precision**: % of flagged products that are true defects
+- **Recall**: % of true defects that are flagged
+- **Cost analysis**: False positive cost (wasted product) vs false negative cost (recalls)
+:::
 
 ## Financial Risk Assessment
 
-[Content to be written: Details about financial risk assessment]
+Financial institutions assess risk for loans, investments, and insurance. **Embedding-based risk assessment** represents companies, individuals, and transactions as vectors, identifying elevated risk through learned representations and relationships.
+
+### The Risk Assessment Challenge
+
+Traditional risk models use scores (credit score, financial ratios):
+- Credit score = f(payment history, debt, income)
+- Default risk = f(debt-to-income ratio, assets)
+
+**Limitations:**
+- Linear models miss complex interactions
+- Sparse data for new entities (thin credit files)
+- Cannot capture network effects (company relationships, supply chain risk)
+
+**Embedding approach**: Learn entity embeddings from financial data, network relationships, and behavioral patterns. Risk propagates through networks.
+
+```python
+"""
+Financial Risk Assessment with Embeddings
+
+Architecture:
+1. Entity encoder: Company/person features → embedding
+2. Transaction network: Graph of financial relationships
+3. Risk propagation: Risk flows through network
+4. Risk scoring: Distance from low-risk cluster
+
+Applications:
+- Credit risk: Predict loan default probability
+- Investment risk: Identify high-risk securities
+- Insurance risk: Price policies based on risk profile
+- Counterparty risk: Assess risk in financial networks
+"""
+
+import numpy as np
+import torch
+import torch.nn as nn
+from typing import List, Dict, Optional, Tuple
+from dataclasses import dataclass
+
+@dataclass
+class FinancialEntity:
+    """
+    Financial entity (company, person)
+
+    Attributes:
+        entity_id: Unique identifier
+        entity_type: Type (company, person)
+        features: Financial features (income, debt, assets, etc.)
+        risk_level: Risk category (low, medium, high)
+        embedding: Learned embedding
+    """
+    entity_id: str
+    entity_type: str
+    features: Dict[str, float]
+    risk_level: Optional[str] = None
+    embedding: Optional[np.ndarray] = None
+
+class FinancialEntityEncoder(nn.Module):
+    """
+    Encode financial entities to embeddings
+
+    Features:
+    - Financial ratios (debt-to-income, asset-to-liability, etc.)
+    - Behavioral features (payment history, transaction patterns)
+    - Network features (relationships, supply chain position)
+    """
+
+    def __init__(
+        self,
+        feature_dim: int = 50,
+        embedding_dim: int = 128
+    ):
+        super().__init__()
+
+        self.encoder = nn.Sequential(
+            nn.Linear(feature_dim, 128),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(128, embedding_dim)
+        )
+
+    def forward(self, features: torch.Tensor) -> torch.Tensor:
+        """
+        Encode entity
+
+        Args:
+            features: Entity features (batch, feature_dim)
+
+        Returns:
+            Entity embeddings (batch, embedding_dim)
+        """
+        emb = self.encoder(features)
+        emb = F.normalize(emb, p=2, dim=1)
+        return emb
+
+class RiskAssessmentSystem:
+    """
+    Financial risk assessment system
+
+    Components:
+    1. Entity encoder: Features → embedding
+    2. Risk clusters: Low/medium/high risk clusters
+    3. Network analysis: Risk propagation through relationships
+    4. Risk scoring: Probability of default/loss
+
+    Features:
+    - Credit risk scoring
+    - Portfolio risk assessment
+    - Network risk analysis (contagion)
+    """
+
+    def __init__(
+        self,
+        embedding_dim: int = 128
+    ):
+        """
+        Args:
+            embedding_dim: Embedding dimension
+        """
+        self.embedding_dim = embedding_dim
+
+        # Entity encoder
+        self.encoder = FinancialEntityEncoder(embedding_dim=embedding_dim)
+        self.encoder.eval()
+
+        # Risk cluster centroids
+        self.risk_centroids: Dict[str, np.ndarray] = {}
+
+        print(f"Initialized Risk Assessment System")
+        print(f"  Embedding dimension: {embedding_dim}")
+
+    def build_risk_clusters(
+        self,
+        entities: List[FinancialEntity]
+    ):
+        """
+        Build risk clusters from labeled entities
+
+        Args:
+            entities: Entities with known risk levels
+        """
+        print(f"Building risk clusters from {len(entities)} entities...")
+
+        # Group by risk level
+        risk_groups = {'low': [], 'medium': [], 'high': []}
+
+        for entity in entities:
+            if entity.risk_level in risk_groups:
+                # Extract features (simplified)
+                features = np.array([
+                    entity.features.get('debt_to_income', 0.5),
+                    entity.features.get('payment_history_score', 0.7),
+                    entity.features.get('assets', 50000) / 100000,
+                    # ... more features
+                ] + [0.0] * 47, dtype=np.float32)  # Pad to 50 dimensions
+
+                features_tensor = torch.from_numpy(features).unsqueeze(0)
+
+                with torch.no_grad():
+                    emb = self.encoder(features_tensor).numpy()[0]
+
+                risk_groups[entity.risk_level].append(emb)
+
+        # Compute cluster centroids
+        for risk_level, embeddings in risk_groups.items():
+            if embeddings:
+                self.risk_centroids[risk_level] = np.mean(embeddings, axis=0)
+                print(f"  {risk_level.capitalize()} risk: {len(embeddings)} entities")
+
+        print("✓ Built risk clusters")
+
+    def assess_risk(
+        self,
+        entity: FinancialEntity
+    ) -> Tuple[str, Dict[str, float]]:
+        """
+        Assess risk level for entity
+
+        Args:
+            entity: Entity to assess
+
+        Returns:
+            (risk_level, distances_to_clusters)
+        """
+        # Extract features
+        features = np.array([
+            entity.features.get('debt_to_income', 0.5),
+            entity.features.get('payment_history_score', 0.7),
+            entity.features.get('assets', 50000) / 100000,
+        ] + [0.0] * 47, dtype=np.float32)
+
+        features_tensor = torch.from_numpy(features).unsqueeze(0)
+
+        with torch.no_grad():
+            emb = self.encoder(features_tensor).numpy()[0]
+
+        # Compute distance to each risk cluster
+        distances = {}
+        for risk_level, centroid in self.risk_centroids.items():
+            distance = np.linalg.norm(emb - centroid)
+            distances[risk_level] = float(distance)
+
+        # Assign to nearest cluster
+        risk_level = min(distances.keys(), key=lambda k: distances[k])
+
+        return risk_level, distances
+
+# Example: Credit risk assessment
+def risk_assessment_example():
+    """
+    Credit risk assessment for loan applicants
+
+    Use case:
+    - 1M loan applications/year
+    - Predict default probability
+    - Set interest rates based on risk
+
+    Features: Income, debt, credit history, employment
+    """
+
+    # Initialize system
+    system = RiskAssessmentSystem(embedding_dim=64)
+
+    # Create training entities with known risk
+    training_entities = []
+
+    # Low risk entities
+    for i in range(100):
+        entity = FinancialEntity(
+            entity_id=f'low_risk_{i}',
+            entity_type='person',
+            features={
+                'debt_to_income': 0.2 + np.random.rand() * 0.1,  # 20-30%
+                'payment_history_score': 0.9 + np.random.rand() * 0.1,  # 90-100%
+                'assets': 100000 + np.random.rand() * 50000  # $100K-$150K
+            },
+            risk_level='low'
+        )
+        training_entities.append(entity)
+
+    # Medium risk entities
+    for i in range(100):
+        entity = FinancialEntity(
+            entity_id=f'medium_risk_{i}',
+            entity_type='person',
+            features={
+                'debt_to_income': 0.35 + np.random.rand() * 0.15,  # 35-50%
+                'payment_history_score': 0.7 + np.random.rand() * 0.15,  # 70-85%
+                'assets': 30000 + np.random.rand() * 40000  # $30K-$70K
+            },
+            risk_level='medium'
+        )
+        training_entities.append(entity)
+
+    # High risk entities
+    for i in range(100):
+        entity = FinancialEntity(
+            entity_id=f'high_risk_{i}',
+            entity_type='person',
+            features={
+                'debt_to_income': 0.6 + np.random.rand() * 0.3,  # 60-90%
+                'payment_history_score': 0.3 + np.random.rand() * 0.3,  # 30-60%
+                'assets': 5000 + np.random.rand() * 15000  # $5K-$20K
+            },
+            risk_level='high'
+        )
+        training_entities.append(entity)
+
+    print("=== Building Risk Clusters ===")
+    system.build_risk_clusters(training_entities)
+
+    # Assess new applicants
+    print("\n=== Assessing New Applicants ===")
+
+    # Test: Low risk applicant
+    test_low = FinancialEntity(
+        entity_id='applicant_1',
+        entity_type='person',
+        features={
+            'debt_to_income': 0.25,
+            'payment_history_score': 0.95,
+            'assets': 120000
+        }
+    )
+
+    risk_level, distances = system.assess_risk(test_low)
+    print(f"\nApplicant 1:")
+    print(f"  Debt-to-income: {test_low.features['debt_to_income']:.1%}")
+    print(f"  Payment history: {test_low.features['payment_history_score']:.1%}")
+    print(f"  Assets: ${test_low.features['assets']:,.0f}")
+    print(f"  Risk level: {risk_level.upper()}")
+    print(f"  Distances: {', '.join([f'{k}={v:.3f}' for k, v in distances.items()])}")
+
+    # Test: High risk applicant
+    test_high = FinancialEntity(
+        entity_id='applicant_2',
+        entity_type='person',
+        features={
+            'debt_to_income': 0.75,
+            'payment_history_score': 0.45,
+            'assets': 8000
+        }
+    )
+
+    risk_level, distances = system.assess_risk(test_high)
+    print(f"\nApplicant 2:")
+    print(f"  Debt-to-income: {test_high.features['debt_to_income']:.1%}")
+    print(f"  Payment history: {test_high.features['payment_history_score']:.1%}")
+    print(f"  Assets: ${test_high.features['assets']:,.0f}")
+    print(f"  Risk level: {risk_level.upper()}")
+    print(f"  Distances: {', '.join([f'{k}={v:.3f}' for k, v in distances.items()])}")
+
+# Uncomment to run:
+# risk_assessment_example()
+```
+
+:::{.callout-tip}
+## Risk Assessment Best Practices
+
+**Features:**
+- **Financial ratios**: Debt-to-income, debt-to-equity, liquidity ratios
+- **Behavioral**: Payment history, transaction patterns, volatility
+- **Network**: Relationships, supply chain dependencies, contagion risk
+- **Macroeconomic**: Industry trends, economic indicators
+
+**Modeling:**
+- **Multi-task learning**: Jointly predict default, delinquency, prepayment
+- **Temporal**: Time-varying embeddings (risk changes over time)
+- **Explainability**: SHAP values for regulatory compliance
+- **Calibration**: Predicted probabilities match observed frequencies
+
+**Production:**
+- **Real-time**: Score loan applications in seconds
+- **Batch**: Portfolio risk assessment overnight
+- **Monitoring**: Track model drift (economic conditions change)
+- **Backtesting**: Validate on historical defaults
+
+**Fairness:**
+- **Protected attributes**: Avoid bias on race, gender, age
+- **Disparate impact**: Equal false positive rates across groups
+- **Regulatory compliance**: Fair lending laws (ECOA, FCRA)
+:::
 
 ## Behavioral Anomaly Detection
 
-[Content to be written: Details about behavioral anomaly detection]
+User accounts can be compromised (phishing, credential stuffing) or misused (insider threats). **Behavioral anomaly detection** learns normal user behavior embeddings, flagging deviations that indicate account takeover or malicious activity.
+
+### The Behavioral Challenge
+
+Users exhibit consistent patterns:
+- Login times (weekdays 9-5)
+- Devices (laptop, phone)
+- Actions (emails, file access)
+
+**Account compromise changes behavior**:
+- Login from new location/device
+- Unusual actions (access sensitive files, bulk downloads)
+- Velocity changes (sudden spike in activity)
+
+**Challenge**: Detect deviations while adapting to legitimate behavior changes (new job, new phone).
+
+```python
+"""
+Behavioral Anomaly Detection
+
+Architecture:
+1. User behavior encoder: Actions → behavior embedding
+2. Baseline behavior: Normal behavior for each user
+3. Anomaly detector: Deviation from baseline
+4. Adaptive learning: Update baseline with confirmed normal behavior
+
+Use cases:
+- Account takeover detection
+- Insider threat detection
+- Bot detection (automated account usage)
+- Privilege escalation detection
+"""
+
+# Example: Account takeover detection
+def behavioral_anomaly_example():
+    """
+    Account takeover detection for web application
+
+    Normal behavior:
+    - User logs in weekdays 9am-6pm from office
+    - Accesses 10-20 pages per session
+    - Session duration: 5-30 minutes
+
+    Compromise indicators:
+    - Login at unusual time (3am)
+    - New location/device
+    - Unusual actions (admin panel access, bulk data export)
+    - High velocity (100+ pages in 5 minutes)
+    """
+
+    print("=== Account Takeover Detection ===")
+    print("\nNormal baseline:")
+    print("  Login time: Weekdays 9am-6pm")
+    print("  Location: San Francisco office")
+    print("  Device: MacBook Pro")
+    print("  Actions: View dashboard, edit documents")
+    print("  Velocity: 10-20 pages/session")
+
+    print("\n--- Legitimate Session ---")
+    print("Time: Tuesday 2pm")
+    print("Location: San Francisco office")
+    print("Device: MacBook Pro")
+    print("Actions: View dashboard, edit report, send email")
+    print("Velocity: 15 pages")
+    print("→ Anomaly score: 0.05 (NORMAL)")
+
+    print("\n--- Compromised Session ---")
+    print("Time: Saturday 3am")
+    print("Location: Unknown (Tor exit node)")
+    print("Device: Windows PC (new)")
+    print("Actions: Access admin panel, bulk export users, delete logs")
+    print("Velocity: 150 pages")
+    print("→ Anomaly score: 0.95 (ALERT: Possible account takeover)")
+
+    print("\n--- Legitimate Travel ---")
+    print("Time: Monday 10am")
+    print("Location: New York office (business trip)")
+    print("Device: MacBook Pro + iPhone")
+    print("Actions: View dashboard, edit documents")
+    print("Velocity: 12 pages")
+    print("→ Anomaly score: 0.25 (MONITOR: New location, but normal actions)")
+
+# Uncomment to run:
+# behavioral_anomaly_example()
+```
+
+:::{.callout-tip}
+## Behavioral Anomaly Best Practices
+
+**Features:**
+- **Temporal**: Time of day, day of week, session duration
+- **Spatial**: Location (IP geolocation), VPN usage
+- **Device**: Browser, OS, screen resolution (fingerprinting)
+- **Actions**: Pages visited, features used, API calls made
+- **Velocity**: Actions per minute, data transferred
+
+**Modeling:**
+- **Per-user baselines**: Each user has unique normal behavior
+- **LSTM**: Sequential modeling of user actions
+- **Autoencoder**: Reconstruct behavior, high error = anomaly
+- **Peer groups**: Compare to similar users (same role)
+
+**Production:**
+- **Real-time**: Flag suspicious sessions immediately
+- **Progressive authentication**: Challenge anomalous sessions (2FA, security questions)
+- **Adaptive baselines**: Update with confirmed normal behavior
+- **False positive management**: Avoid blocking legitimate users
+
+**Challenges:**
+- **Cold start**: New users have no baseline
+- **Concept drift**: Behavior changes over time (new role, new tools)
+- **Adversarial**: Attackers mimic normal behavior (slow compromise)
+:::
 
 ## Key Takeaways
 
-- [Key point 1 to be added]
-- [Key point 2 to be added]
-- [Key point 3 to be added]
+- **Embedding-based anomaly detection learns normal behavior as dense clusters**: Anomalies manifest as outliers far from normal clusters, enabling unsupervised detection of novel attacks and fraud patterns never seen during training
+
+- **Autoencoders provide effective unsupervised anomaly detection**: Training on normal transactions to minimize reconstruction error creates detectors where high error indicates fraud, bypassing the need for labeled anomaly examples
+
+- **Behavioral embeddings enable threat hunting at scale**: Sequential models (LSTM, Transformer) over user/device event streams learn typical behavior patterns, with deviations flagging account compromise, insider threats, and lateral movement
+
+- **Manufacturing quality control benefits from multi-modal embeddings**: Combining sensor measurements and images in unified embeddings detects complex defect patterns that simple threshold-based systems miss, achieving sub-0.1% defect rates
+
+- **Financial risk propagates through network embeddings**: Graph neural networks on transaction and relationship networks capture contagion risk and identify entities at elevated risk through network position and relationships
+
+- **Online learning is critical for production anomaly detection**: Attackers evolve tactics, manufacturing processes drift, user behavior changes—systems must incrementally update embeddings and thresholds to avoid degrading accuracy over time
+
+- **Explainability and false positive management determine adoption**: High false positive rates create user friction and alert fatigue, requiring SHAP-style feature attribution to help analysts understand anomalies and progressive authentication to balance security and usability
 
 ## Looking Ahead
 
-Chapter 17 explores how embeddings power automated decision systems.
+Part IV (Advanced Applications) continues with Chapter 17, which explores automated decision systems powered by embeddings: embedding-driven business rules that replace hand-crafted logic with learned patterns, dynamic pricing systems that optimize prices based on learned product and customer embeddings, supply chain optimization using facility and route embeddings to minimize costs, risk scoring and underwriting with entity embeddings for credit and insurance decisions, and predictive maintenance systems that use equipment embeddings to forecast failures and schedule interventions before breakdowns occur.
 
 ## Further Reading
 
-- [References to be added]
+### Fraud Detection
+- Cheng, Dawei, et al. (2020). "Graph Neural Network for Fraud Detection via Spatial-temporal Attention." IEEE TKDE.
+- Van Vlasselaer, Véronique, et al. (2015). "APATE: A Novel Approach for Automated Credit Card Transaction Fraud Detection using Network-based Extensions." Decision Support Systems.
+- Abdallah, Ali, et al. (2016). "Fraud Detection System: A Survey." Journal of Network and Computer Applications.
+- Wang, Daixin, et al. (2019). "A Semi-supervised Graph Attentive Network for Financial Fraud Detection." ICDM.
+
+### Cybersecurity and Threat Detection
+- Sommer, Robin, and Vern Paxson (2010). "Outside the Closed World: On Using Machine Learning for Network Intrusion Detection." IEEE S&P.
+- Tuor, Aaron, et al. (2017). "Deep Learning for Unsupervised Insider Threat Detection in Structured Cybersecurity Data Streams." AAAI Workshop.
+- Ding, Kaize, et al. (2019). "Deep Anomaly Detection on Attributed Networks." SDM.
+- Yuan, Shuhan, et al. (2019). "Insider Threat Detection with Deep Neural Network." CODASPY.
+
+### Manufacturing Quality Control
+- Weimer, Daniel, et al. (2016). "Design of Deep Convolutional Neural Network Architectures for Automated Feature Extraction in Industrial Inspection." CIRP Annals.
+- Wang, Jenq-Neng, et al. (2018). "Autoencoder-based Anomaly Detection for Surface Defect Inspection." Advanced Engineering Informatics.
+- Fink, Olga, et al. (2020). "Potential, Challenges and Future Directions for Deep Learning in Prognostics and Health Management Applications." Engineering Applications of Artificial Intelligence.
+- Tercan, Hasan, and Tobias Meisen (2022). "Machine Learning and Deep Learning Based Predictive Quality in Manufacturing: A Systematic Review." Journal of Intelligent Manufacturing.
+
+### Financial Risk Assessment
+- Khandani, Amir E., Adlar J. Kim, and Andrew W. Lo (2010). "Consumer Credit-Risk Models via Machine-Learning Algorithms." Journal of Banking & Finance.
+- Barboza, Flavio, et al. (2017). "Machine Learning Models and Bankruptcy Prediction." Expert Systems with Applications.
+- Moscato, Valentina, et al. (2021). "A Benchmark of Machine Learning Approaches for Credit Score Prediction." Expert Systems with Applications.
+- Addo, Peter Martey, Dominique Guegan, and Bertrand Hassani (2018). "Credit Risk Analysis Using Machine and Deep Learning Models." Risks.
+
+### Behavioral Anomaly Detection
+- Xu, Ke, et al. (2018). "Show, Attend and Tell: Neural Image Caption Generation with Visual Attention Applied to Insider Threat Detection." Journal of Wireless Mobile Networks.
+- Das, Sanmitra, et al. (2019). "Online Multimodal Deep Similarity Learning with Application to Insider Threat Detection." ACM TOPS.
+- Legg, Philip A., et al. (2015). "Automated Insider Threat Detection System Using User and Role-Based Profile Assessment." IEEE Systems Journal.
+- Liu, Lin, et al. (2018). "GEM: Graph Embedding for Insider Threat Detection." IEEE BigData.
