@@ -1,40 +1,2029 @@
-# Siamese Networks for Specialized Use Cases {{#sec-siamese-networks}}
+# Siamese Networks for Specialized Use Cases {#sec-siamese-networks}
 
-:::{{.callout-note}}
+:::{.callout-note}
 ## Chapter Overview
-This chapter covers siamese architecture for enterprise similarity, triplet loss optimization techniques, and 3 more topics.
+While contrastive learning (Chapter 5) taught us how to train embeddings that distinguish similar from dissimilar, Siamese networks provide the architectural foundation for similarity-based learning at enterprise scale. This chapter explores Siamese architectures—twin neural networks that excel at learning similarity metrics for specialized use cases including one-shot learning, anomaly detection, and verification systems. We cover the architectural patterns, triplet loss optimization, strategies for rare event handling, threshold calibration techniques, and production deployment patterns that enable Siamese networks to scale to trillion-row deployments.
 :::
 
 ## Siamese Architecture for Enterprise Similarity
 
-[Content to be written: Details about siamese architecture for enterprise similarity]
+Siamese networks solve a fundamental challenge: **how do you learn similarity when you have few examples per class, unbalanced distributions, or continuously evolving categories?** Traditional classifiers fail in these scenarios. Siamese networks succeed by learning to compare rather than classify.
+
+### The Siamese Paradigm
+
+Named after Siamese twins, a Siamese network consists of two or more identical neural networks (sharing weights) that process different inputs and compare their outputs. The key insight: **instead of learning "what is X?", learn "how similar are X and Y?"**
+
+This shift enables:
+- **Few-shot learning**: Learn from 1-5 examples per class
+- **Open-set recognition**: Handle classes not seen during training
+- **Verification tasks**: "Are these the same?" vs "What is this?"
+- **Similarity search**: Find nearest neighbors in learned space
+
+```python
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+class SiameseNetwork(nn.Module):
+    """
+    Siamese Network for learning similarity metrics
+
+    Architecture: Two identical networks (shared weights) process different
+    inputs, producing embeddings that are compared using a distance metric.
+
+    Use cases:
+    - Face verification: "Is this the same person?"
+    - Document similarity: "Are these papers related?"
+    - Product matching: "Are these the same item?"
+    - Anomaly detection: "Is this different from normal?"
+    """
+
+    def __init__(self, embedding_net, embedding_dim=512):
+        """
+        Args:
+            embedding_net: The base network for creating embeddings
+                          (e.g., ResNet, BERT, custom architecture)
+            embedding_dim: Dimension of output embeddings
+        """
+        super().__init__()
+        self.embedding_net = embedding_net
+        self.embedding_dim = embedding_dim
+
+    def forward(self, x1, x2):
+        """
+        Forward pass through Siamese network
+
+        Args:
+            x1: First input (batch_size, ...)
+            x2: Second input (batch_size, ...)
+
+        Returns:
+            embedding1: Embeddings for x1 (batch_size, embedding_dim)
+            embedding2: Embeddings for x2 (batch_size, embedding_dim)
+        """
+        # Both inputs go through the SAME network (shared weights)
+        embedding1 = self.embedding_net(x1)
+        embedding2 = self.embedding_net(x2)
+
+        return embedding1, embedding2
+
+    def get_embedding(self, x):
+        """Get embedding for a single input"""
+        return self.embedding_net(x)
+
+
+class EmbeddingNet(nn.Module):
+    """
+    Example embedding network for structured/tabular data
+
+    For images: Use ResNet, EfficientNet, Vision Transformer
+    For text: Use BERT, RoBERTa, sentence transformers
+    For multimodal: Use CLIP-style architectures
+    """
+
+    def __init__(self, input_dim, embedding_dim=512, hidden_dims=[1024, 512]):
+        super().__init__()
+
+        layers = []
+        prev_dim = input_dim
+
+        for hidden_dim in hidden_dims:
+            layers.extend([
+                nn.Linear(prev_dim, hidden_dim),
+                nn.BatchNorm1d(hidden_dim),
+                nn.ReLU(),
+                nn.Dropout(0.3)
+            ])
+            prev_dim = hidden_dim
+
+        # Final embedding layer
+        layers.append(nn.Linear(prev_dim, embedding_dim))
+
+        self.network = nn.Sequential(*layers)
+
+    def forward(self, x):
+        """
+        Args:
+            x: Input features (batch_size, input_dim)
+
+        Returns:
+            embeddings: L2-normalized embeddings (batch_size, embedding_dim)
+        """
+        embeddings = self.network(x)
+        # L2 normalization for cosine similarity
+        return F.normalize(embeddings, p=2, dim=1)
+
+
+# Example: Building a Siamese network for enterprise use
+def create_enterprise_siamese_network(input_type='tabular', input_dim=None):
+    """
+    Factory function for creating Siamese networks
+
+    Args:
+        input_type: 'tabular', 'image', 'text', or 'multimodal'
+        input_dim: Input dimension (for tabular data)
+
+    Returns:
+        SiameseNetwork instance configured for the input type
+    """
+
+    if input_type == 'tabular':
+        if input_dim is None:
+            raise ValueError("input_dim required for tabular data")
+        embedding_net = EmbeddingNet(
+            input_dim=input_dim,
+            embedding_dim=512,
+            hidden_dims=[1024, 768, 512]
+        )
+
+    elif input_type == 'image':
+        # Use pre-trained ResNet
+        import torchvision.models as models
+        resnet = models.resnet50(pretrained=True)
+        # Remove classification head
+        embedding_net = nn.Sequential(*list(resnet.children())[:-1])
+
+    elif input_type == 'text':
+        # Use transformer-based encoder
+        from transformers import AutoModel
+        embedding_net = AutoModel.from_pretrained('bert-base-uncased')
+
+    else:
+        raise ValueError(f"Unknown input_type: {input_type}")
+
+    return SiameseNetwork(embedding_net, embedding_dim=512)
+```
+
+### Contrastive Loss for Siamese Networks
+
+The classic Siamese network uses **contrastive loss** to bring similar pairs together and push dissimilar pairs apart:
+
+```python
+class ContrastiveLoss(nn.Module):
+    """
+    Contrastive loss for Siamese networks
+
+    Introduced by Hadsell et al. (2006) for learning similarity metrics.
+
+    Loss = (1 - Y) * 0.5 * D^2 + Y * 0.5 * max(margin - D, 0)^2
+
+    Where:
+    - Y = 1 if pair is dissimilar, 0 if similar
+    - D = distance between embeddings
+    - margin = how far apart dissimilar pairs should be
+    """
+
+    def __init__(self, margin=2.0):
+        """
+        Args:
+            margin: Margin for dissimilar pairs. Dissimilar pairs with
+                   distance > margin contribute 0 to loss.
+                   Typical values: 1.0 - 2.0
+        """
+        super().__init__()
+        self.margin = margin
+
+    def forward(self, embedding1, embedding2, label):
+        """
+        Compute contrastive loss
+
+        Args:
+            embedding1: First embeddings (batch_size, embedding_dim)
+            embedding2: Second embeddings (batch_size, embedding_dim)
+            label: 0 if similar, 1 if dissimilar (batch_size,)
+
+        Returns:
+            loss: Scalar tensor
+            metrics: Dict with distances and accuracy
+        """
+        # Euclidean distance
+        euclidean_distance = F.pairwise_distance(embedding1, embedding2)
+
+        # Contrastive loss
+        # For similar pairs (label=0): minimize distance
+        # For dissimilar pairs (label=1): maximize distance up to margin
+        loss_similar = (1 - label) * torch.pow(euclidean_distance, 2)
+        loss_dissimilar = label * torch.pow(
+            torch.clamp(self.margin - euclidean_distance, min=0.0), 2
+        )
+
+        loss = torch.mean(loss_similar + loss_dissimilar) * 0.5
+
+        # Compute metrics
+        with torch.no_grad():
+            # Accuracy: similar pairs have distance < margin/2
+            threshold = self.margin / 2
+            predictions = (euclidean_distance < threshold).long()
+            accuracy = (predictions == (1 - label)).float().mean()
+
+            similar_mask = (label == 0)
+            dissimilar_mask = (label == 1)
+
+            metrics = {
+                'loss': loss.item(),
+                'accuracy': accuracy.item(),
+                'mean_similar_distance': euclidean_distance[similar_mask].mean().item() if similar_mask.any() else 0,
+                'mean_dissimilar_distance': euclidean_distance[dissimilar_mask].mean().item() if dissimilar_mask.any() else 0,
+            }
+
+        return loss, metrics
+```
+
+:::{.callout-tip}
+## Choosing Distance Metrics
+
+**Euclidean distance** works well for normalized embeddings in low dimensions (< 128).
+
+**Cosine distance** (1 - cosine similarity) is preferred for:
+- High-dimensional embeddings (> 128)
+- Text embeddings
+- When magnitude isn't meaningful
+
+**Learned distance metrics** (e.g., Mahalanobis) can capture domain-specific similarity but require more data and computation.
+:::
+
+### Enterprise Siamese Architecture Patterns
+
+For production systems handling billions of comparisons daily, architecture choices matter:
+
+```python
+class EnterpriseOptimizedSiameseNetwork(nn.Module):
+    """
+    Production-optimized Siamese network with enterprise features
+
+    Features:
+    - Mixed precision training support
+    - Gradient checkpointing for memory efficiency
+    - Batch normalization for stability
+    - Optional attention mechanisms
+    - Multi-GPU training support
+    """
+
+    def __init__(
+        self,
+        base_model,
+        embedding_dim=512,
+        use_attention=True,
+        use_gradient_checkpointing=False
+    ):
+        super().__init__()
+
+        self.base_model = base_model
+        self.use_gradient_checkpointing = use_gradient_checkpointing
+
+        # Projection head for better embeddings
+        self.projection = nn.Sequential(
+            nn.Linear(embedding_dim, embedding_dim),
+            nn.BatchNorm1d(embedding_dim),
+            nn.ReLU(),
+            nn.Linear(embedding_dim, embedding_dim)
+        )
+
+        # Optional attention for focusing on important features
+        if use_attention:
+            self.attention = nn.MultiheadAttention(
+                embed_dim=embedding_dim,
+                num_heads=8,
+                dropout=0.1,
+                batch_first=True
+            )
+        else:
+            self.attention = None
+
+    def forward(self, x1, x2):
+        """Forward pass with optional gradient checkpointing"""
+
+        if self.use_gradient_checkpointing and self.training:
+            # Save memory during training by recomputing activations
+            embedding1 = torch.utils.checkpoint.checkpoint(
+                self._encode, x1
+            )
+            embedding2 = torch.utils.checkpoint.checkpoint(
+                self._encode, x2
+            )
+        else:
+            embedding1 = self._encode(x1)
+            embedding2 = self._encode(x2)
+
+        return embedding1, embedding2
+
+    def _encode(self, x):
+        """Encode input to embedding"""
+        # Base encoding
+        features = self.base_model(x)
+
+        # Apply attention if configured
+        if self.attention is not None:
+            # Reshape for attention (batch, seq_len=1, dim)
+            features_reshaped = features.unsqueeze(1)
+            attended, _ = self.attention(
+                features_reshaped,
+                features_reshaped,
+                features_reshaped
+            )
+            features = attended.squeeze(1)
+
+        # Project to embedding space
+        embedding = self.projection(features)
+
+        # L2 normalize
+        return F.normalize(embedding, p=2, dim=1)
+
+
+# Training loop with mixed precision
+def train_siamese_enterprise(
+    model,
+    train_loader,
+    optimizer,
+    criterion,
+    device,
+    use_amp=True
+):
+    """
+    Enterprise training loop with automatic mixed precision
+
+    Args:
+        model: Siamese network
+        train_loader: DataLoader yielding (x1, x2, labels)
+        optimizer: PyTorch optimizer
+        criterion: Loss function (ContrastiveLoss or TripletLoss)
+        device: 'cuda' or 'cpu'
+        use_amp: Use automatic mixed precision for faster training
+    """
+    model.train()
+    scaler = torch.cuda.amp.GradScaler() if use_amp else None
+
+    total_loss = 0
+    total_accuracy = 0
+
+    for batch_idx, (x1, x2, labels) in enumerate(train_loader):
+        x1, x2, labels = x1.to(device), x2.to(device), labels.to(device)
+
+        optimizer.zero_grad()
+
+        if use_amp:
+            # Mixed precision training
+            with torch.cuda.amp.autocast():
+                embedding1, embedding2 = model(x1, x2)
+                loss, metrics = criterion(embedding1, embedding2, labels)
+
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
+        else:
+            # Standard training
+            embedding1, embedding2 = model(x1, x2)
+            loss, metrics = criterion(embedding1, embedding2, labels)
+
+            loss.backward()
+            optimizer.step()
+
+        total_loss += metrics['loss']
+        total_accuracy += metrics['accuracy']
+
+    avg_loss = total_loss / len(train_loader)
+    avg_accuracy = total_accuracy / len(train_loader)
+
+    return {
+        'loss': avg_loss,
+        'accuracy': avg_accuracy
+    }
+```
+
+:::{.callout-warning}
+## Production Considerations
+
+**Memory Management**: For large models (> 1B parameters), gradient checkpointing is essential. It trades 30% more compute for 50% less memory.
+
+**Batch Size Selection**: Larger batches (256-1024) improve training stability for Siamese networks. Use gradient accumulation if GPU memory is limited.
+
+**Learning Rate**: Start with 1e-4 for fine-tuning pre-trained models, 1e-3 for training from scratch. Use warmup for stability.
+:::
 
 ## Triplet Loss Optimization Techniques
 
-[Content to be written: Details about triplet loss optimization techniques]
+While contrastive loss works with pairs, **triplet loss** works with triplets: (anchor, positive, negative). This provides more information per training example and often leads to better embeddings.
+
+### Triplet Loss Fundamentals
+
+Triplet loss ensures that anchor-positive distance is smaller than anchor-negative distance by at least a margin:
+
+**Loss = max(d(anchor, positive) - d(anchor, negative) + margin, 0)**
+
+```python
+class TripletLoss(nn.Module):
+    """
+    Triplet loss for learning embeddings
+
+    Introduced by Schroff et al. (2015) for FaceNet.
+    More efficient than contrastive loss as each sample contributes
+    to two comparisons (positive and negative).
+
+    The goal: d(anchor, positive) + margin < d(anchor, negative)
+    """
+
+    def __init__(self, margin=1.0, distance_metric='euclidean'):
+        """
+        Args:
+            margin: Minimum difference between positive and negative distances
+            distance_metric: 'euclidean' or 'cosine'
+        """
+        super().__init__()
+        self.margin = margin
+        self.distance_metric = distance_metric
+
+    def forward(self, anchor, positive, negative):
+        """
+        Compute triplet loss
+
+        Args:
+            anchor: Anchor embeddings (batch_size, embedding_dim)
+            positive: Positive embeddings (batch_size, embedding_dim)
+            negative: Negative embeddings (batch_size, embedding_dim)
+
+        Returns:
+            loss: Scalar tensor
+            metrics: Dict with distances and statistics
+        """
+        if self.distance_metric == 'euclidean':
+            pos_distance = F.pairwise_distance(anchor, positive, p=2)
+            neg_distance = F.pairwise_distance(anchor, negative, p=2)
+        elif self.distance_metric == 'cosine':
+            pos_distance = 1 - F.cosine_similarity(anchor, positive)
+            neg_distance = 1 - F.cosine_similarity(anchor, negative)
+        else:
+            raise ValueError(f"Unknown distance metric: {self.distance_metric}")
+
+        # Triplet loss: positive should be closer than negative by margin
+        losses = F.relu(pos_distance - neg_distance + self.margin)
+        loss = losses.mean()
+
+        # Compute metrics
+        with torch.no_grad():
+            # Fraction of triplets that violate the margin
+            hard_triplets = (losses > 0).float().mean()
+
+            # Average distances
+            avg_pos_distance = pos_distance.mean()
+            avg_neg_distance = neg_distance.mean()
+
+            # Accuracy: positive closer than negative
+            accuracy = (pos_distance < neg_distance).float().mean()
+
+            metrics = {
+                'loss': loss.item(),
+                'accuracy': accuracy.item(),
+                'hard_triplets_fraction': hard_triplets.item(),
+                'avg_pos_distance': avg_pos_distance.item(),
+                'avg_neg_distance': avg_neg_distance.item(),
+                'avg_margin': (avg_neg_distance - avg_pos_distance).item()
+            }
+
+        return loss, metrics
+```
+
+### Advanced Triplet Loss Variants
+
+For enterprise scale, basic triplet loss isn't enough. Here are production-tested variants:
+
+```python
+class AdvancedTripletLoss(nn.Module):
+    """
+    Advanced triplet loss with multiple optimization techniques
+
+    Improvements over basic triplet loss:
+    1. Hard negative mining: Focus on difficult examples
+    2. Semi-hard negative mining: Balance between hard and random
+    3. Soft margin: Smooth gradients for better optimization
+    4. Angular loss: Focus on angles rather than distances
+    """
+
+    def __init__(
+        self,
+        margin=1.0,
+        mining_strategy='semi-hard',  # 'hard', 'semi-hard', 'all'
+        use_soft_margin=False,
+        distance_metric='euclidean'
+    ):
+        super().__init__()
+        self.margin = margin
+        self.mining_strategy = mining_strategy
+        self.use_soft_margin = use_soft_margin
+        self.distance_metric = distance_metric
+
+    def forward(self, embeddings, labels):
+        """
+        Compute triplet loss with online mining
+
+        Args:
+            embeddings: All embeddings in batch (batch_size, embedding_dim)
+            labels: Class labels (batch_size,)
+
+        Returns:
+            loss: Scalar tensor
+            metrics: Dict with mining statistics
+        """
+        batch_size = embeddings.shape[0]
+
+        # Compute pairwise distances
+        if self.distance_metric == 'euclidean':
+            distances = torch.cdist(embeddings, embeddings, p=2)
+        else:  # cosine
+            # Normalize embeddings
+            embeddings_norm = F.normalize(embeddings, p=2, dim=1)
+            distances = 1 - torch.mm(embeddings_norm, embeddings_norm.T)
+
+        # Find valid triplets
+        triplets = self._mine_triplets(distances, labels)
+
+        if len(triplets) == 0:
+            # No valid triplets found
+            return torch.tensor(0.0, device=embeddings.device), {
+                'loss': 0.0,
+                'num_triplets': 0,
+                'hard_triplets_fraction': 0.0
+            }
+
+        # Extract distances for valid triplets
+        anchor_idx, positive_idx, negative_idx = zip(*triplets)
+
+        pos_distances = distances[anchor_idx, positive_idx]
+        neg_distances = distances[anchor_idx, negative_idx]
+
+        # Compute loss
+        if self.use_soft_margin:
+            # Soft margin: log(1 + exp(pos - neg))
+            # Smoother gradients, better for optimization
+            loss = torch.log1p(torch.exp(pos_distances - neg_distances)).mean()
+        else:
+            # Hard margin: max(pos - neg + margin, 0)
+            loss = F.relu(pos_distances - neg_distances + self.margin).mean()
+
+        # Compute metrics
+        with torch.no_grad():
+            hard_triplets = (pos_distances > neg_distances).float().mean()
+
+            metrics = {
+                'loss': loss.item(),
+                'num_triplets': len(triplets),
+                'hard_triplets_fraction': hard_triplets.item(),
+                'avg_pos_distance': pos_distances.mean().item(),
+                'avg_neg_distance': neg_distances.mean().item()
+            }
+
+        return loss, metrics
+
+    def _mine_triplets(self, distances, labels):
+        """
+        Mine triplets based on strategy
+
+        Hard negative mining: For each anchor-positive pair, select the
+        negative that's closest to the anchor (hardest negative).
+
+        Semi-hard negative mining: Select negatives that are farther than
+        positive but still within the margin (challenging but not impossible).
+
+        All: Use all valid triplets (computationally expensive).
+        """
+        batch_size = labels.shape[0]
+        triplets = []
+
+        for i in range(batch_size):
+            anchor_label = labels[i]
+
+            # Find all positives (same label, different index)
+            positive_mask = (labels == anchor_label) & (torch.arange(batch_size, device=labels.device) != i)
+            positive_indices = torch.where(positive_mask)[0]
+
+            if len(positive_indices) == 0:
+                continue
+
+            # Find all negatives (different label)
+            negative_mask = (labels != anchor_label)
+            negative_indices = torch.where(negative_mask)[0]
+
+            if len(negative_indices) == 0:
+                continue
+
+            # Get distances from anchor
+            anchor_pos_distances = distances[i, positive_indices]
+            anchor_neg_distances = distances[i, negative_indices]
+
+            if self.mining_strategy == 'hard':
+                # For each positive, find hardest negative
+                for pos_idx in positive_indices:
+                    pos_distance = distances[i, pos_idx]
+
+                    # Hardest negative: closest negative to anchor
+                    hardest_neg_idx = negative_indices[anchor_neg_distances.argmin()]
+
+                    triplets.append((i, pos_idx.item(), hardest_neg_idx.item()))
+
+            elif self.mining_strategy == 'semi-hard':
+                # For each positive, find semi-hard negatives
+                for j, pos_idx in enumerate(positive_indices):
+                    pos_distance = anchor_pos_distances[j]
+
+                    # Semi-hard: negatives farther than positive but within margin
+                    semi_hard_mask = (anchor_neg_distances > pos_distance) & \
+                                   (anchor_neg_distances < pos_distance + self.margin)
+
+                    if semi_hard_mask.any():
+                        semi_hard_negs = negative_indices[semi_hard_mask]
+                        # Pick one semi-hard negative
+                        neg_idx = semi_hard_negs[0]
+                    else:
+                        # Fall back to hardest negative
+                        neg_idx = negative_indices[anchor_neg_distances.argmin()]
+
+                    triplets.append((i, pos_idx.item(), neg_idx.item()))
+
+            else:  # 'all'
+                # Use all valid combinations (expensive!)
+                for pos_idx in positive_indices:
+                    for neg_idx in negative_indices:
+                        triplets.append((i, pos_idx.item(), neg_idx.item()))
+
+        return triplets
+
+
+class AngularTripletLoss(nn.Module):
+    """
+    Angular triplet loss for better geometric properties
+
+    Instead of distance margins, focuses on angles between embeddings.
+    Provides better invariance to embedding magnitude.
+
+    Reference: "Deep Metric Learning with Angular Loss" (Wang et al., 2017)
+    """
+
+    def __init__(self, alpha=45):
+        """
+        Args:
+            alpha: Angular margin in degrees (typical: 30-50 degrees)
+        """
+        super().__init__()
+        self.alpha = torch.tensor(alpha * torch.pi / 180)  # Convert to radians
+
+    def forward(self, anchor, positive, negative):
+        """
+        Compute angular triplet loss
+
+        The loss encourages the angle between (anchor, positive) to be smaller
+        than the angle between (anchor, negative) by at least alpha.
+        """
+        # Normalize embeddings
+        anchor = F.normalize(anchor, p=2, dim=1)
+        positive = F.normalize(positive, p=2, dim=1)
+        negative = F.normalize(negative, p=2, dim=1)
+
+        # Compute angles using dot products
+        anchor_positive = (anchor * positive).sum(dim=1)
+        anchor_negative = (anchor * negative).sum(dim=1)
+
+        # Convert to angles
+        angle_ap = torch.acos(torch.clamp(anchor_positive, -1, 1))
+        angle_an = torch.acos(torch.clamp(anchor_negative, -1, 1))
+
+        # Angular margin loss
+        loss = F.relu(angle_ap - angle_an + self.alpha).mean()
+
+        with torch.no_grad():
+            metrics = {
+                'loss': loss.item(),
+                'avg_angle_ap': (angle_ap * 180 / torch.pi).mean().item(),
+                'avg_angle_an': (angle_an * 180 / torch.pi).mean().item(),
+            }
+
+        return loss, metrics
+```
+
+:::{.callout-tip}
+## Mining Strategy Selection
+
+**Hard negative mining**: Best for well-separated classes. Can cause training instability if classes overlap.
+
+**Semi-hard negative mining**: Recommended for production. Balances learning speed with stability. Use when classes have some overlap.
+
+**All triplets**: Only for small datasets (< 10K examples) or final fine-tuning. Computationally expensive.
+
+**Rule of thumb**: Start with semi-hard, switch to hard if training plateaus after 70% of epochs.
+:::
+
+### Batch Construction for Efficient Triplet Training
+
+Efficient triplet mining requires careful batch construction:
+
+```python
+import numpy as np
+from torch.utils.data import Sampler
+
+class BalancedBatchSampler(Sampler):
+    """
+    Sampler that ensures each batch contains multiple examples per class
+
+    Critical for triplet loss: need positives and negatives in each batch.
+
+    Strategy: Sample P classes, then sample K examples from each class.
+    Batch size = P * K
+    """
+
+    def __init__(self, labels, n_classes_per_batch=10, n_samples_per_class=5):
+        """
+        Args:
+            labels: List or array of labels for all samples
+            n_classes_per_batch: Number of classes per batch (P)
+            n_samples_per_class: Number of samples per class (K)
+        """
+        self.labels = np.array(labels)
+        self.n_classes_per_batch = n_classes_per_batch
+        self.n_samples_per_class = n_samples_per_class
+
+        # Build index mapping: class_id -> [sample_indices]
+        self.class_to_indices = {}
+        for idx, label in enumerate(self.labels):
+            if label not in self.class_to_indices:
+                self.class_to_indices[label] = []
+            self.class_to_indices[label].append(idx)
+
+        # Remove classes with too few samples
+        self.valid_classes = [
+            c for c, indices in self.class_to_indices.items()
+            if len(indices) >= self.n_samples_per_class
+        ]
+
+        self.batch_size = n_classes_per_batch * n_samples_per_class
+
+    def __iter__(self):
+        """Generate batches"""
+        # Shuffle classes
+        classes = np.random.permutation(self.valid_classes)
+
+        for i in range(0, len(classes), self.n_classes_per_batch):
+            batch_classes = classes[i:i + self.n_classes_per_batch]
+
+            batch_indices = []
+            for class_id in batch_classes:
+                # Sample K examples from this class
+                class_indices = self.class_to_indices[class_id]
+                sampled = np.random.choice(
+                    class_indices,
+                    size=self.n_samples_per_class,
+                    replace=len(class_indices) < self.n_samples_per_class
+                )
+                batch_indices.extend(sampled)
+
+            yield batch_indices
+
+    def __len__(self):
+        """Number of batches per epoch"""
+        return len(self.valid_classes) // self.n_classes_per_batch
+
+
+# Example usage
+def create_triplet_dataloader(dataset, batch_size=50, num_workers=4):
+    """
+    Create dataloader optimized for triplet loss training
+
+    Args:
+        dataset: PyTorch dataset with (data, label) pairs
+        batch_size: Total batch size (should be P * K)
+        num_workers: Number of data loading workers
+    """
+    # Extract all labels
+    labels = [dataset[i][1] for i in range(len(dataset))]
+
+    # Configure sampler: 10 classes × 5 samples = 50 per batch
+    sampler = BalancedBatchSampler(
+        labels=labels,
+        n_classes_per_batch=10,
+        n_samples_per_class=5
+    )
+
+    dataloader = torch.utils.data.DataLoader(
+        dataset,
+        batch_sampler=sampler,
+        num_workers=num_workers,
+        pin_memory=True
+    )
+
+    return dataloader
+```
+
+:::{.callout-warning}
+## Production Batch Sizing
+
+**Memory constraints**: P × K = batch_size. Larger batches provide more triplets but require more memory.
+
+**Recommended configurations**:
+- Small models (< 100M params): P=16, K=8, batch_size=128
+- Medium models (100M-1B params): P=10, K=5, batch_size=50
+- Large models (> 1B params): P=8, K=4, batch_size=32
+
+**GPU utilization**: Use gradient accumulation to simulate larger batches if needed.
+:::
 
 ## One-Shot Learning for Rare Events
 
-[Content to be written: Details about one-shot learning for rare events]
+One-shot learning—learning from a single example—is critical for enterprise scenarios where rare events are important but examples are scarce: fraud detection, manufacturing defects, zero-day threats, rare diseases.
+
+### One-Shot Learning Fundamentals
+
+Traditional ML fails with one example per class. Siamese networks succeed by:
+
+1. **Learning similarity during training** on abundant data
+2. **Applying similarity at inference** to new classes with few examples
+3. **Comparing rather than classifying** new inputs
+
+```python
+class OneShotClassifier:
+    """
+    One-shot classifier using Siamese networks
+
+    Approach:
+    1. Train Siamese network on abundant classes
+    2. At inference, store one example per new class (support set)
+    3. Classify by finding most similar support example
+
+    Use cases:
+    - Fraud detection: New fraud patterns from single examples
+    - Manufacturing QA: Rare defect types
+    - Security: Zero-day threat detection
+    - Customer service: New issue categories
+    """
+
+    def __init__(self, siamese_model, distance_metric='euclidean'):
+        """
+        Args:
+            siamese_model: Trained Siamese network
+            distance_metric: 'euclidean' or 'cosine'
+        """
+        self.model = siamese_model
+        self.distance_metric = distance_metric
+        self.support_set = {}  # class_id -> embedding
+
+    def add_support_example(self, class_id, example):
+        """
+        Add a single example for a new class
+
+        Args:
+            class_id: Identifier for the class
+            example: Input data (will be embedded)
+        """
+        with torch.no_grad():
+            self.model.eval()
+            embedding = self.model.get_embedding(example)
+            self.support_set[class_id] = embedding.cpu()
+
+    def add_support_examples_batch(self, class_ids, examples):
+        """
+        Add multiple examples (potentially multiple per class)
+
+        Args:
+            class_ids: List of class identifiers
+            examples: Batch of input data
+        """
+        with torch.no_grad():
+            self.model.eval()
+            embeddings = self.model.get_embedding(examples)
+
+            # Average embeddings for classes with multiple examples
+            for class_id, embedding in zip(class_ids, embeddings):
+                if class_id in self.support_set:
+                    # Average with existing embedding
+                    self.support_set[class_id] = (
+                        self.support_set[class_id] + embedding.cpu()
+                    ) / 2
+                else:
+                    self.support_set[class_id] = embedding.cpu()
+
+    def predict(self, query, return_distances=False, top_k=1):
+        """
+        Predict class for query by finding nearest support example
+
+        Args:
+            query: Input to classify
+            return_distances: If True, return distances along with predictions
+            top_k: Return top-k most similar classes
+
+        Returns:
+            If return_distances=False: class_id or list of class_ids
+            If return_distances=True: (class_ids, distances)
+        """
+        with torch.no_grad():
+            self.model.eval()
+            query_embedding = self.model.get_embedding(query)
+
+            if len(self.support_set) == 0:
+                raise ValueError("No support examples added. Call add_support_example first.")
+
+            # Compute distances to all support examples
+            distances = {}
+            for class_id, support_embedding in self.support_set.items():
+                support_embedding = support_embedding.to(query_embedding.device)
+
+                if self.distance_metric == 'euclidean':
+                    dist = F.pairwise_distance(
+                        query_embedding,
+                        support_embedding.unsqueeze(0)
+                    ).item()
+                else:  # cosine
+                    dist = (1 - F.cosine_similarity(
+                        query_embedding,
+                        support_embedding.unsqueeze(0)
+                    )).item()
+
+                distances[class_id] = dist
+
+            # Sort by distance (ascending)
+            sorted_classes = sorted(distances.items(), key=lambda x: x[1])
+
+            if top_k == 1:
+                result = sorted_classes[0]
+                if return_distances:
+                    return result[0], result[1]
+                else:
+                    return result[0]
+            else:
+                results = sorted_classes[:top_k]
+                if return_distances:
+                    class_ids, dists = zip(*results)
+                    return list(class_ids), list(dists)
+                else:
+                    return [c for c, _ in results]
+
+    def predict_proba(self, query, temperature=1.0):
+        """
+        Predict class probabilities using softmax over distances
+
+        Args:
+            query: Input to classify
+            temperature: Controls distribution sharpness (lower = sharper)
+
+        Returns:
+            Dict mapping class_id to probability
+        """
+        class_ids, distances = self.predict(
+            query,
+            return_distances=True,
+            top_k=len(self.support_set)
+        )
+
+        # Convert distances to similarities (negative distance)
+        similarities = [-d / temperature for d in distances]
+
+        # Softmax
+        exp_sims = np.exp(similarities - np.max(similarities))  # Numerical stability
+        probabilities = exp_sims / exp_sims.sum()
+
+        return {
+            class_id: prob
+            for class_id, prob in zip(class_ids, probabilities)
+        }
+
+
+# Example: Fraud detection with one-shot learning
+class FraudDetectionOneShot:
+    """
+    Fraud detection system using one-shot learning
+
+    Scenario: New fraud patterns emerge daily. We can't wait to collect
+    thousands of examples. One-shot learning enables immediate detection.
+    """
+
+    def __init__(self, siamese_model):
+        self.classifier = OneShotClassifier(siamese_model)
+        self.normal_behavior_embedding = None
+
+    def set_normal_behavior(self, normal_transactions):
+        """
+        Learn embedding for normal transactions
+
+        Args:
+            normal_transactions: Batch of normal transaction features
+        """
+        with torch.no_grad():
+            embeddings = self.classifier.model.get_embedding(normal_transactions)
+            # Average embedding represents "normal"
+            self.normal_behavior_embedding = embeddings.mean(dim=0)
+
+    def add_fraud_pattern(self, fraud_id, fraud_transaction):
+        """
+        Add a new fraud pattern from a single example
+
+        Args:
+            fraud_id: Identifier for this fraud type
+            fraud_transaction: Features of the fraud transaction
+        """
+        self.classifier.add_support_example(fraud_id, fraud_transaction)
+
+    def check_transaction(self, transaction, fraud_threshold=0.7):
+        """
+        Check if transaction is fraudulent
+
+        Args:
+            transaction: Transaction features to check
+            fraud_threshold: Similarity threshold for fraud detection
+
+        Returns:
+            Dict with:
+            - is_fraud: Boolean
+            - fraud_type: ID of fraud type if detected
+            - confidence: Probability
+            - normal_similarity: How similar to normal behavior
+        """
+        # Get probabilities for all known fraud types
+        fraud_probs = self.classifier.predict_proba(transaction)
+
+        # Get distance to normal behavior
+        with torch.no_grad():
+            transaction_embedding = self.classifier.model.get_embedding(transaction)
+            normal_similarity = F.cosine_similarity(
+                transaction_embedding,
+                self.normal_behavior_embedding.unsqueeze(0)
+            ).item()
+
+        # If very similar to normal, not fraud
+        if normal_similarity > 0.9:
+            return {
+                'is_fraud': False,
+                'fraud_type': None,
+                'confidence': 0.0,
+                'normal_similarity': normal_similarity
+            }
+
+        # Check if similar to any fraud pattern
+        max_fraud_type = max(fraud_probs.items(), key=lambda x: x[1])
+        fraud_type, confidence = max_fraud_type
+
+        is_fraud = confidence > fraud_threshold
+
+        return {
+            'is_fraud': is_fraud,
+            'fraud_type': fraud_type if is_fraud else None,
+            'confidence': confidence,
+            'normal_similarity': normal_similarity
+        }
+
+
+# Example usage
+def example_fraud_detection():
+    """Complete example of fraud detection with one-shot learning"""
+
+    # 1. Train Siamese network on historical fraud patterns
+    # (Assume this is already done)
+    siamese_model = create_enterprise_siamese_network(
+        input_type='tabular',
+        input_dim=50  # 50 transaction features
+    )
+
+    # 2. Create fraud detection system
+    fraud_detector = FraudDetectionOneShot(siamese_model)
+
+    # 3. Learn normal behavior from legitimate transactions
+    normal_transactions = torch.randn(1000, 50)  # 1000 normal examples
+    fraud_detector.set_normal_behavior(normal_transactions)
+
+    # 4. Add known fraud patterns (one example each!)
+    fraud_detector.add_fraud_pattern(
+        fraud_id='card_testing',
+        fraud_transaction=torch.randn(1, 50)
+    )
+    fraud_detector.add_fraud_pattern(
+        fraud_id='account_takeover',
+        fraud_transaction=torch.randn(1, 50)
+    )
+
+    # 5. Check new transactions
+    new_transaction = torch.randn(1, 50)
+    result = fraud_detector.check_transaction(new_transaction)
+
+    print(f"Is fraud: {result['is_fraud']}")
+    print(f"Fraud type: {result['fraud_type']}")
+    print(f"Confidence: {result['confidence']:.2f}")
+    print(f"Normal similarity: {result['normal_similarity']:.2f}")
+```
+
+:::{.callout-tip}
+## When One-Shot Learning Works Best
+
+**Ideal scenarios**:
+- High-quality training data (even if small)
+- Well-defined similarity metric
+- Rare event detection (fraud, anomalies, defects)
+- Rapidly evolving categories (new threats, trends)
+
+**Challenging scenarios**:
+- Noisy data (single example may be unrepresentative)
+- Complex decision boundaries
+- Classes that require multiple features to distinguish
+
+**Best practice**: Collect 3-5 examples per class when possible. Average their embeddings for more robust representation.
+:::
+
+### Few-Shot Learning Extensions
+
+When you have 2-10 examples per class (few-shot), you can use more sophisticated techniques:
+
+```python
+class PrototypicalNetworkClassifier:
+    """
+    Prototypical Networks for few-shot learning
+
+    Extension of one-shot learning:
+    - Compute prototype (centroid) for each class from K examples
+    - Classify by finding nearest prototype
+
+    More robust than single example for noisy data.
+
+    Reference: "Prototypical Networks for Few-shot Learning" (Snell et al., 2017)
+    """
+
+    def __init__(self, embedding_model):
+        self.model = embedding_model
+        self.prototypes = {}  # class_id -> prototype embedding
+
+    def compute_prototypes(self, support_set):
+        """
+        Compute prototype for each class from support examples
+
+        Args:
+            support_set: Dict mapping class_id to list of examples
+        """
+        self.prototypes = {}
+
+        with torch.no_grad():
+            self.model.eval()
+
+            for class_id, examples in support_set.items():
+                # Stack examples
+                if isinstance(examples, list):
+                    examples = torch.stack(examples)
+
+                # Compute embeddings
+                embeddings = self.model.get_embedding(examples)
+
+                # Prototype = mean of embeddings
+                prototype = embeddings.mean(dim=0)
+                self.prototypes[class_id] = prototype
+
+    def predict(self, query):
+        """Classify query by finding nearest prototype"""
+        with torch.no_grad():
+            self.model.eval()
+            query_embedding = self.model.get_embedding(query)
+
+            # Compute distances to all prototypes
+            distances = {}
+            for class_id, prototype in self.prototypes.items():
+                dist = F.pairwise_distance(
+                    query_embedding,
+                    prototype.unsqueeze(0)
+                ).item()
+                distances[class_id] = dist
+
+            # Return class with minimum distance
+            return min(distances.items(), key=lambda x: x[1])[0]
+```
 
 ## Similarity Threshold Calibration
 
-[Content to be written: Details about similarity threshold calibration]
+A critical but often overlooked challenge: **How do you set the threshold for "similar enough"?** Too low and you get false positives. Too high and you miss true matches.
+
+### The Threshold Calibration Challenge
+
+```python
+class ThresholdCalibrator:
+    """
+    Calibrate similarity thresholds for production deployment
+
+    Challenge: The optimal threshold depends on:
+    - Distribution of true positives vs negatives
+    - Business costs of false positives vs false negatives
+    - Dataset characteristics (intra-class vs inter-class variance)
+
+    This class provides multiple calibration strategies.
+    """
+
+    def __init__(self, siamese_model):
+        self.model = siamese_model
+        self.threshold = None
+        self.calibration_metrics = {}
+
+    def calibrate_on_validation_set(
+        self,
+        validation_pairs,
+        validation_labels,
+        metric='f1',
+        plot=False
+    ):
+        """
+        Calibrate threshold on validation set to optimize a metric
+
+        Args:
+            validation_pairs: List of (item1, item2) pairs
+            validation_labels: 1 if similar, 0 if dissimilar
+            metric: 'f1', 'precision', 'recall', or 'accuracy'
+            plot: If True, plot threshold vs metric curve
+
+        Returns:
+            Optimal threshold value
+        """
+        # Compute distances for all pairs
+        distances = []
+
+        with torch.no_grad():
+            self.model.eval()
+
+            for item1, item2 in validation_pairs:
+                embedding1 = self.model.get_embedding(item1.unsqueeze(0))
+                embedding2 = self.model.get_embedding(item2.unsqueeze(0))
+
+                distance = F.pairwise_distance(embedding1, embedding2).item()
+                distances.append(distance)
+
+        distances = np.array(distances)
+        validation_labels = np.array(validation_labels)
+
+        # Try different thresholds
+        thresholds = np.linspace(distances.min(), distances.max(), 100)
+        metrics_by_threshold = []
+
+        for threshold in thresholds:
+            # Predict: similar if distance < threshold
+            predictions = (distances < threshold).astype(int)
+
+            # Compute metrics
+            tp = ((predictions == 1) & (validation_labels == 1)).sum()
+            fp = ((predictions == 1) & (validation_labels == 0)).sum()
+            tn = ((predictions == 0) & (validation_labels == 0)).sum()
+            fn = ((predictions == 0) & (validation_labels == 1)).sum()
+
+            precision = tp / (tp + fp) if (tp + fp) > 0 else 0
+            recall = tp / (tp + fn) if (tp + fn) > 0 else 0
+            f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0
+            accuracy = (tp + tn) / len(validation_labels)
+
+            metrics_by_threshold.append({
+                'threshold': threshold,
+                'precision': precision,
+                'recall': recall,
+                'f1': f1,
+                'accuracy': accuracy
+            })
+
+        # Find threshold that maximizes chosen metric
+        best_idx = max(
+            range(len(metrics_by_threshold)),
+            key=lambda i: metrics_by_threshold[i][metric]
+        )
+
+        self.threshold = metrics_by_threshold[best_idx]['threshold']
+        self.calibration_metrics = metrics_by_threshold[best_idx]
+
+        if plot:
+            self._plot_calibration_curve(metrics_by_threshold, metric)
+
+        return self.threshold
+
+    def calibrate_with_business_costs(
+        self,
+        validation_pairs,
+        validation_labels,
+        false_positive_cost=1.0,
+        false_negative_cost=1.0
+    ):
+        """
+        Calibrate threshold based on business costs
+
+        Args:
+            validation_pairs: List of (item1, item2) pairs
+            validation_labels: 1 if similar, 0 if dissimilar
+            false_positive_cost: Cost of incorrectly marking as similar
+            false_negative_cost: Cost of missing a true match
+
+        Returns:
+            Cost-optimal threshold
+
+        Example costs:
+        - Fraud detection: FN cost >> FP cost (missing fraud is expensive)
+        - Product matching: FP cost >> FN cost (wrong matches annoy users)
+        """
+        # Compute distances
+        distances = []
+
+        with torch.no_grad():
+            self.model.eval()
+
+            for item1, item2 in validation_pairs:
+                embedding1 = self.model.get_embedding(item1.unsqueeze(0))
+                embedding2 = self.model.get_embedding(item2.unsqueeze(0))
+
+                distance = F.pairwise_distance(embedding1, embedding2).item()
+                distances.append(distance)
+
+        distances = np.array(distances)
+        validation_labels = np.array(validation_labels)
+
+        # Try different thresholds
+        thresholds = np.linspace(distances.min(), distances.max(), 100)
+        costs = []
+
+        for threshold in thresholds:
+            predictions = (distances < threshold).astype(int)
+
+            fp = ((predictions == 1) & (validation_labels == 0)).sum()
+            fn = ((predictions == 0) & (validation_labels == 1)).sum()
+
+            total_cost = fp * false_positive_cost + fn * false_negative_cost
+            costs.append(total_cost)
+
+        # Find threshold that minimizes cost
+        best_idx = np.argmin(costs)
+        self.threshold = thresholds[best_idx]
+
+        self.calibration_metrics = {
+            'threshold': self.threshold,
+            'expected_cost': costs[best_idx],
+            'false_positive_cost': false_positive_cost,
+            'false_negative_cost': false_negative_cost
+        }
+
+        return self.threshold
+
+    def calibrate_for_precision_target(
+        self,
+        validation_pairs,
+        validation_labels,
+        target_precision=0.95
+    ):
+        """
+        Calibrate to achieve target precision
+
+        Use when false positives are unacceptable (e.g., financial matching)
+
+        Args:
+            validation_pairs: List of (item1, item2) pairs
+            validation_labels: 1 if similar, 0 if dissimilar
+            target_precision: Desired precision (0-1)
+
+        Returns:
+            Threshold that achieves target precision (or closest possible)
+        """
+        # Compute distances
+        distances = []
+
+        with torch.no_grad():
+            self.model.eval()
+
+            for item1, item2 in validation_pairs:
+                embedding1 = self.model.get_embedding(item1.unsqueeze(0))
+                embedding2 = self.model.get_embedding(item2.unsqueeze(0))
+
+                distance = F.pairwise_distance(embedding1, embedding2).item()
+                distances.append(distance)
+
+        distances = np.array(distances)
+        validation_labels = np.array(validation_labels)
+
+        # Try different thresholds
+        thresholds = np.linspace(distances.min(), distances.max(), 100)
+
+        best_threshold = None
+        best_precision = 0
+        best_recall = 0
+
+        for threshold in thresholds:
+            predictions = (distances < threshold).astype(int)
+
+            tp = ((predictions == 1) & (validation_labels == 1)).sum()
+            fp = ((predictions == 1) & (validation_labels == 0)).sum()
+            fn = ((predictions == 0) & (validation_labels == 1)).sum()
+
+            precision = tp / (tp + fp) if (tp + fp) > 0 else 0
+            recall = tp / (tp + fn) if (tp + fn) > 0 else 0
+
+            # Find threshold closest to target precision
+            if precision >= target_precision:
+                if best_threshold is None or recall > best_recall:
+                    best_threshold = threshold
+                    best_precision = precision
+                    best_recall = recall
+
+        if best_threshold is None:
+            # Can't achieve target, return threshold with highest precision
+            for threshold in thresholds:
+                predictions = (distances < threshold).astype(int)
+                tp = ((predictions == 1) & (validation_labels == 1)).sum()
+                fp = ((predictions == 1) & (validation_labels == 0)).sum()
+                precision = tp / (tp + fp) if (tp + fp) > 0 else 0
+
+                if precision > best_precision:
+                    best_precision = precision
+                    best_threshold = threshold
+
+        self.threshold = best_threshold
+        self.calibration_metrics = {
+            'threshold': best_threshold,
+            'achieved_precision': best_precision,
+            'achieved_recall': best_recall,
+            'target_precision': target_precision
+        }
+
+        return self.threshold
+
+    def _plot_calibration_curve(self, metrics_by_threshold, target_metric):
+        """Plot threshold vs metric curve"""
+        import matplotlib.pyplot as plt
+
+        thresholds = [m['threshold'] for m in metrics_by_threshold]
+        values = [m[target_metric] for m in metrics_by_threshold]
+
+        plt.figure(figsize=(10, 6))
+        plt.plot(thresholds, values)
+        plt.axvline(self.threshold, color='r', linestyle='--',
+                   label=f'Optimal: {self.threshold:.3f}')
+        plt.xlabel('Threshold')
+        plt.ylabel(target_metric.capitalize())
+        plt.title(f'Threshold Calibration: {target_metric.capitalize()}')
+        plt.legend()
+        plt.grid(True)
+        plt.show()
+```
+
+:::{.callout-warning}
+## Threshold Calibration Best Practices
+
+**Re-calibrate regularly**: Data distributions drift. Re-calibrate quarterly or when you detect performance degradation.
+
+**Use stratified validation**: Ensure your validation set represents production distribution. Unbalanced calibration data leads to suboptimal thresholds.
+
+**Monitor threshold effectiveness**: Track precision/recall in production. Alert if metrics deviate > 5% from calibration values.
+
+**Business cost alignment**: Work with stakeholders to quantify FP and FN costs. Technical metrics (F1) may not align with business value.
+:::
+
+### Dynamic Threshold Adaptation
+
+For production systems, static thresholds aren't enough. Implement dynamic adaptation:
+
+```python
+class AdaptiveThresholdManager:
+    """
+    Manage thresholds that adapt to changing data distributions
+
+    Strategies:
+    1. Per-category thresholds: Different thresholds for different data types
+    2. Time-based adaptation: Adjust based on recent performance
+    3. Confidence-based: Use prediction confidence to adjust threshold
+    """
+
+    def __init__(self, base_threshold=0.5):
+        self.base_threshold = base_threshold
+        self.category_thresholds = {}
+        self.performance_history = []
+
+    def get_threshold(self, category=None, confidence=None):
+        """
+        Get threshold, potentially adjusted for category or confidence
+
+        Args:
+            category: Optional category identifier
+            confidence: Optional confidence score from model
+
+        Returns:
+            Adjusted threshold
+        """
+        threshold = self.base_threshold
+
+        # Category-specific adjustment
+        if category is not None and category in self.category_thresholds:
+            threshold = self.category_thresholds[category]
+
+        # Confidence-based adjustment
+        # Higher confidence -> lower threshold (more lenient)
+        # Lower confidence -> higher threshold (more strict)
+        if confidence is not None:
+            adjustment = (confidence - 0.5) * 0.2  # ±0.1 adjustment
+            threshold = threshold - adjustment
+
+        return threshold
+
+    def update_category_threshold(self, category, new_threshold):
+        """Update threshold for a specific category"""
+        self.category_thresholds[category] = new_threshold
+
+    def adapt_from_feedback(self, predictions, labels, learning_rate=0.1):
+        """
+        Adapt thresholds based on recent performance feedback
+
+        Args:
+            predictions: Recent prediction distances
+            labels: Ground truth labels (1 = similar, 0 = dissimilar)
+            learning_rate: How quickly to adapt (0-1)
+        """
+        # Compute current error rate
+        current_predictions = (predictions < self.base_threshold).astype(int)
+        error_rate = (current_predictions != labels).mean()
+
+        # If error rate is high, adjust threshold
+        if error_rate > 0.2:
+            # Compute optimal threshold for recent data
+            best_threshold = self._find_optimal_threshold(predictions, labels)
+
+            # Move toward optimal threshold
+            self.base_threshold = (
+                (1 - learning_rate) * self.base_threshold +
+                learning_rate * best_threshold
+            )
+
+        # Track performance
+        self.performance_history.append({
+            'threshold': self.base_threshold,
+            'error_rate': error_rate,
+            'timestamp': torch.Tensor([0]).item()  # Use real timestamp in production
+        })
+
+    def _find_optimal_threshold(self, distances, labels):
+        """Find threshold that minimizes error rate"""
+        thresholds = np.linspace(distances.min(), distances.max(), 50)
+        errors = []
+
+        for threshold in thresholds:
+            predictions = (distances < threshold).astype(int)
+            error = (predictions != labels).mean()
+            errors.append(error)
+
+        best_idx = np.argmin(errors)
+        return thresholds[best_idx]
+```
 
 ## Production Deployment Patterns
 
-[Content to be written: Details about production deployment patterns]
+Deploying Siamese networks at scale requires careful architecture design. Here are battle-tested patterns from trillion-row deployments:
+
+### Pattern 1: Embedding Cache Architecture
+
+```python
+class SiameseEmbeddingService:
+    """
+    Production service for Siamese network embeddings
+
+    Key features:
+    - Embedding caching to avoid recomputation
+    - Batch processing for efficiency
+    - Health monitoring and fallbacks
+    - GPU/CPU flexibility
+    """
+
+    def __init__(
+        self,
+        model,
+        cache_size=100000,
+        batch_size=256,
+        device='cuda'
+    ):
+        self.model = model.to(device).eval()
+        self.device = device
+        self.batch_size = batch_size
+
+        # LRU cache for embeddings
+        from functools import lru_cache
+        import hashlib
+
+        self.embedding_cache = {}
+        self.cache_size = cache_size
+        self.cache_hits = 0
+        self.cache_misses = 0
+
+    def _get_cache_key(self, item):
+        """Generate cache key for item"""
+        # Convert item to bytes and hash
+        item_bytes = item.cpu().numpy().tobytes()
+        return hashlib.md5(item_bytes).hexdigest()
+
+    def get_embedding(self, item, use_cache=True):
+        """
+        Get embedding for single item
+
+        Args:
+            item: Input to embed
+            use_cache: Whether to use cache
+
+        Returns:
+            Embedding tensor
+        """
+        if use_cache:
+            cache_key = self._get_cache_key(item)
+
+            if cache_key in self.embedding_cache:
+                self.cache_hits += 1
+                return self.embedding_cache[cache_key]
+
+            self.cache_misses += 1
+
+        # Compute embedding
+        with torch.no_grad():
+            embedding = self.model.get_embedding(item.to(self.device))
+
+        # Store in cache
+        if use_cache:
+            if len(self.embedding_cache) >= self.cache_size:
+                # Remove oldest entry (FIFO)
+                oldest_key = next(iter(self.embedding_cache))
+                del self.embedding_cache[oldest_key]
+
+            self.embedding_cache[cache_key] = embedding.cpu()
+
+        return embedding
+
+    def get_embeddings_batch(self, items):
+        """
+        Get embeddings for batch of items efficiently
+
+        Args:
+            items: Batch of inputs (N, ...)
+
+        Returns:
+            Embeddings (N, embedding_dim)
+        """
+        embeddings = []
+
+        # Process in batches
+        for i in range(0, len(items), self.batch_size):
+            batch = items[i:i + self.batch_size]
+
+            with torch.no_grad():
+                batch_embeddings = self.model.get_embedding(batch.to(self.device))
+
+            embeddings.append(batch_embeddings.cpu())
+
+        return torch.cat(embeddings, dim=0)
+
+    def compare(self, item1, item2):
+        """
+        Compare two items
+
+        Returns:
+            Similarity score (higher = more similar)
+        """
+        embedding1 = self.get_embedding(item1)
+        embedding2 = self.get_embedding(item2)
+
+        # Cosine similarity
+        similarity = F.cosine_similarity(
+            embedding1,
+            embedding2,
+            dim=0
+        ).item()
+
+        return similarity
+
+    def find_similar(self, query, candidates, top_k=10):
+        """
+        Find most similar candidates to query
+
+        Args:
+            query: Query item
+            candidates: List of candidate items
+            top_k: Number of results to return
+
+        Returns:
+            Indices and similarities of top-k candidates
+        """
+        query_embedding = self.get_embedding(query)
+        candidate_embeddings = self.get_embeddings_batch(
+            torch.stack(candidates)
+        )
+
+        # Compute similarities
+        similarities = F.cosine_similarity(
+            query_embedding.unsqueeze(0),
+            candidate_embeddings,
+            dim=1
+        )
+
+        # Get top-k
+        top_k_sims, top_k_indices = torch.topk(similarities, k=min(top_k, len(candidates)))
+
+        return top_k_indices.tolist(), top_k_sims.tolist()
+
+    def get_cache_stats(self):
+        """Get cache performance statistics"""
+        total_requests = self.cache_hits + self.cache_misses
+        hit_rate = self.cache_hits / total_requests if total_requests > 0 else 0
+
+        return {
+            'cache_size': len(self.embedding_cache),
+            'cache_hits': self.cache_hits,
+            'cache_misses': self.cache_misses,
+            'hit_rate': hit_rate
+        }
+```
+
+### Pattern 2: Approximate Nearest Neighbor Integration
+
+For billion-scale similarity search, integrate with ANN indexes:
+
+```python
+class SiameseANNService:
+    """
+    Siamese network integrated with Approximate Nearest Neighbor search
+
+    For production scale:
+    - Embed items once, store in ANN index
+    - Sub-millisecond similarity search across billions of items
+    - Periodic index updates without downtime
+    """
+
+    def __init__(self, siamese_service, embedding_dim=512):
+        self.siamese_service = siamese_service
+        self.embedding_dim = embedding_dim
+
+        # Use FAISS for ANN search
+        try:
+            import faiss
+
+            # Create index: Inner product (for normalized embeddings = cosine similarity)
+            self.index = faiss.IndexFlatIP(embedding_dim)
+
+            # For very large scale, use IVF or HNSW
+            # self.index = faiss.IndexIVFFlat(
+            #     faiss.IndexFlatIP(embedding_dim),
+            #     embedding_dim,
+            #     n_lists=100
+            # )
+
+        except ImportError:
+            print("FAISS not installed. Install with: pip install faiss-cpu")
+            self.index = None
+
+        self.id_to_index = {}  # Map item IDs to index positions
+        self.index_to_id = {}  # Map index positions to item IDs
+
+    def add_items(self, item_ids, items):
+        """
+        Add items to search index
+
+        Args:
+            item_ids: List of item identifiers
+            items: Batch of items to embed and index
+        """
+        if self.index is None:
+            raise RuntimeError("FAISS not available")
+
+        # Get embeddings
+        embeddings = self.siamese_service.get_embeddings_batch(items)
+
+        # Normalize for cosine similarity
+        embeddings = F.normalize(embeddings, p=2, dim=1).cpu().numpy()
+
+        # Add to index
+        start_idx = self.index.ntotal
+        self.index.add(embeddings)
+
+        # Update mappings
+        for i, item_id in enumerate(item_ids):
+            idx = start_idx + i
+            self.id_to_index[item_id] = idx
+            self.index_to_id[idx] = item_id
+
+    def search(self, query, top_k=10):
+        """
+        Search for similar items
+
+        Args:
+            query: Query item
+            top_k: Number of results
+
+        Returns:
+            List of (item_id, similarity) tuples
+        """
+        if self.index is None:
+            raise RuntimeError("FAISS not available")
+
+        # Get query embedding
+        query_embedding = self.siamese_service.get_embedding(query)
+        query_embedding = F.normalize(query_embedding, p=2, dim=1).cpu().numpy()
+
+        # Search index
+        similarities, indices = self.index.search(query_embedding, top_k)
+
+        # Convert to item IDs
+        results = []
+        for sim, idx in zip(similarities[0], indices[0]):
+            if idx in self.index_to_id:
+                item_id = self.index_to_id[idx]
+                results.append((item_id, float(sim)))
+
+        return results
+
+    def update_item(self, item_id, new_item):
+        """
+        Update an item in the index
+
+        Note: FAISS doesn't support in-place updates. For production,
+        use a write-ahead log and periodic full rebuilds.
+        """
+        if item_id not in self.id_to_index:
+            raise ValueError(f"Item {item_id} not in index")
+
+        # For simplicity, we'll remove and re-add
+        # In production, batch updates and rebuild index periodically
+        print("Warning: Item updates require index rebuild in production")
+
+    def get_statistics(self):
+        """Get index statistics"""
+        return {
+            'total_items': self.index.ntotal if self.index else 0,
+            'embedding_dim': self.embedding_dim,
+            'cache_stats': self.siamese_service.get_cache_stats()
+        }
+```
+
+### Pattern 3: Multi-Stage Verification Pipeline
+
+For high-precision applications (fraud, compliance), use multi-stage verification:
+
+```python
+class MultiStageVerificationPipeline:
+    """
+    Multi-stage verification using Siamese networks
+
+    Stage 1: Fast filtering with loose threshold
+    Stage 2: Detailed verification with strict threshold
+    Stage 3: Human review for borderline cases
+
+    Reduces compute cost while maintaining high accuracy.
+    """
+
+    def __init__(
+        self,
+        siamese_service,
+        stage1_threshold=0.7,  # Recall-optimized
+        stage2_threshold=0.9,  # Precision-optimized
+        use_ann=True
+    ):
+        self.siamese_service = siamese_service
+        self.stage1_threshold = stage1_threshold
+        self.stage2_threshold = stage2_threshold
+
+        if use_ann:
+            self.ann_service = SiameseANNService(
+                siamese_service,
+                embedding_dim=512
+            )
+        else:
+            self.ann_service = None
+
+        self.stage1_candidates = 0
+        self.stage2_matches = 0
+        self.human_review_cases = 0
+
+    def verify(self, query, candidate_pool=None, candidate_ids=None):
+        """
+        Multi-stage verification
+
+        Args:
+            query: Item to verify
+            candidate_pool: Pool of candidates to check against
+                          (or None to use ANN search)
+            candidate_ids: IDs for candidates (if using candidate_pool)
+
+        Returns:
+            Dict with:
+            - matched: Boolean or 'needs_review'
+            - match_id: ID of matched item (if any)
+            - confidence: Similarity score
+            - stage: Which stage made the decision
+        """
+
+        # Stage 1: Fast filtering
+        if self.ann_service is not None and candidate_pool is None:
+            # Use ANN search for fast filtering
+            stage1_results = self.ann_service.search(query, top_k=100)
+            stage1_candidates = [
+                (item_id, sim) for item_id, sim in stage1_results
+                if sim >= self.stage1_threshold
+            ]
+        else:
+            # Linear search through candidate pool
+            if candidate_pool is None:
+                raise ValueError("Must provide candidate_pool or use ANN")
+
+            query_embedding = self.siamese_service.get_embedding(query)
+            candidate_embeddings = self.siamese_service.get_embeddings_batch(
+                candidate_pool
+            )
+
+            similarities = F.cosine_similarity(
+                query_embedding.unsqueeze(0),
+                candidate_embeddings,
+                dim=1
+            )
+
+            stage1_candidates = [
+                (candidate_ids[i], sim.item())
+                for i, sim in enumerate(similarities)
+                if sim.item() >= self.stage1_threshold
+            ]
+
+        self.stage1_candidates += len(stage1_candidates)
+
+        if len(stage1_candidates) == 0:
+            return {
+                'matched': False,
+                'match_id': None,
+                'confidence': 0.0,
+                'stage': 1
+            }
+
+        # Stage 2: Detailed verification
+        # For production, this might involve:
+        # - More expensive model
+        # - Feature-level comparison
+        # - Additional business logic
+
+        best_match = max(stage1_candidates, key=lambda x: x[1])
+        match_id, similarity = best_match
+
+        if similarity >= self.stage2_threshold:
+            # High confidence match
+            self.stage2_matches += 1
+            return {
+                'matched': True,
+                'match_id': match_id,
+                'confidence': similarity,
+                'stage': 2
+            }
+        else:
+            # Borderline case - needs human review
+            self.human_review_cases += 1
+            return {
+                'matched': 'needs_review',
+                'match_id': match_id,
+                'confidence': similarity,
+                'stage': 2,
+                'review_reason': 'confidence_below_threshold'
+            }
+
+    def get_statistics(self):
+        """Get pipeline statistics"""
+        return {
+            'stage1_candidates': self.stage1_candidates,
+            'stage2_matches': self.stage2_matches,
+            'human_review_cases': self.human_review_cases,
+            'human_review_rate': self.human_review_cases / max(self.stage1_candidates, 1)
+        }
+```
+
+:::{.callout-tip}
+## Production Deployment Checklist
+
+**Before deploying Siamese networks to production**:
+
+- [ ] Model performance validated on production-like data
+- [ ] Thresholds calibrated using business metrics
+- [ ] Embedding cache sized appropriately (monitor hit rate > 70%)
+- [ ] ANN index configured for scale (test with 10x expected load)
+- [ ] Monitoring dashboards for similarity distributions
+- [ ] Alerting on performance degradation (precision/recall < thresholds)
+- [ ] A/B testing framework for model updates
+- [ ] Rollback plan for model failures
+- [ ] Load testing at peak + 50% capacity
+- [ ] Cost optimization: GPU utilization > 80%
+
+**Ongoing maintenance**:
+
+- Re-calibrate thresholds quarterly
+- Retrain on recent data every 3-6 months
+- Monitor for data drift (distributional shifts)
+- Collect hard negative examples for continuous improvement
+:::
 
 ## Key Takeaways
 
-- [Key point 1 to be added]
-- [Key point 2 to be added]
-- [Key point 3 to be added]
+- **Siamese networks learn similarity rather than classification**, enabling few-shot learning, verification tasks, and open-set recognition without retraining.
+
+- **Triplet loss with hard negative mining** provides better gradients than contrastive loss for most enterprise applications. Use semi-hard mining for stable training.
+
+- **One-shot learning enables immediate adaptation to new categories** from single examples—critical for fraud detection, rare defects, and rapidly evolving threats.
+
+- **Threshold calibration is not optional**. Use validation data to calibrate thresholds based on business metrics (precision/recall) or costs (FP/FN costs). Re-calibrate quarterly.
+
+- **Production deployment requires caching and ANN integration** to achieve sub-millisecond similarity search at billion-scale. Multi-stage pipelines balance cost and accuracy.
+
+- **Monitor similarity distributions in production**. Shifts indicate data drift or model degradation. Alert when mean similarity changes > 10% from baseline.
 
 ## Looking Ahead
 
-In Chapter 7, we explore self-supervised learning pipelines for leveraging unlabeled enterprise data.
+In Chapter 7, we expand beyond supervised and Siamese approaches to self-supervised learning—techniques that leverage the structure of unlabeled data itself to train powerful embeddings. We'll explore masked language modeling, vision transformers, and multi-modal self-supervision strategies that enable learning from trillions of unlabeled examples across text, images, time-series, and more.
 
 ## Further Reading
 
-- [References to be added]
+- Bromley, J., et al. (1993). "Signature Verification using a Siamese Time Delay Neural Network." NIPS.
+- Schroff, F., Kalenichenko, D., & Philbin, J. (2015). "FaceNet: A Unified Embedding for Face Recognition and Clustering." CVPR.
+- Snell, J., Swersky, K., & Zemel, R. (2017). "Prototypical Networks for Few-shot Learning." NeurIPS.
+- Koch, G., Zemel, R., & Salakhutdinov, R. (2015). "Siamese Neural Networks for One-shot Image Recognition." ICML Workshop.
+- Wang, J., et al. (2017). "Deep Metric Learning with Angular Loss." ICCV.
+- Hermans, A., Beyer, L., & Leibe, B. (2017). "In Defense of the Triplet Loss for Person Re-Identification." arXiv:1703.07737.
