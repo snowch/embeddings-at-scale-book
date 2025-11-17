@@ -5,7 +5,7 @@ project:
 book:
   title: "Embeddings at Scale"
   subtitle: "A Comprehensive Tutorial for Disruptive Organizations"
-  author: "Your Name"
+  author: "Chris Snow"
   date: today
   sidebar:
     style: docked

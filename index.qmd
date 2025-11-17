@@ -62,7 +62,7 @@ This book is organized into seven parts covering 30 chapters:
 
 ## About the Author
 
-[Author bio to be added]
+**Chris Snow** is the author of *Embeddings at Scale*, bringing expertise in AI and machine learning to help organizations build transformative embedding systems.
 
 ## Acknowledgments
 
