@@ -38,18 +38,13 @@ jobs:
       - name: Install TinyTeX for PDF rendering
         run: quarto install tinytex
 
-      - name: Render HTML Book
-        run: quarto render --to html
+      - name: Render Book (all formats)
+        run: quarto render
 
-      - name: Render PDF Book
-        run: quarto render --to pdf
-        continue-on-error: true  # Don't fail deployment if PDF fails
+      - name: Ensure .nojekyll exists
+        run: touch _book/.nojekyll
 
-      - name: Render EPUB Book
-        run: quarto render --to epub
-        continue-on-error: true  # Don't fail deployment if EPUB fails
-
-      - name: Copy additional formats to output
+      - name: Copy additional formats to downloads folder
         run: |
           mkdir -p _book/downloads
           if [ -f _book/Embeddings-at-Scale.pdf ]; then
@@ -59,8 +54,8 @@ jobs:
             cp _book/Embeddings-at-Scale.epub _book/downloads/
           fi
 
-      - name: Add .nojekyll to prevent GitHub Pages from using Jekyll
-        run: touch _book/.nojekyll
+      - name: List _book contents for debugging
+        run: ls -la _book/
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
