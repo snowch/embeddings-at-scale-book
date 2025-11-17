@@ -1,40 +1,2698 @@
-# Semantic Search Beyond Text {{#sec-semantic-search}}
+# Semantic Search Beyond Text {#sec-semantic-search}
 
-:::{{.callout-note}}
+:::{.callout-note}
 ## Chapter Overview
-This chapter covers multi-modal semantic search, code search and software intelligence, and 3 more topics.
+Semantic search transcends traditional keyword matching, enabling organizations to find meaning across modalities: images, code, scientific papers, media assets, and interconnected knowledge. This chapter explores multi-modal semantic search architectures that unify text, vision, and audio embeddings for cross-modal retrieval, code search systems that understand program semantics beyond syntax for software intelligence, scientific literature and patent search at research scale with citation networks and entity resolution, media and content discovery engines that match visual style and creative intent, and enterprise knowledge graphs that connect entities through learned embeddings. These capabilities transform search from keyword matching to semantic understanding, unlocking insights hidden in unstructured data across modalities.
 :::
+
+After mastering RAG for text (@sec-rag-at-scale), the next frontier is **semantic search beyond text**. Traditional search operates on keywords: match query terms to document terms, rank by term frequency. This works for text but fails for images (no keywords), code (syntax vs semantics), scientific literature (citation networks matter), media (style and composition), and knowledge graphs (relationships matter more than attributes). **Embedding-based semantic search** solves these challenges by representing all modalities—text, images, code, papers, media, entities—in a unified vector space where similarity reflects semantic meaning, not surface features.
 
 ## Multi-Modal Semantic Search
 
-[Content to be written: Details about multi-modal semantic search]
+Multi-modal search finds content across different modalities: search images with text queries ("sunset over mountains"), search text with image queries (upload photo, find similar articles), search videos with audio queries (hum a melody, find the song). **Multi-modal embeddings** map different modalities into a shared vector space where cross-modal similarity is meaningful.
+
+### The Multi-Modal Challenge
+
+Each modality has unique characteristics:
+- **Text**: Sequential, compositional, high-dimensional vocabulary
+- **Images**: Spatial, hierarchical features (pixels → edges → objects)
+- **Audio**: Temporal, frequency-based, variable length
+- **Video**: Spatial-temporal, combines images + audio + text (captions)
+
+**Challenge**: Map these heterogeneous modalities into a unified space where "cat" (text) is near cat images (vision) and "meow" sounds (audio).
+
+```python
+"""
+Multi-Modal Semantic Search System
+
+Architecture:
+1. Modality encoders: Separate encoders for text, images, audio
+2. Projection layers: Map to shared embedding space
+3. Contrastive learning: Train encoders to align modalities
+4. Cross-modal retrieval: Query in one modality, retrieve in another
+
+Key techniques:
+- CLIP (Contrastive Language-Image Pre-training)
+- ALIGN (A Large-scale ImaGe and Noisy-text embedding)
+- ImageBind (binds 6 modalities: images, text, audio, depth, thermal, IMU)
+
+Production considerations:
+- Modality-specific preprocessing (resize images, normalize audio)
+- Batch encoding for efficiency
+- Index separate modalities, unify at query time
+- Handle missing modalities gracefully
+"""
+
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from typing import Dict, List, Optional, Tuple, Union
+from dataclasses import dataclass
+from PIL import Image
+import io
+
+@dataclass
+class MultiModalQuery:
+    """
+    Multi-modal search query
+
+    Attributes:
+        text: Text query (optional)
+        image: Image query as PIL Image (optional)
+        audio: Audio query as waveform (optional)
+        modality_weights: Weights for each modality when combining
+    """
+    text: Optional[str] = None
+    image: Optional[Image.Image] = None
+    audio: Optional[np.ndarray] = None
+    modality_weights: Dict[str, float] = None
+
+    def __post_init__(self):
+        if self.modality_weights is None:
+            # Default: Equal weighting
+            active_modalities = sum([
+                self.text is not None,
+                self.image is not None,
+                self.audio is not None
+            ])
+            if active_modalities > 0:
+                weight = 1.0 / active_modalities
+                self.modality_weights = {}
+                if self.text: self.modality_weights['text'] = weight
+                if self.image: self.modality_weights['image'] = weight
+                if self.audio: self.modality_weights['audio'] = weight
+
+@dataclass
+class MultiModalDocument:
+    """
+    Multi-modal document with content in multiple modalities
+
+    Attributes:
+        doc_id: Unique identifier
+        text: Text content (optional)
+        image: Image content (optional)
+        audio: Audio content (optional)
+        metadata: Additional metadata
+        embeddings: Cached embeddings per modality
+    """
+    doc_id: str
+    text: Optional[str] = None
+    image: Optional[Image.Image] = None
+    audio: Optional[np.ndarray] = None
+    metadata: Dict = None
+    embeddings: Optional[Dict[str, np.ndarray]] = None
+
+class TextEncoder(nn.Module):
+    """
+    Text encoder for multi-modal embeddings
+
+    Architecture:
+    - Transformer encoder (BERT-style)
+    - Projects to shared embedding space (512-dim)
+
+    In production: Use pre-trained CLIP text encoder
+    """
+
+    def __init__(
+        self,
+        vocab_size: int = 50000,
+        embedding_dim: int = 512,
+        hidden_dim: int = 768,
+        num_layers: int = 12
+    ):
+        super().__init__()
+        self.embedding_dim = embedding_dim
+
+        # Token embedding
+        self.token_embedding = nn.Embedding(vocab_size, hidden_dim)
+
+        # Transformer encoder
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=hidden_dim,
+            nhead=8,
+            dim_feedforward=hidden_dim * 4,
+            batch_first=True
+        )
+        self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
+
+        # Projection to shared space
+        self.projection = nn.Linear(hidden_dim, embedding_dim)
+
+    def forward(self, token_ids: torch.Tensor) -> torch.Tensor:
+        """
+        Encode text to embeddings
+
+        Args:
+            token_ids: Token IDs (batch_size, seq_len)
+
+        Returns:
+            Text embeddings (batch_size, embedding_dim)
+        """
+        # Embed tokens
+        x = self.token_embedding(token_ids)  # (batch, seq_len, hidden_dim)
+
+        # Encode with transformer
+        x = self.transformer(x)  # (batch, seq_len, hidden_dim)
+
+        # Pool: Take [CLS] token (first position)
+        x = x[:, 0, :]  # (batch, hidden_dim)
+
+        # Project to shared space
+        x = self.projection(x)  # (batch, embedding_dim)
+
+        # Normalize
+        x = F.normalize(x, p=2, dim=1)
+
+        return x
+
+class ImageEncoder(nn.Module):
+    """
+    Image encoder for multi-modal embeddings
+
+    Architecture:
+    - Vision transformer (ViT) or ResNet
+    - Projects to shared embedding space (512-dim)
+
+    In production: Use pre-trained CLIP image encoder
+    """
+
+    def __init__(
+        self,
+        embedding_dim: int = 512,
+        image_size: int = 224
+    ):
+        super().__init__()
+        self.embedding_dim = embedding_dim
+        self.image_size = image_size
+
+        # Simple CNN for demonstration
+        # In production: Use ViT or ResNet50
+        self.conv_layers = nn.Sequential(
+            nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
+
+            nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
+
+            nn.Conv2d(128, 256, kernel_size=3, stride=2, padding=1),
+            nn.ReLU(),
+            nn.AdaptiveAvgPool2d((1, 1))
+        )
+
+        # Projection to shared space
+        self.projection = nn.Linear(256, embedding_dim)
+
+    def forward(self, images: torch.Tensor) -> torch.Tensor:
+        """
+        Encode images to embeddings
+
+        Args:
+            images: Images (batch_size, 3, height, width)
+
+        Returns:
+            Image embeddings (batch_size, embedding_dim)
+        """
+        # Extract visual features
+        x = self.conv_layers(images)  # (batch, 256, 1, 1)
+        x = x.view(x.size(0), -1)  # (batch, 256)
+
+        # Project to shared space
+        x = self.projection(x)  # (batch, embedding_dim)
+
+        # Normalize
+        x = F.normalize(x, p=2, dim=1)
+
+        return x
+
+class AudioEncoder(nn.Module):
+    """
+    Audio encoder for multi-modal embeddings
+
+    Architecture:
+    - Mel-spectrogram frontend
+    - CNN or transformer encoder
+    - Projects to shared embedding space (512-dim)
+    """
+
+    def __init__(
+        self,
+        embedding_dim: int = 512,
+        sample_rate: int = 16000,
+        n_mels: int = 128
+    ):
+        super().__init__()
+        self.embedding_dim = embedding_dim
+        self.sample_rate = sample_rate
+        self.n_mels = n_mels
+
+        # CNN for mel-spectrogram
+        self.conv_layers = nn.Sequential(
+            nn.Conv2d(1, 64, kernel_size=3, stride=2, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2),
+
+            nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2),
+
+            nn.AdaptiveAvgPool2d((1, 1))
+        )
+
+        # Projection to shared space
+        self.projection = nn.Linear(128, embedding_dim)
+
+    def forward(self, mel_spectrograms: torch.Tensor) -> torch.Tensor:
+        """
+        Encode audio to embeddings
+
+        Args:
+            mel_spectrograms: Mel spectrograms (batch_size, 1, n_mels, time)
+
+        Returns:
+            Audio embeddings (batch_size, embedding_dim)
+        """
+        # Extract audio features
+        x = self.conv_layers(mel_spectrograms)  # (batch, 128, 1, 1)
+        x = x.view(x.size(0), -1)  # (batch, 128)
+
+        # Project to shared space
+        x = self.projection(x)  # (batch, embedding_dim)
+
+        # Normalize
+        x = F.normalize(x, p=2, dim=1)
+
+        return x
+
+class MultiModalSearchEngine:
+    """
+    Multi-modal semantic search engine
+
+    Architecture:
+    1. Modality encoders: Text, image, audio
+    2. Unified index: All modalities in shared vector space
+    3. Cross-modal retrieval: Query in any modality, retrieve from any
+
+    Capabilities:
+    - Text → Image: "cat" finds cat photos
+    - Image → Text: Upload cat photo, find articles about cats
+    - Audio → Video: Hum melody, find music videos
+    - Multi-modal queries: Text + Image together
+
+    Production optimizations:
+    - Pre-encode all documents (offline)
+    - Store per-modality indices separately
+    - Combine scores at query time (late fusion)
+    - Cache popular queries
+    """
+
+    def __init__(
+        self,
+        embedding_dim: int = 512,
+        device: str = 'cuda'
+    ):
+        """
+        Args:
+            embedding_dim: Dimension of shared embedding space
+            device: Device for computation ('cuda' or 'cpu')
+        """
+        self.embedding_dim = embedding_dim
+        self.device = device if torch.cuda.is_available() else 'cpu'
+
+        # Initialize encoders
+        self.text_encoder = TextEncoder(embedding_dim=embedding_dim).to(self.device)
+        self.image_encoder = ImageEncoder(embedding_dim=embedding_dim).to(self.device)
+        self.audio_encoder = AudioEncoder(embedding_dim=embedding_dim).to(self.device)
+
+        # Set to eval mode
+        self.text_encoder.eval()
+        self.image_encoder.eval()
+        self.audio_encoder.eval()
+
+        # Document store: doc_id -> MultiModalDocument
+        self.documents: Dict[str, MultiModalDocument] = {}
+
+        # Per-modality indices: modality -> (doc_ids, embeddings)
+        self.indices: Dict[str, Tuple[List[str], np.ndarray]] = {
+            'text': ([], np.array([])),
+            'image': ([], np.array([])),
+            'audio': ([], np.array([]))
+        }
+
+        print(f"Initialized Multi-Modal Search Engine")
+        print(f"  Embedding dimension: {embedding_dim}")
+        print(f"  Device: {self.device}")
+
+    def encode_text(self, texts: List[str]) -> np.ndarray:
+        """
+        Encode text to embeddings
+
+        Args:
+            texts: List of text strings
+
+        Returns:
+            Text embeddings (len(texts), embedding_dim)
+        """
+        # Tokenize (simplified - use proper tokenizer in production)
+        # For demo: Hash to token IDs
+        max_len = 77  # CLIP uses 77
+        token_ids = []
+        for text in texts:
+            ids = [hash(word) % 50000 for word in text.lower().split()[:max_len]]
+            # Pad to max_len
+            ids = ids + [0] * (max_len - len(ids))
+            token_ids.append(ids)
+
+        token_ids = torch.tensor(token_ids, dtype=torch.long).to(self.device)
+
+        # Encode
+        with torch.no_grad():
+            embeddings = self.text_encoder(token_ids)
+
+        return embeddings.cpu().numpy()
+
+    def encode_images(self, images: List[Image.Image]) -> np.ndarray:
+        """
+        Encode images to embeddings
+
+        Args:
+            images: List of PIL Images
+
+        Returns:
+            Image embeddings (len(images), embedding_dim)
+        """
+        # Preprocess images
+        image_tensors = []
+        for img in images:
+            # Resize to 224x224
+            img = img.resize((224, 224))
+            # Convert to tensor (normalize to [0, 1])
+            img_array = np.array(img).astype(np.float32) / 255.0
+            # Handle grayscale
+            if len(img_array.shape) == 2:
+                img_array = np.stack([img_array] * 3, axis=-1)
+            # (H, W, C) -> (C, H, W)
+            img_tensor = torch.from_numpy(img_array).permute(2, 0, 1)
+            image_tensors.append(img_tensor)
+
+        images_batch = torch.stack(image_tensors).to(self.device)
+
+        # Encode
+        with torch.no_grad():
+            embeddings = self.image_encoder(images_batch)
+
+        return embeddings.cpu().numpy()
+
+    def encode_audio(self, audio_samples: List[np.ndarray]) -> np.ndarray:
+        """
+        Encode audio to embeddings
+
+        Args:
+            audio_samples: List of audio waveforms
+
+        Returns:
+            Audio embeddings (len(audio_samples), embedding_dim)
+        """
+        # Convert to mel spectrograms (simplified)
+        mel_specs = []
+        for audio in audio_samples:
+            # In production: Use librosa.feature.melspectrogram
+            # For demo: Create dummy mel spectrogram
+            mel_spec = np.random.randn(1, 128, 100).astype(np.float32)
+            mel_specs.append(torch.from_numpy(mel_spec))
+
+        mel_batch = torch.stack(mel_specs).to(self.device)
+
+        # Encode
+        with torch.no_grad():
+            embeddings = self.audio_encoder(mel_batch)
+
+        return embeddings.cpu().numpy()
+
+    def index_documents(self, documents: List[MultiModalDocument]):
+        """
+        Index multi-modal documents
+
+        Process:
+        1. Encode each modality present in documents
+        2. Store embeddings in per-modality indices
+        3. Store documents for retrieval
+
+        Args:
+            documents: Documents to index
+        """
+        print(f"Indexing {len(documents)} multi-modal documents...")
+
+        # Separate by modality
+        text_docs = [(i, doc) for i, doc in enumerate(documents) if doc.text]
+        image_docs = [(i, doc) for i, doc in enumerate(documents) if doc.image]
+        audio_docs = [(i, doc) for i, doc in enumerate(documents) if doc.audio]
+
+        # Encode text
+        if text_docs:
+            texts = [doc.text for _, doc in text_docs]
+            text_embeddings = self.encode_text(texts)
+
+            # Update text index
+            doc_ids = [doc.doc_id for _, doc in text_docs]
+            existing_ids, existing_embs = self.indices['text']
+
+            if len(existing_embs) > 0:
+                self.indices['text'] = (
+                    list(existing_ids) + doc_ids,
+                    np.vstack([existing_embs, text_embeddings])
+                )
+            else:
+                self.indices['text'] = (doc_ids, text_embeddings)
+
+            print(f"  Indexed {len(text_docs)} text documents")
+
+        # Encode images
+        if image_docs:
+            images = [doc.image for _, doc in image_docs]
+            image_embeddings = self.encode_images(images)
+
+            # Update image index
+            doc_ids = [doc.doc_id for _, doc in image_docs]
+            existing_ids, existing_embs = self.indices['image']
+
+            if len(existing_embs) > 0:
+                self.indices['image'] = (
+                    list(existing_ids) + doc_ids,
+                    np.vstack([existing_embs, image_embeddings])
+                )
+            else:
+                self.indices['image'] = (doc_ids, image_embeddings)
+
+            print(f"  Indexed {len(image_docs)} image documents")
+
+        # Encode audio
+        if audio_docs:
+            audio_samples = [doc.audio for _, doc in audio_docs]
+            audio_embeddings = self.encode_audio(audio_samples)
+
+            # Update audio index
+            doc_ids = [doc.doc_id for _, doc in audio_docs]
+            existing_ids, existing_embs = self.indices['audio']
+
+            if len(existing_embs) > 0:
+                self.indices['audio'] = (
+                    list(existing_ids) + doc_ids,
+                    np.vstack([existing_embs, audio_embeddings])
+                )
+            else:
+                self.indices['audio'] = (doc_ids, audio_embeddings)
+
+            print(f"  Indexed {len(audio_docs)} audio documents")
+
+        # Store documents
+        for doc in documents:
+            self.documents[doc.doc_id] = doc
+
+        print(f"✓ Indexing complete")
+        print(f"  Total documents: {len(self.documents)}")
+        print(f"  Text index: {len(self.indices['text'][0])}")
+        print(f"  Image index: {len(self.indices['image'][0])}")
+        print(f"  Audio index: {len(self.indices['audio'][0])}")
+
+    def search(
+        self,
+        query: MultiModalQuery,
+        top_k: int = 10,
+        modality_filter: Optional[str] = None
+    ) -> List[Tuple[str, float]]:
+        """
+        Search across modalities
+
+        Cross-modal retrieval:
+        - Query in one modality, retrieve from all modalities
+        - Combine scores from multiple query modalities
+
+        Args:
+            query: Multi-modal query
+            top_k: Number of results to return
+            modality_filter: Only search this modality (optional)
+
+        Returns:
+            List of (doc_id, score) tuples
+        """
+        # Encode query modalities
+        query_embeddings = {}
+
+        if query.text:
+            text_emb = self.encode_text([query.text])[0]
+            query_embeddings['text'] = text_emb
+
+        if query.image:
+            image_emb = self.encode_images([query.image])[0]
+            query_embeddings['image'] = image_emb
+
+        if query.audio:
+            audio_emb = self.encode_audio([query.audio])[0]
+            query_embeddings['audio'] = audio_emb
+
+        if not query_embeddings:
+            return []
+
+        # Search in each document modality
+        all_scores = {}  # doc_id -> score
+
+        # Determine which document modalities to search
+        search_modalities = [modality_filter] if modality_filter else ['text', 'image', 'audio']
+
+        for doc_modality in search_modalities:
+            doc_ids, doc_embeddings = self.indices[doc_modality]
+
+            if len(doc_ids) == 0:
+                continue
+
+            # Compute scores for each query modality
+            for query_modality, query_emb in query_embeddings.items():
+                # Cosine similarity
+                scores = np.dot(doc_embeddings, query_emb)
+
+                # Weight by modality
+                weight = query.modality_weights.get(query_modality, 1.0)
+
+                # Accumulate scores
+                for doc_id, score in zip(doc_ids, scores):
+                    if doc_id not in all_scores:
+                        all_scores[doc_id] = 0.0
+                    all_scores[doc_id] += weight * score
+
+        # Sort by score
+        ranked_results = sorted(all_scores.items(), key=lambda x: x[1], reverse=True)
+
+        return ranked_results[:top_k]
+
+# Example: Multi-modal product search
+def multimodal_search_example():
+    """
+    Multi-modal search for e-commerce products
+
+    Use cases:
+    - Text → Image: "red dress" finds red dress photos
+    - Image → Product: Upload dress photo, find similar products
+    - Text + Image: "red dress" + style image finds matching products
+
+    Scale: 10M products with images and descriptions
+    """
+
+    # Initialize search engine
+    engine = MultiModalSearchEngine(embedding_dim=512)
+
+    # Create sample products
+    products = [
+        MultiModalDocument(
+            doc_id='product_1',
+            text='Red summer dress with floral pattern',
+            image=Image.new('RGB', (224, 224), color='red'),
+            metadata={'category': 'clothing', 'price': 49.99}
+        ),
+        MultiModalDocument(
+            doc_id='product_2',
+            text='Blue denim jeans with distressed look',
+            image=Image.new('RGB', (224, 224), color='blue'),
+            metadata={'category': 'clothing', 'price': 79.99}
+        ),
+        MultiModalDocument(
+            doc_id='product_3',
+            text='Wireless bluetooth headphones with noise cancellation',
+            image=Image.new('RGB', (224, 224), color='black'),
+            metadata={'category': 'electronics', 'price': 199.99}
+        )
+    ]
+
+    # Index products
+    engine.index_documents(products)
+
+    # Search: Text query
+    print("\n=== Text Query: 'red dress' ===")
+    query1 = MultiModalQuery(text='red dress')
+    results1 = engine.search(query1, top_k=3)
+
+    for doc_id, score in results1:
+        doc = engine.documents[doc_id]
+        print(f"{doc_id}: {doc.text[:50]}... (score: {score:.3f})")
+
+    # Search: Image query
+    print("\n=== Image Query: Red image ===")
+    query_image = Image.new('RGB', (224, 224), color='red')
+    query2 = MultiModalQuery(image=query_image)
+    results2 = engine.search(query2, top_k=3)
+
+    for doc_id, score in results2:
+        doc = engine.documents[doc_id]
+        print(f"{doc_id}: {doc.text[:50]}... (score: {score:.3f})")
+
+    # Search: Multi-modal query (text + image)
+    print("\n=== Multi-Modal Query: 'dress' + blue image ===")
+    query_image_blue = Image.new('RGB', (224, 224), color='blue')
+    query3 = MultiModalQuery(
+        text='dress',
+        image=query_image_blue,
+        modality_weights={'text': 0.6, 'image': 0.4}
+    )
+    results3 = engine.search(query3, top_k=3)
+
+    for doc_id, score in results3:
+        doc = engine.documents[doc_id]
+        print(f"{doc_id}: {doc.text[:50]}... (score: {score:.3f})")
+
+# Uncomment to run:
+# multimodal_search_example()
+```
+
+:::{.callout-tip}
+## Multi-Modal Search Best Practices
+
+**Architecture:**
+- **Separate encoders**: Train modality-specific encoders (don't share weights)
+- **Shared embedding space**: Project to common space (512-1024 dim)
+- **Contrastive training**: Align modalities via paired data (image-caption pairs)
+- **Late fusion**: Combine scores at query time (more flexible than early fusion)
+
+**Training data:**
+- **Paired examples**: Need (text, image) or (audio, video) pairs
+- **Web-scale data**: LAION-5B (5 billion image-text pairs)
+- **Data quality**: Filter low-quality pairs (CLIP score, aesthetic score)
+- **Augmentation**: Augment images/audio, not text (preserve semantics)
+
+**Performance:**
+- **Pre-encode documents**: Encode offline, store embeddings
+- **Per-modality indices**: Separate HNSW index per modality
+- **GPU inference**: Batch encode queries on GPU
+- **Caching**: Cache popular queries (50% of queries are repeats)
+:::
+
+:::{.callout-warning}
+## Cross-Modal Alignment Challenges
+
+Multi-modal embeddings require **aligned training data**:
+- Image-text pairs must be semantically related
+- Noisy pairs degrade alignment (web data often mismatched)
+- Rare concepts harder to align (less training data)
+
+**Mitigation strategies:**
+- Filter pairs by CLIP score (cosine similarity threshold)
+- Use curated datasets for critical domains
+- Hard negative mining (find hard mismatches to learn from)
+- Domain-specific fine-tuning (medical, legal, etc.)
+:::
 
 ## Code Search and Software Intelligence
 
-[Content to be written: Details about code search and software intelligence]
+Code search finds functions, classes, and patterns in massive codebases—but traditional search fails because code semantics differ from syntax. **Semantic code search** uses embeddings to find code by intent ("sort a list"), not keywords, enabling software intelligence for code completion, bug detection, and API discovery.
+
+### The Code Search Challenge
+
+Code has unique properties:
+- **Syntax vs semantics**: `list.sort()` and `sorted(list)` are syntactically different but semantically similar
+- **Multiple representations**: Code, comments, docstrings, test cases all describe intent
+- **Compositional**: Functions compose; understanding requires context
+- **Polyglot**: Multiple languages (Python, Java, C++, JavaScript)
+
+**Challenge**: Find code that **does X** (semantic intent), not code that **contains X** (keyword match).
+
+```python
+"""
+Semantic Code Search System
+
+Architecture:
+1. Code encoder: Learns code representations (GraphCodeBERT, CodeBERT)
+2. Query encoder: Encodes natural language queries
+3. Bi-encoder training: Align code and queries in shared space
+4. Cross-encoder reranking: Rerank top results with detailed matching
+
+Training data:
+- Code-docstring pairs (GitHub, Stack Overflow)
+- Code-comment pairs
+- Query-code pairs (synthetic and real)
+
+Applications:
+- Code completion (GitHub Copilot)
+- API discovery (find relevant functions)
+- Bug detection (find similar known bugs)
+- Code review (find similar code for patterns)
+"""
+
+import ast
+import re
+from typing import List, Dict, Optional, Tuple, Set
+from dataclasses import dataclass
+import torch
+import torch.nn as nn
+
+@dataclass
+class CodeSnippet:
+    """
+    Code snippet with metadata
+
+    Attributes:
+        code_id: Unique identifier
+        code: Source code
+        language: Programming language
+        docstring: Function/class docstring
+        function_name: Function name (if applicable)
+        file_path: Source file path
+        embedding: Cached embedding
+    """
+    code_id: str
+    code: str
+    language: str
+    docstring: Optional[str] = None
+    function_name: Optional[str] = None
+    file_path: Optional[str] = None
+    embedding: Optional[np.ndarray] = None
+
+class CodeEncoder(nn.Module):
+    """
+    Code encoder using transformer architecture
+
+    Architecture:
+    - Tokenize code (BPE or subword tokenization)
+    - Transformer encoder (GraphCodeBERT or CodeBERT)
+    - Pool to fixed-size embedding
+
+    In production: Use pre-trained CodeBERT or GraphCodeBERT
+    """
+
+    def __init__(
+        self,
+        vocab_size: int = 50000,
+        embedding_dim: int = 512,
+        hidden_dim: int = 768,
+        num_layers: int = 6
+    ):
+        super().__init__()
+        self.embedding_dim = embedding_dim
+
+        # Token embedding
+        self.token_embedding = nn.Embedding(vocab_size, hidden_dim)
+
+        # Transformer encoder
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=hidden_dim,
+            nhead=8,
+            dim_feedforward=hidden_dim * 4,
+            batch_first=True
+        )
+        self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
+
+        # Projection to embedding space
+        self.projection = nn.Linear(hidden_dim, embedding_dim)
+
+    def forward(self, token_ids: torch.Tensor) -> torch.Tensor:
+        """
+        Encode code to embeddings
+
+        Args:
+            token_ids: Token IDs (batch_size, seq_len)
+
+        Returns:
+            Code embeddings (batch_size, embedding_dim)
+        """
+        # Embed tokens
+        x = self.token_embedding(token_ids)
+
+        # Encode with transformer
+        x = self.transformer(x)
+
+        # Pool: Mean pooling over sequence
+        x = torch.mean(x, dim=1)
+
+        # Project to embedding space
+        x = self.projection(x)
+
+        # Normalize
+        x = F.normalize(x, p=2, dim=1)
+
+        return x
+
+class CodeSearchEngine:
+    """
+    Semantic code search engine
+
+    Capabilities:
+    - Natural language queries: "sort a list in descending order"
+    - Code-to-code search: Find similar implementations
+    - API discovery: Find relevant functions/classes
+    - Cross-language search: Query in English, find in any language
+
+    Architecture:
+    - Bi-encoder: Separate encoders for queries and code
+    - Vector index: HNSW index for fast retrieval
+    - Reranker: Cross-encoder for top-k refinement
+
+    Production scale:
+    - 100M+ code snippets (all of GitHub)
+    - Sub-second query latency
+    - Incremental indexing (new code added continuously)
+    """
+
+    def __init__(
+        self,
+        embedding_dim: int = 512,
+        device: str = 'cuda'
+    ):
+        """
+        Args:
+            embedding_dim: Embedding dimension
+            device: Device for computation
+        """
+        self.embedding_dim = embedding_dim
+        self.device = device if torch.cuda.is_available() else 'cpu'
+
+        # Initialize encoders
+        self.code_encoder = CodeEncoder(embedding_dim=embedding_dim).to(self.device)
+        self.query_encoder = TextEncoder(embedding_dim=embedding_dim).to(self.device)
+
+        # Set to eval mode
+        self.code_encoder.eval()
+        self.query_encoder.eval()
+
+        # Code index: code_id -> CodeSnippet
+        self.code_snippets: Dict[str, CodeSnippet] = {}
+
+        # Embedding index: (code_ids, embeddings)
+        self.code_ids: List[str] = []
+        self.embeddings: Optional[np.ndarray] = None
+
+        print(f"Initialized Code Search Engine")
+        print(f"  Embedding dimension: {embedding_dim}")
+        print(f"  Device: {self.device}")
+
+    def tokenize_code(self, code: str) -> List[str]:
+        """
+        Tokenize code into tokens
+
+        Strategies:
+        - Split on whitespace and operators
+        - Preserve identifiers and keywords
+        - Handle language-specific syntax
+
+        In production: Use language-specific tokenizers (tree-sitter)
+
+        Args:
+            code: Source code
+
+        Returns:
+            List of tokens
+        """
+        # Simple tokenization (split on whitespace and operators)
+        # In production: Use tree-sitter or language-specific parsers
+
+        # Replace operators with spaces
+        operators = r'[+\-*/%=<>!&|^~(){}\[\];:,.]'
+        code_spaced = re.sub(operators, ' ', code)
+
+        # Split on whitespace
+        tokens = code_spaced.split()
+
+        # Filter empty tokens
+        tokens = [t for t in tokens if t.strip()]
+
+        return tokens
+
+    def extract_functions(self, code: str, language: str = 'python') -> List[CodeSnippet]:
+        """
+        Extract functions from source code
+
+        Uses AST parsing to extract function definitions with docstrings
+
+        Args:
+            code: Source code
+            language: Programming language
+
+        Returns:
+            List of code snippets (one per function)
+        """
+        snippets = []
+
+        if language == 'python':
+            try:
+                tree = ast.parse(code)
+
+                for node in ast.walk(tree):
+                    if isinstance(node, ast.FunctionDef):
+                        # Extract function code
+                        function_code = ast.unparse(node)
+
+                        # Extract docstring
+                        docstring = ast.get_docstring(node)
+
+                        # Create snippet
+                        snippet = CodeSnippet(
+                            code_id=f"func_{node.name}_{node.lineno}",
+                            code=function_code,
+                            language='python',
+                            docstring=docstring,
+                            function_name=node.name
+                        )
+                        snippets.append(snippet)
+
+            except SyntaxError:
+                # If parsing fails, treat entire code as one snippet
+                snippet = CodeSnippet(
+                    code_id='code_0',
+                    code=code,
+                    language=language
+                )
+                snippets.append(snippet)
+        else:
+            # For other languages, treat as single snippet
+            snippet = CodeSnippet(
+                code_id='code_0',
+                code=code,
+                language=language
+            )
+            snippets.append(snippet)
+
+        return snippets
+
+    def encode_code(self, code_snippets: List[CodeSnippet]) -> np.ndarray:
+        """
+        Encode code snippets to embeddings
+
+        Args:
+            code_snippets: Code snippets to encode
+
+        Returns:
+            Embeddings (len(code_snippets), embedding_dim)
+        """
+        # Tokenize code
+        tokenized = []
+        for snippet in code_snippets:
+            # Combine code and docstring
+            text = snippet.code
+            if snippet.docstring:
+                text = f"{snippet.docstring}\n{text}"
+
+            tokens = self.tokenize_code(text)
+
+            # Convert to token IDs (hash-based for demo)
+            max_len = 512
+            token_ids = [hash(token) % 50000 for token in tokens[:max_len]]
+            # Pad
+            token_ids = token_ids + [0] * (max_len - len(token_ids))
+            tokenized.append(token_ids)
+
+        token_ids = torch.tensor(tokenized, dtype=torch.long).to(self.device)
+
+        # Encode
+        with torch.no_grad():
+            embeddings = self.code_encoder(token_ids)
+
+        return embeddings.cpu().numpy()
+
+    def encode_query(self, query: str) -> np.ndarray:
+        """
+        Encode natural language query
+
+        Args:
+            query: Query string
+
+        Returns:
+            Query embedding (embedding_dim,)
+        """
+        # Tokenize query (same as TextEncoder)
+        max_len = 77
+        tokens = query.lower().split()[:max_len]
+        token_ids = [hash(word) % 50000 for word in tokens]
+        token_ids = token_ids + [0] * (max_len - len(token_ids))
+
+        token_ids = torch.tensor([token_ids], dtype=torch.long).to(self.device)
+
+        # Encode
+        with torch.no_grad():
+            embedding = self.query_encoder(token_ids)
+
+        return embedding.cpu().numpy()[0]
+
+    def index_code(self, code_snippets: List[CodeSnippet]):
+        """
+        Index code snippets for search
+
+        Args:
+            code_snippets: Code snippets to index
+        """
+        print(f"Indexing {len(code_snippets)} code snippets...")
+
+        # Encode code
+        embeddings = self.encode_code(code_snippets)
+
+        # Update index
+        for snippet, embedding in zip(code_snippets, embeddings):
+            snippet.embedding = embedding
+            self.code_snippets[snippet.code_id] = snippet
+            self.code_ids.append(snippet.code_id)
+
+        # Stack embeddings
+        if self.embeddings is None:
+            self.embeddings = embeddings
+        else:
+            self.embeddings = np.vstack([self.embeddings, embeddings])
+
+        print(f"✓ Indexed {len(code_snippets)} snippets")
+        print(f"  Total index size: {len(self.code_ids)}")
+
+    def search(
+        self,
+        query: str,
+        top_k: int = 10,
+        language_filter: Optional[str] = None
+    ) -> List[Tuple[CodeSnippet, float]]:
+        """
+        Search for code using natural language query
+
+        Args:
+            query: Natural language query
+            top_k: Number of results
+            language_filter: Filter by language (optional)
+
+        Returns:
+            List of (code_snippet, score) tuples
+        """
+        # Encode query
+        query_embedding = self.encode_query(query)
+
+        # Compute similarities
+        scores = np.dot(self.embeddings, query_embedding)
+
+        # Rank results
+        ranked_indices = np.argsort(scores)[::-1]
+
+        # Filter by language if specified
+        results = []
+        for idx in ranked_indices:
+            code_id = self.code_ids[idx]
+            snippet = self.code_snippets[code_id]
+            score = scores[idx]
+
+            # Language filter
+            if language_filter and snippet.language != language_filter:
+                continue
+
+            results.append((snippet, score))
+
+            if len(results) >= top_k:
+                break
+
+        return results
+
+# Example: Code search for Python repository
+def code_search_example():
+    """
+    Semantic code search over Python codebase
+
+    Use cases:
+    - Find sorting implementations
+    - Find API usage examples
+    - Find similar bug patterns
+    - Discover relevant functions
+
+    Scale: 1M+ Python functions
+    """
+
+    # Initialize search engine
+    engine = CodeSearchEngine(embedding_dim=512)
+
+    # Sample code repository
+    sample_code = [
+        '''
+def bubble_sort(arr):
+    """Sort a list using bubble sort algorithm"""
+    n = len(arr)
+    for i in range(n):
+        for j in range(0, n-i-1):
+            if arr[j] > arr[j+1]:
+                arr[j], arr[j+1] = arr[j+1], arr[j]
+    return arr
+''',
+        '''
+def quick_sort(arr):
+    """Sort a list using quick sort algorithm"""
+    if len(arr) <= 1:
+        return arr
+    pivot = arr[len(arr) // 2]
+    left = [x for x in arr if x < pivot]
+    middle = [x for x in arr if x == pivot]
+    right = [x for x in arr if x > pivot]
+    return quick_sort(left) + middle + quick_sort(right)
+''',
+        '''
+def binary_search(arr, target):
+    """Search for target in sorted array using binary search"""
+    left, right = 0, len(arr) - 1
+    while left <= right:
+        mid = (left + right) // 2
+        if arr[mid] == target:
+            return mid
+        elif arr[mid] < target:
+            left = mid + 1
+        else:
+            right = mid - 1
+    return -1
+'''
+    ]
+
+    # Extract and index functions
+    all_snippets = []
+    for code in sample_code:
+        snippets = engine.extract_functions(code, language='python')
+        all_snippets.extend(snippets)
+
+    engine.index_code(all_snippets)
+
+    # Search: Find sorting implementations
+    print("\n=== Query: 'sort a list' ===")
+    results = engine.search('sort a list', top_k=3)
+
+    for snippet, score in results:
+        print(f"\nFunction: {snippet.function_name} (score: {score:.3f})")
+        print(f"Docstring: {snippet.docstring}")
+        print(f"Code preview: {snippet.code[:100]}...")
+
+    # Search: Find search algorithms
+    print("\n\n=== Query: 'find an element in array' ===")
+    results = engine.search('find an element in array', top_k=3)
+
+    for snippet, score in results:
+        print(f"\nFunction: {snippet.function_name} (score: {score:.3f})")
+        print(f"Docstring: {snippet.docstring}")
+        print(f"Code preview: {snippet.code[:100]}...")
+
+# Uncomment to run:
+# code_search_example()
+```
+
+:::{.callout-tip}
+## Code Search Best Practices
+
+**Training:**
+- **Pre-training**: Use CodeBERT or GraphCodeBERT (pre-trained on GitHub)
+- **Fine-tuning**: Fine-tune on domain-specific code (internal codebase)
+- **Data augmentation**: Rename variables, reformat code (preserve semantics)
+- **Hard negatives**: Mine hard negatives (similar code, different semantics)
+
+**Indexing:**
+- **Function-level**: Index individual functions, not entire files
+- **Deduplication**: Remove duplicate functions (common in forks)
+- **Metadata**: Include docstrings, comments, test cases
+- **Incremental**: Update index as new code is added (CI/CD integration)
+
+**Search quality:**
+- **Reranking**: Use cross-encoder to rerank top-100 results
+- **Diversity**: Ensure diverse results (not all bubble sort variants)
+- **Filtering**: Filter by language, library, recency
+- **Personalization**: Rank by user's coding style and preferences
+:::
 
 ## Scientific Literature and Patent Search
 
-[Content to be written: Details about scientific literature and patent search]
+Scientific research produces millions of papers annually—PubMed has 35M+ articles, arXiv adds 200K/year, and patent offices hold 100M+ patents. **Semantic literature search** finds relevant research by understanding concepts, methods, and relationships, enabling discovery across citation networks and entity resolution for authors, institutions, and compounds.
+
+### The Scientific Search Challenge
+
+Scientific literature has unique characteristics:
+- **Domain terminology**: Specialized vocabulary (medical, chemistry, physics)
+- **Citation networks**: Papers cite related work (graph structure matters)
+- **Multi-entity**: Authors, institutions, chemicals, genes (entity linking)
+- **Temporal evolution**: Concepts evolve over time
+- **Multimodal**: Text + figures + tables + equations
+
+**Challenge**: Find **relevant research** (concept match), not **keyword match** (term frequency).
+
+```python
+"""
+Scientific Literature Search System
+
+Architecture:
+1. Document encoder: SPECTER, SciBERT (domain-specific BERT)
+2. Citation graph: Incorporate citation network
+3. Entity linking: Resolve entities (authors, chemicals, genes)
+4. Multi-field search: Title, abstract, full text, citations
+5. Temporal ranking: Prioritize recent + highly-cited
+
+Training data:
+- S2ORC: 81M+ papers with citations
+- PubMed: 35M+ biomedical papers
+- arXiv: 2M+ preprints
+
+Applications:
+- Literature review (find related work)
+- Drug discovery (find chemical interactions)
+- Researcher discovery (find experts)
+- Patent search (prior art search)
+"""
+
+from typing import List, Dict, Optional, Tuple, Set
+from dataclasses import dataclass
+from datetime import datetime
+import numpy as np
+
+@dataclass
+class ScientificPaper:
+    """
+    Scientific paper with metadata
+
+    Attributes:
+        paper_id: Unique identifier
+        title: Paper title
+        abstract: Abstract text
+        authors: List of author names
+        year: Publication year
+        venue: Publication venue (journal/conference)
+        citations: List of cited paper IDs
+        cited_by: List of citing paper IDs
+        entities: Extracted entities (chemicals, genes, etc.)
+        embedding: Cached embedding
+    """
+    paper_id: str
+    title: str
+    abstract: str
+    authors: List[str]
+    year: int
+    venue: Optional[str] = None
+    citations: List[str] = None
+    cited_by: List[str] = None
+    entities: Dict[str, List[str]] = None
+    embedding: Optional[np.ndarray] = None
+
+    def __post_init__(self):
+        if self.citations is None:
+            self.citations = []
+        if self.cited_by is None:
+            self.cited_by = []
+        if self.entities is None:
+            self.entities = {}
+
+class ScientificSearchEngine:
+    """
+    Semantic search for scientific literature
+
+    Features:
+    - Semantic search: Find papers by concept, not keywords
+    - Citation-aware ranking: Boost highly-cited papers
+    - Co-citation analysis: Find papers cited together
+    - Author search: Find papers by author
+    - Entity search: Find papers mentioning specific entities
+
+    Advanced features:
+    - Citation graph embeddings: Node2Vec on citation graph
+    - Multi-hop search: Find papers citing papers that cite X
+    - Temporal ranking: Boost recent papers
+    - Cross-lingual: Search in English, find in any language
+    """
+
+    def __init__(self, embedding_dim: int = 768):
+        """
+        Args:
+            embedding_dim: Embedding dimension (768 for SPECTER/SciBERT)
+        """
+        self.embedding_dim = embedding_dim
+
+        # Paper index: paper_id -> ScientificPaper
+        self.papers: Dict[str, ScientificPaper] = {}
+
+        # Embedding index
+        self.paper_ids: List[str] = []
+        self.embeddings: Optional[np.ndarray] = None
+
+        # Citation graph: paper_id -> {cited_papers, citing_papers}
+        self.citation_graph: Dict[str, Set[str]] = {}
+
+        # Entity index: entity -> {paper_ids}
+        self.entity_index: Dict[str, Set[str]] = {}
+
+        # Author index: author -> {paper_ids}
+        self.author_index: Dict[str, Set[str]] = {}
+
+        print(f"Initialized Scientific Search Engine")
+        print(f"  Embedding dimension: {embedding_dim}")
+
+    def encode_paper(self, paper: ScientificPaper) -> np.ndarray:
+        """
+        Encode paper to embedding
+
+        Uses SPECTER or SciBERT:
+        - Encode title + abstract
+        - Optionally incorporate citation context
+
+        Args:
+            paper: Scientific paper
+
+        Returns:
+            Paper embedding (embedding_dim,)
+        """
+        # Combine title and abstract
+        text = f"{paper.title}. {paper.abstract}"
+
+        # In production: Use SPECTER or SciBERT
+        # For demo: Random embedding
+        embedding = np.random.randn(self.embedding_dim).astype(np.float32)
+
+        # Normalize
+        embedding = embedding / np.linalg.norm(embedding)
+
+        return embedding
+
+    def index_papers(self, papers: List[ScientificPaper]):
+        """
+        Index scientific papers
+
+        Builds:
+        1. Embedding index (for semantic search)
+        2. Citation graph (for citation-aware ranking)
+        3. Entity index (for entity search)
+        4. Author index (for author search)
+
+        Args:
+            papers: Papers to index
+        """
+        print(f"Indexing {len(papers)} papers...")
+
+        for paper in papers:
+            # Encode paper
+            embedding = self.encode_paper(paper)
+            paper.embedding = embedding
+
+            # Add to paper index
+            self.papers[paper.paper_id] = paper
+            self.paper_ids.append(paper.paper_id)
+
+            # Add to embedding index
+            if self.embeddings is None:
+                self.embeddings = embedding.reshape(1, -1)
+            else:
+                self.embeddings = np.vstack([self.embeddings, embedding])
+
+            # Build citation graph
+            if paper.paper_id not in self.citation_graph:
+                self.citation_graph[paper.paper_id] = set()
+
+            for cited_id in paper.citations:
+                self.citation_graph[paper.paper_id].add(cited_id)
+
+                # Add reverse citation
+                if cited_id not in self.citation_graph:
+                    self.citation_graph[cited_id] = set()
+
+            # Build entity index
+            for entity_type, entities in paper.entities.items():
+                for entity in entities:
+                    entity_key = f"{entity_type}:{entity}"
+                    if entity_key not in self.entity_index:
+                        self.entity_index[entity_key] = set()
+                    self.entity_index[entity_key].add(paper.paper_id)
+
+            # Build author index
+            for author in paper.authors:
+                if author not in self.author_index:
+                    self.author_index[author] = set()
+                self.author_index[author].add(paper.paper_id)
+
+        print(f"✓ Indexed {len(papers)} papers")
+        print(f"  Papers: {len(self.papers)}")
+        print(f"  Citations: {sum(len(v) for v in self.citation_graph.values())}")
+        print(f"  Entities: {len(self.entity_index)}")
+        print(f"  Authors: {len(self.author_index)}")
+
+    def search(
+        self,
+        query: str,
+        top_k: int = 20,
+        min_year: Optional[int] = None,
+        author_filter: Optional[str] = None,
+        boost_citations: bool = True
+    ) -> List[Tuple[ScientificPaper, float]]:
+        """
+        Search for papers
+
+        Args:
+            query: Search query (natural language)
+            top_k: Number of results
+            min_year: Minimum publication year (optional)
+            author_filter: Filter by author (optional)
+            boost_citations: Boost highly-cited papers
+
+        Returns:
+            List of (paper, score) tuples
+        """
+        # Encode query (same as paper encoding)
+        # In production: Use SPECTER query encoder
+        query_embedding = np.random.randn(self.embedding_dim).astype(np.float32)
+        query_embedding = query_embedding / np.linalg.norm(query_embedding)
+
+        # Compute semantic similarity
+        scores = np.dot(self.embeddings, query_embedding)
+
+        # Apply filters and boost citations
+        final_scores = []
+
+        for i, paper_id in enumerate(self.paper_ids):
+            paper = self.papers[paper_id]
+            score = scores[i]
+
+            # Year filter
+            if min_year and paper.year < min_year:
+                continue
+
+            # Author filter
+            if author_filter and author_filter not in paper.authors:
+                continue
+
+            # Citation boost
+            if boost_citations:
+                citation_count = len(paper.cited_by)
+                # Log-scale boost (highly-cited papers get moderate boost)
+                citation_boost = np.log1p(citation_count) / 10.0
+                score = score + citation_boost
+
+            final_scores.append((paper, score))
+
+        # Sort by score
+        final_scores.sort(key=lambda x: x[1], reverse=True)
+
+        return final_scores[:top_k]
+
+    def find_related_by_citations(
+        self,
+        paper_id: str,
+        top_k: int = 10
+    ) -> List[Tuple[ScientificPaper, float]]:
+        """
+        Find related papers based on citation patterns
+
+        Strategies:
+        1. Co-citations: Papers that cite the same papers
+        2. Bibliographic coupling: Papers cited by the same papers
+        3. Direct citations: Papers that cite or are cited by this paper
+
+        Args:
+            paper_id: Source paper ID
+            top_k: Number of results
+
+        Returns:
+            List of (paper, score) tuples
+        """
+        if paper_id not in self.papers:
+            return []
+
+        source_paper = self.papers[paper_id]
+
+        # Get papers cited by source
+        source_citations = set(source_paper.citations)
+
+        # Compute co-citation scores
+        cocitation_scores = {}
+
+        for other_id in self.paper_ids:
+            if other_id == paper_id:
+                continue
+
+            other_paper = self.papers[other_id]
+            other_citations = set(other_paper.citations)
+
+            # Co-citation: Papers that cite the same papers
+            overlap = source_citations & other_citations
+
+            if overlap:
+                # Jaccard similarity
+                union = source_citations | other_citations
+                score = len(overlap) / len(union) if union else 0
+                cocitation_scores[other_id] = score
+
+        # Sort by score
+        ranked = sorted(cocitation_scores.items(), key=lambda x: x[1], reverse=True)
+
+        results = [(self.papers[pid], score) for pid, score in ranked[:top_k]]
+
+        return results
+
+    def search_by_entity(
+        self,
+        entity_type: str,
+        entity_value: str,
+        top_k: int = 20
+    ) -> List[ScientificPaper]:
+        """
+        Search papers by entity (chemical, gene, etc.)
+
+        Args:
+            entity_type: Type of entity (e.g., 'chemical', 'gene')
+            entity_value: Entity value
+            top_k: Number of results
+
+        Returns:
+            List of papers mentioning this entity
+        """
+        entity_key = f"{entity_type}:{entity_value}"
+
+        if entity_key not in self.entity_index:
+            return []
+
+        paper_ids = self.entity_index[entity_key]
+
+        # Sort by year (most recent first)
+        papers = [self.papers[pid] for pid in paper_ids if pid in self.papers]
+        papers.sort(key=lambda p: p.year, reverse=True)
+
+        return papers[:top_k]
+
+# Example: Scientific literature search
+def scientific_search_example():
+    """
+    Semantic search over scientific literature
+
+    Use cases:
+    - Literature review (find related work)
+    - Drug discovery (find papers on specific chemicals)
+    - Researcher discovery (find papers by author)
+    - Citation analysis (find citation patterns)
+
+    Scale: 35M+ papers (PubMed scale)
+    """
+
+    # Create sample papers
+    papers = [
+        ScientificPaper(
+            paper_id='paper_1',
+            title='Deep Learning for Protein Structure Prediction',
+            abstract='We present a novel deep learning approach for predicting protein structures from amino acid sequences using transformers.',
+            authors=['Alice Smith', 'Bob Johnson'],
+            year=2023,
+            venue='Nature',
+            citations=['paper_4'],
+            entities={'protein': ['AlphaFold'], 'method': ['transformer']},
+            cited_by=['paper_2', 'paper_3']
+        ),
+        ScientificPaper(
+            paper_id='paper_2',
+            title='Improved Protein Folding with Attention Mechanisms',
+            abstract='Building on recent work, we improve protein folding predictions using multi-head attention and residual connections.',
+            authors=['Charlie Brown'],
+            year=2024,
+            venue='Science',
+            citations=['paper_1', 'paper_4'],
+            entities={'protein': ['AlphaFold'], 'method': ['attention']}
+        ),
+        ScientificPaper(
+            paper_id='paper_3',
+            title='Applications of AI in Drug Discovery',
+            abstract='We survey recent applications of artificial intelligence in drug discovery, including protein structure prediction and molecular docking.',
+            authors=['Diana Prince', 'Alice Smith'],
+            year=2024,
+            venue='Nature Reviews Drug Discovery',
+            citations=['paper_1'],
+            entities={'application': ['drug discovery']}
+        ),
+        ScientificPaper(
+            paper_id='paper_4',
+            title='Transformers for Sequence Modeling',
+            abstract='A general framework for using transformers to model biological sequences including DNA, RNA, and proteins.',
+            authors=['Eve Martinez'],
+            year=2022,
+            venue='NeurIPS',
+            citations=[],
+            entities={'method': ['transformer']},
+            cited_by=['paper_1', 'paper_2']
+        )
+    ]
+
+    # Initialize search engine
+    engine = ScientificSearchEngine(embedding_dim=768)
+
+    # Index papers
+    engine.index_papers(papers)
+
+    # Search: Find papers on protein structure prediction
+    print("\n=== Query: 'protein structure prediction' ===")
+    results = engine.search('protein structure prediction', top_k=3, boost_citations=True)
+
+    for paper, score in results:
+        print(f"\n{paper.title}")
+        print(f"  Authors: {', '.join(paper.authors)}")
+        print(f"  Year: {paper.year}, Venue: {paper.venue}")
+        print(f"  Citations: {len(paper.cited_by)}")
+        print(f"  Score: {score:.3f}")
+
+    # Find related papers by co-citation
+    print("\n\n=== Papers related to 'paper_1' (by co-citation) ===")
+    related = engine.find_related_by_citations('paper_1', top_k=3)
+
+    for paper, score in related:
+        print(f"\n{paper.title}")
+        print(f"  Co-citation score: {score:.3f}")
+
+    # Search by entity
+    print("\n\n=== Papers mentioning 'AlphaFold' ===")
+    entity_results = engine.search_by_entity('protein', 'AlphaFold', top_k=5)
+
+    for paper in entity_results:
+        print(f"\n{paper.title} ({paper.year})")
+
+# Uncomment to run:
+# scientific_search_example()
+```
+
+:::{.callout-tip}
+## Scientific Search Best Practices
+
+**Domain-specific embeddings:**
+- **Pre-training**: Use SPECTER (citation-based), SciBERT (scientific text)
+- **Fine-tuning**: Fine-tune on domain-specific corpora (biomedical, physics)
+- **Multi-field**: Encode title + abstract + full text (weight by importance)
+- **Citation context**: Include sentences that cite the paper
+
+**Citation graph:**
+- **Co-citation**: Papers cited together are related
+- **Bibliographic coupling**: Papers citing the same work are related
+- **PageRank**: Rank by citation graph centrality
+- **Temporal weighting**: Recent citations matter more
+
+**Entity linking:**
+- **Named entity recognition**: Extract entities (chemicals, genes, diseases)
+- **Entity disambiguation**: Link to knowledge base (PubChem, UniProt)
+- **Relation extraction**: Extract relationships between entities
+- **Entity embeddings**: Embed entities in same space as papers
+:::
 
 ## Media and Content Discovery
 
-[Content to be written: Details about media and content discovery]
+Media assets—images, videos, audio—represent trillions of files across organizations. **Semantic media search** finds content by visual style, composition, audio characteristics, and creative intent, enabling discovery beyond metadata tagging and filename matching.
+
+### The Media Discovery Challenge
+
+Media has unique properties:
+- **Visual style**: Color palette, composition, lighting
+- **Creative intent**: Mood, emotion, message
+- **Temporal dynamics**: Video and audio evolve over time
+- **Quality variation**: Resolution, noise, compression artifacts
+- **Massive scale**: Petabytes of media files
+
+**Challenge**: Find **visually similar** or **stylistically related** media, not **keyword matches** on filenames.
+
+```python
+"""
+Media and Content Discovery System
+
+Architecture:
+1. Visual encoders: CNN or ViT for images/video
+2. Audio encoders: Mel-spectrogram + CNN for audio
+3. Style embeddings: Capture color, composition, texture
+4. Perceptual hashing: Find near-duplicates
+5. Multi-modal fusion: Combine visual + audio for videos
+
+Applications:
+- Stock photo search (find similar images)
+- Video recommendation (find similar videos)
+- Music discovery (find similar songs)
+- Style transfer (find images with similar style)
+- Duplicate detection (find copyright violations)
+"""
+
+from typing import List, Dict, Optional, Tuple
+from dataclasses import dataclass
+from PIL import Image
+import numpy as np
+
+@dataclass
+class MediaAsset:
+    """
+    Media asset with metadata
+
+    Attributes:
+        asset_id: Unique identifier
+        asset_type: Type ('image', 'video', 'audio')
+        file_path: File path
+        duration: Duration in seconds (for video/audio)
+        resolution: Image/video resolution (width, height)
+        metadata: Additional metadata (tags, description, etc.)
+        visual_embedding: Visual style embedding
+        content_embedding: Semantic content embedding
+        perceptual_hash: Perceptual hash for duplicate detection
+    """
+    asset_id: str
+    asset_type: str
+    file_path: str
+    duration: Optional[float] = None
+    resolution: Optional[Tuple[int, int]] = None
+    metadata: Dict = None
+    visual_embedding: Optional[np.ndarray] = None
+    content_embedding: Optional[np.ndarray] = None
+    perceptual_hash: Optional[str] = None
+
+class VisualStyleEncoder(nn.Module):
+    """
+    Encode visual style (color, composition, texture)
+
+    Architecture:
+    - Multi-scale CNN (extract features at multiple resolutions)
+    - Global pooling (capture global statistics)
+    - Style embedding (separate from content)
+
+    Inspiration: Gram matrices from neural style transfer
+    """
+
+    def __init__(self, embedding_dim: int = 512):
+        super().__init__()
+        self.embedding_dim = embedding_dim
+
+        # Multi-scale feature extractors
+        self.conv1 = nn.Conv2d(3, 64, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
+        self.conv3 = nn.Conv2d(128, 256, kernel_size=3, padding=1)
+
+        # Style embedding projection
+        # Gram matrix captures correlations between features (style)
+        self.style_projection = nn.Linear(256 * 256, embedding_dim)
+
+    def gram_matrix(self, features: torch.Tensor) -> torch.Tensor:
+        """
+        Compute Gram matrix (feature correlations)
+
+        Gram matrix captures style, not content
+
+        Args:
+            features: Features (batch, channels, height, width)
+
+        Returns:
+            Gram matrices (batch, channels, channels)
+        """
+        batch, channels, height, width = features.size()
+
+        # Reshape: (batch, channels, height*width)
+        features = features.view(batch, channels, height * width)
+
+        # Compute Gram: G = F * F^T
+        gram = torch.bmm(features, features.transpose(1, 2))
+
+        # Normalize by spatial dimensions
+        gram = gram / (height * width)
+
+        return gram
+
+    def forward(self, images: torch.Tensor) -> torch.Tensor:
+        """
+        Encode visual style
+
+        Args:
+            images: Images (batch, 3, height, width)
+
+        Returns:
+            Style embeddings (batch, embedding_dim)
+        """
+        # Extract features
+        x = F.relu(self.conv1(images))
+        x = F.max_pool2d(x, 2)
+
+        x = F.relu(self.conv2(x))
+        x = F.max_pool2d(x, 2)
+
+        x = F.relu(self.conv3(x))  # (batch, 256, H/4, W/4)
+
+        # Compute Gram matrix (style)
+        gram = self.gram_matrix(x)  # (batch, 256, 256)
+
+        # Flatten Gram matrix
+        gram_flat = gram.view(gram.size(0), -1)  # (batch, 256*256)
+
+        # Project to style embedding
+        style_embedding = self.style_projection(gram_flat)
+
+        # Normalize
+        style_embedding = F.normalize(style_embedding, p=2, dim=1)
+
+        return style_embedding
+
+class MediaSearchEngine:
+    """
+    Semantic search for media assets
+
+    Capabilities:
+    - Visual similarity: Find visually similar images/videos
+    - Style matching: Find images with similar style (color, composition)
+    - Audio similarity: Find similar audio tracks
+    - Duplicate detection: Find near-duplicates (copyright, deduplication)
+    - Multi-modal: Search videos by visual + audio
+
+    Production optimizations:
+    - Pre-compute embeddings offline
+    - Store embeddings in vector database (Qdrant, Milvus)
+    - Use perceptual hashing for fast duplicate detection
+    - Cluster similar assets for browsing
+    """
+
+    def __init__(self, embedding_dim: int = 512, device: str = 'cuda'):
+        """
+        Args:
+            embedding_dim: Embedding dimension
+            device: Device for computation
+        """
+        self.embedding_dim = embedding_dim
+        self.device = device if torch.cuda.is_available() else 'cpu'
+
+        # Initialize encoders
+        self.content_encoder = ImageEncoder(embedding_dim=embedding_dim).to(self.device)
+        self.style_encoder = VisualStyleEncoder(embedding_dim=embedding_dim).to(self.device)
+
+        self.content_encoder.eval()
+        self.style_encoder.eval()
+
+        # Asset store
+        self.assets: Dict[str, MediaAsset] = {}
+
+        # Embedding indices
+        self.asset_ids: List[str] = []
+        self.content_embeddings: Optional[np.ndarray] = None
+        self.style_embeddings: Optional[np.ndarray] = None
+
+        print(f"Initialized Media Search Engine")
+        print(f"  Embedding dimension: {embedding_dim}")
+        print(f"  Device: {self.device}")
+
+    def compute_perceptual_hash(self, image: Image.Image, hash_size: int = 8) -> str:
+        """
+        Compute perceptual hash for duplicate detection
+
+        Perceptual hash (pHash):
+        - Resize to small size (8x8 or 16x16)
+        - Convert to grayscale
+        - Compute DCT (discrete cosine transform)
+        - Keep low-frequency components
+        - Threshold to binary
+
+        Args:
+            image: PIL Image
+            hash_size: Hash size (8 or 16)
+
+        Returns:
+            Hex string hash
+        """
+        # Resize to hash_size x hash_size
+        img = image.resize((hash_size, hash_size), Image.Resampling.LANCZOS)
+
+        # Convert to grayscale
+        img = img.convert('L')
+
+        # Get pixel values
+        pixels = np.array(img).flatten()
+
+        # Compute mean
+        mean = np.mean(pixels)
+
+        # Threshold to binary
+        binary_hash = (pixels > mean).astype(int)
+
+        # Convert to hex string
+        hash_str = ''.join(str(b) for b in binary_hash)
+
+        return hash_str
+
+    def encode_image(self, image: Image.Image) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Encode image to content and style embeddings
+
+        Args:
+            image: PIL Image
+
+        Returns:
+            (content_embedding, style_embedding)
+        """
+        # Preprocess
+        img = image.resize((224, 224))
+        img_array = np.array(img).astype(np.float32) / 255.0
+
+        if len(img_array.shape) == 2:
+            img_array = np.stack([img_array] * 3, axis=-1)
+
+        img_tensor = torch.from_numpy(img_array).permute(2, 0, 1).unsqueeze(0).to(self.device)
+
+        # Encode content
+        with torch.no_grad():
+            content_emb = self.content_encoder(img_tensor).cpu().numpy()[0]
+
+        # Encode style
+        with torch.no_grad():
+            style_emb = self.style_encoder(img_tensor).cpu().numpy()[0]
+
+        return content_emb, style_emb
+
+    def index_asset(self, asset: MediaAsset, image: Optional[Image.Image] = None):
+        """
+        Index media asset
+
+        Args:
+            asset: Media asset
+            image: PIL Image (for image/video assets)
+        """
+        if asset.asset_type in ['image', 'video'] and image:
+            # Encode image
+            content_emb, style_emb = self.encode_image(image)
+            asset.content_embedding = content_emb
+            asset.visual_embedding = style_emb
+
+            # Compute perceptual hash
+            asset.perceptual_hash = self.compute_perceptual_hash(image)
+
+            # Add to indices
+            self.asset_ids.append(asset.asset_id)
+
+            if self.content_embeddings is None:
+                self.content_embeddings = content_emb.reshape(1, -1)
+                self.style_embeddings = style_emb.reshape(1, -1)
+            else:
+                self.content_embeddings = np.vstack([self.content_embeddings, content_emb])
+                self.style_embeddings = np.vstack([self.style_embeddings, style_emb])
+
+        # Store asset
+        self.assets[asset.asset_id] = asset
+
+    def search_by_content(
+        self,
+        query_image: Image.Image,
+        top_k: int = 10
+    ) -> List[Tuple[MediaAsset, float]]:
+        """
+        Search by visual content (semantic similarity)
+
+        Args:
+            query_image: Query image
+            top_k: Number of results
+
+        Returns:
+            List of (asset, score) tuples
+        """
+        # Encode query
+        content_emb, _ = self.encode_image(query_image)
+
+        # Compute similarities
+        scores = np.dot(self.content_embeddings, content_emb)
+
+        # Rank results
+        ranked_indices = np.argsort(scores)[::-1][:top_k]
+
+        results = [
+            (self.assets[self.asset_ids[idx]], scores[idx])
+            for idx in ranked_indices
+        ]
+
+        return results
+
+    def search_by_style(
+        self,
+        query_image: Image.Image,
+        top_k: int = 10
+    ) -> List[Tuple[MediaAsset, float]]:
+        """
+        Search by visual style (color, composition, texture)
+
+        Args:
+            query_image: Query image
+            top_k: Number of results
+
+        Returns:
+            List of (asset, score) tuples
+        """
+        # Encode query style
+        _, style_emb = self.encode_image(query_image)
+
+        # Compute similarities
+        scores = np.dot(self.style_embeddings, style_emb)
+
+        # Rank results
+        ranked_indices = np.argsort(scores)[::-1][:top_k]
+
+        results = [
+            (self.assets[self.asset_ids[idx]], scores[idx])
+            for idx in ranked_indices
+        ]
+
+        return results
+
+    def find_duplicates(
+        self,
+        asset_id: str,
+        hamming_threshold: int = 5
+    ) -> List[Tuple[MediaAsset, int]]:
+        """
+        Find near-duplicate assets using perceptual hashing
+
+        Args:
+            asset_id: Source asset ID
+            hamming_threshold: Maximum Hamming distance for duplicates
+
+        Returns:
+            List of (asset, hamming_distance) tuples
+        """
+        if asset_id not in self.assets:
+            return []
+
+        source_asset = self.assets[asset_id]
+        source_hash = source_asset.perceptual_hash
+
+        if not source_hash:
+            return []
+
+        # Compute Hamming distance to all other assets
+        duplicates = []
+
+        for other_id, other_asset in self.assets.items():
+            if other_id == asset_id or not other_asset.perceptual_hash:
+                continue
+
+            # Hamming distance (count differing bits)
+            distance = sum(c1 != c2 for c1, c2 in zip(source_hash, other_asset.perceptual_hash))
+
+            if distance <= hamming_threshold:
+                duplicates.append((other_asset, distance))
+
+        # Sort by distance
+        duplicates.sort(key=lambda x: x[1])
+
+        return duplicates
+
+# Example: Media search for stock photos
+def media_search_example():
+    """
+    Semantic search for media assets
+
+    Use cases:
+    - Stock photo search (find similar images)
+    - Duplicate detection (find copyright violations)
+    - Style matching (find images with similar aesthetic)
+
+    Scale: 100M+ images (Shutterstock/Getty scale)
+    """
+
+    # Initialize search engine
+    engine = MediaSearchEngine(embedding_dim=512)
+
+    # Create sample media assets
+    assets = [
+        MediaAsset(
+            asset_id='img_1',
+            asset_type='image',
+            file_path='/media/sunset_beach.jpg',
+            resolution=(1920, 1080),
+            metadata={'tags': ['sunset', 'beach', 'ocean']}
+        ),
+        MediaAsset(
+            asset_id='img_2',
+            asset_type='image',
+            file_path='/media/mountain_sunrise.jpg',
+            resolution=(1920, 1080),
+            metadata={'tags': ['sunrise', 'mountain', 'landscape']}
+        ),
+        MediaAsset(
+            asset_id='img_3',
+            asset_type='image',
+            file_path='/media/beach_vacation.jpg',
+            resolution=(1920, 1080),
+            metadata={'tags': ['beach', 'vacation', 'tropical']}
+        )
+    ]
+
+    # Generate sample images (different colors for demo)
+    sample_images = [
+        Image.new('RGB', (224, 224), color='orange'),  # Sunset
+        Image.new('RGB', (224, 224), color='purple'),  # Sunrise
+        Image.new('RGB', (224, 224), color='blue')     # Beach
+    ]
+
+    # Index assets
+    for asset, image in zip(assets, sample_images):
+        engine.index_asset(asset, image)
+
+    print(f"Indexed {len(assets)} media assets")
+
+    # Search by content
+    print("\n=== Content Search: Orange query image (sunset) ===")
+    query_img = Image.new('RGB', (224, 224), color='orange')
+    results = engine.search_by_content(query_img, top_k=3)
+
+    for asset, score in results:
+        print(f"{asset.asset_id}: {asset.file_path} (score: {score:.3f})")
+        print(f"  Tags: {asset.metadata.get('tags', [])}")
+
+    # Search by style
+    print("\n=== Style Search: Blue query image (beach) ===")
+    query_img_blue = Image.new('RGB', (224, 224), color='blue')
+    results = engine.search_by_style(query_img_blue, top_k=3)
+
+    for asset, score in results:
+        print(f"{asset.asset_id}: {asset.file_path} (score: {score:.3f})")
+
+    # Find duplicates
+    print("\n=== Duplicate Detection for 'img_1' ===")
+    duplicates = engine.find_duplicates('img_1', hamming_threshold=10)
+
+    if duplicates:
+        for dup_asset, distance in duplicates:
+            print(f"{dup_asset.asset_id}: Hamming distance = {distance}")
+    else:
+        print("No duplicates found")
+
+# Uncomment to run:
+# media_search_example()
+```
+
+:::{.callout-tip}
+## Media Search Best Practices
+
+**Visual features:**
+- **Content embeddings**: Use CLIP, ResNet, or ViT for semantic content
+- **Style embeddings**: Use Gram matrices or style-specific encoders
+- **Multi-scale**: Extract features at multiple resolutions
+- **Color histograms**: Supplement embeddings with color features
+
+**Duplicate detection:**
+- **Perceptual hashing**: pHash, dHash for near-duplicate detection
+- **Hamming distance**: Fast comparison (XOR + popcount)
+- **Clustering**: Group near-duplicates for review
+- **Threshold tuning**: Balance false positives vs false negatives
+
+**Performance:**
+- **Pre-compute embeddings**: Encode assets offline during ingestion
+- **GPU batching**: Batch encode 100-1000 images per GPU
+- **Caching**: Cache embeddings in vector database
+- **Progressive loading**: Show low-res previews while searching
+:::
 
 ## Enterprise Knowledge Graphs
 
-[Content to be written: Details about enterprise knowledge graphs]
+Enterprise knowledge graphs connect entities—customers, products, employees, documents—through relationships. **Embedding-based knowledge graphs** use learned embeddings to represent entities and relations, enabling link prediction, entity resolution, and graph-aware search that understands how entities relate.
+
+### The Knowledge Graph Challenge
+
+Traditional knowledge graphs use discrete representations (triples: subject-predicate-object). **Embedding-based graphs** represent entities and relations as vectors, enabling:
+- **Link prediction**: Predict missing relationships
+- **Entity resolution**: Merge duplicate entities
+- **Multi-hop reasoning**: Answer complex queries across relationships
+- **Similarity search**: Find similar entities by embeddings
+
+**Challenge**: Learn embeddings that preserve graph structure and semantics.
+
+```python
+"""
+Enterprise Knowledge Graph with Embeddings
+
+Architecture:
+1. Entity encoder: Learn entity embeddings
+2. Relation encoder: Learn relation embeddings
+3. Link prediction: Predict (entity1, relation, entity2) triples
+4. Entity resolution: Merge duplicate entities
+5. Graph-aware search: Search considering relationships
+
+Embedding models:
+- TransE: Entities as points, relations as translations
+- DistMult: Bilinear scoring function
+- ComplEx: Complex-valued embeddings
+- RotatE: Rotations in complex space
+
+Applications:
+- Customer 360 (link customers across systems)
+- Product recommendations (similar products by graph)
+- Fraud detection (unusual relationship patterns)
+- Knowledge discovery (predict new relationships)
+"""
+
+from typing import List, Dict, Optional, Tuple, Set
+from dataclasses import dataclass
+import numpy as np
+
+@dataclass
+class Entity:
+    """
+    Knowledge graph entity
+
+    Attributes:
+        entity_id: Unique identifier
+        entity_type: Type (customer, product, document, etc.)
+        attributes: Entity attributes
+        embedding: Learned entity embedding
+    """
+    entity_id: str
+    entity_type: str
+    attributes: Dict = None
+    embedding: Optional[np.ndarray] = None
+
+@dataclass
+class Relation:
+    """
+    Knowledge graph relation (edge)
+
+    Attributes:
+        subject: Subject entity ID
+        predicate: Relation type
+        object: Object entity ID
+        confidence: Confidence score (0-1)
+    """
+    subject: str
+    predicate: str
+    object: str
+    confidence: float = 1.0
+
+class KnowledgeGraphEmbedding:
+    """
+    Knowledge graph with learned embeddings
+
+    Embedding model: TransE
+    - Represents entities as vectors
+    - Represents relations as translations
+    - Score function: score(h, r, t) = ||h + r - t||
+    - Training objective: Minimize score for true triples, maximize for false
+
+    Applications:
+    - Link prediction: Given (entity1, relation, ?), predict entity2
+    - Relation prediction: Given (entity1, ?, entity2), predict relation
+    - Entity search: Find entities similar to query entity
+    - Graph completion: Predict missing edges
+    """
+
+    def __init__(
+        self,
+        embedding_dim: int = 128,
+        margin: float = 1.0
+    ):
+        """
+        Args:
+            embedding_dim: Dimension of entity/relation embeddings
+            margin: Margin for ranking loss
+        """
+        self.embedding_dim = embedding_dim
+        self.margin = margin
+
+        # Entity and relation stores
+        self.entities: Dict[str, Entity] = {}
+        self.relations: List[Relation] = []
+
+        # Embeddings
+        self.entity_embeddings: Dict[str, np.ndarray] = {}
+        self.relation_embeddings: Dict[str, np.ndarray] = {}
+
+        # Graph structure: entity_id -> {relations from this entity}
+        self.outgoing_edges: Dict[str, List[Relation]] = {}
+        self.incoming_edges: Dict[str, List[Relation]] = {}
+
+        print(f"Initialized Knowledge Graph Embeddings")
+        print(f"  Embedding dimension: {embedding_dim}")
+        print(f"  Margin: {margin}")
+
+    def add_entity(self, entity: Entity):
+        """
+        Add entity to knowledge graph
+
+        Args:
+            entity: Entity to add
+        """
+        self.entities[entity.entity_id] = entity
+
+        # Initialize random embedding
+        if entity.entity_id not in self.entity_embeddings:
+            embedding = np.random.randn(self.embedding_dim).astype(np.float32)
+            embedding = embedding / np.linalg.norm(embedding)
+            self.entity_embeddings[entity.entity_id] = embedding
+            entity.embedding = embedding
+
+    def add_relation(self, relation: Relation):
+        """
+        Add relation (edge) to knowledge graph
+
+        Args:
+            relation: Relation to add
+        """
+        self.relations.append(relation)
+
+        # Initialize relation embedding if new
+        if relation.predicate not in self.relation_embeddings:
+            embedding = np.random.randn(self.embedding_dim).astype(np.float32)
+            embedding = embedding / np.linalg.norm(embedding)
+            self.relation_embeddings[relation.predicate] = embedding
+
+        # Update graph structure
+        if relation.subject not in self.outgoing_edges:
+            self.outgoing_edges[relation.subject] = []
+        self.outgoing_edges[relation.subject].append(relation)
+
+        if relation.object not in self.incoming_edges:
+            self.incoming_edges[relation.object] = []
+        self.incoming_edges[relation.object].append(relation)
+
+    def score_triple(
+        self,
+        subject_id: str,
+        predicate: str,
+        object_id: str
+    ) -> float:
+        """
+        Score a triple using TransE scoring function
+
+        TransE: score(h, r, t) = -||h + r - t||
+
+        Args:
+            subject_id: Subject entity ID
+            predicate: Relation type
+            object_id: Object entity ID
+
+        Returns:
+            Score (higher = more likely)
+        """
+        if subject_id not in self.entity_embeddings:
+            return -float('inf')
+        if object_id not in self.entity_embeddings:
+            return -float('inf')
+        if predicate not in self.relation_embeddings:
+            return -float('inf')
+
+        h = self.entity_embeddings[subject_id]
+        r = self.relation_embeddings[predicate]
+        t = self.entity_embeddings[object_id]
+
+        # TransE score: -||h + r - t||
+        score = -np.linalg.norm(h + r - t)
+
+        return score
+
+    def predict_tail(
+        self,
+        subject_id: str,
+        predicate: str,
+        top_k: int = 10
+    ) -> List[Tuple[str, float]]:
+        """
+        Predict tail entity given head and relation
+
+        Query: (subject, predicate, ?)
+
+        Args:
+            subject_id: Subject entity ID
+            predicate: Relation type
+            top_k: Number of predictions
+
+        Returns:
+            List of (entity_id, score) tuples
+        """
+        scores = []
+
+        for entity_id in self.entity_embeddings.keys():
+            if entity_id == subject_id:
+                continue
+
+            score = self.score_triple(subject_id, predicate, entity_id)
+            scores.append((entity_id, score))
+
+        # Sort by score
+        scores.sort(key=lambda x: x[1], reverse=True)
+
+        return scores[:top_k]
+
+    def predict_relation(
+        self,
+        subject_id: str,
+        object_id: str,
+        top_k: int = 5
+    ) -> List[Tuple[str, float]]:
+        """
+        Predict relation given subject and object
+
+        Query: (subject, ?, object)
+
+        Args:
+            subject_id: Subject entity ID
+            object_id: Object entity ID
+            top_k: Number of predictions
+
+        Returns:
+            List of (predicate, score) tuples
+        """
+        scores = []
+
+        for predicate in self.relation_embeddings.keys():
+            score = self.score_triple(subject_id, predicate, object_id)
+            scores.append((predicate, score))
+
+        # Sort by score
+        scores.sort(key=lambda x: x[1], reverse=True)
+
+        return scores[:top_k]
+
+    def find_similar_entities(
+        self,
+        entity_id: str,
+        top_k: int = 10,
+        entity_type_filter: Optional[str] = None
+    ) -> List[Tuple[Entity, float]]:
+        """
+        Find entities similar to given entity
+
+        Uses entity embeddings (cosine similarity)
+
+        Args:
+            entity_id: Source entity ID
+            top_k: Number of results
+            entity_type_filter: Filter by entity type (optional)
+
+        Returns:
+            List of (entity, similarity) tuples
+        """
+        if entity_id not in self.entity_embeddings:
+            return []
+
+        source_emb = self.entity_embeddings[entity_id]
+
+        similarities = []
+
+        for other_id, other_emb in self.entity_embeddings.items():
+            if other_id == entity_id:
+                continue
+
+            # Type filter
+            if entity_type_filter:
+                other_entity = self.entities.get(other_id)
+                if not other_entity or other_entity.entity_type != entity_type_filter:
+                    continue
+
+            # Cosine similarity
+            similarity = np.dot(source_emb, other_emb)
+            similarities.append((other_id, similarity))
+
+        # Sort by similarity
+        similarities.sort(key=lambda x: x[1], reverse=True)
+
+        # Get entities
+        results = [
+            (self.entities[eid], sim)
+            for eid, sim in similarities[:top_k]
+            if eid in self.entities
+        ]
+
+        return results
+
+    def get_neighbors(
+        self,
+        entity_id: str,
+        relation_type: Optional[str] = None
+    ) -> List[Tuple[str, str, str]]:
+        """
+        Get neighboring entities (1-hop neighborhood)
+
+        Args:
+            entity_id: Source entity ID
+            relation_type: Filter by relation type (optional)
+
+        Returns:
+            List of (relation, direction, neighbor_id) tuples
+        """
+        neighbors = []
+
+        # Outgoing edges
+        if entity_id in self.outgoing_edges:
+            for rel in self.outgoing_edges[entity_id]:
+                if relation_type is None or rel.predicate == relation_type:
+                    neighbors.append((rel.predicate, 'outgoing', rel.object))
+
+        # Incoming edges
+        if entity_id in self.incoming_edges:
+            for rel in self.incoming_edges[entity_id]:
+                if relation_type is None or rel.predicate == relation_type:
+                    neighbors.append((rel.predicate, 'incoming', rel.subject))
+
+        return neighbors
+
+# Example: Enterprise knowledge graph
+def knowledge_graph_example():
+    """
+    Enterprise knowledge graph with embeddings
+
+    Use cases:
+    - Customer 360 (link customers across systems)
+    - Product recommendations (similar products)
+    - Link prediction (discover relationships)
+
+    Scale: 1B+ entities, 10B+ relations
+    """
+
+    # Initialize knowledge graph
+    kg = KnowledgeGraphEmbedding(embedding_dim=128)
+
+    # Add entities
+    customers = [
+        Entity('customer_1', 'customer', {'name': 'Alice'}),
+        Entity('customer_2', 'customer', {'name': 'Bob'}),
+        Entity('customer_3', 'customer', {'name': 'Charlie'})
+    ]
+
+    products = [
+        Entity('product_1', 'product', {'name': 'Laptop'}),
+        Entity('product_2', 'product', {'name': 'Mouse'}),
+        Entity('product_3', 'product', {'name': 'Keyboard'})
+    ]
+
+    for entity in customers + products:
+        kg.add_entity(entity)
+
+    # Add relations
+    relations = [
+        Relation('customer_1', 'purchased', 'product_1'),
+        Relation('customer_1', 'purchased', 'product_2'),
+        Relation('customer_2', 'purchased', 'product_1'),
+        Relation('customer_2', 'purchased', 'product_3'),
+        Relation('customer_3', 'purchased', 'product_2'),
+        Relation('product_2', 'accessory_for', 'product_1'),
+        Relation('product_3', 'accessory_for', 'product_1')
+    ]
+
+    for relation in relations:
+        kg.add_relation(relation)
+
+    print(f"\n=== Knowledge Graph Statistics ===")
+    print(f"Entities: {len(kg.entities)}")
+    print(f"Relations: {len(kg.relations)}")
+    print(f"Relation types: {len(kg.relation_embeddings)}")
+
+    # Link prediction: What might customer_3 purchase?
+    print(f"\n=== Link Prediction: What might customer_3 purchase? ===")
+    predictions = kg.predict_tail('customer_3', 'purchased', top_k=3)
+
+    for entity_id, score in predictions:
+        entity = kg.entities.get(entity_id)
+        if entity and entity.entity_type == 'product':
+            print(f"{entity.attributes.get('name')}: score = {score:.3f}")
+
+    # Find similar customers
+    print(f"\n=== Similar Customers to customer_1 ===")
+    similar = kg.find_similar_entities('customer_1', top_k=2, entity_type_filter='customer')
+
+    for entity, similarity in similar:
+        print(f"{entity.attributes.get('name')}: similarity = {similarity:.3f}")
+
+    # Get neighbors
+    print(f"\n=== Neighbors of product_1 (Laptop) ===")
+    neighbors = kg.get_neighbors('product_1')
+
+    for relation, direction, neighbor_id in neighbors:
+        neighbor = kg.entities.get(neighbor_id)
+        if neighbor:
+            print(f"{relation} ({direction}): {neighbor.attributes.get('name')}")
+
+# Uncomment to run:
+# knowledge_graph_example()
+```
+
+:::{.callout-tip}
+## Knowledge Graph Embedding Best Practices
+
+**Model selection:**
+- **TransE**: Simple, works well for 1-to-1 relations
+- **DistMult**: Better for symmetric relations
+- **ComplEx**: Handles asymmetric and inverse relations
+- **RotatE**: State-of-the-art for complex relations
+
+**Training:**
+- **Negative sampling**: Sample false triples for contrastive learning
+- **Hard negatives**: Mine hard negatives (plausible but false)
+- **Regularization**: L2 regularization on embeddings
+- **Batch training**: Use large batches (1000-10000 triples)
+
+**Applications:**
+- **Link prediction**: Predict missing relationships
+- **Entity resolution**: Merge duplicate entities by embedding similarity
+- **Graph completion**: Fill in missing edges
+- **Multi-hop reasoning**: Answer complex queries (e.g., "customers who bought products similar to X")
+:::
+
+:::{.callout-warning}
+## Graph Embedding Challenges
+
+**Data quality:**
+- Incomplete graphs (missing edges) degrade embeddings
+- Noisy relations (incorrect edges) poison training
+- Entity disambiguation (same name, different entities)
+
+**Scalability:**
+- Billion-entity graphs require distributed training
+- Full graph materialization doesn't fit in memory
+- Subgraph sampling required for large graphs
+
+**Interpretability:**
+- Embeddings are black boxes (hard to debug)
+- Relation semantics may not align with vector operations
+- Need attribution methods to explain predictions
+:::
 
 ## Key Takeaways
 
-- [Key point 1 to be added]
-- [Key point 2 to be added]
-- [Key point 3 to be added]
+- **Multi-modal search unifies text, images, audio, and video in shared embedding spaces**: Cross-modal retrieval (query text, retrieve images) requires contrastive training on paired data and separate per-modality encoders that project to a common vector space
+
+- **Code search transcends syntax to find code by semantic intent**: Semantic code embeddings trained on code-docstring pairs enable natural language queries like "sort a list" to find relevant implementations across languages and coding styles
+
+- **Scientific literature search leverages citation networks and domain embeddings**: SPECTER and SciBERT embeddings combined with citation graph analysis (co-citation, bibliographic coupling) enable discovery of related research beyond keyword matching
+
+- **Media discovery finds visual similarity and creative style**: Separate embeddings for content (semantic meaning) and style (color, composition, texture) enable both "find similar images" and "find images with similar aesthetic" use cases
+
+- **Knowledge graph embeddings enable link prediction and entity resolution**: TransE and related models represent entities and relations as vectors, enabling prediction of missing relationships, merging of duplicate entities, and graph-aware similarity search
+
+- **Semantic search beyond text requires domain-specific encoders**: General-purpose embeddings (CLIP, BERT) provide baseline capabilities, but production systems need fine-tuning on domain-specific data (code repositories, scientific papers, media assets)
+
+- **Search quality depends on training data quality**: Multi-modal alignment requires clean paired data, code search needs accurate code-docstring pairs, and knowledge graphs need high-quality relationship annotations
 
 ## Looking Ahead
 
-In Chapter 15, we revolutionize recommendation systems with embeddings.
+Part IV (Advanced Applications) continues with Chapter 15, which revolutionizes recommendation systems with embeddings: embedding-based collaborative filtering that scales to billions of users and items, cold start solutions using content embeddings and meta-learning, real-time personalization with streaming embeddings, diversity and fairness constraints that prevent filter bubbles, and cross-domain recommendation transfer that leverages embeddings across product categories and platforms.
 
 ## Further Reading
 
-- [References to be added]
+### Multi-Modal Learning
+- Radford, Alec, et al. (2021). "Learning Transferable Visual Models From Natural Language Supervision (CLIP)." ICML.
+- Jia, Chao, et al. (2021). "Scaling Up Visual and Vision-Language Representation Learning With Noisy Text Supervision (ALIGN)." ICML.
+- Girdhar, Rohit, et al. (2023). "ImageBind: One Embedding Space To Bind Them All." CVPR.
+- Baltrusaitis, Tadas, et al. (2019). "Multimodal Machine Learning: A Survey and Taxonomy." IEEE TPAMI.
+
+### Code Search and Software Intelligence
+- Feng, Zhangyin, et al. (2020). "CodeBERT: A Pre-Trained Model for Programming and Natural Languages." EMNLP.
+- Guo, Daya, et al. (2021). "GraphCodeBERT: Pre-training Code Representations with Data Flow." ICLR.
+- Husain, Hamel, et al. (2019). "CodeSearchNet Challenge: Evaluating the State of Semantic Code Search." arXiv.
+- Chen, Mark, et al. (2021). "Evaluating Large Language Models Trained on Code (Codex)." arXiv.
+
+### Scientific Literature Search
+- Cohan, Arman, et al. (2020). "SPECTER: Document-level Representation Learning using Citation-informed Transformers." ACL.
+- Beltagy, Iz, et al. (2019). "SciBERT: A Pretrained Language Model for Scientific Text." EMNLP.
+- Lo, Kyle, et al. (2020). "S2ORC: The Semantic Scholar Open Research Corpus." ACL.
+- Priem, Jason, et al. (2022). "OpenAlex: A Fully-Open Index of Scholarly Works, Authors, Venues, and Concepts." arXiv.
+
+### Media and Content Discovery
+- Gatys, Leon A., et al. (2016). "Image Style Transfer Using Convolutional Neural Networks." CVPR.
+- Johnson, Justin, et al. (2016). "Perceptual Losses for Real-Time Style Transfer and Super-Resolution." ECCV.
+- Simonyan, Karen, and Andrew Zisserman (2014). "Very Deep Convolutional Networks for Large-Scale Image Recognition." ICLR.
+- Dosovitskiy, Alexey, et al. (2021). "An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale (ViT)." ICLR.
+
+### Knowledge Graph Embeddings
+- Bordes, Antoine, et al. (2013). "Translating Embeddings for Modeling Multi-relational Data (TransE)." NeurIPS.
+- Yang, Bishan, et al. (2015). "Embedding Entities and Relations for Learning and Inference in Knowledge Bases (DistMult)." ICLR.
+- Trouillon, Théo, et al. (2016). "Complex Embeddings for Simple Link Prediction (ComplEx)." ICML.
+- Sun, Zhiqing, et al. (2019). "RotatE: Knowledge Graph Embedding by Relational Rotation in Complex Space." ICLR.
+- Wang, Quan, et al. (2017). "Knowledge Graph Embedding: A Survey of Approaches and Applications." IEEE TKDE.
