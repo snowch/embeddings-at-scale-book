@@ -56,7 +56,9 @@ The HTML version is automatically published to GitHub Pages on every commit to m
 - **PDF**: Optimized for printing and offline reading
 - **EPUB**: For e-readers and mobile devices
 
-Downloads available from the [Releases page](#) or directly from the website.
+Download links are available directly on the book's homepage, or you can access them directly:
+- PDF: `https://<your-username>.github.io/embeddings-at-scale-book/downloads/Embeddings-at-Scale.pdf`
+- EPUB: `https://<your-username>.github.io/embeddings-at-scale-book/downloads/Embeddings-at-Scale.epub`
 
 ## ✍️ Contributing / Authoring
 
