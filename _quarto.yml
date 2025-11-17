@@ -7,6 +7,9 @@ book:
   subtitle: "A Comprehensive Tutorial for Disruptive Organizations"
   author: "Your Name"
   date: today
+  sidebar:
+    style: docked
+    background: light
 
   chapters:
     - index.qmd
@@ -72,25 +75,9 @@ bibliography: references.bib
 
 format:
   html:
-    theme:
-      light: [cosmo, theme-light.scss]
-      dark: [darkly, theme-dark.scss]
-    toc: true
-    toc-depth: 3
-    toc-expand: 2
-    number-sections: true
-    number-depth: 3
-    code-fold: false
-    code-tools: true
+    theme: cosmo
     code-copy: true
-    link-external-newwindow: true
-    fig-cap-location: bottom
-    tbl-cap-location: top
-    crossref:
-      chapters: true
-    css: styles.css
-    mainfont: system-ui
-    monofont: ui-monospace
+    code-overflow: wrap
 
   pdf:
     documentclass: book
