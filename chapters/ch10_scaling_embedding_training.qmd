@@ -1,0 +1,40 @@
+# Scaling Embedding Training {{#sec-scaling-embedding-training}}
+
+:::{{.callout-note}}
+## Chapter Overview
+This chapter covers distributed training architectures, gradient accumulation and mixed precision, and 3 more topics.
+:::
+
+## Distributed Training Architectures
+
+[Content to be written: Details about distributed training architectures]
+
+## Gradient Accumulation and Mixed Precision
+
+[Content to be written: Details about gradient accumulation and mixed precision]
+
+## Memory Optimization Techniques
+
+[Content to be written: Details about memory optimization techniques]
+
+## Multi-GPU and Multi-Node Strategies
+
+[Content to be written: Details about multi-gpu and multi-node strategies]
+
+## Training Cost Optimization
+
+[Content to be written: Details about training cost optimization]
+
+## Key Takeaways
+
+- [Key point 1 to be added]
+- [Key point 2 to be added]
+- [Key point 3 to be added]
+
+## Looking Ahead
+
+In Chapter 11, we optimize vector operations for high-performance similarity search.
+
+## Further Reading
+
+- [References to be added]

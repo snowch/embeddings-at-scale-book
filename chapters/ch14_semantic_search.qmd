@@ -1,0 +1,40 @@
+# Semantic Search Beyond Text {{#sec-semantic-search}}
+
+:::{{.callout-note}}
+## Chapter Overview
+This chapter covers multi-modal semantic search, code search and software intelligence, and 3 more topics.
+:::
+
+## Multi-Modal Semantic Search
+
+[Content to be written: Details about multi-modal semantic search]
+
+## Code Search and Software Intelligence
+
+[Content to be written: Details about code search and software intelligence]
+
+## Scientific Literature and Patent Search
+
+[Content to be written: Details about scientific literature and patent search]
+
+## Media and Content Discovery
+
+[Content to be written: Details about media and content discovery]
+
+## Enterprise Knowledge Graphs
+
+[Content to be written: Details about enterprise knowledge graphs]
+
+## Key Takeaways
+
+- [Key point 1 to be added]
+- [Key point 2 to be added]
+- [Key point 3 to be added]
+
+## Looking Ahead
+
+In Chapter 15, we revolutionize recommendation systems with embeddings.
+
+## Further Reading
+
+- [References to be added]

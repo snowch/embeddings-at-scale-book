@@ -1,0 +1,118 @@
+project:
+  type: book
+  output-dir: _book
+
+book:
+  title: "Embeddings at Scale"
+  subtitle: "A Comprehensive Tutorial for Disruptive Organizations"
+  author: "Your Name"
+  date: today
+
+  chapters:
+    - index.qmd
+    - part: "Part I: Foundation & Strategy"
+      chapters:
+        - chapters/ch01_embedding_revolution.qmd
+        - chapters/ch02_strategic_architecture.qmd
+        - chapters/ch03_vector_database_fundamentals.qmd
+
+    - part: "Part II: Custom Embedding Development"
+      chapters:
+        - chapters/ch04_custom_embedding_strategies.qmd
+        - chapters/ch05_contrastive_learning.qmd
+        - chapters/ch06_siamese_networks.qmd
+        - chapters/ch07_self_supervised_learning.qmd
+        - chapters/ch08_advanced_embedding_techniques.qmd
+
+    - part: "Part III: Production Engineering"
+      chapters:
+        - chapters/ch09_embedding_pipeline_engineering.qmd
+        - chapters/ch10_scaling_embedding_training.qmd
+        - chapters/ch11_high_performance_vector_ops.qmd
+        - chapters/ch12_data_engineering.qmd
+
+    - part: "Part IV: Advanced Applications"
+      chapters:
+        - chapters/ch13_rag_at_scale.qmd
+        - chapters/ch14_semantic_search.qmd
+        - chapters/ch15_recommendation_systems.qmd
+        - chapters/ch16_anomaly_detection_security.qmd
+        - chapters/ch17_automated_decision_systems.qmd
+
+    - part: "Part V: Industry Applications"
+      chapters:
+        - chapters/ch18_financial_services.qmd
+        - chapters/ch19_healthcare_life_sciences.qmd
+        - chapters/ch20_retail_ecommerce.qmd
+        - chapters/ch21_manufacturing_industry40.qmd
+        - chapters/ch22_media_entertainment.qmd
+
+    - part: "Part VI: Future-Proofing & Optimization"
+      chapters:
+        - chapters/ch23_performance_optimization.qmd
+        - chapters/ch24_security_privacy.qmd
+        - chapters/ch25_monitoring_observability.qmd
+        - chapters/ch26_future_trends.qmd
+
+    - part: "Part VII: Implementation Roadmap"
+      chapters:
+        - chapters/ch27_organizational_transformation.qmd
+        - chapters/ch28_implementation_roadmap.qmd
+        - chapters/ch29_case_studies.qmd
+        - chapters/ch30_path_forward.qmd
+
+    - references.qmd
+
+  appendices:
+    - appendices/appendix_a_technical_reference.qmd
+    - appendices/appendix_b_code_examples.qmd
+    - appendices/appendix_c_resources.qmd
+
+bibliography: references.bib
+
+format:
+  html:
+    theme:
+      light: [cosmo, theme-light.scss]
+      dark: [darkly, theme-dark.scss]
+    toc: true
+    toc-depth: 3
+    toc-expand: 2
+    number-sections: true
+    number-depth: 3
+    code-fold: false
+    code-tools: true
+    code-copy: true
+    link-external-newwindow: true
+    fig-cap-location: bottom
+    tbl-cap-location: top
+    crossref:
+      chapters: true
+
+  pdf:
+    documentclass: book
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    number-depth: 3
+    colorlinks: true
+    papersize: letter
+    margin-left: 1in
+    margin-right: 1in
+    margin-top: 1in
+    margin-bottom: 1in
+    fig-pos: 'H'
+    include-in-header:
+      text: |
+        \usepackage{fancyhdr}
+        \pagestyle{fancy}
+        \usepackage{float}
+
+  epub:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    number-depth: 3
+    epub-cover-image: cover.png
+
+editor: visual

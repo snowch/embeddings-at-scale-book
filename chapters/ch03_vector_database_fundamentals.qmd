@@ -1,0 +1,40 @@
+# Vector Database Fundamentals for Scale {{#sec-vector-database-fundamentals}}
+
+:::{{.callout-note}}
+## Chapter Overview
+This chapter covers vector database architecture principles, indexing strategies for 256+ trillion rows, and 3 more topics.
+:::
+
+## Vector Database Architecture Principles
+
+[Content to be written: Details about vector database architecture principles]
+
+## Indexing Strategies for 256+ Trillion Rows
+
+[Content to be written: Details about indexing strategies for 256+ trillion rows]
+
+## Distributed Systems Considerations
+
+[Content to be written: Details about distributed systems considerations]
+
+## Performance Benchmarking and SLA Design
+
+[Content to be written: Details about performance benchmarking and sla design]
+
+## Data Locality and Global Distribution
+
+[Content to be written: Details about data locality and global distribution]
+
+## Key Takeaways
+
+- [Key point 1 to be added]
+- [Key point 2 to be added]
+- [Key point 3 to be added]
+
+## Looking Ahead
+
+Part II begins with Chapter 4, where we explore when and how to build custom embeddings versus fine-tuning pre-trained models.
+
+## Further Reading
+
+- [References to be added]

@@ -1,0 +1,40 @@
+# Beyond Pre-trained: Custom Embedding Strategies {{#sec-custom-embedding-strategies}}
+
+:::{{.callout-note}}
+## Chapter Overview
+This chapter covers when to build custom embeddings vs. fine-tune, domain-specific embedding requirements, and 3 more topics.
+:::
+
+## When to Build Custom Embeddings vs. Fine-Tune
+
+[Content to be written: Details about when to build custom embeddings vs. fine-tune]
+
+## Domain-Specific Embedding Requirements
+
+[Content to be written: Details about domain-specific embedding requirements]
+
+## Multi-Objective Embedding Design
+
+[Content to be written: Details about multi-objective embedding design]
+
+## Embedding Dimensionality Optimization
+
+[Content to be written: Details about embedding dimensionality optimization]
+
+## Cost-Performance Trade-offs at Scale
+
+[Content to be written: Details about cost-performance trade-offs at scale]
+
+## Key Takeaways
+
+- [Key point 1 to be added]
+- [Key point 2 to be added]
+- [Key point 3 to be added]
+
+## Looking Ahead
+
+Chapter 5 dives into contrastive learning, one of the most powerful techniques for training custom embeddings.
+
+## Further Reading
+
+- [References to be added]

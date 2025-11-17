@@ -1,0 +1,101 @@
+# Code Examples and Templates {#sec-appendix-code .unnumbered}
+
+This appendix provides production-ready code templates and examples for implementing embedding systems.
+
+## Embedding Training Templates
+
+### Basic Contrastive Learning Pipeline
+
+```python
+# Code to be added: Complete contrastive learning training pipeline
+```
+
+### Siamese Network Implementation
+
+```python
+# Code to be added: Production Siamese network implementation
+```
+
+### Multi-Modal Embedding Training
+
+```python
+# Code to be added: Multi-modal embedding training example
+```
+
+## Production Deployment Scripts
+
+### Docker Deployment
+
+```dockerfile
+# Code to be added: Production Dockerfile for embedding service
+```
+
+```yaml
+# Code to be added: Docker Compose configuration
+```
+
+### Kubernetes Deployment
+
+```yaml
+# Code to be added: Kubernetes deployment manifests
+```
+
+### Scalable Inference Service
+
+```python
+# Code to be added: FastAPI-based inference service
+```
+
+## Monitoring and Alerting Configurations
+
+### Prometheus Metrics
+
+```yaml
+# Code to be added: Prometheus configuration for embedding systems
+```
+
+### Grafana Dashboards
+
+```json
+# Code to be added: Grafana dashboard JSON
+```
+
+### Alert Rules
+
+```yaml
+# Code to be added: Alert manager rules
+```
+
+## Performance Testing Frameworks
+
+### Load Testing
+
+```python
+# Code to be added: Load testing framework using Locust
+```
+
+### Benchmark Suite
+
+```python
+# Code to be added: Comprehensive benchmarking suite
+```
+
+## Security Implementation Guides
+
+### Encryption at Rest
+
+```python
+# Code to be added: Embedding encryption implementation
+```
+
+### Access Control
+
+```python
+# Code to be added: RBAC implementation for embedding systems
+```
+
+### Audit Logging
+
+```python
+# Code to be added: Comprehensive audit logging
+```

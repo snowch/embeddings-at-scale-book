@@ -1,0 +1,40 @@
+# Organizational Transformation {{#sec-organizational-transformation}}
+
+:::{{.callout-note}}
+## Chapter Overview
+This chapter covers building embedding-native teams, change management for ai adoption, and 3 more topics.
+:::
+
+## Building Embedding-Native Teams
+
+[Content to be written: Details about building embedding-native teams]
+
+## Change Management for AI Adoption
+
+[Content to be written: Details about change management for ai adoption]
+
+## Training and Upskilling Programs
+
+[Content to be written: Details about training and upskilling programs]
+
+## Vendor Evaluation and Partnership
+
+[Content to be written: Details about vendor evaluation and partnership]
+
+## Success Metrics and KPIs
+
+[Content to be written: Details about success metrics and kpis]
+
+## Key Takeaways
+
+- [Key point 1 to be added]
+- [Key point 2 to be added]
+- [Key point 3 to be added]
+
+## Looking Ahead
+
+Chapter 28 provides a phased implementation roadmap.
+
+## Further Reading
+
+- [References to be added]
