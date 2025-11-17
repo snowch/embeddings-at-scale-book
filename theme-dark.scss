@@ -1,0 +1,71 @@
+/*-- scss:defaults --*/
+
+// Dark theme customizations for Embeddings at Scale book
+
+// Colors
+$primary: #60a5fa;
+$secondary: #94a3b8;
+$success: #34d399;
+$info: #22d3ee;
+$warning: #fbbf24;
+$danger: #f87171;
+
+// Typography
+$font-family-sans-serif: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+$font-family-monospace: "JetBrains Mono", "Fira Code", Consolas, Monaco, monospace;
+
+$headings-font-weight: 600;
+$headings-color: #f1f5f9;
+
+// Code blocks
+$code-bg: #1e293b;
+$code-color: #e2e8f0;
+
+/*-- scss:rules --*/
+
+// Enhanced readability
+body {
+  line-height: 1.7;
+}
+
+// Better code blocks
+pre {
+  border-left: 3px solid $primary;
+  padding: 1rem;
+  border-radius: 0.5rem;
+}
+
+// Callout boxes
+.callout {
+  border-left: 4px solid $primary;
+  border-radius: 0.5rem;
+  margin: 1.5rem 0;
+}
+
+// Chapter headings
+h1 {
+  border-bottom: 2px solid $primary;
+  padding-bottom: 0.5rem;
+  margin-top: 2rem;
+}
+
+// Cross-references
+.quarto-xref {
+  color: $primary;
+  text-decoration: none;
+  font-weight: 500;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+// Tables
+table {
+  margin: 1.5rem 0;
+
+  thead {
+    background-color: $code-bg;
+    font-weight: 600;
+  }
+}

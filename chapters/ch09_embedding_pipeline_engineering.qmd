@@ -1,0 +1,40 @@
+# Embedding Pipeline Engineering {{#sec-embedding-pipeline-engineering}}
+
+:::{{.callout-note}}
+## Chapter Overview
+This chapter covers mlops for embedding production, real-time vs. batch embedding generation, and 3 more topics.
+:::
+
+## MLOps for Embedding Production
+
+[Content to be written: Details about mlops for embedding production]
+
+## Real-Time vs. Batch Embedding Generation
+
+[Content to be written: Details about real-time vs. batch embedding generation]
+
+## Embedding Versioning and Rollback Strategies
+
+[Content to be written: Details about embedding versioning and rollback strategies]
+
+## A/B Testing Embedding Models
+
+[Content to be written: Details about a/b testing embedding models]
+
+## Monitoring Embedding Drift and Degradation
+
+[Content to be written: Details about monitoring embedding drift and degradation]
+
+## Key Takeaways
+
+- [Key point 1 to be added]
+- [Key point 2 to be added]
+- [Key point 3 to be added]
+
+## Looking Ahead
+
+Chapter 10 addresses the challenges of scaling embedding training to handle massive datasets.
+
+## Further Reading
+
+- [References to be added]

@@ -1,0 +1,40 @@
+# Anomaly Detection and Security {{#sec-anomaly-detection-security}}
+
+:::{{.callout-note}}
+## Chapter Overview
+This chapter covers embedding-based fraud detection, cybersecurity threat hunting, and 3 more topics.
+:::
+
+## Embedding-Based Fraud Detection
+
+[Content to be written: Details about embedding-based fraud detection]
+
+## Cybersecurity Threat Hunting
+
+[Content to be written: Details about cybersecurity threat hunting]
+
+## Manufacturing Quality Control
+
+[Content to be written: Details about manufacturing quality control]
+
+## Financial Risk Assessment
+
+[Content to be written: Details about financial risk assessment]
+
+## Behavioral Anomaly Detection
+
+[Content to be written: Details about behavioral anomaly detection]
+
+## Key Takeaways
+
+- [Key point 1 to be added]
+- [Key point 2 to be added]
+- [Key point 3 to be added]
+
+## Looking Ahead
+
+Chapter 17 explores how embeddings power automated decision systems.
+
+## Further Reading
+
+- [References to be added]

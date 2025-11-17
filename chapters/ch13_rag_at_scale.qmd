@@ -1,0 +1,40 @@
+# Retrieval-Augmented Generation (RAG) at Scale {{#sec-rag-at-scale}}
+
+:::{{.callout-note}}
+## Chapter Overview
+This chapter covers enterprise rag architecture patterns, context window optimization, and 3 more topics.
+:::
+
+## Enterprise RAG Architecture Patterns
+
+[Content to be written: Details about enterprise rag architecture patterns]
+
+## Context Window Optimization
+
+[Content to be written: Details about context window optimization]
+
+## Multi-Stage Retrieval Systems
+
+[Content to be written: Details about multi-stage retrieval systems]
+
+## RAG Evaluation Frameworks
+
+[Content to be written: Details about rag evaluation frameworks]
+
+## Handling Contradictory Information
+
+[Content to be written: Details about handling contradictory information]
+
+## Key Takeaways
+
+- [Key point 1 to be added]
+- [Key point 2 to be added]
+- [Key point 3 to be added]
+
+## Looking Ahead
+
+Chapter 14 extends semantic search beyond text to multi-modal and specialized domains.
+
+## Further Reading
+
+- [References to be added]

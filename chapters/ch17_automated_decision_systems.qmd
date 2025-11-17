@@ -1,0 +1,40 @@
+# Automated Decision Systems {{#sec-automated-decision-systems}}
+
+:::{{.callout-note}}
+## Chapter Overview
+This chapter covers embedding-driven business rules, dynamic pricing with embeddings, and 3 more topics.
+:::
+
+## Embedding-Driven Business Rules
+
+[Content to be written: Details about embedding-driven business rules]
+
+## Dynamic Pricing with Embeddings
+
+[Content to be written: Details about dynamic pricing with embeddings]
+
+## Supply Chain Optimization
+
+[Content to be written: Details about supply chain optimization]
+
+## Risk Scoring and Underwriting
+
+[Content to be written: Details about risk scoring and underwriting]
+
+## Predictive Maintenance
+
+[Content to be written: Details about predictive maintenance]
+
+## Key Takeaways
+
+- [Key point 1 to be added]
+- [Key point 2 to be added]
+- [Key point 3 to be added]
+
+## Looking Ahead
+
+Part V begins with Chapter 18, examining financial services disruption through embeddings.
+
+## Further Reading
+
+- [References to be added]
