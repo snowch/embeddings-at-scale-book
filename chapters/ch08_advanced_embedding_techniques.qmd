@@ -1,40 +1,2439 @@
-# Advanced Embedding Techniques {{#sec-advanced-embedding-techniques}}
+# Advanced Embedding Techniques {#sec-advanced-embedding-techniques}
 
-:::{{.callout-note}}
+:::{.callout-note}
 ## Chapter Overview
-This chapter covers hierarchical embeddings for taxonomies, dynamic embeddings for temporal data, and 3 more topics.
+As embedding systems mature, organizations need techniques that go beyond standard vector representations. This chapter explores five advanced approaches that address complex real-world challenges: hierarchical embeddings that preserve taxonomic structure, dynamic embeddings that capture temporal evolution, compositional embeddings for complex entities, uncertainty quantification for trustworthy predictions, and federated learning for privacy-preserving embedding training. These techniques unlock new possibilities for organizations handling structured knowledge graphs, time-varying data, multi-faceted entities, high-stakes decisions, and distributed sensitive data.
 :::
 
 ## Hierarchical Embeddings for Taxonomies
 
-[Content to be written: Details about hierarchical embeddings for taxonomies]
+Many enterprise domains have inherent hierarchical structure: product catalogs with categories and subcategories, organizational charts with departments and teams, medical ontologies with disease classifications, and scientific taxonomies. Standard embeddings treat all items as independent points in space, losing this valuable structural information. **Hierarchical embeddings preserve taxonomic relationships while maintaining the benefits of vector representations**.
+
+### The Hierarchical Challenge
+
+Consider an e-commerce product catalog:
+
+```
+Electronics
+├── Computers
+│   ├── Laptops
+│   │   ├── Gaming Laptops
+│   │   └── Business Laptops
+│   └── Desktops
+└── Mobile Devices
+    ├── Smartphones
+    └── Tablets
+```
+
+A standard embedding might place "Gaming Laptops" and "Tablets" closer than "Gaming Laptops" and "Business Laptops", even though the latter share more hierarchical structure. Hierarchical embeddings ensure that:
+
+1. **Distance reflects hierarchy**: Items in the same subtree are closer
+2. **Transitivity is preserved**: If A is parent of B and B is parent of C, embeddings reflect this chain
+3. **Level information is encoded**: Embeddings capture depth in the hierarchy
+
+### Hyperbolic Embeddings for Hierarchies
+
+Euclidean space has a fundamental limitation: the number of points at distance $d$ grows polynomially. Tree structures, however, grow exponentially—the number of nodes doubles at each level. **Hyperbolic space has negative curvature, allowing exponential volume growth that naturally matches tree structure**.
+
+The Poincaré ball model represents hyperbolic space as the unit ball in Euclidean space with a special distance metric:
+
+```python
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import numpy as np
+
+class HyperbolicEmbedding(nn.Module):
+    """
+    Hyperbolic embeddings in the Poincaré ball model
+
+    The Poincaré ball model represents hyperbolic space as:
+    - Points inside the unit ball {x : ||x|| < 1}
+    - Distance grows exponentially near the boundary
+    - Perfect for representing hierarchies
+
+    Applications:
+    - Product taxonomies (millions of SKUs in hierarchical categories)
+    - Organizational structures (companies with deep reporting chains)
+    - Knowledge graphs (WordNet, medical ontologies)
+    - Geographic hierarchies (continent → country → state → city)
+
+    Advantages over Euclidean embeddings:
+    - Lower dimensionality (often 2-5D vs 100-300D)
+    - Better preservation of hierarchical distances
+    - Natural representation of uncertainty (distance from origin = specificity)
+    """
+
+    def __init__(self, num_items, embedding_dim=5, curvature=1.0):
+        """
+        Args:
+            num_items: Number of items in taxonomy
+            embedding_dim: Dimension of hyperbolic space (typically much lower than Euclidean)
+            curvature: Negative curvature parameter (higher = more curved)
+        """
+        super().__init__()
+        self.num_items = num_items
+        self.embedding_dim = embedding_dim
+        self.curvature = curvature
+
+        # Initialize embeddings in the Poincaré ball
+        # Start near origin for stability
+        self.embeddings = nn.Parameter(
+            torch.randn(num_items, embedding_dim) * 0.01
+        )
+
+    def poincare_distance(self, u, v):
+        """
+        Compute Poincaré distance between points u and v
+
+        d(u,v) = arcosh(1 + 2 * ||u-v||^2 / ((1-||u||^2)(1-||v||^2)))
+
+        This distance:
+        - Is 0 when u = v
+        - Increases exponentially near the boundary
+        - Preserves hyperbolic geometry
+        """
+        # Compute squared norms
+        u_norm_sq = torch.sum(u ** 2, dim=-1, keepdim=True)
+        v_norm_sq = torch.sum(v ** 2, dim=-1, keepdim=True)
+
+        # Compute squared Euclidean distance
+        diff_norm_sq = torch.sum((u - v) ** 2, dim=-1, keepdim=True)
+
+        # Poincaré distance formula
+        numerator = 2 * diff_norm_sq
+        denominator = (1 - u_norm_sq) * (1 - v_norm_sq)
+
+        # Add small epsilon for numerical stability
+        distance = torch.acosh(1 + numerator / (denominator + 1e-7))
+
+        return distance * self.curvature
+
+    def project_to_ball(self, x, eps=1e-5):
+        """
+        Project points onto the Poincaré ball (inside unit sphere)
+
+        Essential for:
+        - Maintaining valid hyperbolic points during training
+        - Preventing numerical instability at the boundary
+        """
+        norm = torch.norm(x, p=2, dim=-1, keepdim=True)
+        # If norm >= 1, project to (1 - eps)
+        max_norm = 1 - eps
+        scale = torch.where(
+            norm >= max_norm,
+            max_norm / (norm + 1e-7),
+            torch.ones_like(norm)
+        )
+        return x * scale
+
+    def get_embeddings(self, indices):
+        """Get embeddings and project to valid hyperbolic space"""
+        emb = self.embeddings[indices]
+        return self.project_to_ball(emb)
+
+    def forward(self, parent_indices, child_indices):
+        """
+        Compute hierarchical loss
+
+        Args:
+            parent_indices: Indices of parent nodes
+            child_indices: Indices of child nodes
+
+        Returns:
+            loss: Encourages parent-child pairs to be close
+        """
+        parent_emb = self.get_embeddings(parent_indices)
+        child_emb = self.get_embeddings(child_indices)
+
+        # Distance should be small for parent-child pairs
+        distances = self.poincare_distance(parent_emb, child_emb)
+
+        return distances.mean()
+
+class HierarchicalEmbeddingTrainer:
+    """
+    Train hierarchical embeddings from taxonomy structure
+
+    Supports multiple loss functions:
+    - Parent-child proximity loss
+    - Sibling similarity loss
+    - Transitivity loss (grandparent → parent → child)
+    - Level-based regularization
+    """
+
+    def __init__(
+        self,
+        taxonomy,
+        embedding_dim=5,
+        curvature=1.0,
+        learning_rate=0.01
+    ):
+        """
+        Args:
+            taxonomy: Dict mapping child_id → parent_id
+            embedding_dim: Dimension of hyperbolic embeddings
+            curvature: Curvature of hyperbolic space
+            learning_rate: Riemannian gradient descent learning rate
+        """
+        self.taxonomy = taxonomy
+
+        # Build reverse mapping: parent → children
+        self.children = {}
+        for child, parent in taxonomy.items():
+            if parent not in self.children:
+                self.children[parent] = []
+            self.children[parent].append(child)
+
+        # All unique items
+        all_items = set(taxonomy.keys()) | set(taxonomy.values())
+        self.num_items = len(all_items)
+
+        # Create item to index mapping
+        self.item_to_idx = {item: idx for idx, item in enumerate(sorted(all_items))}
+        self.idx_to_item = {idx: item for item, idx in self.item_to_idx.items()}
+
+        # Initialize model
+        self.model = HyperbolicEmbedding(
+            self.num_items,
+            embedding_dim,
+            curvature
+        )
+
+        # Riemannian optimizer for hyperbolic space
+        self.optimizer = torch.optim.Adam(
+            self.model.parameters(),
+            lr=learning_rate
+        )
+
+    def create_training_batch(self, batch_size=64):
+        """
+        Sample parent-child pairs and negative samples
+
+        Returns:
+            parent_indices: Parent nodes
+            positive_children: Actual children
+            negative_samples: Random non-children
+        """
+        # Sample random parent-child pairs
+        pairs = [(c, p) for c, p in self.taxonomy.items()]
+        sampled_pairs = np.random.choice(len(pairs), size=batch_size, replace=True)
+
+        parent_indices = []
+        child_indices = []
+        negative_indices = []
+
+        for idx in sampled_pairs:
+            child, parent = pairs[idx]
+            parent_indices.append(self.item_to_idx[parent])
+            child_indices.append(self.item_to_idx[child])
+
+            # Sample negative: any item that's not a child
+            while True:
+                neg = np.random.randint(self.num_items)
+                if neg not in [self.item_to_idx[c] for c in self.children.get(parent, [])]:
+                    negative_indices.append(neg)
+                    break
+
+        return (
+            torch.LongTensor(parent_indices),
+            torch.LongTensor(child_indices),
+            torch.LongTensor(negative_indices)
+        )
+
+    def train_step(self, batch_size=64, margin=1.0):
+        """
+        Single training step with triplet-style loss
+
+        Loss encourages:
+        - distance(parent, child) < distance(parent, non-child) + margin
+        """
+        self.optimizer.zero_grad()
+
+        # Get batch
+        parent_idx, child_idx, neg_idx = self.create_training_batch(batch_size)
+
+        # Get embeddings
+        parent_emb = self.model.get_embeddings(parent_idx)
+        child_emb = self.model.get_embeddings(child_idx)
+        neg_emb = self.model.get_embeddings(neg_idx)
+
+        # Compute distances
+        positive_dist = self.model.poincare_distance(parent_emb, child_emb)
+        negative_dist = self.model.poincare_distance(parent_emb, neg_emb)
+
+        # Triplet loss: positive distance should be less than negative distance
+        loss = F.relu(positive_dist - negative_dist + margin).mean()
+
+        # Backprop and step
+        loss.backward()
+        self.optimizer.step()
+
+        # Re-project to Poincaré ball after update
+        with torch.no_grad():
+            self.model.embeddings.data = self.model.project_to_ball(
+                self.model.embeddings.data
+            )
+
+        return loss.item()
+
+    def train(self, num_epochs=1000, batch_size=64, verbose=True):
+        """
+        Full training loop
+
+        For enterprise taxonomies:
+        - Product catalogs: 10K-1M items, train in hours
+        - Knowledge graphs: 1M-100M entities, train in days
+        - Organizational hierarchies: 100-100K positions, train in minutes
+        """
+        for epoch in range(num_epochs):
+            loss = self.train_step(batch_size)
+
+            if verbose and epoch % 100 == 0:
+                print(f"Epoch {epoch}: Loss = {loss:.4f}")
+
+        if verbose:
+            print(f"Training complete. Final loss: {loss:.4f}")
+
+    def get_embedding(self, item):
+        """Get embedding for a specific item"""
+        idx = self.item_to_idx[item]
+        with torch.no_grad():
+            return self.model.get_embeddings(torch.LongTensor([idx]))[0].numpy()
+
+    def find_similar(self, item, top_k=5):
+        """
+        Find most similar items in hyperbolic space
+
+        Results respect hierarchical structure:
+        - Siblings rank higher than distant relatives
+        - Ancestors/descendants rank higher than unrelated items
+        """
+        query_idx = self.item_to_idx[item]
+        query_emb = self.model.get_embeddings(torch.LongTensor([query_idx]))
+
+        # Compute distances to all items
+        all_indices = torch.arange(self.num_items)
+        all_emb = self.model.get_embeddings(all_indices)
+
+        distances = self.model.poincare_distance(
+            query_emb.expand(self.num_items, -1),
+            all_emb
+        )
+
+        # Get top-k closest (excluding self)
+        _, sorted_indices = torch.sort(distances.squeeze())
+        similar_items = []
+
+        for idx in sorted_indices[1:top_k+1]:  # Skip first (self)
+            item_name = self.idx_to_item[idx.item()]
+            dist = distances[idx].item()
+            similar_items.append((item_name, dist))
+
+        return similar_items
+
+# Example: Training on product taxonomy
+def train_product_hierarchy_example():
+    """
+    Example: E-commerce product catalog with 100K products
+
+    Hyperbolic embeddings reduce dimensionality by 20-50x while
+    improving hierarchical distance preservation
+    """
+    # Define product taxonomy (child → parent)
+    product_taxonomy = {
+        # Electronics branch
+        'gaming_laptop': 'laptops',
+        'business_laptop': 'laptops',
+        'ultrabook': 'laptops',
+        'laptops': 'computers',
+        'desktop': 'computers',
+        'computers': 'electronics',
+
+        # Mobile branch
+        'smartphone': 'mobile_devices',
+        'tablet': 'mobile_devices',
+        'smartwatch': 'wearables',
+        'fitness_tracker': 'wearables',
+        'mobile_devices': 'electronics',
+        'wearables': 'electronics',
+
+        # Home appliances branch
+        'refrigerator': 'kitchen_appliances',
+        'dishwasher': 'kitchen_appliances',
+        'kitchen_appliances': 'home_appliances',
+        'washing_machine': 'laundry_appliances',
+        'dryer': 'laundry_appliances',
+        'laundry_appliances': 'home_appliances',
+    }
+
+    # Train hierarchical embeddings
+    trainer = HierarchicalEmbeddingTrainer(
+        product_taxonomy,
+        embedding_dim=5,  # Much lower than typical 256-768
+        curvature=1.0,
+        learning_rate=0.01
+    )
+
+    print("Training hierarchical embeddings...")
+    trainer.train(num_epochs=1000, batch_size=32)
+
+    # Test hierarchical similarity
+    print("\nHierarchical similarity for 'gaming_laptop':")
+    similar = trainer.find_similar('gaming_laptop', top_k=5)
+    for item, distance in similar:
+        print(f"  {item}: {distance:.4f}")
+
+    print("\nHierarchical similarity for 'smartphone':")
+    similar = trainer.find_similar('smartphone', top_k=5)
+    for item, distance in similar:
+        print(f"  {item}: {distance:.4f}")
+
+    return trainer
+
+# Uncomment to run:
+# trainer = train_product_hierarchy_example()
+```
+
+### Enterprise Applications of Hierarchical Embeddings
+
+**1. Product Recommendation with Category Awareness**
+
+```python
+class HierarchicalProductRecommender:
+    """
+    Product recommendations that respect category structure
+
+    Benefits:
+    - Diversification: Recommend across subcategories
+    - Substitution: Find products at same hierarchy level
+    - Upselling: Navigate up taxonomy for premium alternatives
+    - Cross-selling: Navigate to related branches
+    """
+
+    def __init__(self, hyperbolic_embeddings, product_metadata):
+        self.embeddings = hyperbolic_embeddings
+        self.metadata = product_metadata
+
+    def recommend_substitutes(self, product_id, top_k=10):
+        """
+        Find substitute products (same level in hierarchy)
+
+        E.g., gaming_laptop → [other gaming laptops]
+        """
+        # Find items at similar distance from root
+        # (same hierarchy level often correlates with distance from origin)
+        emb = self.embeddings.get_embedding(product_id)
+        depth = np.linalg.norm(emb)  # Distance from origin ≈ depth
+
+        similar = self.embeddings.find_similar(product_id, top_k * 3)
+
+        # Filter to items at similar depth
+        substitutes = []
+        for item, dist in similar:
+            item_emb = self.embeddings.get_embedding(item)
+            item_depth = np.linalg.norm(item_emb)
+
+            if abs(depth - item_depth) < 0.1:  # Similar depth
+                substitutes.append((item, dist))
+
+            if len(substitutes) >= top_k:
+                break
+
+        return substitutes
+
+    def recommend_upsell(self, product_id, budget_multiplier=1.5):
+        """
+        Find premium alternatives (move up in hierarchy, then down to premium branch)
+
+        E.g., business_laptop → ultrabook (higher-end subcategory)
+        """
+        # Move toward origin (up hierarchy), then explore nearby branches
+        # that are associated with higher price points
+        pass  # Implementation depends on price metadata
+```
+
+**2. Knowledge Graph Embeddings**
+
+Medical ontologies, scientific taxonomies, and corporate knowledge bases benefit enormously from hyperbolic embeddings:
+
+```python
+def embed_medical_ontology():
+    """
+    Medical ontology example: Disease hierarchies
+
+    ICD-10 codes have 14,000+ diseases organized hierarchically
+    Hyperbolic embeddings in 10-20 dimensions outperform
+    Euclidean embeddings in 300-500 dimensions
+    """
+    # Example: Simplified disease taxonomy
+    disease_taxonomy = {
+        # Cardiovascular diseases
+        'myocardial_infarction': 'ischemic_heart_disease',
+        'angina': 'ischemic_heart_disease',
+        'ischemic_heart_disease': 'cardiovascular_disease',
+
+        'atrial_fibrillation': 'arrhythmia',
+        'ventricular_tachycardia': 'arrhythmia',
+        'arrhythmia': 'cardiovascular_disease',
+
+        # Respiratory diseases
+        'pneumonia': 'lower_respiratory_infection',
+        'bronchitis': 'lower_respiratory_infection',
+        'lower_respiratory_infection': 'respiratory_disease',
+
+        'asthma': 'chronic_respiratory_disease',
+        'copd': 'chronic_respiratory_disease',
+        'chronic_respiratory_disease': 'respiratory_disease',
+    }
+
+    trainer = HierarchicalEmbeddingTrainer(
+        disease_taxonomy,
+        embedding_dim=10,
+        curvature=1.0
+    )
+
+    trainer.train(num_epochs=2000, verbose=True)
+
+    return trainer
+```
+
+:::{.callout-tip}
+## Dimensionality Advantage
+Hyperbolic embeddings typically achieve better hierarchical preservation in 5-20 dimensions than Euclidean embeddings in 100-500 dimensions. This reduces storage by 20-100x and speeds up similarity search by 10-50x.
+:::
+
+:::{.callout-warning}
+## Training Stability
+Hyperbolic optimization can be unstable near the boundary of the Poincaré ball. Always use projection after gradient steps and consider adaptive learning rates that decrease when approaching the boundary.
+:::
 
 ## Dynamic Embeddings for Temporal Data
 
-[Content to be written: Details about dynamic embeddings for temporal data]
+Most embedding systems assume data is static: a document has one embedding, a product has one representation. But **real-world entities evolve**: user interests shift, document relevance decays, product popularity cycles, and word meanings drift. Dynamic embeddings capture this temporal dimension.
+
+### The Temporal Challenge
+
+Consider a news article about "AI":
+- **2015**: "AI" meant primarily machine learning and narrow applications
+- **2020**: "AI" included transformers, GPT models, and broader capabilities
+- **2025**: "AI" encompasses multimodal models, agents, and reasoning systems
+
+A static embedding averages these meanings, losing temporal context. A dynamic embedding maintains separate representations for each time period or evolves continuously.
+
+### Approaches to Dynamic Embeddings
+
+**1. Discrete Time Slices**: Separate embeddings per time window
+**2. Continuous Evolution**: Embeddings as functions of time
+**3. Recurrent Updates**: Update embeddings based on new observations
+
+```python
+import torch
+import torch.nn as nn
+from datetime import datetime, timedelta
+
+class DynamicEmbedding(nn.Module):
+    """
+    Time-aware embeddings that evolve with data
+
+    Three modes:
+    1. Discrete: Separate embeddings per time window (daily, weekly, monthly)
+    2. Continuous: Embedding = f(base_embedding, time)
+    3. Streaming: Incrementally update embeddings from data stream
+
+    Applications:
+    - User preferences (evolve as users interact)
+    - Document relevance (decay over time, spike on events)
+    - Product popularity (seasonal cycles, trends)
+    - Stock market sentiment (rapid intraday changes)
+    - Medical patient state (disease progression)
+    """
+
+    def __init__(
+        self,
+        num_items,
+        embedding_dim=256,
+        mode='continuous',
+        num_time_slices=None,
+        decay_rate=0.01
+    ):
+        """
+        Args:
+            num_items: Number of entities to embed
+            embedding_dim: Dimension of embeddings
+            mode: 'discrete', 'continuous', or 'streaming'
+            num_time_slices: Number of discrete time windows (for discrete mode)
+            decay_rate: Rate of temporal decay (for continuous mode)
+        """
+        super().__init__()
+        self.num_items = num_items
+        self.embedding_dim = embedding_dim
+        self.mode = mode
+        self.decay_rate = decay_rate
+
+        if mode == 'discrete':
+            # Separate embedding matrix for each time slice
+            assert num_time_slices is not None
+            self.num_time_slices = num_time_slices
+            self.embeddings = nn.Parameter(
+                torch.randn(num_time_slices, num_items, embedding_dim) * 0.01
+            )
+
+        elif mode == 'continuous':
+            # Base embedding + temporal transformation
+            self.base_embeddings = nn.Parameter(
+                torch.randn(num_items, embedding_dim) * 0.01
+            )
+
+            # Temporal transformation network
+            self.temporal_network = nn.Sequential(
+                nn.Linear(1, 64),  # Time as input
+                nn.ReLU(),
+                nn.Linear(64, embedding_dim),
+                nn.Tanh()  # Bounded transformation
+            )
+
+        elif mode == 'streaming':
+            # Incrementally updated embeddings
+            self.embeddings = nn.Parameter(
+                torch.randn(num_items, embedding_dim) * 0.01
+            )
+            # Track last update time for each item
+            self.register_buffer(
+                'last_update',
+                torch.zeros(num_items)
+            )
+            # Exponential moving average momentum
+            self.ema_momentum = 0.9
+
+    def forward(self, indices, timestamps=None):
+        """
+        Get time-aware embeddings
+
+        Args:
+            indices: Item indices (batch_size,)
+            timestamps: Time information (batch_size,) or (batch_size, 1)
+                       Format depends on mode:
+                       - discrete: time slice index (0 to num_time_slices-1)
+                       - continuous: normalized time value (0.0 to 1.0)
+                       - streaming: actual timestamps (for decay calculation)
+
+        Returns:
+            embeddings: Time-aware embeddings (batch_size, embedding_dim)
+        """
+        if self.mode == 'discrete':
+            # Index into specific time slice
+            time_slice = timestamps.long()
+            batch_embeddings = self.embeddings[time_slice, indices]
+            return batch_embeddings
+
+        elif self.mode == 'continuous':
+            # Base embedding + temporal transformation
+            base_emb = self.base_embeddings[indices]
+
+            # Apply temporal transformation
+            if timestamps is None:
+                timestamps = torch.zeros(len(indices), 1)
+            if len(timestamps.shape) == 1:
+                timestamps = timestamps.unsqueeze(1)
+
+            temporal_shift = self.temporal_network(timestamps.float())
+
+            # Combine base and temporal components
+            dynamic_emb = base_emb + temporal_shift
+
+            return dynamic_emb
+
+        elif self.mode == 'streaming':
+            # Get current embeddings
+            current_emb = self.embeddings[indices]
+
+            # Apply temporal decay if timestamps provided
+            if timestamps is not None:
+                last_update_time = self.last_update[indices]
+                time_delta = timestamps - last_update_time
+
+                # Exponential decay factor
+                decay = torch.exp(-self.decay_rate * time_delta).unsqueeze(1)
+                current_emb = current_emb * decay
+
+            return current_emb
+
+    def update_streaming(self, indices, new_observations, timestamps):
+        """
+        Update embeddings based on new observations (streaming mode only)
+
+        Uses exponential moving average to incorporate new information
+        while preserving historical signal
+
+        Args:
+            indices: Items to update
+            new_observations: New embedding values from recent data
+            timestamps: Current time for decay calculation
+        """
+        assert self.mode == 'streaming'
+
+        with torch.no_grad():
+            # Compute time-based decay
+            last_update_time = self.last_update[indices]
+            time_delta = timestamps - last_update_time
+            decay = torch.exp(-self.decay_rate * time_delta).unsqueeze(1)
+
+            # Exponential moving average update
+            old_emb = self.embeddings[indices] * decay
+            new_emb = (
+                self.ema_momentum * old_emb +
+                (1 - self.ema_momentum) * new_observations
+            )
+
+            self.embeddings[indices] = new_emb
+            self.last_update[indices] = timestamps
+
+class TemporalUserEmbedding:
+    """
+    User embeddings that evolve based on interaction history
+
+    Critical for:
+    - E-commerce: Capture seasonal preferences, life events
+    - Content platforms: Track evolving interests
+    - Finance: Monitor changing risk profiles
+    - Healthcare: Model disease progression and treatment response
+
+    Handles:
+    - Short-term interests (what user engaged with today)
+    - Long-term preferences (persistent tastes)
+    - Periodic patterns (weekly/monthly cycles)
+    - Trend adaptation (gradual interest shifts)
+    """
+
+    def __init__(
+        self,
+        num_users,
+        num_items,
+        embedding_dim=128,
+        short_term_weight=0.3,
+        device='cpu'
+    ):
+        self.num_users = num_users
+        self.num_items = num_items
+        self.embedding_dim = embedding_dim
+        self.short_term_weight = short_term_weight
+        self.device = device
+
+        # Long-term user preferences (slowly evolving)
+        self.long_term = nn.Embedding(num_users, embedding_dim).to(device)
+
+        # Short-term user state (rapidly changing)
+        self.short_term = nn.Embedding(num_users, embedding_dim).to(device)
+
+        # Item embeddings (what users interact with)
+        self.items = nn.Embedding(num_items, embedding_dim).to(device)
+
+        # LSTM for modeling temporal sequences
+        self.lstm = nn.LSTM(
+            embedding_dim,
+            embedding_dim,
+            batch_first=True
+        ).to(device)
+
+    def get_user_embedding(self, user_id, current_time=None):
+        """
+        Get current user embedding combining long and short-term components
+
+        Returns weighted combination that balances:
+        - Stable long-term preferences
+        - Recent short-term interests
+        """
+        long_term_emb = self.long_term(user_id)
+        short_term_emb = self.short_term(user_id)
+
+        # Weighted combination
+        combined = (
+            (1 - self.short_term_weight) * long_term_emb +
+            self.short_term_weight * short_term_emb
+        )
+
+        return combined
+
+    def update_from_interaction(
+        self,
+        user_id,
+        item_id,
+        interaction_type='view',
+        timestamp=None
+    ):
+        """
+        Update user embedding based on new interaction
+
+        Args:
+            user_id: User who interacted
+            item_id: Item they interacted with
+            interaction_type: 'view', 'click', 'purchase', etc.
+            timestamp: When interaction occurred
+        """
+        # Get item embedding
+        item_emb = self.items(item_id)
+
+        # Update short-term state (immediate impact)
+        with torch.no_grad():
+            current_short_term = self.short_term(user_id)
+
+            # Weight based on interaction type
+            interaction_weights = {
+                'view': 0.1,
+                'click': 0.3,
+                'add_to_cart': 0.5,
+                'purchase': 1.0
+            }
+            weight = interaction_weights.get(interaction_type, 0.1)
+
+            # Update with exponential moving average
+            updated = 0.9 * current_short_term + weight * item_emb
+            self.short_term.weight[user_id] = updated
+
+        # Long-term updated more slowly (during training)
+        # This happens in batch training, not per-interaction
+
+    def predict_sequence(self, user_id, item_sequence, timestamps):
+        """
+        Predict next items based on interaction sequence
+
+        Uses LSTM to model temporal dependencies in user behavior
+
+        Args:
+            user_id: User ID
+            item_sequence: Sequence of item IDs (seq_len,)
+            timestamps: Time of each interaction (seq_len,)
+
+        Returns:
+            next_item_logits: Scores for all possible next items
+        """
+        # Embed item sequence
+        item_embs = self.items(item_sequence).unsqueeze(0)  # (1, seq_len, dim)
+
+        # Run through LSTM
+        lstm_out, (hidden, cell) = self.lstm(item_embs)
+
+        # Final hidden state represents current user state
+        current_state = hidden[-1]  # (1, dim)
+
+        # Combine with long-term preferences
+        long_term = self.long_term(user_id).unsqueeze(0)
+        combined_state = 0.7 * current_state + 0.3 * long_term
+
+        # Compute scores for all items
+        all_item_embs = self.items.weight  # (num_items, dim)
+        logits = torch.matmul(combined_state, all_item_embs.T)  # (1, num_items)
+
+        return logits.squeeze(0)
+
+# Example: E-commerce user with evolving preferences
+def temporal_user_example():
+    """
+    Model user whose preferences evolve over 6 months
+
+    Scenario:
+    - Jan-Feb: Browse fitness equipment (New Year's resolution)
+    - Mar-Apr: Shift to outdoor gear (spring)
+    - May-Jun: Focus on camping equipment (summer vacation planning)
+
+    Dynamic embeddings capture these shifts while maintaining
+    long-term preferences (e.g., preference for eco-friendly products)
+    """
+    model = TemporalUserEmbedding(
+        num_users=10000,
+        num_items=50000,
+        embedding_dim=128
+    )
+
+    user_id = torch.tensor([42])
+
+    # Simulate 6 months of interactions
+    print("Temporal user embedding evolution:")
+
+    # January: Fitness equipment
+    fitness_items = torch.randint(0, 100, (20,))  # Items 0-99 are fitness
+    for item in fitness_items[:10]:
+        model.update_from_interaction(user_id, torch.tensor([item]), 'view')
+
+    jan_emb = model.get_user_embedding(user_id)
+    print(f"January embedding norm: {torch.norm(jan_emb).item():.3f}")
+
+    # March: Outdoor gear
+    outdoor_items = torch.randint(100, 200, (20,))  # Items 100-199 outdoor
+    for item in outdoor_items[:10]:
+        model.update_from_interaction(user_id, torch.tensor([item]), 'view')
+
+    mar_emb = model.get_user_embedding(user_id)
+    print(f"March embedding norm: {torch.norm(mar_emb).item():.3f}")
+    print(f"Embedding shift (Jan→Mar): {torch.norm(jan_emb - mar_emb).item():.3f}")
+
+    # May: Camping equipment
+    camping_items = torch.randint(200, 300, (20,))  # Items 200-299 camping
+    for item in camping_items[:10]:
+        model.update_from_interaction(user_id, torch.tensor([item]), 'purchase')
+
+    may_emb = model.get_user_embedding(user_id)
+    print(f"May embedding norm: {torch.norm(may_emb).item():.3f}")
+    print(f"Embedding shift (Mar→May): {torch.norm(mar_emb - may_emb).item():.3f}")
+
+# Uncomment to run:
+# temporal_user_example()
+```
+
+### Production Deployment of Dynamic Embeddings
+
+:::{.callout-tip}
+## Streaming Updates at Scale
+For systems with millions of users and billions of interactions:
+
+1. **Batch updates**: Accumulate interactions over 5-15 minute windows, update in batch
+2. **Incremental training**: Update only affected embeddings, not full model
+3. **Asynchronous updates**: Background process updates embeddings while serving layer uses stale (but recent) versions
+4. **Versioned embeddings**: Maintain multiple versions (current, 5min old, 1hr old) for consistency
+:::
+
+```python
+class StreamingEmbeddingService:
+    """
+    Production service for real-time dynamic embeddings
+
+    Architecture:
+    - Serving layer: Fast reads from current embeddings
+    - Update layer: Asynchronous writes from interaction stream
+    - Version management: Consistent reads during updates
+
+    Scales to:
+    - 100M+ users
+    - 1B+ interactions/day
+    - <10ms p99 latency for reads
+    - <5min lag for updates
+    """
+
+    def __init__(self, embedding_model, update_interval=300):
+        """
+        Args:
+            embedding_model: DynamicEmbedding or TemporalUserEmbedding
+            update_interval: Seconds between batch updates (default 5min)
+        """
+        self.model = embedding_model
+        self.update_interval = update_interval
+
+        # Interaction queue (in production: Kafka, Kinesis, Pub/Sub)
+        self.interaction_queue = []
+
+        # Current embeddings (read-optimized cache)
+        self.embedding_cache = {}
+
+        # Last update time
+        self.last_update = datetime.now()
+
+    def get_embedding(self, user_id):
+        """Fast read from cache"""
+        if user_id in self.embedding_cache:
+            return self.embedding_cache[user_id]
+
+        # Cache miss: compute and cache
+        with torch.no_grad():
+            emb = self.model.get_user_embedding(torch.tensor([user_id]))
+            self.embedding_cache[user_id] = emb
+            return emb
+
+    def record_interaction(self, user_id, item_id, interaction_type):
+        """
+        Record new interaction (fast, asynchronous)
+
+        In production: Write to message queue, return immediately
+        """
+        self.interaction_queue.append({
+            'user_id': user_id,
+            'item_id': item_id,
+            'type': interaction_type,
+            'timestamp': datetime.now()
+        })
+
+    def process_updates(self):
+        """
+        Batch process accumulated interactions
+
+        Called periodically (every 5-15 minutes)
+        In production: Separate worker process
+        """
+        if not self.interaction_queue:
+            return
+
+        print(f"Processing {len(self.interaction_queue)} interactions...")
+
+        # Group by user for efficiency
+        user_interactions = {}
+        for interaction in self.interaction_queue:
+            user_id = interaction['user_id']
+            if user_id not in user_interactions:
+                user_interactions[user_id] = []
+            user_interactions[user_id].append(interaction)
+
+        # Update embeddings
+        for user_id, interactions in user_interactions.items():
+            for interaction in interactions:
+                self.model.update_from_interaction(
+                    torch.tensor([user_id]),
+                    torch.tensor([interaction['item_id']]),
+                    interaction['type']
+                )
+
+            # Invalidate cache
+            if user_id in self.embedding_cache:
+                del self.embedding_cache[user_id]
+
+        # Clear queue
+        self.interaction_queue = []
+        self.last_update = datetime.now()
+
+        print("Update complete.")
+```
+
+:::{.callout-warning}
+## Temporal Leakage
+When training dynamic embeddings, **never use future information to create past embeddings**. This temporal leakage leads to unrealistically high accuracy in backtesting but fails in production. Always train with strict time-based splits.
+:::
 
 ## Compositional Embeddings for Complex Entities
 
-[Content to be written: Details about compositional embeddings for complex entities]
+Real-world entities are rarely atomic—they're compositions of multiple components:
+- **Documents**: Title + body + metadata + author + date
+- **Products**: Category + brand + attributes + reviews + images
+- **Users**: Demographics + behavior + preferences + context
+- **Transactions**: Buyer + seller + item + time + location + amount
+
+**Compositional embeddings** explicitly model these structures, learning how to combine component embeddings into coherent entity representations.
+
+### Why Composition Matters
+
+A naive approach: concatenate or average component embeddings. This fails because:
+
+1. **Components have different importance**: Product brand matters more than box color
+2. **Interactions exist**: Laptop + Gaming Category ≠ Laptop + Business Category
+3. **Context varies**: User embedding should weight differently for recommendations vs. fraud detection
+
+Compositional embeddings learn **how to combine** components, not just what the components are.
+
+### Approaches to Composition
+
+```python
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+class CompositionalEmbedding(nn.Module):
+    """
+    Learn to compose embeddings from multiple components
+
+    Three composition strategies:
+    1. Weighted sum: Learn component importance weights
+    2. Gated combination: Components gate each other (like LSTM gates)
+    3. Attention-based: Components attend to each other
+
+    Applications:
+    - Multi-field entity embeddings (user with demographics + behavior)
+    - Hierarchical documents (title + paragraphs + metadata)
+    - Product embeddings (category + brand + attributes + reviews)
+    - Transaction embeddings (who + what + when + where + how much)
+    """
+
+    def __init__(
+        self,
+        component_dims,
+        output_dim=256,
+        composition_type='attention'
+    ):
+        """
+        Args:
+            component_dims: Dict mapping component name → embedding dimension
+                          e.g., {'title': 128, 'body': 512, 'author': 64}
+            output_dim: Final composed embedding dimension
+            composition_type: 'weighted', 'gated', or 'attention'
+        """
+        super().__init__()
+        self.component_dims = component_dims
+        self.output_dim = output_dim
+        self.composition_type = composition_type
+
+        # Project each component to common dimension
+        self.component_projections = nn.ModuleDict({
+            name: nn.Linear(dim, output_dim)
+            for name, dim in component_dims.items()
+        })
+
+        if composition_type == 'weighted':
+            # Learned weights for each component
+            self.component_weights = nn.Parameter(
+                torch.ones(len(component_dims)) / len(component_dims)
+            )
+
+        elif composition_type == 'gated':
+            # Gate networks for each component
+            self.gates = nn.ModuleDict({
+                name: nn.Sequential(
+                    nn.Linear(output_dim, output_dim),
+                    nn.Sigmoid()
+                )
+                for name in component_dims.keys()
+            })
+
+        elif composition_type == 'attention':
+            # Multi-head attention for component composition
+            self.attention = nn.MultiheadAttention(
+                embed_dim=output_dim,
+                num_heads=4,
+                batch_first=True
+            )
+
+            # Query: what we're looking for
+            self.query_projection = nn.Linear(output_dim, output_dim)
+
+    def forward(self, component_embeddings, component_mask=None):
+        """
+        Compose component embeddings into unified representation
+
+        Args:
+            component_embeddings: Dict mapping component name → tensor
+                                 e.g., {'title': (batch, 128), 'body': (batch, 512)}
+            component_mask: Optional mask for missing components
+
+        Returns:
+            composed_embedding: (batch, output_dim)
+        """
+        # Project all components to common dimension
+        projected = {}
+        for name, emb in component_embeddings.items():
+            projected[name] = self.component_projections[name](emb)
+
+        if self.composition_type == 'weighted':
+            return self._weighted_composition(projected)
+        elif self.composition_type == 'gated':
+            return self._gated_composition(projected)
+        elif self.composition_type == 'attention':
+            return self._attention_composition(projected, component_mask)
+
+    def _weighted_composition(self, projected):
+        """Simple weighted sum of components"""
+        # Ensure weights are positive and sum to 1
+        weights = F.softmax(self.component_weights, dim=0)
+
+        # Stack component embeddings
+        component_list = list(projected.values())
+        stacked = torch.stack(component_list, dim=1)  # (batch, num_components, dim)
+
+        # Weighted sum
+        composed = torch.sum(
+            stacked * weights.view(1, -1, 1),
+            dim=1
+        )
+
+        return composed
+
+    def _gated_composition(self, projected):
+        """
+        Gated composition: components gate each other
+
+        Similar to LSTM gates but for composition:
+        - Each component generates a gate
+        - Gates control information flow from other components
+        """
+        batch_size = next(iter(projected.values())).shape[0]
+        composed = torch.zeros(batch_size, self.output_dim)
+
+        # Each component contributes based on its gate
+        for name, emb in projected.items():
+            gate = self.gates[name](emb)
+            composed = composed + gate * emb
+
+        # Normalize
+        composed = composed / len(projected)
+
+        return composed
+
+    def _attention_composition(self, projected, component_mask=None):
+        """
+        Attention-based composition
+
+        Components attend to each other to determine importance
+        Captures interactions between components
+        """
+        # Stack components for attention
+        component_list = list(projected.values())
+        stacked = torch.stack(component_list, dim=1)  # (batch, num_comp, dim)
+
+        # Use mean as query (could also be learned)
+        query = stacked.mean(dim=1, keepdim=True)  # (batch, 1, dim)
+        query = self.query_projection(query)
+
+        # Multi-head attention
+        attended, attention_weights = self.attention(
+            query=query,
+            key=stacked,
+            value=stacked,
+            key_padding_mask=component_mask
+        )
+
+        return attended.squeeze(1)  # (batch, dim)
+
+class ProductEmbedding(nn.Module):
+    """
+    Compositional embeddings for products
+
+    Combines:
+    - Category hierarchy (from hierarchical embeddings)
+    - Brand information
+    - Product attributes (color, size, material, etc.)
+    - Review sentiment and keywords
+    - Visual features (from product images)
+    - Temporal features (seasonality, trends)
+
+    Applications:
+    - Product search and discovery
+    - Recommendation systems
+    - Dynamic pricing
+    - Inventory optimization
+    """
+
+    def __init__(
+        self,
+        num_categories=10000,
+        num_brands=5000,
+        num_attributes=1000,
+        embedding_dim=256
+    ):
+        super().__init__()
+
+        # Component embeddings
+        self.category_emb = nn.Embedding(num_categories, embedding_dim)
+        self.brand_emb = nn.Embedding(num_brands, embedding_dim)
+        self.attribute_emb = nn.Embedding(num_attributes, embedding_dim)
+
+        # Text encoder for reviews (pretrained BERT/RoBERTa)
+        self.review_encoder = nn.Linear(768, embedding_dim)  # BERT → product dim
+
+        # Image encoder (pretrained ResNet/ViT)
+        self.image_encoder = nn.Linear(2048, embedding_dim)  # ResNet → product dim
+
+        # Compositional model
+        self.compositor = CompositionalEmbedding(
+            component_dims={
+                'category': embedding_dim,
+                'brand': embedding_dim,
+                'attributes': embedding_dim,
+                'reviews': embedding_dim,
+                'image': embedding_dim
+            },
+            output_dim=embedding_dim,
+            composition_type='attention'
+        )
+
+    def forward(
+        self,
+        category_id,
+        brand_id,
+        attribute_ids,
+        review_embedding,
+        image_features
+    ):
+        """
+        Create compositional product embedding
+
+        Args:
+            category_id: Category ID (batch,)
+            brand_id: Brand ID (batch,)
+            attribute_ids: Multiple attributes (batch, max_attributes)
+            review_embedding: Pre-computed review embedding (batch, 768)
+            image_features: Pre-extracted image features (batch, 2048)
+
+        Returns:
+            product_embedding: Composed representation (batch, embedding_dim)
+        """
+        # Encode each component
+        category_vec = self.category_emb(category_id)
+        brand_vec = self.brand_emb(brand_id)
+
+        # Attributes: pool multiple attribute embeddings
+        attr_vecs = self.attribute_emb(attribute_ids)  # (batch, max_attr, dim)
+        attribute_vec = attr_vecs.mean(dim=1)  # (batch, dim)
+
+        # Project text and image features
+        review_vec = self.review_encoder(review_embedding)
+        image_vec = self.image_encoder(image_features)
+
+        # Compose all components
+        components = {
+            'category': category_vec,
+            'brand': brand_vec,
+            'attributes': attribute_vec,
+            'reviews': review_vec,
+            'image': image_vec
+        }
+
+        product_emb = self.compositor(components)
+
+        return product_emb
+
+class DocumentEmbedding(nn.Module):
+    """
+    Compositional document embeddings
+
+    Combines:
+    - Title (high importance, short)
+    - Abstract/summary (medium importance, medium length)
+    - Body (lower importance per token, long)
+    - Metadata (author, date, venue)
+    - Citations (who cites this, who is cited)
+    - Figures/tables (visual content)
+
+    Use cases:
+    - Scientific paper search and recommendation
+    - Legal document analysis
+    - Patent search and prior art detection
+    - News article clustering and tracking
+    """
+
+    def __init__(self, embedding_dim=512):
+        super().__init__()
+
+        # Different encoders for different text fields
+        # Title: capture key concepts
+        self.title_encoder = nn.LSTM(
+            embedding_dim, embedding_dim,
+            num_layers=1, batch_first=True
+        )
+
+        # Abstract: summary-level encoding
+        self.abstract_encoder = nn.LSTM(
+            embedding_dim, embedding_dim,
+            num_layers=2, batch_first=True
+        )
+
+        # Body: hierarchical encoding (section → paragraph → sentence)
+        self.body_encoder = nn.TransformerEncoder(
+            nn.TransformerEncoderLayer(
+                d_model=embedding_dim,
+                nhead=8,
+                batch_first=True
+            ),
+            num_layers=3
+        )
+
+        # Metadata encoder
+        self.author_emb = nn.Embedding(100000, embedding_dim)  # 100K authors
+        self.venue_emb = nn.Embedding(10000, embedding_dim)    # 10K venues
+
+        # Compositional model
+        self.compositor = CompositionalEmbedding(
+            component_dims={
+                'title': embedding_dim,
+                'abstract': embedding_dim,
+                'body': embedding_dim,
+                'author': embedding_dim,
+                'venue': embedding_dim
+            },
+            output_dim=embedding_dim,
+            composition_type='attention'
+        )
+
+    def forward(
+        self,
+        title_tokens,
+        abstract_tokens,
+        body_tokens,
+        author_id,
+        venue_id
+    ):
+        """
+        Create compositional document embedding
+
+        Different components weighted based on task:
+        - Citation recommendation: weight authors/venue heavily
+        - Semantic search: weight title/abstract heavily
+        - Duplicate detection: weight full body heavily
+        """
+        # Encode title (use final hidden state)
+        _, (title_hidden, _) = self.title_encoder(title_tokens)
+        title_vec = title_hidden[-1]
+
+        # Encode abstract
+        _, (abstract_hidden, _) = self.abstract_encoder(abstract_tokens)
+        abstract_vec = abstract_hidden[-1]
+
+        # Encode body (use mean pooling over transformer outputs)
+        body_encoded = self.body_encoder(body_tokens)
+        body_vec = body_encoded.mean(dim=1)
+
+        # Encode metadata
+        author_vec = self.author_emb(author_id)
+        venue_vec = self.venue_emb(venue_id)
+
+        # Compose
+        components = {
+            'title': title_vec,
+            'abstract': abstract_vec,
+            'body': body_vec,
+            'author': author_vec,
+            'venue': venue_vec
+        }
+
+        doc_emb = self.compositor(components)
+
+        return doc_emb
+```
+
+### Task-Specific Composition Weights
+
+A powerful extension: **learn different composition weights for different tasks**.
+
+```python
+class TaskAdaptiveComposition(nn.Module):
+    """
+    Learn task-specific composition strategies
+
+    Example: Product embeddings
+    - For search: weight title, category highly
+    - For recommendations: weight reviews, purchase history highly
+    - For fraud detection: weight price anomalies, seller reputation highly
+
+    Single compositional model, multiple task-specific heads
+    """
+
+    def __init__(self, component_dims, tasks, output_dim=256):
+        """
+        Args:
+            component_dims: Dict of component dimensions
+            tasks: List of task names ['search', 'recommendation', 'fraud']
+            output_dim: Output dimension
+        """
+        super().__init__()
+        self.tasks = tasks
+
+        # Project components to common space
+        self.projections = nn.ModuleDict({
+            name: nn.Linear(dim, output_dim)
+            for name, dim in component_dims.items()
+        })
+
+        # Task-specific attention for composition
+        self.task_attention = nn.ModuleDict({
+            task: nn.MultiheadAttention(
+                embed_dim=output_dim,
+                num_heads=4,
+                batch_first=True
+            )
+            for task in tasks
+        })
+
+        # Task-specific queries (what each task "looks for")
+        self.task_queries = nn.ParameterDict({
+            task: nn.Parameter(torch.randn(1, 1, output_dim))
+            for task in tasks
+        })
+
+    def forward(self, component_embeddings, task='search'):
+        """
+        Compose embeddings for specific task
+
+        Args:
+            component_embeddings: Dict of component embeddings
+            task: Which task this is for
+
+        Returns:
+            Task-specific compositional embedding
+        """
+        # Project components
+        projected = {
+            name: self.projections[name](emb)
+            for name, emb in component_embeddings.items()
+        }
+
+        # Stack for attention
+        stacked = torch.stack(list(projected.values()), dim=1)
+        batch_size = stacked.shape[0]
+
+        # Get task-specific query
+        query = self.task_queries[task].expand(batch_size, -1, -1)
+
+        # Task-specific attention
+        composed, _ = self.task_attention[task](
+            query=query,
+            key=stacked,
+            value=stacked
+        )
+
+        return composed.squeeze(1)
+```
+
+:::{.callout-tip}
+## Handling Missing Components
+Real-world data often has missing components (products without images, documents without abstracts). Use attention with component masks to handle missing data gracefully—the model automatically re-weights remaining components.
+:::
 
 ## Uncertainty Quantification in Embeddings
 
-[Content to be written: Details about uncertainty quantification in embeddings]
+Embedding systems make high-stakes decisions: loan approvals, medical diagnoses, autonomous vehicle navigation. **A confidence score is as important as the prediction itself**. Uncertainty quantification tells us when to trust an embedding-based decision and when to defer to human judgment or request more information.
+
+### Sources of Uncertainty
+
+1. **Aleatoric uncertainty**: Inherent noise in data (e.g., blurry images, ambiguous text)
+2. **Epistemic uncertainty**: Model's lack of knowledge (e.g., never seen this type of input before)
+3. **Distribution shift**: Input differs from training distribution
+
+Standard embeddings provide point estimates with no uncertainty. We need probabilistic embeddings that capture confidence.
+
+### Approaches to Uncertainty Quantification
+
+```python
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import numpy as np
+
+class ProbabilisticEmbedding(nn.Module):
+    """
+    Embeddings with uncertainty quantification
+
+    Instead of point vector, output distribution over vectors
+    Represented as Gaussian: N(μ, Σ)
+    - μ (mean): Expected embedding
+    - Σ (covariance): Uncertainty
+
+    Applications:
+    - High-stakes decisions (healthcare, finance, autonomous systems)
+    - Out-of-distribution detection
+    - Active learning (query most uncertain examples)
+    - Confidence-aware retrieval
+    - Trustworthy AI systems
+    """
+
+    def __init__(
+        self,
+        num_items,
+        embedding_dim=256,
+        uncertainty_type='diagonal'
+    ):
+        """
+        Args:
+            num_items: Number of items to embed
+            embedding_dim: Dimension of embeddings
+            uncertainty_type: 'diagonal' (efficient) or 'full' (expressive)
+        """
+        super().__init__()
+        self.num_items = num_items
+        self.embedding_dim = embedding_dim
+        self.uncertainty_type = uncertainty_type
+
+        # Mean embeddings (expected value)
+        self.mean_embeddings = nn.Parameter(
+            torch.randn(num_items, embedding_dim) * 0.01
+        )
+
+        # Uncertainty embeddings (variance)
+        if uncertainty_type == 'diagonal':
+            # Diagonal covariance (independent dimensions)
+            self.log_var_embeddings = nn.Parameter(
+                torch.zeros(num_items, embedding_dim)  # Start with low uncertainty
+            )
+        elif uncertainty_type == 'full':
+            # Full covariance matrix (correlated dimensions)
+            # Parameterize as L @ L^T where L is lower triangular
+            self.cholesky_embeddings = nn.Parameter(
+                torch.randn(num_items, embedding_dim, embedding_dim) * 0.01
+            )
+
+    def forward(self, indices, return_uncertainty=True):
+        """
+        Get probabilistic embeddings
+
+        Args:
+            indices: Item indices (batch_size,)
+            return_uncertainty: If True, return (mean, variance)
+
+        Returns:
+            If return_uncertainty=True: (mean, variance)
+            If return_uncertainty=False: sampled embedding
+        """
+        mean = self.mean_embeddings[indices]
+
+        if not return_uncertainty:
+            # Sample from distribution
+            if self.uncertainty_type == 'diagonal':
+                log_var = self.log_var_embeddings[indices]
+                std = torch.exp(0.5 * log_var)
+                eps = torch.randn_like(mean)
+                return mean + eps * std
+            else:
+                # Full covariance sampling
+                L = self.cholesky_embeddings[indices]
+                eps = torch.randn_like(mean).unsqueeze(-1)
+                sample = mean + (L @ eps).squeeze(-1)
+                return sample
+        else:
+            # Return mean and variance
+            if self.uncertainty_type == 'diagonal':
+                variance = torch.exp(self.log_var_embeddings[indices])
+                return mean, variance
+            else:
+                # Covariance = L @ L^T
+                L = self.cholesky_embeddings[indices]
+                covariance = L @ L.transpose(-2, -1)
+                return mean, covariance
+
+    def kl_divergence_loss(self, indices):
+        """
+        KL divergence from prior N(0, I)
+
+        Regularizes uncertainty: prevents model from claiming
+        infinite uncertainty to avoid being wrong
+        """
+        mean = self.mean_embeddings[indices]
+
+        if self.uncertainty_type == 'diagonal':
+            log_var = self.log_var_embeddings[indices]
+
+            # KL(N(μ, σ²) || N(0, 1))
+            kl = -0.5 * torch.sum(
+                1 + log_var - mean.pow(2) - log_var.exp(),
+                dim=-1
+            )
+        else:
+            # Full covariance KL divergence
+            L = self.cholesky_embeddings[indices]
+
+            # More complex formula for full covariance
+            # Simplified approximation here
+            trace_term = torch.diagonal(L @ L.transpose(-2, -1), dim1=-2, dim2=-1).sum(-1)
+            kl = 0.5 * (
+                trace_term + (mean ** 2).sum(-1) - self.embedding_dim
+                - torch.logdet(L @ L.transpose(-2, -1))
+            )
+
+        return kl.mean()
+
+class UncertaintyAwareSimilarity:
+    """
+    Similarity search with uncertainty quantification
+
+    Key insight: Similarity between uncertain embeddings should
+    account for overlap of their distributions, not just distance
+    between means
+
+    Applications:
+    - Medical image retrieval: Don't match if uncertain
+    - Financial fraud: Flag high-uncertainty transactions
+    - Autonomous vehicles: Slow down when perception is uncertain
+    """
+
+    def __init__(self, probabilistic_embedding):
+        self.embedding_model = probabilistic_embedding
+
+    def expected_similarity(self, idx1, idx2):
+        """
+        Expected cosine similarity between two distributions
+
+        For distributions p₁ = N(μ₁, Σ₁) and p₂ = N(μ₂, Σ₂):
+        E[sim(x₁, x₂)] where x₁ ~ p₁, x₂ ~ p₂
+        """
+        mean1, var1 = self.embedding_model(idx1)
+        mean2, var2 = self.embedding_model(idx2)
+
+        # Monte Carlo estimate: sample and average
+        num_samples = 100
+        similarities = []
+
+        for _ in range(num_samples):
+            sample1 = mean1 + torch.randn_like(mean1) * torch.sqrt(var1)
+            sample2 = mean2 + torch.randn_like(mean2) * torch.sqrt(var2)
+
+            sim = F.cosine_similarity(sample1, sample2, dim=-1)
+            similarities.append(sim)
+
+        expected_sim = torch.stack(similarities).mean(dim=0)
+        uncertainty = torch.stack(similarities).std(dim=0)
+
+        return expected_sim, uncertainty
+
+    def wasserstein_distance(self, idx1, idx2):
+        """
+        Wasserstein distance between embedding distributions
+
+        More principled than expected similarity:
+        - Accounts for both mean and variance differences
+        - Symmetric and satisfies triangle inequality
+        - Natural notion of "distance between uncertainties"
+        """
+        mean1, var1 = self.embedding_model(idx1)
+        mean2, var2 = self.embedding_model(idx2)
+
+        # For Gaussians, Wasserstein-2 distance has closed form:
+        # W²(p₁, p₂) = ||μ₁ - μ₂||² + trace(Σ₁ + Σ₂ - 2(Σ₁^{1/2} Σ₂ Σ₁^{1/2})^{1/2})
+
+        # Simplified for diagonal covariance:
+        mean_dist = torch.sum((mean1 - mean2) ** 2, dim=-1)
+        var_dist = torch.sum((torch.sqrt(var1) - torch.sqrt(var2)) ** 2, dim=-1)
+
+        wasserstein_dist = torch.sqrt(mean_dist + var_dist)
+
+        return wasserstein_dist
+
+    def uncertainty_aware_search(
+        self,
+        query_idx,
+        candidate_indices,
+        confidence_threshold=0.8
+    ):
+        """
+        Retrieve similar items, filtering by confidence
+
+        Only return matches where model is confident
+        Better to return no match than wrong match in high-stakes scenarios
+
+        Args:
+            query_idx: Query item
+            candidate_indices: Candidates to search
+            confidence_threshold: Minimum confidence (0-1)
+
+        Returns:
+            filtered_results: Only high-confidence matches
+        """
+        results = []
+
+        for candidate_idx in candidate_indices:
+            # Compute expected similarity and uncertainty
+            expected_sim, uncertainty = self.expected_similarity(
+                query_idx,
+                candidate_idx
+            )
+
+            # Confidence = 1 - normalized_uncertainty
+            confidence = 1 - torch.clamp(uncertainty / expected_sim.abs(), 0, 1)
+
+            if confidence >= confidence_threshold:
+                results.append({
+                    'candidate': candidate_idx,
+                    'similarity': expected_sim.item(),
+                    'confidence': confidence.item()
+                })
+
+        # Sort by similarity
+        results.sort(key=lambda x: x['similarity'], reverse=True)
+
+        return results
+
+class BayesianEmbeddingNetwork(nn.Module):
+    """
+    Deep learning approach: Bayesian neural network for embeddings
+
+    Uses Monte Carlo Dropout or variational inference
+    to estimate epistemic uncertainty (model uncertainty)
+
+    Advantages:
+    - Captures model's knowledge gaps
+    - Detects out-of-distribution inputs
+    - Enables active learning
+    """
+
+    def __init__(self, input_dim, embedding_dim=256, dropout_rate=0.1):
+        super().__init__()
+
+        self.encoder = nn.Sequential(
+            nn.Linear(input_dim, 512),
+            nn.ReLU(),
+            nn.Dropout(dropout_rate),
+
+            nn.Linear(512, 512),
+            nn.ReLU(),
+            nn.Dropout(dropout_rate),
+
+            nn.Linear(512, embedding_dim)
+        )
+
+        self.dropout_rate = dropout_rate
+
+    def forward(self, x, num_samples=1):
+        """
+        Forward pass with uncertainty estimation
+
+        Args:
+            x: Input features
+            num_samples: Number of forward passes for MC dropout
+
+        Returns:
+            If num_samples=1: single embedding
+            If num_samples>1: (mean, variance) across samples
+        """
+        if num_samples == 1:
+            return self.encoder(x)
+
+        # Monte Carlo Dropout: multiple forward passes with dropout enabled
+        self.train()  # Enable dropout even during inference
+
+        samples = []
+        for _ in range(num_samples):
+            samples.append(self.encoder(x))
+
+        samples = torch.stack(samples)  # (num_samples, batch, dim)
+
+        mean = samples.mean(dim=0)
+        variance = samples.var(dim=0)
+
+        return mean, variance
+
+    def detect_ood(self, x, num_samples=20, threshold=0.5):
+        """
+        Out-of-distribution detection via uncertainty
+
+        High uncertainty → likely OOD → reject or request human review
+
+        Returns:
+            is_ood: Boolean mask (True = out of distribution)
+            uncertainty_score: Magnitude of uncertainty
+        """
+        mean, variance = self.forward(x, num_samples=num_samples)
+
+        # Aggregate uncertainty across dimensions
+        uncertainty_score = variance.mean(dim=-1)
+
+        # Threshold for OOD detection
+        is_ood = uncertainty_score > threshold
+
+        return is_ood, uncertainty_score
+
+# Example: Medical image retrieval with uncertainty
+def medical_uncertainty_example():
+    """
+    Medical imaging scenario:
+    - 100K training images (chest X-rays)
+    - Need to find similar cases for diagnosis support
+    - CRITICAL: Don't suggest matches if uncertain (patient safety)
+
+    Uncertainty quantification:
+    - High uncertainty on rare diseases → defer to specialist
+    - High uncertainty on poor quality images → request better scan
+    - Low uncertainty on common conditions → auto-suggest similar cases
+    """
+    # Initialize probabilistic embedding
+    model = ProbabilisticEmbedding(
+        num_items=100000,  # 100K medical images
+        embedding_dim=512,
+        uncertainty_type='diagonal'
+    )
+
+    # Similarity search
+    search = UncertaintyAwareSimilarity(model)
+
+    # Query: Patient X-ray
+    query_idx = torch.tensor([42])
+
+    # Candidate similar cases
+    candidates = torch.arange(100)
+
+    # Uncertainty-aware retrieval (only high-confidence matches)
+    results = search.uncertainty_aware_search(
+        query_idx,
+        candidates,
+        confidence_threshold=0.85  # High threshold for medical applications
+    )
+
+    print(f"Found {len(results)} high-confidence matches:")
+    for result in results[:5]:
+        print(f"  Case {result['candidate']}: "
+              f"Similarity = {result['similarity']:.3f}, "
+              f"Confidence = {result['confidence']:.3f}")
+
+    if len(results) == 0:
+        print("  No confident matches found → Defer to specialist")
+
+# Uncomment to run:
+# medical_uncertainty_example()
+```
+
+:::{.callout-warning}
+## Calibration is Critical
+Uncertainty estimates must be **calibrated**: if the model says 80% confidence, it should be correct 80% of the time. Uncalibrated uncertainty is misleading and dangerous. Always validate on held-out test set and use temperature scaling or Platt scaling to calibrate.
+:::
+
+:::{.callout-tip}
+## When to Use Uncertainty Quantification
+
+Essential for:
+- **High-stakes decisions**: Healthcare, finance, autonomous systems, legal
+- **Out-of-distribution detection**: Detect when input differs from training data
+- **Active learning**: Select most informative examples to label next
+- **Trustworthy AI**: Provide confidence scores to users
+
+Not necessary for:
+- Low-stakes applications (music recommendations, article suggestions)
+- Internal R&D where errors are acceptable
+- Applications with human-in-the-loop review anyway
+:::
 
 ## Federated Embedding Learning
 
-[Content to be written: Details about federated embedding learning]
+Many organizations have valuable data they cannot share: medical records, financial transactions, personal communications. **Federated learning** enables training embeddings across multiple data silos without centralizing the data. Each participant trains locally and shares only model updates, preserving privacy.
+
+### The Federated Learning Paradigm
+
+Traditional centralized training:
+1. Collect all data in one place
+2. Train embedding model
+3. Deploy to all clients
+
+**Problem**: Data cannot be centralized due to privacy, regulations (GDPR, HIPAA), competitive concerns, or data volume.
+
+Federated training:
+1. Each client trains on local data
+2. Clients share model updates (gradients, embeddings)
+3. Central server aggregates updates
+4. Repeat until convergence
+
+```python
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from copy import deepcopy
+
+class FederatedEmbeddingServer:
+    """
+    Central server for federated embedding learning
+
+    Coordinates training across multiple clients (hospitals, banks, companies)
+    without accessing their raw data
+
+    Protocol:
+    1. Server sends current model to clients
+    2. Clients train on local data
+    3. Clients send updates (gradients or model weights) to server
+    4. Server aggregates updates (FedAvg, FedProx, etc.)
+    5. Repeat
+
+    Applications:
+    - Healthcare: Learn from patient data across hospitals
+    - Finance: Fraud detection across banks
+    - Mobile: Keyboard prediction across users' devices
+    - Enterprise: Cross-company analytics (supply chain, standards bodies)
+
+    Privacy guarantees:
+    - Clients never share raw data
+    - Optional: Differential privacy on updates
+    - Optional: Secure aggregation (encrypted updates)
+    """
+
+    def __init__(
+        self,
+        embedding_model,
+        num_clients,
+        aggregation_method='fedavg'
+    ):
+        """
+        Args:
+            embedding_model: Global embedding model architecture
+            num_clients: Number of participating clients
+            aggregation_method: 'fedavg', 'fedprox', or 'fedadam'
+        """
+        self.global_model = embedding_model
+        self.num_clients = num_clients
+        self.aggregation_method = aggregation_method
+
+        # Track client participation
+        self.client_data_sizes = {}
+
+        # For FedProx: penalty term for client drift
+        self.mu = 0.01 if aggregation_method == 'fedprox' else 0
+
+    def get_global_model(self):
+        """Send current global model to clients"""
+        return deepcopy(self.global_model)
+
+    def aggregate_updates(self, client_models, client_data_sizes):
+        """
+        Aggregate client model updates into global model
+
+        FedAvg: Weighted average by data size
+
+        Args:
+            client_models: List of updated models from clients
+            client_data_sizes: Number of samples each client trained on
+
+        Returns:
+            Updated global model
+        """
+        if self.aggregation_method == 'fedavg':
+            return self._fedavg_aggregate(client_models, client_data_sizes)
+        elif self.aggregation_method == 'fedprox':
+            return self._fedprox_aggregate(client_models, client_data_sizes)
+        else:
+            raise ValueError(f"Unknown aggregation: {self.aggregation_method}")
+
+    def _fedavg_aggregate(self, client_models, client_data_sizes):
+        """
+        FedAvg: Weighted average of client models
+
+        Weight by number of samples (clients with more data have more influence)
+        """
+        total_data = sum(client_data_sizes)
+
+        # Initialize aggregated weights
+        global_state = self.global_model.state_dict()
+
+        # Weighted average
+        for key in global_state.keys():
+            # Start with zeros
+            global_state[key] = torch.zeros_like(global_state[key])
+
+            # Add weighted contribution from each client
+            for client_model, client_size in zip(client_models, client_data_sizes):
+                weight = client_size / total_data
+                client_state = client_model.state_dict()
+                global_state[key] += weight * client_state[key]
+
+        # Update global model
+        self.global_model.load_state_dict(global_state)
+
+        return self.global_model
+
+    def _fedprox_aggregate(self, client_models, client_data_sizes):
+        """
+        FedProx: FedAvg + regularization term
+
+        Prevents clients from drifting too far from global model
+        Better for heterogeneous data distributions
+        """
+        # Same as FedAvg (regularization happens on client side)
+        return self._fedavg_aggregate(client_models, client_data_sizes)
+
+class FederatedEmbeddingClient:
+    """
+    Client in federated embedding learning
+
+    Each client (hospital, bank, company, device) trains on local data
+    Shares only model updates, never raw data
+    """
+
+    def __init__(
+        self,
+        client_id,
+        local_data,
+        local_labels=None,
+        learning_rate=0.01
+    ):
+        """
+        Args:
+            client_id: Unique identifier for this client
+            local_data: Private data (never leaves this client)
+            local_labels: Optional labels for supervised learning
+            learning_rate: Learning rate for local training
+        """
+        self.client_id = client_id
+        self.local_data = local_data
+        self.local_labels = local_labels
+        self.learning_rate = learning_rate
+
+        self.local_model = None
+        self.optimizer = None
+
+    def receive_global_model(self, global_model):
+        """
+        Receive current global model from server
+
+        Initialize local model as copy of global
+        """
+        self.local_model = deepcopy(global_model)
+        self.optimizer = torch.optim.SGD(
+            self.local_model.parameters(),
+            lr=self.learning_rate
+        )
+
+    def local_train(self, num_epochs=5, batch_size=32):
+        """
+        Train on local data for several epochs
+
+        Args:
+            num_epochs: Number of local epochs before sharing update
+            batch_size: Local batch size
+
+        Returns:
+            Updated model, number of samples trained on
+        """
+        self.local_model.train()
+
+        num_samples = len(self.local_data)
+
+        for epoch in range(num_epochs):
+            # Shuffle local data
+            indices = torch.randperm(num_samples)
+
+            for i in range(0, num_samples, batch_size):
+                batch_indices = indices[i:i+batch_size]
+                batch_data = self.local_data[batch_indices]
+
+                # Forward pass
+                if self.local_labels is not None:
+                    # Supervised learning
+                    batch_labels = self.local_labels[batch_indices]
+                    embeddings = self.local_model(batch_data)
+                    loss = F.cross_entropy(embeddings, batch_labels)
+                else:
+                    # Self-supervised learning (e.g., contrastive)
+                    loss = self.local_model(batch_data)  # Model computes own loss
+
+                # Backward pass
+                self.optimizer.zero_grad()
+                loss.backward()
+                self.optimizer.step()
+
+        return self.local_model, num_samples
+
+    def add_differential_privacy(self, epsilon=1.0, delta=1e-5):
+        """
+        Add differential privacy to model updates
+
+        Ensures that updates don't reveal information about
+        individual data points
+
+        Args:
+            epsilon: Privacy budget (lower = more private)
+            delta: Probability of privacy violation
+        """
+        # Clip gradients (bound sensitivity)
+        max_norm = 1.0
+        for param in self.local_model.parameters():
+            if param.grad is not None:
+                grad_norm = param.grad.norm()
+                if grad_norm > max_norm:
+                    param.grad.mul_(max_norm / grad_norm)
+
+        # Add Gaussian noise
+        noise_scale = max_norm * np.sqrt(2 * np.log(1.25 / delta)) / epsilon
+
+        for param in self.local_model.parameters():
+            if param.grad is not None:
+                noise = torch.randn_like(param.grad) * noise_scale
+                param.grad.add_(noise)
+
+def federated_learning_simulation():
+    """
+    Simulate federated learning across multiple hospitals
+
+    Scenario:
+    - 10 hospitals, each with patient data (cannot share due to HIPAA)
+    - Want to learn embeddings for medical conditions
+    - Each hospital has different patient population (non-IID data)
+
+    Benefits:
+    - Learn from 10x more data than any single hospital
+    - Preserve patient privacy
+    - Each hospital benefits from others' data
+    """
+
+    # Simple embedding model
+    class MedicalEmbedding(nn.Module):
+        def __init__(self, input_dim=100, embedding_dim=64):
+            super().__init__()
+            self.encoder = nn.Sequential(
+                nn.Linear(input_dim, 256),
+                nn.ReLU(),
+                nn.Linear(256, embedding_dim)
+            )
+
+        def forward(self, x):
+            return self.encoder(x)
+
+    # Initialize server
+    global_model = MedicalEmbedding(input_dim=100, embedding_dim=64)
+    server = FederatedEmbeddingServer(
+        embedding_model=global_model,
+        num_clients=10,
+        aggregation_method='fedavg'
+    )
+
+    # Create clients (hospitals)
+    clients = []
+    for i in range(10):
+        # Each hospital has different amount of data (realistic)
+        num_patients = np.random.randint(500, 2000)
+        local_data = torch.randn(num_patients, 100)  # Patient features
+        local_labels = torch.randint(0, 10, (num_patients,))  # Conditions
+
+        client = FederatedEmbeddingClient(
+            client_id=i,
+            local_data=local_data,
+            local_labels=local_labels,
+            learning_rate=0.01
+        )
+        clients.append(client)
+
+    # Federated training loop
+    num_rounds = 50
+
+    print("Starting federated training...")
+
+    for round_num in range(num_rounds):
+        print(f"\nRound {round_num + 1}/{num_rounds}")
+
+        # 1. Server sends global model to clients
+        client_models = []
+        client_data_sizes = []
+
+        # 2. Each client trains locally
+        for client in clients:
+            client.receive_global_model(server.get_global_model())
+            updated_model, num_samples = client.local_train(
+                num_epochs=5,
+                batch_size=32
+            )
+
+            # Optional: Add differential privacy
+            # client.add_differential_privacy(epsilon=1.0)
+
+            client_models.append(updated_model)
+            client_data_sizes.append(num_samples)
+
+        # 3. Server aggregates updates
+        server.aggregate_updates(client_models, client_data_sizes)
+
+        print(f"  Aggregated updates from {len(clients)} hospitals")
+
+    print("\nFederated training complete!")
+    print("Each hospital now has access to global model")
+    print("trained on all hospitals' data without sharing patient information")
+
+    return server.global_model
+
+# Uncomment to run:
+# global_model = federated_learning_simulation()
+```
+
+### Privacy-Preserving Techniques
+
+**1. Differential Privacy**: Add calibrated noise to updates
+
+```python
+class DifferentiallyPrivateEmbedding:
+    """
+    Add differential privacy guarantees to embeddings
+
+    Ensures that embeddings don't leak information about
+    individual training examples
+
+    Privacy budget (ε):
+    - ε < 1: Strong privacy (more noise, less accuracy)
+    - ε = 1-10: Moderate privacy (balanced)
+    - ε > 10: Weak privacy (less noise, more accuracy)
+    """
+
+    def __init__(self, embedding_model, epsilon=1.0, delta=1e-5):
+        self.model = embedding_model
+        self.epsilon = epsilon
+        self.delta = delta
+
+        # Track privacy budget consumption
+        self.privacy_spent = 0.0
+
+    def private_gradient_descent(
+        self,
+        data,
+        labels,
+        num_iterations=1000,
+        batch_size=64,
+        clip_norm=1.0
+    ):
+        """
+        Train with differentially private SGD
+
+        Steps:
+        1. Clip gradients (bound sensitivity)
+        2. Add Gaussian noise
+        3. Update model
+        """
+        optimizer = torch.optim.SGD(self.model.parameters(), lr=0.01)
+
+        # Noise scale based on privacy budget
+        noise_scale = clip_norm * np.sqrt(
+            2 * np.log(1.25 / self.delta)
+        ) / self.epsilon
+
+        for iteration in range(num_iterations):
+            # Sample batch
+            indices = torch.randint(0, len(data), (batch_size,))
+            batch_data = data[indices]
+            batch_labels = labels[indices]
+
+            # Forward pass
+            embeddings = self.model(batch_data)
+            loss = F.cross_entropy(embeddings, batch_labels)
+
+            # Backward pass
+            optimizer.zero_grad()
+            loss.backward()
+
+            # Clip gradients
+            torch.nn.utils.clip_grad_norm_(
+                self.model.parameters(),
+                clip_norm
+            )
+
+            # Add noise
+            for param in self.model.parameters():
+                if param.grad is not None:
+                    noise = torch.randn_like(param.grad) * noise_scale
+                    param.grad.add_(noise)
+
+            # Update
+            optimizer.step()
+
+            # Track privacy consumption (simplified)
+            self.privacy_spent += self.epsilon / num_iterations
+
+        print(f"Privacy budget spent: {self.privacy_spent:.2f}")
+```
+
+**2. Secure Aggregation**: Encrypt updates before sharing
+
+```python
+class SecureAggregation:
+    """
+    Secure aggregation protocol for federated learning
+
+    Server learns only the sum of client updates,
+    not individual updates
+
+    Protocol:
+    1. Clients add secret shares to their updates
+    2. Shares cancel out when summed
+    3. Server gets accurate aggregate without seeing individuals
+
+    Protects against:
+    - Curious server
+    - Compromised clients (up to threshold)
+    """
+
+    def __init__(self, num_clients):
+        self.num_clients = num_clients
+
+    def client_mask(self, client_id, other_client_id, seed):
+        """
+        Generate pairwise mask between two clients
+
+        Property: mask(i,j) = -mask(j,i)
+        So masks cancel when summed
+        """
+        # Deterministic random mask based on shared seed
+        torch.manual_seed(seed + client_id * 1000 + other_client_id)
+        mask = torch.randn(1)
+
+        # Ensure antisymmetry
+        if client_id > other_client_id:
+            mask = -mask
+
+        return mask
+
+    def client_add_masks(self, client_id, update):
+        """
+        Client adds pairwise masks to update
+
+        Each client adds mask(i,j) for all other clients j
+        """
+        masked_update = update.clone()
+
+        for other_id in range(self.num_clients):
+            if other_id != client_id:
+                # Shared seed (in practice, established via key exchange)
+                seed = 42
+                mask = self.client_mask(client_id, other_id, seed)
+                masked_update += mask
+
+        return masked_update
+
+    def server_aggregate(self, masked_updates):
+        """
+        Server sums masked updates
+
+        Masks cancel out, leaving true sum
+        """
+        # Sum all masked updates
+        aggregate = sum(masked_updates)
+
+        # Masks cancel: sum(mask(i,j) for all i,j) = 0
+        # Result is sum of original updates
+
+        return aggregate
+```
+
+:::{.callout-tip}
+## Federated Learning vs. Centralized
+
+**Use federated learning when:**
+- Data cannot be centralized (privacy, regulations, size)
+- Multiple organizations want to collaborate without sharing data
+- Data is naturally distributed (mobile devices, edge servers)
+
+**Use centralized learning when:**
+- Data can be legally and practically centralized
+- Single organization owns all data
+- Communication costs are prohibitive
+- Need fastest possible training
+:::
+
+:::{.callout-warning}
+## Communication Bottleneck
+Federated learning requires multiple rounds of communication between clients and server. For large models, this can be slower than centralized training even though computation is distributed. Optimize communication:
+
+1. **Model compression**: Send compressed updates (quantization, sparsification)
+2. **Fewer rounds**: More local epochs per round
+3. **Client sampling**: Not all clients participate each round
+4. **Asynchronous updates**: Don't wait for slowest client
+:::
 
 ## Key Takeaways
 
-- [Key point 1 to be added]
-- [Key point 2 to be added]
-- [Key point 3 to be added]
+- **Hierarchical embeddings** in hyperbolic space preserve taxonomic structure with 20-100x lower dimensionality than Euclidean embeddings, essential for product catalogs, knowledge graphs, and organizational structures
+
+- **Dynamic embeddings** capture temporal evolution of entities, critical for user preferences, document relevance, and any domain where meanings shift over time
+
+- **Compositional embeddings** explicitly model multi-component entities (products with categories/brands/reviews, documents with title/body/metadata), learning task-specific combination strategies
+
+- **Uncertainty quantification** provides confidence scores for embedding-based decisions, essential for high-stakes applications in healthcare, finance, and autonomous systems where knowing when not to trust a prediction is as important as the prediction itself
+
+- **Federated learning** enables training embeddings across data silos without centralizing data, crucial for privacy-sensitive domains like healthcare, finance, and cross-organizational collaboration
+
+- Advanced techniques are not always necessary—use them when your application has specific requirements (hierarchy, temporal dynamics, privacy constraints) that standard embeddings cannot address
+
+- Production deployment requires careful engineering: streaming updates for dynamic embeddings, calibration for uncertainty, secure communication for federated learning
 
 ## Looking Ahead
 
-Part III begins with Chapter 9, focusing on production engineering for embedding pipelines.
+This concludes Part II on Custom Embedding Development. We've progressed from basic custom embeddings (Chapter 4) through sophisticated training techniques (contrastive learning, Siamese networks, self-supervised learning) to advanced methods for specialized scenarios.
+
+**Part III begins with Chapter 9: Embedding Pipeline Engineering**, shifting focus from developing embeddings to deploying them in production. We'll explore MLOps practices, real-time vs. batch processing, versioning strategies, and monitoring embedding systems at scale.
 
 ## Further Reading
 
-- [References to be added]
+### Hierarchical Embeddings
+- Nickel & Kiela (2017). "Poincaré Embeddings for Learning Hierarchical Representations." NeurIPS.
+- Sala et al. (2018). "Representation Tradeoffs for Hyperbolic Embeddings." ICML.
+- Dhingra et al. (2018). "Embedding Text in Hyperbolic Spaces." Workshop on Structured Prediction for NLP.
+
+### Dynamic Embeddings
+- Rudolph & Blei (2018). "Dynamic Embeddings for Language Evolution." WWW.
+- Yao et al. (2018). "Dynamic Word Embeddings for Evolving Semantic Discovery." WSDM.
+- Trivedi et al. (2019). "DyRep: Learning Representations over Dynamic Graphs." ICLR.
+
+### Compositional Embeddings
+- Mitchell & Lapata (2010). "Composition in Distributional Models of Semantics." Cognitive Science.
+- Socher et al. (2013). "Recursive Deep Models for Semantic Compositionality." EMNLP.
+- Yu & Dredze (2015). "Learning Composition Models for Phrase Embeddings." TACL.
+
+### Uncertainty Quantification
+- Kendall & Gal (2017). "What Uncertainties Do We Need in Bayesian Deep Learning?" NeurIPS.
+- Lakshminarayanan et al. (2017). "Simple and Scalable Predictive Uncertainty Estimation." NeurIPS.
+- Malinin & Gales (2018). "Predictive Uncertainty Estimation via Prior Networks." NeurIPS.
+
+### Federated Learning
+- McMahan et al. (2017). "Communication-Efficient Learning of Deep Networks from Decentralized Data." AISTATS.
+- Li et al. (2020). "Federated Optimization in Heterogeneous Networks." MLSys.
+- Kairouz et al. (2021). "Advances and Open Problems in Federated Learning." Foundations and Trends in Machine Learning.
+- Abadi et al. (2016). "Deep Learning with Differential Privacy." CCS.
