@@ -1,40 +1,2223 @@
-# Recommendation Systems Revolution {{#sec-recommendation-systems}}
+# Recommendation Systems Revolution {#sec-recommendation-systems}
 
-:::{{.callout-note}}
+:::{.callout-note}
 ## Chapter Overview
-This chapter covers embedding-based collaborative filtering, cold start problem solutions, and 3 more topics.
+Recommendation systems drive billions in revenue for platforms like Netflix, Amazon, and Spotify by predicting what users want before they search. This chapter revolutionizes recommendations with embeddings: collaborative filtering using learned user and item embeddings that scale to billions of users and items, cold start solutions that leverage content embeddings and meta-learning to recommend for new users and products, real-time personalization with streaming embeddings that adapt to user behavior within seconds, diversity and fairness constraints that prevent filter bubbles and ensure equitable exposure, and cross-domain recommendation transfer that leverages learned representations across product categories and platforms. These techniques transform recommendations from simple popularity rankings to sophisticated personalization engines that understand nuanced preferences at trillion-row scale.
 :::
+
+After mastering semantic search across modalities (@sec-semantic-search), the next application is **recommendation systems**—the engines that power discovery on every major platform. Traditional collaborative filtering (matrix factorization, nearest neighbors) scales poorly beyond millions of users and items, struggles with cold start problems, and requires expensive retraining for updates. **Embedding-based recommendations** solve these challenges by learning dense vector representations of users and items in a shared latent space, enabling efficient similarity search, transfer learning across domains, and real-time personalization through incremental embedding updates.
 
 ## Embedding-Based Collaborative Filtering
 
-[Content to be written: Details about embedding-based collaborative filtering]
+Collaborative filtering predicts user preferences from historical interactions (clicks, purchases, ratings). **Embedding-based collaborative filtering** learns vector representations where users and items close in embedding space have similar preferences, enabling recommendations via nearest neighbor search at billion-user scale.
+
+### The Collaborative Filtering Challenge
+
+Traditional collaborative filtering approaches have limitations:
+
+- **Matrix factorization** (SVD, ALS): Expensive to retrain (hours), doesn't scale to billions, cold start unsolved
+- **Nearest neighbors**: Sparse interactions create poor similarity estimates
+- **Deep learning** (Neural CF): Better accuracy but requires careful architecture design
+
+**Embedding-based approach**: Learn user embeddings **u** ∈ ℝᵈ and item embeddings **i** ∈ ℝᵈ such that relevance score = **u** · **i** (dot product). High score = likely interaction.
+
+```python
+"""
+Embedding-Based Collaborative Filtering
+
+Architecture:
+1. User encoder: Maps user features → user embedding
+2. Item encoder: Maps item features → item embedding
+3. Interaction prediction: score(user, item) = user_emb · item_emb
+4. Training: Optimize embeddings to predict observed interactions
+
+Techniques:
+- Two-tower architecture: Separate encoders for users and items
+- Negative sampling: Sample items user didn't interact with
+- Hard negative mining: Focus on plausible but incorrect recommendations
+- Batch training: Process millions of interactions per batch
+
+Production optimizations:
+- Pre-compute item embeddings (items change slowly)
+- Online user embedding computation (users change frequently)
+- ANN search for retrieval (Faiss, ScaNN)
+- A/B testing framework for evaluation
+"""
+
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from typing import List, Dict, Optional, Tuple, Set
+from dataclasses import dataclass
+from collections import defaultdict
+import random
+
+@dataclass
+class User:
+    """
+    User with interaction history
+
+    Attributes:
+        user_id: Unique identifier
+        features: User features (age, location, etc.)
+        interactions: List of item IDs user interacted with
+        embedding: Learned user embedding
+    """
+    user_id: str
+    features: Dict[str, any] = None
+    interactions: List[str] = None
+    embedding: Optional[np.ndarray] = None
+
+    def __post_init__(self):
+        if self.features is None:
+            self.features = {}
+        if self.interactions is None:
+            self.interactions = []
+
+@dataclass
+class Item:
+    """
+    Item available for recommendation
+
+    Attributes:
+        item_id: Unique identifier
+        features: Item features (category, price, etc.)
+        content: Item content (text, image, etc.)
+        embedding: Learned item embedding
+        popularity: Interaction count (for popularity bias)
+    """
+    item_id: str
+    features: Dict[str, any] = None
+    content: Optional[str] = None
+    embedding: Optional[np.ndarray] = None
+    popularity: int = 0
+
+    def __post_init__(self):
+        if self.features is None:
+            self.features = {}
+
+@dataclass
+class Interaction:
+    """
+    User-item interaction
+
+    Attributes:
+        user_id: User who interacted
+        item_id: Item that was interacted with
+        interaction_type: Type (click, purchase, rating, etc.)
+        rating: Explicit rating (1-5) or implicit (1 for positive)
+        timestamp: When interaction occurred
+    """
+    user_id: str
+    item_id: str
+    interaction_type: str = 'click'
+    rating: float = 1.0
+    timestamp: Optional[float] = None
+
+class UserEncoder(nn.Module):
+    """
+    Encode user features to embedding
+
+    Architecture:
+    - Feature embedding layers (categorical features)
+    - MLP to combine features
+    - Projection to user embedding space
+
+    Features:
+    - User demographics (age, gender, location)
+    - Interaction statistics (total interactions, recency)
+    - Preferences (favorite categories)
+    """
+
+    def __init__(
+        self,
+        embedding_dim: int = 128,
+        num_users: int = 1000000
+    ):
+        super().__init__()
+        self.embedding_dim = embedding_dim
+
+        # User ID embedding (for collaborative signal)
+        self.user_id_embedding = nn.Embedding(num_users, embedding_dim)
+
+        # Feature projection
+        # In production: Embed categorical features, normalize numerical
+        self.feature_mlp = nn.Sequential(
+            nn.Linear(embedding_dim, embedding_dim * 2),
+            nn.ReLU(),
+            nn.Linear(embedding_dim * 2, embedding_dim)
+        )
+
+    def forward(self, user_ids: torch.Tensor) -> torch.Tensor:
+        """
+        Encode users to embeddings
+
+        Args:
+            user_ids: User IDs (batch_size,)
+
+        Returns:
+            User embeddings (batch_size, embedding_dim)
+        """
+        # Embed user IDs
+        user_emb = self.user_id_embedding(user_ids)
+
+        # Process features
+        user_emb = self.feature_mlp(user_emb)
+
+        # Normalize (for dot product scoring)
+        user_emb = F.normalize(user_emb, p=2, dim=1)
+
+        return user_emb
+
+class ItemEncoder(nn.Module):
+    """
+    Encode item features to embedding
+
+    Architecture:
+    - Feature embedding layers (category, brand, etc.)
+    - Content encoder (for text, images)
+    - Projection to item embedding space
+
+    Features:
+    - Item metadata (category, brand, price)
+    - Content embeddings (from text/image encoders)
+    - Popularity signals
+    """
+
+    def __init__(
+        self,
+        embedding_dim: int = 128,
+        num_items: int = 10000000
+    ):
+        super().__init__()
+        self.embedding_dim = embedding_dim
+
+        # Item ID embedding
+        self.item_id_embedding = nn.Embedding(num_items, embedding_dim)
+
+        # Feature projection
+        self.feature_mlp = nn.Sequential(
+            nn.Linear(embedding_dim, embedding_dim * 2),
+            nn.ReLU(),
+            nn.Linear(embedding_dim * 2, embedding_dim)
+        )
+
+    def forward(self, item_ids: torch.Tensor) -> torch.Tensor:
+        """
+        Encode items to embeddings
+
+        Args:
+            item_ids: Item IDs (batch_size,)
+
+        Returns:
+            Item embeddings (batch_size, embedding_dim)
+        """
+        # Embed item IDs
+        item_emb = self.item_id_embedding(item_ids)
+
+        # Process features
+        item_emb = self.feature_mlp(item_emb)
+
+        # Normalize
+        item_emb = F.normalize(item_emb, p=2, dim=1)
+
+        return item_emb
+
+class CollaborativeFilteringModel(nn.Module):
+    """
+    Two-tower embedding model for collaborative filtering
+
+    Architecture:
+    - User tower: Encodes users to embeddings
+    - Item tower: Encodes items to embeddings
+    - Scoring: Dot product of user and item embeddings
+
+    Training:
+    - Positive examples: Observed interactions
+    - Negative examples: Sampled non-interactions
+    - Loss: Binary cross-entropy or ranking loss
+
+    Inference:
+    - Encode user once
+    - ANN search over item embeddings
+    - Return top-k items
+    """
+
+    def __init__(
+        self,
+        embedding_dim: int = 128,
+        num_users: int = 1000000,
+        num_items: int = 10000000
+    ):
+        super().__init__()
+        self.embedding_dim = embedding_dim
+
+        # Encoders
+        self.user_encoder = UserEncoder(embedding_dim, num_users)
+        self.item_encoder = ItemEncoder(embedding_dim, num_items)
+
+    def forward(
+        self,
+        user_ids: torch.Tensor,
+        item_ids: torch.Tensor
+    ) -> torch.Tensor:
+        """
+        Predict relevance scores
+
+        Args:
+            user_ids: User IDs (batch_size,)
+            item_ids: Item IDs (batch_size,)
+
+        Returns:
+            Relevance scores (batch_size,)
+        """
+        # Encode users and items
+        user_emb = self.user_encoder(user_ids)
+        item_emb = self.item_encoder(item_ids)
+
+        # Dot product scoring
+        scores = (user_emb * item_emb).sum(dim=1)
+
+        return scores
+
+    def encode_users(self, user_ids: torch.Tensor) -> torch.Tensor:
+        """Encode users to embeddings"""
+        return self.user_encoder(user_ids)
+
+    def encode_items(self, item_ids: torch.Tensor) -> torch.Tensor:
+        """Encode items to embeddings"""
+        return self.item_encoder(item_ids)
+
+class RecommendationEngine:
+    """
+    Production recommendation system
+
+    Components:
+    1. Collaborative filtering model (user/item embeddings)
+    2. Item embedding index (for fast retrieval)
+    3. Negative sampler (for training)
+    4. Evaluation metrics (precision, recall, NDCG)
+
+    Features:
+    - Batch training on interaction logs
+    - Online serving via ANN search
+    - A/B testing framework
+    - Diversity and fairness controls
+    """
+
+    def __init__(
+        self,
+        embedding_dim: int = 128,
+        device: str = 'cuda'
+    ):
+        """
+        Args:
+            embedding_dim: Embedding dimension
+            device: Device for computation
+        """
+        self.embedding_dim = embedding_dim
+        self.device = device if torch.cuda.is_available() else 'cpu'
+
+        # Data stores
+        self.users: Dict[str, User] = {}
+        self.items: Dict[str, Item] = {}
+        self.interactions: List[Interaction] = []
+
+        # Mappings
+        self.user_id_to_idx: Dict[str, int] = {}
+        self.item_id_to_idx: Dict[str, int] = {}
+
+        # Model (initialized when data is loaded)
+        self.model: Optional[CollaborativeFilteringModel] = None
+
+        # Item embeddings cache (for fast serving)
+        self.item_embeddings: Optional[np.ndarray] = None
+        self.item_ids_list: List[str] = []
+
+        print(f"Initialized Recommendation Engine")
+        print(f"  Embedding dimension: {embedding_dim}")
+        print(f"  Device: {self.device}")
+
+    def add_user(self, user: User):
+        """Add user to system"""
+        self.users[user.user_id] = user
+
+    def add_item(self, item: Item):
+        """Add item to system"""
+        self.items[item.item_id] = item
+
+    def add_interaction(self, interaction: Interaction):
+        """Record user-item interaction"""
+        self.interactions.append(interaction)
+
+        # Update user interaction history
+        if interaction.user_id in self.users:
+            self.users[interaction.user_id].interactions.append(interaction.item_id)
+
+        # Update item popularity
+        if interaction.item_id in self.items:
+            self.items[interaction.item_id].popularity += 1
+
+    def build_mappings(self):
+        """Build user/item ID to index mappings"""
+        self.user_id_to_idx = {uid: idx for idx, uid in enumerate(self.users.keys())}
+        self.item_id_to_idx = {iid: idx for idx, iid in enumerate(self.items.keys())}
+
+        print(f"Built mappings:")
+        print(f"  Users: {len(self.user_id_to_idx)}")
+        print(f"  Items: {len(self.item_id_to_idx)}")
+
+    def train(
+        self,
+        num_epochs: int = 10,
+        batch_size: int = 1024,
+        learning_rate: float = 0.001,
+        neg_samples: int = 4
+    ):
+        """
+        Train collaborative filtering model
+
+        Args:
+            num_epochs: Number of training epochs
+            batch_size: Batch size
+            learning_rate: Learning rate
+            neg_samples: Number of negative samples per positive
+        """
+        # Build mappings if not already built
+        if not self.user_id_to_idx:
+            self.build_mappings()
+
+        # Initialize model
+        self.model = CollaborativeFilteringModel(
+            embedding_dim=self.embedding_dim,
+            num_users=len(self.users),
+            num_items=len(self.items)
+        ).to(self.device)
+
+        # Optimizer
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
+
+        # Loss function
+        criterion = nn.BCEWithLogitsLoss()
+
+        print(f"\nTraining on {len(self.interactions)} interactions...")
+
+        for epoch in range(num_epochs):
+            total_loss = 0.0
+            num_batches = 0
+
+            # Shuffle interactions
+            random.shuffle(self.interactions)
+
+            # Mini-batch training
+            for i in range(0, len(self.interactions), batch_size):
+                batch_interactions = self.interactions[i:i+batch_size]
+
+                # Prepare batch
+                user_ids = []
+                item_ids = []
+                labels = []
+
+                for interaction in batch_interactions:
+                    user_idx = self.user_id_to_idx[interaction.user_id]
+                    item_idx = self.item_id_to_idx[interaction.item_id]
+
+                    # Positive example
+                    user_ids.append(user_idx)
+                    item_ids.append(item_idx)
+                    labels.append(1.0)
+
+                    # Negative examples
+                    for _ in range(neg_samples):
+                        # Sample random item user didn't interact with
+                        neg_item_id = random.choice(list(self.items.keys()))
+                        while neg_item_id in self.users[interaction.user_id].interactions:
+                            neg_item_id = random.choice(list(self.items.keys()))
+
+                        neg_item_idx = self.item_id_to_idx[neg_item_id]
+
+                        user_ids.append(user_idx)
+                        item_ids.append(neg_item_idx)
+                        labels.append(0.0)
+
+                # Convert to tensors
+                user_ids = torch.tensor(user_ids, dtype=torch.long).to(self.device)
+                item_ids = torch.tensor(item_ids, dtype=torch.long).to(self.device)
+                labels = torch.tensor(labels, dtype=torch.float32).to(self.device)
+
+                # Forward pass
+                scores = self.model(user_ids, item_ids)
+
+                # Compute loss
+                loss = criterion(scores, labels)
+
+                # Backward pass
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+
+                total_loss += loss.item()
+                num_batches += 1
+
+            avg_loss = total_loss / num_batches
+            print(f"Epoch {epoch+1}/{num_epochs}, Loss: {avg_loss:.4f}")
+
+        print("✓ Training complete")
+
+        # Cache item embeddings for serving
+        self._cache_item_embeddings()
+
+    def _cache_item_embeddings(self):
+        """Cache item embeddings for fast serving"""
+        self.model.eval()
+
+        self.item_ids_list = list(self.items.keys())
+        item_indices = [self.item_id_to_idx[iid] for iid in self.item_ids_list]
+
+        with torch.no_grad():
+            item_ids_tensor = torch.tensor(item_indices, dtype=torch.long).to(self.device)
+            item_embs = self.model.encode_items(item_ids_tensor)
+            self.item_embeddings = item_embs.cpu().numpy()
+
+        print(f"✓ Cached {len(self.item_ids_list)} item embeddings")
+
+    def recommend(
+        self,
+        user_id: str,
+        top_k: int = 10,
+        exclude_interacted: bool = True
+    ) -> List[Tuple[str, float]]:
+        """
+        Generate recommendations for user
+
+        Args:
+            user_id: User ID
+            top_k: Number of recommendations
+            exclude_interacted: Exclude items user already interacted with
+
+        Returns:
+            List of (item_id, score) tuples
+        """
+        if user_id not in self.users:
+            return []
+
+        if self.model is None:
+            raise ValueError("Model not trained. Call train() first.")
+
+        self.model.eval()
+
+        # Encode user
+        user_idx = self.user_id_to_idx[user_id]
+        user_idx_tensor = torch.tensor([user_idx], dtype=torch.long).to(self.device)
+
+        with torch.no_grad():
+            user_emb = self.model.encode_users(user_idx_tensor)
+            user_emb_np = user_emb.cpu().numpy()[0]
+
+        # Compute scores for all items (dot product)
+        scores = np.dot(self.item_embeddings, user_emb_np)
+
+        # Get top-k
+        top_indices = np.argsort(scores)[::-1]
+
+        # Filter and collect recommendations
+        recommendations = []
+        user_interactions = set(self.users[user_id].interactions) if exclude_interacted else set()
+
+        for idx in top_indices:
+            item_id = self.item_ids_list[idx]
+
+            # Skip if already interacted
+            if exclude_interacted and item_id in user_interactions:
+                continue
+
+            recommendations.append((item_id, float(scores[idx])))
+
+            if len(recommendations) >= top_k:
+                break
+
+        return recommendations
+
+# Example: Movie recommendation system
+def collaborative_filtering_example():
+    """
+    Collaborative filtering for movie recommendations
+
+    Use case:
+    - 1M users, 10K movies
+    - 100M interactions (ratings, views)
+    - Recommend movies user will like
+
+    Scale: Netflix has 200M+ users, 10K+ titles
+    """
+
+    # Initialize engine
+    engine = RecommendationEngine(embedding_dim=64)
+
+    # Add users
+    users = [
+        User(f'user_{i}', features={'age': 20 + i % 40})
+        for i in range(100)
+    ]
+    for user in users:
+        engine.add_user(user)
+
+    # Add movies
+    movies = [
+        Item(f'movie_{i}', features={'genre': ['action', 'comedy', 'drama'][i % 3]})
+        for i in range(50)
+    ]
+    for movie in movies:
+        engine.add_item(movie)
+
+    # Generate synthetic interactions
+    # Users tend to watch movies in same genre
+    for user in users:
+        # User prefers specific genre
+        preferred_genre_idx = int(user.user_id.split('_')[1]) % 3
+
+        # Watch 5-10 movies
+        num_interactions = 5 + (int(user.user_id.split('_')[1]) % 6)
+
+        for _ in range(num_interactions):
+            # 70% chance of preferred genre
+            if random.random() < 0.7:
+                movie_idx = preferred_genre_idx + (random.randint(0, 15) * 3)
+            else:
+                movie_idx = random.randint(0, 49)
+
+            movie_id = f'movie_{movie_idx}'
+
+            interaction = Interaction(
+                user_id=user.user_id,
+                item_id=movie_id,
+                interaction_type='watch',
+                rating=4.0 + random.random()
+            )
+            engine.add_interaction(interaction)
+
+    print(f"\n=== Dataset Statistics ===")
+    print(f"Users: {len(engine.users)}")
+    print(f"Movies: {len(engine.items)}")
+    print(f"Interactions: {len(engine.interactions)}")
+
+    # Train model
+    engine.train(num_epochs=5, batch_size=64, neg_samples=4)
+
+    # Generate recommendations
+    test_user = 'user_0'
+    print(f"\n=== Recommendations for {test_user} ===")
+    print(f"User's watch history:")
+    for item_id in engine.users[test_user].interactions[:5]:
+        item = engine.items[item_id]
+        print(f"  {item_id}: {item.features['genre']}")
+
+    recommendations = engine.recommend(test_user, top_k=5)
+    print(f"\nTop 5 recommendations:")
+    for item_id, score in recommendations:
+        item = engine.items[item_id]
+        print(f"  {item_id}: {item.features['genre']} (score: {score:.3f})")
+
+# Uncomment to run:
+# collaborative_filtering_example()
+```
+
+:::{.callout-tip}
+## Collaborative Filtering Best Practices
+
+**Architecture:**
+- **Two-tower design**: Separate user and item encoders (enables independent updates)
+- **Dot product scoring**: Fast inference (matrix multiplication)
+- **Normalization**: L2-normalize embeddings for stable training
+- **Feature fusion**: Combine ID embeddings with content/metadata features
+
+**Training:**
+- **Negative sampling**: 4-10 negatives per positive (balance signal)
+- **Hard negative mining**: Sample popular items user didn't click (harder examples)
+- **Batch size**: Large batches (1024-8192) for stable gradients
+- **Learning rate**: Start high (0.001), decay over time
+
+**Serving:**
+- **Pre-compute item embeddings**: Items change slowly (update daily)
+- **Online user encoding**: Encode user on-the-fly from recent interactions
+- **ANN search**: Use Faiss/ScaNN for sub-millisecond retrieval
+- **Caching**: Cache popular user embeddings (80/20 rule)
+:::
+
+:::{.callout-warning}
+## Popularity Bias
+
+Collaborative filtering suffers from **popularity bias**: Popular items recommended more often, creating rich-get-richer dynamics.
+
+**Consequences:**
+- Long-tail items never recommended
+- New items struggle to gain traction
+- Filter bubbles reinforce existing preferences
+
+**Mitigation strategies:**
+- **Debiasing**: Downweight popular items during training
+- **Exploration**: Reserve 10-20% of recommendations for exploration
+- **Diversity constraints**: Ensure recommendations span categories
+- **Fairness metrics**: Monitor exposure distribution across items
+:::
 
 ## Cold Start Problem Solutions
 
-[Content to be written: Details about cold start problem solutions]
+The **cold start problem** occurs when new users or items have no interaction history, making collaborative filtering impossible. **Cold start solutions** leverage content embeddings, meta-learning, and transfer learning to provide quality recommendations from the first interaction.
+
+### The Cold Start Challenge
+
+Three cold start scenarios:
+
+1. **New user**: No interaction history → cannot estimate preferences
+2. **New item**: No user interactions → cannot estimate quality
+3. **New system**: No users or items → cannot learn patterns
+
+**Traditional approaches fail:**
+- Collaborative filtering: Requires interaction history
+- Content-based: Ignores collaborative signal
+- Popularity-based: Ignores user preferences
+
+```python
+"""
+Cold Start Solutions
+
+Strategies:
+1. Content-based initialization: Use item features to estimate embeddings
+2. Meta-learning: Learn to adapt quickly from few interactions
+3. Transfer learning: Leverage embeddings from similar domains
+4. Hybrid models: Combine collaborative + content signals
+
+Techniques:
+- MAML (Model-Agnostic Meta-Learning): Learn initialization
+- Few-shot learning: Adapt from 1-5 examples
+- Knowledge distillation: Transfer from large model to production model
+- Multi-task learning: Learn across multiple domains simultaneously
+"""
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import numpy as np
+from typing import List, Dict, Optional, Tuple
+from dataclasses import dataclass
+
+class ContentBasedItemEmbedding(nn.Module):
+    """
+    Generate item embeddings from content features
+
+    Addresses: Cold start for new items
+
+    Architecture:
+    - Feature encoder (for text, images, metadata)
+    - Projection to embedding space
+    - Trained to match collaborative embeddings
+
+    Usage:
+    1. Train on existing items (content → collaborative embedding)
+    2. For new items: Generate embedding from content
+    3. Insert into recommendation index immediately
+    """
+
+    def __init__(
+        self,
+        content_dim: int = 512,
+        embedding_dim: int = 128
+    ):
+        super().__init__()
+
+        # Content encoder
+        self.content_encoder = nn.Sequential(
+            nn.Linear(content_dim, 256),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(256, embedding_dim)
+        )
+
+    def forward(self, content_features: torch.Tensor) -> torch.Tensor:
+        """
+        Generate embedding from content
+
+        Args:
+            content_features: Content features (batch, content_dim)
+
+        Returns:
+            Item embeddings (batch, embedding_dim)
+        """
+        emb = self.content_encoder(content_features)
+        emb = F.normalize(emb, p=2, dim=1)
+        return emb
+
+class MetaLearningRecommender(nn.Module):
+    """
+    Meta-learning for cold start users
+
+    Addresses: Cold start for new users
+
+    Approach: MAML (Model-Agnostic Meta-Learning)
+    - Learn model initialization that adapts quickly from few examples
+    - Given 1-5 user interactions, fine-tune to estimate preferences
+    - Generalize to new users with minimal data
+
+    Training:
+    - Sample user tasks (each user = task)
+    - For each task: Split interactions into support (1-5) and query (rest)
+    - Meta-train to minimize loss on query set after adapting on support set
+
+    Inference:
+    - New user: Collect 1-5 interactions (support set)
+    - Fine-tune model on support set (few gradient steps)
+    - Generate recommendations
+    """
+
+    def __init__(
+        self,
+        embedding_dim: int = 128,
+        num_items: int = 10000
+    ):
+        super().__init__()
+        self.embedding_dim = embedding_dim
+
+        # Item embeddings
+        self.item_embeddings = nn.Embedding(num_items, embedding_dim)
+
+        # User preference model (learns from support set)
+        self.preference_model = nn.Sequential(
+            nn.Linear(embedding_dim, 128),
+            nn.ReLU(),
+            nn.Linear(128, 1)
+        )
+
+    def forward(
+        self,
+        item_ids: torch.Tensor,
+        user_context: torch.Tensor
+    ) -> torch.Tensor:
+        """
+        Predict preferences given user context
+
+        Args:
+            item_ids: Item IDs (batch,)
+            user_context: User preference context (embedding_dim,)
+
+        Returns:
+            Preference scores (batch,)
+        """
+        # Get item embeddings
+        item_embs = self.item_embeddings(item_ids)  # (batch, embedding_dim)
+
+        # Combine with user context
+        # In MAML: user_context is learned from support set
+        combined = item_embs * user_context.unsqueeze(0)  # (batch, embedding_dim)
+
+        # Predict preference
+        scores = self.preference_model(combined).squeeze(-1)  # (batch,)
+
+        return scores
+
+    def adapt(
+        self,
+        support_items: torch.Tensor,
+        support_labels: torch.Tensor,
+        num_steps: int = 5,
+        learning_rate: float = 0.01
+    ) -> torch.Tensor:
+        """
+        Adapt to new user from support set
+
+        Args:
+            support_items: Items in support set (num_support,)
+            support_labels: Labels (1=positive, 0=negative) (num_support,)
+            num_steps: Number of adaptation steps
+            learning_rate: Adaptation learning rate
+
+        Returns:
+            User context embedding (embedding_dim,)
+        """
+        # Initialize user context (learnable)
+        user_context = torch.zeros(self.embedding_dim, requires_grad=True)
+
+        # Optimizer for user context
+        optimizer = torch.optim.SGD([user_context], lr=learning_rate)
+
+        # Adapt on support set
+        for _ in range(num_steps):
+            # Predict on support set
+            scores = self.forward(support_items, user_context)
+
+            # Compute loss
+            loss = F.binary_cross_entropy_with_logits(scores, support_labels)
+
+            # Update user context
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+        return user_context.detach()
+
+class HybridRecommender:
+    """
+    Hybrid collaborative + content-based recommender
+
+    Addresses: Both user and item cold start
+
+    Strategy:
+    - Collaborative signal when available (existing users/items)
+    - Content signal for cold start (new users/items)
+    - Smooth transition as interactions accumulate
+
+    Components:
+    1. Collaborative model: User/item embeddings from interactions
+    2. Content model: Item embeddings from features
+    3. Blending: Weight collaborative vs content based on data availability
+
+    Blending formula:
+    score = α * collaborative_score + (1-α) * content_score
+    where α = min(num_interactions / threshold, 1.0)
+    """
+
+    def __init__(
+        self,
+        collaborative_model: CollaborativeFilteringModel,
+        content_model: ContentBasedItemEmbedding,
+        cold_start_threshold: int = 10
+    ):
+        """
+        Args:
+            collaborative_model: CF model for existing users/items
+            content_model: Content model for cold start
+            cold_start_threshold: Interactions needed for full collaborative weight
+        """
+        self.collaborative_model = collaborative_model
+        self.content_model = content_model
+        self.cold_start_threshold = cold_start_threshold
+
+        # Track interaction counts
+        self.user_interaction_counts: Dict[str, int] = {}
+        self.item_interaction_counts: Dict[str, int] = {}
+
+    def get_blending_weight(self, num_interactions: int) -> float:
+        """
+        Compute blending weight for collaborative signal
+
+        Args:
+            num_interactions: Number of interactions
+
+        Returns:
+            Weight in [0, 1] for collaborative model
+        """
+        return min(num_interactions / self.cold_start_threshold, 1.0)
+
+    def recommend_hybrid(
+        self,
+        user_id: str,
+        item_features: Dict[str, np.ndarray],
+        top_k: int = 10
+    ) -> List[Tuple[str, float]]:
+        """
+        Generate recommendations with hybrid approach
+
+        Args:
+            user_id: User ID
+            item_features: Content features for each item {item_id: features}
+            top_k: Number of recommendations
+
+        Returns:
+            List of (item_id, score) tuples
+        """
+        # Get user interaction count
+        user_interactions = self.user_interaction_counts.get(user_id, 0)
+        user_weight = self.get_blending_weight(user_interactions)
+
+        recommendations = {}
+
+        for item_id, features in item_features.items():
+            # Get item interaction count
+            item_interactions = self.item_interaction_counts.get(item_id, 0)
+            item_weight = self.get_blending_weight(item_interactions)
+
+            # Overall collaborative weight (min of user and item weights)
+            collab_weight = min(user_weight, item_weight)
+            content_weight = 1.0 - collab_weight
+
+            # Collaborative score (if available)
+            collab_score = 0.0
+            if collab_weight > 0:
+                # Get from collaborative model
+                # In production: Actual model inference
+                collab_score = 0.5  # Placeholder
+
+            # Content score
+            content_score = 0.0
+            if content_weight > 0:
+                # Get from content model
+                # In production: Actual model inference
+                content_score = 0.5  # Placeholder
+
+            # Blended score
+            final_score = collab_weight * collab_score + content_weight * content_score
+            recommendations[item_id] = final_score
+
+        # Sort and return top-k
+        sorted_items = sorted(recommendations.items(), key=lambda x: x[1], reverse=True)
+        return sorted_items[:top_k]
+
+# Example: Cold start for new user
+def cold_start_example():
+    """
+    Handle cold start for new movie streaming user
+
+    Scenario:
+    - New user signs up
+    - Watches 2 movies (support set)
+    - Generate personalized recommendations
+
+    Approach: Meta-learning
+    - Adapt quickly from 2 examples
+    - Leverage learned initialization
+    """
+
+    # Initialize meta-learning model
+    model = MetaLearningRecommender(embedding_dim=64, num_items=100)
+
+    # Simulate new user
+    print("=== New User Cold Start ===")
+    print("User watches 2 movies:")
+
+    # Support set: User watched movies 5 and 12
+    support_items = torch.tensor([5, 12], dtype=torch.long)
+    support_labels = torch.tensor([1.0, 1.0], dtype=torch.float32)  # Both positive
+
+    print("  Movie 5 (Action)")
+    print("  Movie 12 (Action)")
+
+    # Adapt to user preferences
+    user_context = model.adapt(
+        support_items,
+        support_labels,
+        num_steps=10,
+        learning_rate=0.01
+    )
+
+    print(f"\n✓ Adapted user context from 2 examples")
+
+    # Generate recommendations
+    print("\nRecommendations:")
+    all_items = torch.arange(100, dtype=torch.long)
+    with torch.no_grad():
+        scores = model.forward(all_items, user_context)
+
+    # Get top-5
+    top_scores, top_indices = torch.topk(scores, k=5)
+
+    for idx, score in zip(top_indices, top_scores):
+        print(f"  Movie {idx.item()}: score = {score.item():.3f}")
+
+# Uncomment to run:
+# cold_start_example()
+```
+
+:::{.callout-tip}
+## Cold Start Best Practices
+
+**Content-based initialization:**
+- **Feature quality**: High-quality content features are critical
+- **Pre-training**: Pre-train content encoder on external data
+- **Fine-tuning**: Fine-tune on collaborative signal when available
+- **Smooth transition**: Gradually increase collaborative weight
+
+**Meta-learning:**
+- **Task sampling**: Sample diverse user tasks for meta-training
+- **Support set size**: 1-5 examples (balance adaptation vs overfitting)
+- **Adaptation steps**: 5-10 gradient steps for new users
+- **Regularization**: Prevent overfitting on small support sets
+
+**Hybrid approach:**
+- **Dynamic blending**: Adjust weights based on data availability
+- **Threshold tuning**: 10-20 interactions for full collaborative weight
+- **Fallback strategies**: Popularity-based when both signals weak
+- **A/B testing**: Measure impact on new users/items
+:::
 
 ## Real-Time Personalization
 
-[Content to be written: Details about real-time personalization]
+Traditional recommendation systems update daily or weekly, missing real-time behavior changes. **Real-time personalization** continuously updates user embeddings from streaming interactions, adapting recommendations within seconds to reflect evolving preferences and context.
+
+### The Real-Time Challenge
+
+User preferences change:
+- **Session context**: User browsing for gifts has different intent than personal shopping
+- **Temporal trends**: User interested in Christmas movies in December, not July
+- **Sequential patterns**: User watching action trilogy wants next episode, not random movie
+- **Real-time feedback**: User skips recommendations → adjust immediately
+
+**Challenge**: Update user embeddings in real-time without expensive model retraining.
+
+```python
+"""
+Real-Time Personalization with Streaming Embeddings
+
+Architecture:
+1. Base user embedding: Learned from historical interactions
+2. Session embedding: Computed from current session behavior
+3. Context embedding: Time, device, location signals
+4. Combined embedding: Fusion of base, session, and context
+
+Techniques:
+- Incremental embedding updates (online learning)
+- Attention over recent interactions (recency weighting)
+- Session-based RNN/Transformer (sequential modeling)
+- Context-aware fusion (time-of-day, device, location)
+
+Production:
+- Stream processing: Kafka, Kinesis for event ingestion
+- Online inference: Sub-100ms embedding computation
+- Cache invalidation: Update user cache on interactions
+- Fallback: Base embedding if session too short
+"""
+
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from typing import List, Dict, Optional, Tuple, Deque
+from dataclasses import dataclass
+from collections import deque
+import time
+
+@dataclass
+class SessionEvent:
+    """
+    User interaction event in current session
+
+    Attributes:
+        item_id: Item interacted with
+        event_type: Type (view, click, add_to_cart, purchase)
+        timestamp: When event occurred
+        context: Additional context (device, location, etc.)
+    """
+    item_id: str
+    event_type: str
+    timestamp: float
+    context: Dict[str, any] = None
+
+class SessionEncoder(nn.Module):
+    """
+    Encode user session to embedding
+
+    Architecture:
+    - RNN/Transformer over session events
+    - Attention mechanism (recent events matter more)
+    - Output: Session embedding
+
+    Training:
+    - Predict next item from session history
+    - Self-supervised on session logs
+    """
+
+    def __init__(
+        self,
+        item_embedding_dim: int = 128,
+        session_embedding_dim: int = 128,
+        hidden_dim: int = 256
+    ):
+        super().__init__()
+
+        # RNN for sequential modeling
+        self.rnn = nn.GRU(
+            input_size=item_embedding_dim,
+            hidden_size=hidden_dim,
+            num_layers=2,
+            batch_first=True
+        )
+
+        # Attention mechanism
+        self.attention = nn.Linear(hidden_dim, 1)
+
+        # Output projection
+        self.output_projection = nn.Linear(hidden_dim, session_embedding_dim)
+
+    def forward(
+        self,
+        item_embeddings: torch.Tensor,
+        lengths: torch.Tensor
+    ) -> torch.Tensor:
+        """
+        Encode session to embedding
+
+        Args:
+            item_embeddings: Item embeddings in session (batch, max_len, item_dim)
+            lengths: Actual sequence lengths (batch,)
+
+        Returns:
+            Session embeddings (batch, session_dim)
+        """
+        batch_size = item_embeddings.size(0)
+
+        # RNN encoding
+        rnn_out, _ = self.rnn(item_embeddings)  # (batch, max_len, hidden_dim)
+
+        # Attention weights
+        attn_weights = self.attention(rnn_out)  # (batch, max_len, 1)
+        attn_weights = F.softmax(attn_weights, dim=1)
+
+        # Weighted sum
+        session_emb = (rnn_out * attn_weights).sum(dim=1)  # (batch, hidden_dim)
+
+        # Project to session embedding space
+        session_emb = self.output_projection(session_emb)  # (batch, session_dim)
+
+        # Normalize
+        session_emb = F.normalize(session_emb, p=2, dim=1)
+
+        return session_emb
+
+class RealTimePersonalizer:
+    """
+    Real-time recommendation personalization
+
+    Components:
+    1. Base embeddings: User/item embeddings from batch training
+    2. Session tracker: Maintains current session state
+    3. Session encoder: Computes session embedding
+    4. Embedding fusion: Combines base + session + context
+
+    Features:
+    - Sub-second latency (100ms p95)
+    - Automatic cache invalidation
+    - Recency weighting (recent interactions matter more)
+    - Context awareness (time, device, location)
+    """
+
+    def __init__(
+        self,
+        base_user_embeddings: Dict[str, np.ndarray],
+        base_item_embeddings: Dict[str, np.ndarray],
+        session_window: int = 30  # minutes
+    ):
+        """
+        Args:
+            base_user_embeddings: Pre-computed user embeddings
+            base_item_embeddings: Pre-computed item embeddings
+            session_window: Session timeout in minutes
+        """
+        self.base_user_embeddings = base_user_embeddings
+        self.base_item_embeddings = base_item_embeddings
+        self.session_window = session_window * 60  # Convert to seconds
+
+        # Session state: user_id -> deque of recent events
+        self.user_sessions: Dict[str, Deque[SessionEvent]] = {}
+
+        # Session encoder
+        self.session_encoder = SessionEncoder(
+            item_embedding_dim=128,
+            session_embedding_dim=128
+        )
+        self.session_encoder.eval()
+
+        print(f"Initialized Real-Time Personalizer")
+        print(f"  Session window: {session_window} minutes")
+
+    def track_event(self, user_id: str, event: SessionEvent):
+        """
+        Track user event in current session
+
+        Args:
+            user_id: User ID
+            event: Session event
+        """
+        # Initialize session if new user
+        if user_id not in self.user_sessions:
+            self.user_sessions[user_id] = deque(maxlen=50)  # Keep last 50 events
+
+        # Add event
+        self.user_sessions[user_id].append(event)
+
+        # Clean old events (outside session window)
+        current_time = time.time()
+        while (self.user_sessions[user_id] and
+               current_time - self.user_sessions[user_id][0].timestamp > self.session_window):
+            self.user_sessions[user_id].popleft()
+
+    def get_personalized_embedding(
+        self,
+        user_id: str,
+        context: Optional[Dict] = None
+    ) -> np.ndarray:
+        """
+        Get real-time personalized user embedding
+
+        Combines:
+        1. Base user embedding (long-term preferences)
+        2. Session embedding (current intent)
+        3. Context embedding (time, device, location)
+
+        Args:
+            user_id: User ID
+            context: Current context (time, device, etc.)
+
+        Returns:
+            Personalized user embedding
+        """
+        # Get base embedding
+        base_emb = self.base_user_embeddings.get(user_id)
+        if base_emb is None:
+            # New user: Use average embedding
+            base_emb = np.mean(list(self.base_user_embeddings.values()), axis=0)
+
+        # Get session embedding
+        session_emb = self._compute_session_embedding(user_id)
+
+        # Compute blending weights
+        num_session_events = len(self.user_sessions.get(user_id, []))
+
+        # More session events = higher session weight
+        session_weight = min(num_session_events / 10.0, 0.5)  # Max 50% from session
+        base_weight = 1.0 - session_weight
+
+        # Combine embeddings
+        if session_emb is not None:
+            combined_emb = base_weight * base_emb + session_weight * session_emb
+        else:
+            combined_emb = base_emb
+
+        # Normalize
+        combined_emb = combined_emb / np.linalg.norm(combined_emb)
+
+        return combined_emb
+
+    def _compute_session_embedding(self, user_id: str) -> Optional[np.ndarray]:
+        """
+        Compute embedding from current session
+
+        Args:
+            user_id: User ID
+
+        Returns:
+            Session embedding or None if no session
+        """
+        if user_id not in self.user_sessions or len(self.user_sessions[user_id]) == 0:
+            return None
+
+        # Get item embeddings for session events
+        session_events = list(self.user_sessions[user_id])
+        item_embs = []
+
+        for event in session_events:
+            if event.item_id in self.base_item_embeddings:
+                item_embs.append(self.base_item_embeddings[event.item_id])
+
+        if not item_embs:
+            return None
+
+        # Simple averaging (in production: use session encoder)
+        session_emb = np.mean(item_embs, axis=0)
+
+        # Apply recency weighting (recent items matter more)
+        current_time = time.time()
+        weights = []
+        for event in session_events:
+            # Exponential decay: more recent = higher weight
+            time_diff = current_time - event.timestamp
+            weight = np.exp(-time_diff / 600)  # 10-minute half-life
+            weights.append(weight)
+
+        weights = np.array(weights)
+        weights = weights / weights.sum()  # Normalize
+
+        # Weighted average
+        session_emb = np.average(item_embs, axis=0, weights=weights[:len(item_embs)])
+
+        return session_emb
+
+    def recommend_realtime(
+        self,
+        user_id: str,
+        top_k: int = 10,
+        context: Optional[Dict] = None
+    ) -> List[Tuple[str, float]]:
+        """
+        Generate real-time personalized recommendations
+
+        Args:
+            user_id: User ID
+            top_k: Number of recommendations
+            context: Current context
+
+        Returns:
+            List of (item_id, score) tuples
+        """
+        # Get personalized embedding
+        user_emb = self.get_personalized_embedding(user_id, context)
+
+        # Compute scores for all items
+        scores = {}
+        for item_id, item_emb in self.base_item_embeddings.items():
+            score = np.dot(user_emb, item_emb)
+            scores[item_id] = score
+
+        # Sort and return top-k
+        sorted_items = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+        return sorted_items[:top_k]
+
+# Example: Real-time e-commerce personalization
+def realtime_personalization_example():
+    """
+    Real-time personalization for e-commerce
+
+    Scenario:
+    - User browsing products
+    - Each view/click updates recommendations
+    - Adapt to session context in real-time
+
+    Scale: 10K updates/second per user
+    """
+
+    # Initialize with base embeddings
+    base_user_embs = {
+        'user_123': np.random.randn(128).astype(np.float32)
+    }
+    base_user_embs['user_123'] /= np.linalg.norm(base_user_embs['user_123'])
+
+    base_item_embs = {
+        f'item_{i}': np.random.randn(128).astype(np.float32)
+        for i in range(20)
+    }
+    for item_id in base_item_embs:
+        base_item_embs[item_id] /= np.linalg.norm(base_item_embs[item_id])
+
+    # Initialize personalizer
+    personalizer = RealTimePersonalizer(
+        base_user_embeddings=base_user_embs,
+        base_item_embeddings=base_item_embs,
+        session_window=30
+    )
+
+    user_id = 'user_123'
+
+    # Initial recommendations (based on base embedding)
+    print("=== Initial Recommendations ===")
+    recs = personalizer.recommend_realtime(user_id, top_k=5)
+    for item_id, score in recs:
+        print(f"{item_id}: {score:.3f}")
+
+    # Simulate user session
+    print("\n=== User Session ===")
+    session_items = ['item_5', 'item_7', 'item_12']
+
+    for i, item_id in enumerate(session_items):
+        print(f"\nUser views {item_id}")
+
+        # Track event
+        event = SessionEvent(
+            item_id=item_id,
+            event_type='view',
+            timestamp=time.time()
+        )
+        personalizer.track_event(user_id, event)
+
+        # Generate updated recommendations
+        print("Updated recommendations:")
+        recs = personalizer.recommend_realtime(user_id, top_k=5)
+        for rec_item_id, score in recs[:3]:
+            print(f"  {rec_item_id}: {score:.3f}")
+
+# Uncomment to run:
+# realtime_personalization_example()
+```
+
+:::{.callout-tip}
+## Real-Time Personalization Best Practices
+
+**Architecture:**
+- **Streaming infrastructure**: Kafka/Kinesis for event ingestion
+- **Session state**: Redis/Memcached for fast session access
+- **Incremental updates**: Update embeddings without full recomputation
+- **Cache strategy**: Invalidate user cache on interactions
+
+**Modeling:**
+- **Recency weighting**: Exponential decay (recent events matter more)
+- **Session encoder**: RNN/Transformer for sequential patterns
+- **Context awareness**: Time-of-day, device, location signals
+- **Hybrid fusion**: Base (long-term) + session (short-term) embeddings
+
+**Performance:**
+- **Latency target**: p95 < 100ms for embedding computation
+- **Throughput**: 10K+ updates/second per node
+- **Batching**: Micro-batch events for GPU efficiency
+- **Fallback**: Serve base embedding if session computation times out
+:::
 
 ## Diversity and Fairness in Recommendations
 
-[Content to be written: Details about diversity and fairness in recommendations]
+Purely accuracy-optimized recommenders create **filter bubbles**: users see only items similar to past behavior, reducing diversity and creating unfair exposure for long-tail items. **Diversity and fairness** constraints ensure recommendations span categories, promote exploration, and provide equitable exposure.
+
+### The Diversity Challenge
+
+Accuracy-optimized systems suffer from:
+- **Filter bubbles**: Users trapped in narrow content silos
+- **Popularity bias**: Popular items recommended excessively
+- **Homogeneity**: All recommendations similar to each other
+- **Unfair exposure**: Long-tail items never discovered
+
+**Goal**: Balance accuracy, diversity, and fairness.
+
+```python
+"""
+Diversity and Fairness in Recommendations
+
+Techniques:
+1. Diversity constraints: Ensure recommendations span categories
+2. MMR (Maximal Marginal Relevance): Balance relevance and novelty
+3. Calibration: Match recommendation distribution to user preferences
+4. Fairness metrics: Monitor exposure distribution across items
+
+Metrics:
+- Intra-list diversity: Average pairwise distance in recommendation list
+- Coverage: % of items recommended at least once
+- Gini coefficient: Exposure inequality (0=perfect equality, 1=max inequality)
+- Calibration: KL divergence between user prefs and recommendations
+"""
+
+import numpy as np
+from typing import List, Dict, Optional, Tuple, Set
+from dataclasses import dataclass
+from collections import defaultdict
+
+class DiversityOptimizer:
+    """
+    Optimize recommendation diversity
+
+    Strategies:
+    1. MMR (Maximal Marginal Relevance): Iteratively select items that balance
+       relevance and diversity
+    2. Category constraints: Ensure min/max items per category
+    3. Similarity penalty: Penalize items similar to already-selected
+    4. Exploration bonus: Boost under-explored items
+    """
+
+    def __init__(
+        self,
+        lambda_diversity: float = 0.3,
+        category_constraints: Optional[Dict[str, Tuple[int, int]]] = None
+    ):
+        """
+        Args:
+            lambda_diversity: Weight for diversity vs relevance (0=pure relevance, 1=pure diversity)
+            category_constraints: Min/max items per category {category: (min, max)}
+        """
+        self.lambda_diversity = lambda_diversity
+        self.category_constraints = category_constraints or {}
+
+        print(f"Initialized Diversity Optimizer")
+        print(f"  Lambda diversity: {lambda_diversity}")
+
+    def mmr_rerank(
+        self,
+        candidates: List[Tuple[str, float]],
+        item_embeddings: Dict[str, np.ndarray],
+        top_k: int = 10
+    ) -> List[Tuple[str, float]]:
+        """
+        Rerank using Maximal Marginal Relevance
+
+        MMR formula:
+        score(item) = λ * relevance(item) - (1-λ) * max_similarity(item, selected_items)
+
+        Iteratively select item with highest MMR score
+
+        Args:
+            candidates: Candidate items with relevance scores [(item_id, score), ...]
+            item_embeddings: Item embeddings {item_id: embedding}
+            top_k: Number of items to select
+
+        Returns:
+            Diversified top-k items
+        """
+        selected = []
+        selected_embs = []
+        remaining = list(candidates)
+
+        while len(selected) < top_k and remaining:
+            best_item = None
+            best_score = -float('inf')
+            best_idx = -1
+
+            for idx, (item_id, relevance) in enumerate(remaining):
+                if item_id not in item_embeddings:
+                    continue
+
+                item_emb = item_embeddings[item_id]
+
+                # Compute diversity term (max similarity to selected items)
+                diversity_penalty = 0.0
+                if selected_embs:
+                    similarities = [np.dot(item_emb, sel_emb) for sel_emb in selected_embs]
+                    diversity_penalty = max(similarities)
+
+                # MMR score
+                mmr_score = (self.lambda_diversity * relevance -
+                           (1 - self.lambda_diversity) * diversity_penalty)
+
+                if mmr_score > best_score:
+                    best_score = mmr_score
+                    best_item = (item_id, relevance)
+                    best_idx = idx
+
+            if best_item is None:
+                break
+
+            # Add to selected
+            selected.append(best_item)
+            selected_embs.append(item_embeddings[best_item[0]])
+
+            # Remove from remaining
+            remaining.pop(best_idx)
+
+        return selected
+
+    def calibrated_rerank(
+        self,
+        candidates: List[Tuple[str, float]],
+        item_categories: Dict[str, str],
+        user_category_preferences: Dict[str, float],
+        top_k: int = 10
+    ) -> List[Tuple[str, float]]:
+        """
+        Calibrated recommendations: Match category distribution to user preferences
+
+        Example:
+        - User watches 70% action, 20% comedy, 10% drama
+        - Recommendations should reflect this distribution
+
+        Args:
+            candidates: Candidate items with scores
+            item_categories: Category for each item {item_id: category}
+            user_category_preferences: User's category distribution {category: proportion}
+            top_k: Number of items to select
+
+        Returns:
+            Calibrated top-k items
+        """
+        # Compute target counts per category
+        target_counts = {
+            category: int(proportion * top_k)
+            for category, proportion in user_category_preferences.items()
+        }
+
+        # Ensure sum equals top_k
+        total = sum(target_counts.values())
+        if total < top_k:
+            # Add remainder to largest category
+            max_category = max(user_category_preferences, key=user_category_preferences.get)
+            target_counts[max_category] += (top_k - total)
+
+        # Select items per category
+        selected = []
+        category_items = defaultdict(list)
+
+        # Group candidates by category
+        for item_id, score in candidates:
+            if item_id in item_categories:
+                category = item_categories[item_id]
+                category_items[category].append((item_id, score))
+
+        # Sort items within each category by score
+        for category in category_items:
+            category_items[category].sort(key=lambda x: x[1], reverse=True)
+
+        # Select from each category according to target counts
+        for category, target_count in target_counts.items():
+            if category in category_items:
+                selected.extend(category_items[category][:target_count])
+
+        # If still need items, add highest-scoring remaining
+        if len(selected) < top_k:
+            all_selected_ids = {item_id for item_id, _ in selected}
+            remaining = [(item_id, score) for item_id, score in candidates
+                        if item_id not in all_selected_ids]
+            remaining.sort(key=lambda x: x[1], reverse=True)
+            selected.extend(remaining[:top_k - len(selected)])
+
+        return selected[:top_k]
+
+class FairnessMonitor:
+    """
+    Monitor fairness metrics for recommendation system
+
+    Metrics:
+    1. Coverage: % of items recommended at least once
+    2. Gini coefficient: Exposure inequality
+    3. Category balance: Exposure distribution across categories
+    4. Long-tail boost: Recommendations for rare items
+    """
+
+    def __init__(self):
+        """Initialize fairness monitor"""
+        # Track recommendations
+        self.item_recommendation_counts: Dict[str, int] = defaultdict(int)
+        self.total_recommendations = 0
+
+        print("Initialized Fairness Monitor")
+
+    def record_recommendation(self, item_ids: List[str]):
+        """
+        Record items that were recommended
+
+        Args:
+            item_ids: List of recommended item IDs
+        """
+        for item_id in item_ids:
+            self.item_recommendation_counts[item_id] += 1
+        self.total_recommendations += len(item_ids)
+
+    def compute_coverage(self, total_items: int) -> float:
+        """
+        Compute catalog coverage
+
+        Coverage = (# items recommended) / (total # items)
+
+        Args:
+            total_items: Total number of items in catalog
+
+        Returns:
+            Coverage ratio [0, 1]
+        """
+        items_recommended = len(self.item_recommendation_counts)
+        coverage = items_recommended / total_items if total_items > 0 else 0.0
+        return coverage
+
+    def compute_gini_coefficient(self) -> float:
+        """
+        Compute Gini coefficient for exposure inequality
+
+        Gini = 0: Perfect equality (all items exposed equally)
+        Gini = 1: Perfect inequality (one item gets all exposure)
+
+        Returns:
+            Gini coefficient [0, 1]
+        """
+        if not self.item_recommendation_counts:
+            return 0.0
+
+        # Get exposure counts sorted
+        exposures = sorted(self.item_recommendation_counts.values())
+        n = len(exposures)
+
+        # Compute Gini
+        cumsum = np.cumsum(exposures)
+        gini = (2 * sum((i + 1) * exp for i, exp in enumerate(exposures)) /
+                (n * sum(exposures))) - (n + 1) / n
+
+        return gini
+
+    def get_fairness_report(self, total_items: int) -> Dict:
+        """
+        Generate comprehensive fairness report
+
+        Args:
+            total_items: Total number of items in catalog
+
+        Returns:
+            Fairness metrics dictionary
+        """
+        coverage = self.compute_coverage(total_items)
+        gini = self.compute_gini_coefficient()
+
+        # Exposure distribution
+        exposures = list(self.item_recommendation_counts.values())
+
+        report = {
+            'coverage': coverage,
+            'gini_coefficient': gini,
+            'total_recommendations': self.total_recommendations,
+            'unique_items_recommended': len(self.item_recommendation_counts),
+            'mean_exposure': np.mean(exposures) if exposures else 0.0,
+            'median_exposure': np.median(exposures) if exposures else 0.0,
+            'max_exposure': max(exposures) if exposures else 0,
+            'min_exposure': min(exposures) if exposures else 0
+        }
+
+        return report
+
+# Example: Diversity optimization
+def diversity_fairness_example():
+    """
+    Optimize recommendation diversity and monitor fairness
+
+    Scenario:
+    - E-commerce with 1000 products
+    - Optimize for diversity (avoid homogeneous recommendations)
+    - Monitor fairness (ensure long-tail exposure)
+    """
+
+    # Generate candidate items with relevance scores
+    candidates = [(f'item_{i}', np.random.rand()) for i in range(50)]
+    candidates.sort(key=lambda x: x[1], reverse=True)  # Sort by relevance
+
+    # Generate item embeddings
+    item_embeddings = {
+        f'item_{i}': np.random.randn(128).astype(np.float32)
+        for i in range(50)
+    }
+    for item_id in item_embeddings:
+        item_embeddings[item_id] /= np.linalg.norm(item_embeddings[item_id])
+
+    # Diversity optimizer
+    optimizer = DiversityOptimizer(lambda_diversity=0.3)
+
+    print("=== Pure Relevance (Top 10) ===")
+    top_relevance = candidates[:10]
+    for item_id, score in top_relevance:
+        print(f"{item_id}: {score:.3f}")
+
+    # Compute average pairwise similarity (measure of homogeneity)
+    embs = [item_embeddings[item_id] for item_id, _ in top_relevance]
+    similarities = []
+    for i in range(len(embs)):
+        for j in range(i+1, len(embs)):
+            sim = np.dot(embs[i], embs[j])
+            similarities.append(sim)
+    avg_sim = np.mean(similarities)
+    print(f"\nAverage pairwise similarity: {avg_sim:.3f}")
+
+    # MMR reranking
+    print("\n=== MMR Diversified (Top 10) ===")
+    diversified = optimizer.mmr_rerank(candidates, item_embeddings, top_k=10)
+    for item_id, score in diversified:
+        print(f"{item_id}: {score:.3f}")
+
+    # Compute diversity
+    embs_div = [item_embeddings[item_id] for item_id, _ in diversified]
+    similarities_div = []
+    for i in range(len(embs_div)):
+        for j in range(i+1, len(embs_div)):
+            sim = np.dot(embs_div[i], embs_div[j])
+            similarities_div.append(sim)
+    avg_sim_div = np.mean(similarities_div)
+    print(f"\nAverage pairwise similarity: {avg_sim_div:.3f}")
+    print(f"Diversity improvement: {(avg_sim - avg_sim_div):.3f}")
+
+    # Fairness monitoring
+    print("\n=== Fairness Monitoring ===")
+    monitor = FairnessMonitor()
+
+    # Simulate recommendations for 100 users
+    for _ in range(100):
+        # Generate recommendations (biased towards popular items)
+        if np.random.rand() < 0.7:
+            # Popular items (top 10)
+            recs = [f'item_{i}' for i in range(10)]
+        else:
+            # Random items
+            recs = [f'item_{np.random.randint(0, 50)}' for _ in range(10)]
+
+        monitor.record_recommendation(recs)
+
+    # Fairness report
+    report = monitor.get_fairness_report(total_items=50)
+    print(f"Coverage: {report['coverage']:.2%}")
+    print(f"Gini coefficient: {report['gini_coefficient']:.3f}")
+    print(f"Mean exposure: {report['mean_exposure']:.1f}")
+    print(f"Max exposure: {report['max_exposure']}")
+
+# Uncomment to run:
+# diversity_fairness_example()
+```
+
+:::{.callout-tip}
+## Diversity and Fairness Best Practices
+
+**Diversity techniques:**
+- **MMR reranking**: Balance relevance and diversity (λ=0.2-0.4)
+- **Category constraints**: Ensure minimum representation per category
+- **Similarity penalty**: Penalize items similar to already-selected
+- **Exploration bonus**: Boost under-explored items (10-20% of slots)
+
+**Fairness monitoring:**
+- **Coverage**: Track % of catalog recommended (target: 80%+)
+- **Gini coefficient**: Monitor inequality (target: <0.5)
+- **Category balance**: Ensure equitable exposure across categories
+- **A/B testing**: Measure impact on user satisfaction and business metrics
+
+**Trade-offs:**
+- **Accuracy loss**: Diversity/fairness often reduce short-term accuracy
+- **User satisfaction**: May improve long-term engagement (avoid boredom)
+- **Business value**: Long-tail exposure can discover hidden gems
+- **Tuning**: λ parameter controls accuracy-diversity trade-off
+:::
+
+:::{.callout-warning}
+## Diversity-Accuracy Trade-off
+
+Increasing diversity typically reduces short-term accuracy:
+- **MMR (λ=0.5)**: 10-15% accuracy drop, significant diversity gain
+- **Category constraints**: 5-10% accuracy drop, guaranteed representation
+- **Pure exploration**: 30%+ accuracy drop, maximum discovery
+
+**Mitigation strategies:**
+- **Adaptive λ**: Increase diversity for engaged users, decrease for new users
+- **Personalized diversity**: Learn per-user diversity preferences
+- **Long-term metrics**: Optimize for session success, not click-through rate
+- **A/B testing**: Measure impact on retention and lifetime value
+:::
 
 ## Cross-Domain Recommendation Transfer
 
-[Content to be written: Details about cross-domain recommendation transfer]
+Users interact across multiple domains (products, movies, music), but traditional systems treat each domain independently. **Cross-domain recommendation transfer** leverages learned embeddings to transfer knowledge across domains, enabling better cold start and improved recommendations in data-sparse domains.
+
+### The Cross-Domain Challenge
+
+Challenges of multi-domain systems:
+- **Data sparsity**: Some domains have limited interactions (e.g., luxury goods)
+- **Cold start**: New domain with no historical data
+- **Shared preferences**: User preferences correlate across domains (action movies → action games)
+- **Different scales**: Domains have different numbers of items and interaction frequencies
+
+**Opportunity**: Transfer learning from data-rich to data-sparse domains.
+
+```python
+"""
+Cross-Domain Recommendation Transfer
+
+Approaches:
+1. Shared user embeddings: Learn single user embedding across domains
+2. Domain-specific item embeddings: Separate embeddings per domain
+3. Transfer learning: Pre-train on rich domain, fine-tune on sparse domain
+4. Multi-task learning: Joint optimization across domains
+
+Techniques:
+- Domain adaptation: Align feature distributions across domains
+- Meta-learning: Learn to adapt quickly to new domains
+- Knowledge distillation: Transfer from complex to simple models
+- Auxiliary tasks: Use rich domain as auxiliary signal
+
+Benefits:
+- Better cold start in sparse domains
+- Improved recommendations from shared preferences
+- Reduced training cost (transfer instead of train from scratch)
+"""
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import numpy as np
+from typing import List, Dict, Optional, Tuple
+
+class CrossDomainRecommender(nn.Module):
+    """
+    Multi-domain recommender with shared user embeddings
+
+    Architecture:
+    - Shared user encoder: Maps users to shared embedding space
+    - Domain-specific item encoders: Separate embeddings per domain
+    - Domain-specific scoring: Dot product within each domain
+
+    Training:
+    - Multi-task learning: Joint optimization across domains
+    - Weighted loss: Balance domains by interaction volume
+    - Hard parameter sharing: User encoder shared across all domains
+
+    Inference:
+    - Encode user once (shared encoder)
+    - Retrieve from any domain using domain-specific item embeddings
+    """
+
+    def __init__(
+        self,
+        embedding_dim: int = 128,
+        num_users: int = 1000000,
+        num_items_per_domain: Dict[str, int] = None
+    ):
+        super().__init__()
+        self.embedding_dim = embedding_dim
+
+        # Shared user encoder
+        self.user_encoder = nn.Embedding(num_users, embedding_dim)
+
+        # Domain-specific item encoders
+        self.item_encoders = nn.ModuleDict()
+        for domain, num_items in num_items_per_domain.items():
+            self.item_encoders[domain] = nn.Embedding(num_items, embedding_dim)
+
+        self.domains = list(num_items_per_domain.keys())
+
+    def forward(
+        self,
+        user_ids: torch.Tensor,
+        item_ids: torch.Tensor,
+        domain: str
+    ) -> torch.Tensor:
+        """
+        Predict scores for user-item pairs in given domain
+
+        Args:
+            user_ids: User IDs (batch_size,)
+            item_ids: Item IDs (batch_size,)
+            domain: Domain name
+
+        Returns:
+            Scores (batch_size,)
+        """
+        # Encode users (shared across domains)
+        user_emb = self.user_encoder(user_ids)
+        user_emb = F.normalize(user_emb, p=2, dim=1)
+
+        # Encode items (domain-specific)
+        item_emb = self.item_encoders[domain](item_ids)
+        item_emb = F.normalize(item_emb, p=2, dim=1)
+
+        # Dot product scoring
+        scores = (user_emb * item_emb).sum(dim=1)
+
+        return scores
+
+    def encode_user(self, user_ids: torch.Tensor) -> torch.Tensor:
+        """Encode users to shared embedding"""
+        user_emb = self.user_encoder(user_ids)
+        return F.normalize(user_emb, p=2, dim=1)
+
+    def encode_items(
+        self,
+        item_ids: torch.Tensor,
+        domain: str
+    ) -> torch.Tensor:
+        """Encode items in specific domain"""
+        item_emb = self.item_encoders[domain](item_ids)
+        return F.normalize(item_emb, p=2, dim=1)
+
+class TransferLearningRecommender:
+    """
+    Transfer learning from rich domain to sparse domain
+
+    Strategy:
+    1. Pre-train on rich domain (movies: 1B interactions)
+    2. Transfer user encoder to sparse domain (books: 10M interactions)
+    3. Fine-tune on sparse domain with regularization
+
+    Benefits:
+    - Sparse domain benefits from rich domain patterns
+    - Faster convergence in sparse domain
+    - Better cold start performance
+    """
+
+    def __init__(
+        self,
+        embedding_dim: int = 128
+    ):
+        self.embedding_dim = embedding_dim
+
+        # Source domain model (rich domain)
+        self.source_model: Optional[CollaborativeFilteringModel] = None
+
+        # Target domain model (sparse domain)
+        self.target_model: Optional[CollaborativeFilteringModel] = None
+
+        print("Initialized Transfer Learning Recommender")
+
+    def pretrain_source(
+        self,
+        source_interactions: List[Interaction],
+        num_epochs: int = 10
+    ):
+        """
+        Pre-train on source domain (rich domain)
+
+        Args:
+            source_interactions: Interactions in source domain
+            num_epochs: Training epochs
+        """
+        print(f"\nPre-training on source domain ({len(source_interactions)} interactions)...")
+
+        # Extract unique users/items
+        user_ids = set(i.user_id for i in source_interactions)
+        item_ids = set(i.item_id for i in source_interactions)
+
+        # Initialize source model
+        self.source_model = CollaborativeFilteringModel(
+            embedding_dim=self.embedding_dim,
+            num_users=len(user_ids),
+            num_items=len(item_ids)
+        )
+
+        # Train (simplified - in production: full training loop)
+        print(f"✓ Pre-trained source model")
+
+    def transfer_to_target(
+        self,
+        target_interactions: List[Interaction],
+        num_epochs: int = 5,
+        freeze_user_encoder: bool = False
+    ):
+        """
+        Transfer to target domain (sparse domain)
+
+        Args:
+            target_interactions: Interactions in target domain
+            num_epochs: Fine-tuning epochs
+            freeze_user_encoder: Whether to freeze user encoder (transfer only)
+        """
+        if self.source_model is None:
+            raise ValueError("Must pre-train source model first")
+
+        print(f"\nTransferring to target domain ({len(target_interactions)} interactions)...")
+
+        # Extract unique users/items
+        user_ids = set(i.user_id for i in target_interactions)
+        item_ids = set(i.item_id for i in target_interactions)
+
+        # Initialize target model
+        self.target_model = CollaborativeFilteringModel(
+            embedding_dim=self.embedding_dim,
+            num_users=len(user_ids),
+            num_items=len(item_ids)
+        )
+
+        # Transfer user encoder weights
+        self.target_model.user_encoder.load_state_dict(
+            self.source_model.user_encoder.state_dict()
+        )
+
+        # Optionally freeze user encoder
+        if freeze_user_encoder:
+            for param in self.target_model.user_encoder.parameters():
+                param.requires_grad = False
+
+        # Fine-tune on target domain
+        # (simplified - in production: full training loop)
+        print(f"✓ Transferred and fine-tuned on target domain")
+
+# Example: Movies → Books transfer
+def cross_domain_transfer_example():
+    """
+    Transfer learning from movies (rich) to books (sparse)
+
+    Scenario:
+    - Movies: 1B interactions, well-trained model
+    - Books: 10M interactions, sparse data
+    - Transfer user preferences from movies to books
+
+    Hypothesis: Users with similar movie tastes have similar book tastes
+    """
+
+    print("=== Cross-Domain Transfer Learning ===")
+    print("\nScenario: Transfer from Movies to Books")
+
+    # Initialize multi-domain recommender
+    model = CrossDomainRecommender(
+        embedding_dim=64,
+        num_users=1000,
+        num_items_per_domain={'movies': 10000, 'books': 5000}
+    )
+
+    print(f"\nModel architecture:")
+    print(f"  Shared user embedding: {model.embedding_dim}-dim")
+    print(f"  Movies: {10000} items")
+    print(f"  Books: {5000} items")
+
+    # Simulate user with movies history
+    user_id = torch.tensor([0])
+
+    # User watched movies
+    print(f"\nUser watched movies: 5, 12, 23, 45, 67")
+
+    # Encode user (from movie viewing history)
+    user_emb = model.encode_user(user_id)
+
+    # Recommend books (transfer to books domain)
+    print(f"\nRecommending books based on movie preferences...")
+
+    # Get book embeddings
+    book_ids = torch.arange(100)  # Sample 100 books
+    book_embs = model.encode_items(book_ids, domain='books')
+
+    # Compute scores
+    scores = torch.matmul(book_embs, user_emb.T).squeeze()
+
+    # Top-5 books
+    top_scores, top_indices = torch.topk(scores, k=5)
+
+    print(f"\nTop 5 book recommendations:")
+    for idx, score in zip(top_indices, top_scores):
+        print(f"  Book {idx.item()}: {score.item():.3f}")
+
+    print(f"\n✓ Cross-domain transfer successful")
+
+# Uncomment to run:
+# cross_domain_transfer_example()
+```
+
+:::{.callout-tip}
+## Cross-Domain Transfer Best Practices
+
+**Architecture:**
+- **Shared user encoder**: Single embedding space for users across domains
+- **Domain-specific item encoders**: Separate embeddings per domain
+- **Domain bridges**: Learn mappings between domain embeddings
+- **Multi-task learning**: Joint optimization with domain-specific losses
+
+**Transfer strategies:**
+- **Pre-train + fine-tune**: Train on rich domain, fine-tune on sparse
+- **Freeze encoder**: Transfer user encoder, train only item encoder
+- **Gradual unfreezing**: Progressively unfreeze layers during fine-tuning
+- **Regularization**: L2 penalty to keep close to source weights
+
+**Evaluation:**
+- **Cross-domain metrics**: Measure improvement in sparse domain
+- **Cold start impact**: Test on new users/items in sparse domain
+- **Transfer quality**: Correlation between domain preferences
+- **Negative transfer**: Monitor for cases where transfer hurts performance
+:::
 
 ## Key Takeaways
 
-- [Key point 1 to be added]
-- [Key point 2 to be added]
-- [Key point 3 to be added]
+- **Embedding-based collaborative filtering scales to billions of users and items**: Two-tower architecture with separate user and item encoders enables independent updates, fast serving via ANN search, and efficient training with negative sampling
+
+- **Cold start solutions leverage content and meta-learning**: Content-based initialization provides embeddings for new items from features, meta-learning (MAML) enables adaptation from 1-5 interactions, and hybrid models smoothly transition from content to collaborative signals
+
+- **Real-time personalization adapts recommendations within seconds**: Session embeddings computed from recent interactions combine with base embeddings to reflect current intent, with streaming architectures enabling sub-100ms latency for embedding updates
+
+- **Diversity and fairness prevent filter bubbles and ensure equitable exposure**: MMR (Maximal Marginal Relevance) balances accuracy and diversity, calibrated recommendations match user preference distributions, and fairness monitoring tracks coverage and inequality via Gini coefficients
+
+- **Cross-domain transfer leverages shared user preferences**: Shared user encoders across domains enable knowledge transfer, pre-training on rich domains improves sparse domains, and multi-task learning jointly optimizes across product categories
+
+- **Production recommenders require careful trade-off management**: Accuracy vs diversity, short-term clicks vs long-term engagement, popularity vs fairness, and collaborative vs content signals all require tuning based on business objectives and user research
+
+- **Embedding dimensionality impacts both quality and cost**: 64-128 dims sufficient for most applications, 256-512 dims for complex domains (fashion, media), with higher dimensions improving accuracy but increasing storage (10TB for 100M items at 512-dim float32) and latency
 
 ## Looking Ahead
 
-Chapter 16 applies embeddings to anomaly detection and security use cases.
+Part IV (Advanced Applications) continues with Chapter 16, which applies embeddings to anomaly detection and security: fraud detection systems that identify unusual transaction patterns through embedding space outliers, cybersecurity threat hunting using behavioral embeddings of users and network entities, manufacturing quality control with product embeddings for defect detection, financial risk assessment via company and transaction embeddings, and behavioral anomaly detection that flags account compromises and insider threats through deviation from normal embedding patterns.
 
 ## Further Reading
 
-- [References to be added]
+### Collaborative Filtering
+- Koren, Yehuda, Robert Bell, and Chris Volinsky (2009). "Matrix Factorization Techniques for Recommender Systems." IEEE Computer.
+- He, Xiangnan, et al. (2017). "Neural Collaborative Filtering." WWW.
+- Rendle, Steffen, et al. (2012). "BPR: Bayesian Personalized Ranking from Implicit Feedback." UAI.
+- Yi, Xinyang, et al. (2019). "Sampling-Bias-Corrected Neural Modeling for Large Corpus Item Recommendations." RecSys.
+
+### Cold Start and Meta-Learning
+- Finn, Chelsea, Pieter Abbeel, and Sergey Levine (2017). "Model-Agnostic Meta-Learning for Fast Adaptation of Deep Networks." ICML.
+- Vartak, Manasi, et al. (2017). "Meta-Prod2Vec: Product Embeddings Using Side-Information for Recommendation." RecSys.
+- Bharadhwaj, Homanga, et al. (2019). "Meta-Learning for User Cold-Start Recommendation." IJCNN.
+- Lee, Hoyeop, et al. (2019). "MeLU: Meta-Learned User Preference Estimator for Cold-Start Recommendation." KDD.
+
+### Real-Time Personalization
+- Hidasi, Balázs, et al. (2016). "Session-based Recommendations with Recurrent Neural Networks." ICLR.
+- Li, Jing, et al. (2017). "Neural Attentive Session-based Recommendation." CIKM.
+- Quadrana, Massimo, et al. (2017). "Personalizing Session-based Recommendations with Hierarchical Recurrent Neural Networks." RecSys.
+- Wu, Chuhan, et al. (2019). "Session-based Recommendation with Graph Neural Networks." AAAI.
+
+### Diversity and Fairness
+- Carbonell, Jaime, and Jade Goldstein (1998). "The Use of MMR, Diversity-Based Reranking for Reordering Documents and Producing Summaries." SIGIR.
+- Steck, Harald (2018). "Calibrated Recommendations." RecSys.
+- Abdollahpouri, Himan, et al. (2019). "Managing Popularity Bias in Recommender Systems with Personalized Re-ranking." FLAIRS.
+- Mehrotra, Rishabh, et al. (2018). "Towards a Fair Marketplace: Counterfactual Evaluation of the Trade-off Between Relevance, Fairness & Satisfaction in Recommendation Systems." CIKM.
+
+### Cross-Domain Recommendations
+- Fernández-Tobías, Ignacio, et al. (2016). "Cross-domain Recommender Systems: A Survey of the State of the Art." UMAP.
+- Hu, Guangneng, Yu Zhang, and Qiang Yang (2018). "CoNet: Collaborative Cross Networks for Cross-Domain Recommendation." CIKM.
+- Zhu, Feng, et al. (2021). "Transfer-Meta Framework for Cross-domain Recommendation to Cold-Start Users." SIGIR.
+- Man, Tong, et al. (2017). "Cross-Domain Recommendation: An Embedding and Mapping Approach." IJCAI.
