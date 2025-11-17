@@ -37,14 +37,19 @@ jobs:
         run: |
           pip install jupyter matplotlib numpy pandas
 
+      - name: Install TinyTeX for PDF rendering
+        run: quarto install tinytex
+
       - name: Render HTML Book
         run: quarto render --to html
 
       - name: Render PDF Book
         run: quarto render --to pdf
+        continue-on-error: true  # Don't fail deployment if PDF fails
 
       - name: Render EPUB Book
         run: quarto render --to epub
+        continue-on-error: true  # Don't fail deployment if EPUB fails
 
       - name: Copy additional formats to output
         run: |
