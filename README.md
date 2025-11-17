@@ -34,7 +34,7 @@ git clone https://github.com/yourusername/embeddings-at-scale-book.git
 cd embeddings-at-scale-book
 
 # Install Python dependencies
-pip install jupyter matplotlib numpy pandas
+pip install -r requirements.txt
 
 # Preview the book (with live reload)
 quarto preview
@@ -166,7 +166,19 @@ This book is designed for collaborative authoring:
 
 ## 📄 License
 
-[Add your license here]
+[![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC%20BY--NC%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc/4.0/)
+
+This work is licensed under a [Creative Commons Attribution-NonCommercial 4.0 International License](https://creativecommons.org/licenses/by-nc/4.0/).
+
+You are free to:
+- **Share** — copy and redistribute the material in any medium or format
+- **Adapt** — remix, transform, and build upon the material
+
+Under the following terms:
+- **Attribution** — You must give appropriate credit
+- **NonCommercial** — You may not use the material for commercial purposes
+
+See the [LICENSE](LICENSE) file for the full license text.
 
 ## 🙏 Acknowledgments
 
