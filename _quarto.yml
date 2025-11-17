@@ -88,6 +88,9 @@ format:
     tbl-cap-location: top
     crossref:
       chapters: true
+    css: styles.css
+    mainfont: system-ui
+    monofont: ui-monospace
 
   pdf:
     documentclass: book
