@@ -6,6 +6,17 @@
 
 This comprehensive tutorial is designed for CTOs, Data Scientists, ML Engineers, and Technical Leaders who are ready to transform their organizations through embedding technologies at unprecedented scale.
 
+## Download This Book
+
+Available in multiple formats for your convenience:
+
+::: {.callout-note appearance="simple"}
+## Download Options
+
+- **[📕 Download PDF](downloads/Embeddings-at-Scale.pdf)** - Optimized for printing and offline reading
+- **[📱 Download EPUB](downloads/Embeddings-at-Scale.epub)** - For e-readers and mobile devices
+:::
+
 ## Why This Book?
 
 Embeddings have evolved from an academic curiosity to the foundational technology powering the next generation of AI applications. Organizations that master embeddings at scale are building competitive moats that are nearly impossible to replicate. This book provides the complete roadmap from strategy to implementation.
