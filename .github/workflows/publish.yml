@@ -41,9 +41,6 @@ jobs:
       - name: Render HTML Book
         run: quarto render --to html
 
-      - name: Add .nojekyll to prevent GitHub Pages from using Jekyll
-        run: touch _book/.nojekyll
-
       - name: Render PDF Book
         run: quarto render --to pdf
         continue-on-error: true  # Don't fail deployment if PDF fails
@@ -61,6 +58,9 @@ jobs:
           if [ -f _book/Embeddings-at-Scale.epub ]; then
             cp _book/Embeddings-at-Scale.epub _book/downloads/
           fi
+
+      - name: Add .nojekyll to prevent GitHub Pages from using Jekyll
+        run: touch _book/.nojekyll
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
