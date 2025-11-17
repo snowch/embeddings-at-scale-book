@@ -33,7 +33,7 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          pip install jupyter matplotlib numpy pandas
+          pip install -r requirements.txt
 
       - name: Install TinyTeX for PDF rendering
         run: quarto install tinytex
