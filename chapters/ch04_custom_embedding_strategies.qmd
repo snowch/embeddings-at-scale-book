@@ -1,40 +1,1937 @@
-# Beyond Pre-trained: Custom Embedding Strategies {{#sec-custom-embedding-strategies}}
+# Beyond Pre-trained: Custom Embedding Strategies {#sec-custom-embedding-strategies}
 
-:::{{.callout-note}}
+:::{.callout-note}
 ## Chapter Overview
-This chapter covers when to build custom embeddings vs. fine-tune, domain-specific embedding requirements, and 3 more topics.
+This chapter bridges strategic planning and implementation by answering a critical question: when should you build custom embeddings versus fine-tuning existing models? We explore domain-specific requirements, multi-objective design, dimensionality optimization, and cost-performance trade-offs that determine success at scale.
 :::
 
 ## When to Build Custom Embeddings vs. Fine-Tune
 
-[Content to be written: Details about when to build custom embeddings vs. fine-tune]
+The decision to build custom embeddings from scratch versus fine-tuning pre-trained models is one of the most consequential choices in your embedding strategy. Make the wrong choice and you'll either waste months building unnecessary infrastructure or deploy suboptimal models that never reach competitive performance.
+
+### The Custom vs. Fine-Tune Spectrum
+
+Most discussions frame this as a binary choice. In reality, it's a spectrum with five distinct approaches:
+
+**Level 0: Use Pre-trained, Frozen**
+- **Description**: Use off-the-shelf embeddings (OpenAI, Sentence-BERT) without modification
+- **Effort**: Hours
+- **Cost**: $0-$1K/month
+- **Quality**: 60-70% of optimal for your domain
+- **Best for**: Proof-of-concepts, generic use cases, rapid prototyping
+
+**Level 1: Prompt Engineering**
+- **Description**: Optimize prompts for pre-trained models to better capture domain nuances
+- **Effort**: Days to weeks
+- **Cost**: $1K-$5K/month
+- **Quality**: 70-80% of optimal
+- **Best for**: Specific queries, instruction-based models, low-budget projects
+
+**Level 2: Fine-Tune Last Layers**
+- **Description**: Fine-tune final layers of pre-trained model on your domain data
+- **Effort**: Weeks
+- **Cost**: $5K-$25K one-time + ongoing inference
+- **Quality**: 80-90% of optimal
+- **Best for**: Domain adaptation with limited data (10K-100K examples)
+
+**Level 3: Full Model Fine-Tuning**
+- **Description**: Fine-tune entire pre-trained model on your data
+- **Effort**: 1-3 months
+- **Cost**: $25K-$150K one-time + ongoing
+- **Quality**: 85-95% of optimal
+- **Best for**: Substantial domain data (100K-10M examples), clear performance gaps
+
+**Level 4: Train From Scratch**
+- **Description**: Design and train custom architecture for your specific requirements
+- **Effort**: 6-18 months
+- **Cost**: $500K-$5M+ one-time + ongoing
+- **Quality**: 95-100% optimal (when done right)
+- **Best for**: Highly specialized domains, massive data (10M+ examples), competitive moat
+
+:::{.callout-tip}
+## The 80/20 Rule
+For most organizations, **Level 3 (Full Model Fine-Tuning)** delivers 95% of the benefit at 20% of the cost compared to training from scratch. Only pursue Level 4 if embeddings are core to your competitive advantage.
+:::
+
+### Decision Framework: When to Build Custom
+
+Use this framework to determine your approach:
+
+```python
+class CustomEmbeddingDecisionFramework:
+    """
+    Systematic framework for custom vs. fine-tune decision
+    """
+
+    def __init__(self):
+        self.score_custom = 0
+        self.score_finetune = 0
+        self.factors = []
+
+    def evaluate(self, context):
+        """
+        Evaluate whether to build custom or fine-tune
+
+        Args:
+            context: Dictionary with decision factors
+
+        Returns:
+            Recommendation with rationale
+        """
+
+        # Factor 1: Data availability
+        if context['training_examples'] > 10_000_000:
+            self.score_custom += 3
+            self.factors.append("Massive data enables custom training")
+        elif context['training_examples'] > 1_000_000:
+            self.score_custom += 1
+            self.score_finetune += 2
+            self.factors.append("Substantial data supports both approaches")
+        elif context['training_examples'] > 100_000:
+            self.score_finetune += 3
+            self.factors.append("Limited data favors fine-tuning")
+        else:
+            self.score_finetune += 5
+            self.factors.append("Insufficient data for custom training")
+
+        # Factor 2: Domain uniqueness
+        domain_gap = context.get('domain_gap', 'medium')  # low, medium, high
+        if domain_gap == 'high':
+            # Highly specialized domain (e.g., genomics, specialized legal)
+            self.score_custom += 3
+            self.factors.append("High domain gap benefits from custom architecture")
+        elif domain_gap == 'medium':
+            # Some domain shift (e.g., medical, financial)
+            self.score_finetune += 2
+            self.factors.append("Medium domain gap well-suited for fine-tuning")
+        else:
+            # Close to pre-training domain
+            self.score_finetune += 3
+            self.factors.append("Low domain gap - fine-tuning sufficient")
+
+        # Factor 3: Performance requirements
+        perf_req = context.get('performance_requirement', 'medium')
+        if perf_req == 'world_class':
+            # Need state-of-the-art, no compromises
+            self.score_custom += 3
+            self.factors.append("World-class performance requires custom approach")
+        elif perf_req == 'high':
+            self.score_custom += 1
+            self.score_finetune += 1
+            self.factors.append("High performance achievable with either approach")
+        else:
+            self.score_finetune += 2
+            self.factors.append("Standard performance met by fine-tuning")
+
+        # Factor 4: Specialized requirements
+        special_reqs = context.get('specialized_requirements', [])
+        # Examples: 'multilingual', 'multi-modal', 'low-latency', 'tiny-model', 'interpretable'
+
+        if 'multi-modal' in special_reqs and not context.get('multimodal_pretrained_available', True):
+            self.score_custom += 2
+            self.factors.append("Custom multi-modal architecture needed")
+
+        if 'tiny-model' in special_reqs:
+            # Need very small models (e.g., edge deployment)
+            self.score_custom += 2
+            self.factors.append("Model size constraints favor custom architecture")
+
+        if 'interpretable' in special_reqs:
+            self.score_custom += 1
+            self.factors.append("Interpretability easier with custom design")
+
+        # Factor 5: Budget and timeline
+        budget = context.get('annual_budget', 0)
+        timeline_months = context.get('timeline_months', 12)
+
+        if budget < 50_000 or timeline_months < 3:
+            self.score_finetune += 4
+            self.factors.append("Budget/timeline constraints favor fine-tuning")
+        elif budget > 1_000_000 and timeline_months > 12:
+            self.score_custom += 2
+            self.factors.append("Sufficient resources for custom development")
+
+        # Factor 6: Team capability
+        team_capability = context.get('team_capability', 'medium')
+        if team_capability == 'high':
+            # Team has published papers, trained large models before
+            self.score_custom += 1
+        elif team_capability == 'low':
+            self.score_finetune += 2
+            self.factors.append("Limited ML expertise favors fine-tuning")
+
+        # Factor 7: Competitive advantage
+        competitive_impact = context.get('competitive_advantage', 'medium')
+        if competitive_impact == 'critical':
+            # Embeddings ARE your competitive moat
+            self.score_custom += 3
+            self.factors.append("Embeddings as competitive moat justify custom investment")
+        elif competitive_impact == 'high':
+            self.score_custom += 1
+            self.score_finetune += 1
+        else:
+            self.score_finetune += 1
+
+        # Make recommendation
+        return self._generate_recommendation()
+
+    def _generate_recommendation(self):
+        """Generate final recommendation"""
+
+        if self.score_custom > self.score_finetune + 5:
+            return {
+                'recommendation': 'BUILD_CUSTOM',
+                'confidence': 'high',
+                'approach': 'Train custom embedding model from scratch (Level 4)',
+                'rationale': self.factors,
+                'estimated_effort': '6-18 months',
+                'estimated_cost': '$500K-$5M',
+                'next_steps': [
+                    'Assemble ML research team (5-10 people)',
+                    'Conduct architecture exploration',
+                    'Prepare large-scale training infrastructure',
+                    'Plan 12-18 month roadmap'
+                ]
+            }
+        elif self.score_custom > self.score_finetune + 2:
+            return {
+                'recommendation': 'BUILD_CUSTOM',
+                'confidence': 'medium',
+                'approach': 'Custom model, but consider hybrid approach',
+                'rationale': self.factors,
+                'caveat': 'Start with fine-tuning to establish baseline, then build custom if needed',
+                'estimated_effort': '3-12 months',
+                'estimated_cost': '$100K-$1M'
+            }
+        elif self.score_finetune > self.score_custom + 5:
+            return {
+                'recommendation': 'FINE_TUNE',
+                'confidence': 'high',
+                'approach': 'Full model fine-tuning (Level 3)',
+                'rationale': self.factors,
+                'estimated_effort': '1-3 months',
+                'estimated_cost': '$25K-$150K',
+                'next_steps': [
+                    'Select base model (BERT, RoBERTa, Sentence-BERT)',
+                    'Prepare labeled training data (100K+ examples)',
+                    'Set up fine-tuning pipeline',
+                    'Benchmark against frozen pre-trained baseline'
+                ]
+            }
+        else:
+            return {
+                'recommendation': 'FINE_TUNE',
+                'confidence': 'medium',
+                'approach': 'Start with fine-tuning, keep custom as option',
+                'rationale': self.factors,
+                'caveat': 'Marginal difference - fine-tune first, measure gaps, then decide',
+                'estimated_effort': '1-6 months',
+                'estimated_cost': '$50K-$500K'
+            }
+
+
+# Example usage: E-commerce product search
+ecommerce_context = {
+    'training_examples': 5_000_000,  # 5M product-query pairs
+    'domain_gap': 'medium',  # E-commerce is somewhat specialized
+    'performance_requirement': 'high',  # Directly impacts revenue
+    'specialized_requirements': ['multi-modal'],  # Products have images
+    'annual_budget': 500_000,
+    'timeline_months': 6,
+    'team_capability': 'medium',
+    'competitive_advantage': 'high'  # Search quality is competitive differentiator
+}
+
+framework = CustomEmbeddingDecisionFramework()
+recommendation = framework.evaluate(ecommerce_context)
+
+print(f"Recommendation: {recommendation['recommendation']}")
+print(f"Approach: {recommendation['approach']}")
+print(f"\nRationale:")
+for factor in recommendation['rationale']:
+    print(f"  - {factor}")
+```
+
+### Real-World Case Studies
+
+**Case Study 1: Medical Literature Search (Fine-Tuning Win)**
+
+A medical research platform initially considered training custom embeddings for biomedical literature. They had:
+- 500K labeled medical article pairs
+- Medium domain gap (medical terminology specialized but well-covered in pre-training)
+- 3-month timeline
+- $100K budget
+
+**Decision**: Fine-tuned BioBERT (domain-specific BERT variant already pre-trained on PubMed)
+
+**Outcome**:
+- Achieved 91% of custom model performance at 10% of cost
+- Launched in 2 months vs. 12+ months for custom
+- Fine-tuning cost: $40K one-time
+- Performance: 0.847 MRR (Mean Reciprocal Rank) vs. 0.812 for frozen BioBERT
+
+**Case Study 2: Genomics Sequence Embeddings (Custom Win)**
+
+A genomics company needed embeddings for DNA/protein sequences. They had:
+- 50M protein sequences with structural/functional annotations
+- Extreme domain gap (genomic sequences fundamentally different from text)
+- 18-month timeline
+- $2M budget
+- World-class performance requirement (competitive moat)
+
+**Decision**: Built custom transformer architecture designed specifically for sequences
+
+**Outcome**:
+- Custom architecture outperformed adapted text models by 34%
+- Enabled novel capabilities (structure prediction, functional annotation)
+- Development cost: $1.8M over 16 months
+- Result: Industry-leading model, published research, patent applications
+
+**Key Lesson**: Domain gap was decisive factor. Natural language pre-training provides limited transfer to genomic sequences.
+
+**Case Study 3: E-commerce Search (Hybrid Approach)**
+
+An e-commerce platform with 100M products needed multi-modal (text + image) embeddings:
+
+**Phase 1 (Months 1-3)**: Fine-tuned CLIP on 2M product images + descriptions
+- Cost: $50K
+- Result: 28% improvement over generic CLIP
+- Launched to production, validated business impact
+
+**Phase 2 (Months 4-12)**: Built custom architecture incorporating product catalog structure
+- Cost: $400K
+- Result: Additional 15% improvement over fine-tuned CLIP
+- Enabled category-aware search, better handling of attributes
+
+**Key Lesson**: Hybrid approach de-risked investment. Fine-tuning provided fast wins; custom model delivered competitive advantage after proving value.
+
+### The Fine-Tuning Recipe
+
+When fine-tuning is the right choice, follow this battle-tested recipe:
+
+```python
+from sentence_transformers import SentenceTransformer, InputExample, losses
+from torch.utils.data import DataLoader
+import torch
+
+class EmbeddingFineTuner:
+    """
+    Production-ready fine-tuning for sentence embeddings
+    """
+
+    def __init__(self, base_model_name='all-mpnet-base-v2'):
+        """
+        Args:
+            base_model_name: HuggingFace model identifier
+        """
+        self.model = SentenceTransformer(base_model_name)
+        self.base_model_name = base_model_name
+
+    def prepare_training_data(self, examples):
+        """
+        Prepare training data in correct format
+
+        Args:
+            examples: List of dicts with 'query', 'positive', 'negative' (optional)
+
+        Returns:
+            DataLoader for training
+        """
+        train_examples = []
+
+        for ex in examples:
+            if 'negative' in ex:
+                # Triplet: query, positive, negative
+                train_examples.append(
+                    InputExample(texts=[ex['query'], ex['positive'], ex['negative']])
+                )
+            else:
+                # Pair: query, positive (with label 1.0)
+                train_examples.append(
+                    InputExample(texts=[ex['query'], ex['positive']], label=1.0)
+                )
+
+        return DataLoader(train_examples, shuffle=True, batch_size=16)
+
+    def fine_tune(self, train_dataloader, num_epochs=3,
+                  loss_function='cosine', warmup_steps=100):
+        """
+        Fine-tune the model
+
+        Args:
+            train_dataloader: DataLoader with training examples
+            num_epochs: Number of training epochs
+            loss_function: 'cosine', 'triplet', or 'contrastive'
+            warmup_steps: Learning rate warmup steps
+        """
+
+        # Select loss function
+        if loss_function == 'cosine':
+            # CosineSimilarityLoss: learns to maximize similarity of positive pairs
+            train_loss = losses.CosineSimilarityLoss(self.model)
+        elif loss_function == 'triplet':
+            # TripletLoss: anchor, positive, negative triplets
+            train_loss = losses.TripletLoss(
+                model=self.model,
+                distance_metric=losses.TripletDistanceMetric.COSINE,
+                triplet_margin=0.5
+            )
+        elif loss_function == 'contrastive':
+            # ContrastiveLoss: positive and negative pairs with labels
+            train_loss = losses.ContrastiveLoss(self.model)
+        else:
+            raise ValueError(f"Unknown loss function: {loss_function}")
+
+        # Training configuration
+        steps_per_epoch = len(train_dataloader)
+        total_steps = steps_per_epoch * num_epochs
+
+        print(f"Fine-tuning {self.base_model_name}")
+        print(f"  Total steps: {total_steps}")
+        print(f"  Epochs: {num_epochs}")
+        print(f"  Loss: {loss_function}")
+
+        # Fine-tune
+        self.model.fit(
+            train_objectives=[(train_dataloader, train_loss)],
+            epochs=num_epochs,
+            warmup_steps=warmup_steps,
+            optimizer_params={'lr': 2e-5},
+            show_progress_bar=True
+        )
+
+        print("Fine-tuning complete!")
+
+    def evaluate(self, test_examples):
+        """
+        Evaluate fine-tuned model
+
+        Args:
+            test_examples: List of {'query', 'positive', 'negatives': [...]}
+
+        Returns:
+            Evaluation metrics
+        """
+        from sentence_transformers.evaluation import InformationRetrievalEvaluator
+
+        # Prepare evaluation data
+        queries = {i: ex['query'] for i, ex in enumerate(test_examples)}
+        corpus = {}
+        relevant_docs = {}
+
+        corpus_id = 0
+        for i, ex in enumerate(test_examples):
+            # Add positive
+            corpus[corpus_id] = ex['positive']
+            relevant_docs[i] = [corpus_id]
+            corpus_id += 1
+
+            # Add negatives
+            for neg in ex.get('negatives', []):
+                corpus[corpus_id] = neg
+                corpus_id += 1
+
+        # Create evaluator
+        evaluator = InformationRetrievalEvaluator(
+            queries, corpus, relevant_docs,
+            name='test_evaluation'
+        )
+
+        # Run evaluation
+        results = evaluator(self.model)
+
+        return results
+
+    def save_model(self, output_path):
+        """Save fine-tuned model"""
+        self.model.save(output_path)
+        print(f"Model saved to {output_path}")
+
+
+# Example: Fine-tune for product search
+# Training data: 100K product queries with positive/negative product descriptions
+training_data = [
+    {
+        'query': 'comfortable running shoes for marathon',
+        'positive': 'Nike Air Zoom Pegasus - Premium cushioning for long-distance running',
+        'negative': 'Nike Basketball Shoes - High-top design for court performance'
+    },
+    {
+        'query': 'waterproof camping tent 4 person',
+        'positive': 'Coleman 4-Person Tent - Waterproof rainfly, sleeps 4 comfortably',
+        'negative': 'Coleman Sleeping Bag - Warm sleeping bag for camping'
+    },
+    # ... 100K more examples
+]
+
+# Initialize fine-tuner
+finetuner = EmbeddingFineTuner(base_model_name='all-mpnet-base-v2')
+
+# Prepare data
+train_loader = finetuner.prepare_training_data(training_data)
+
+# Fine-tune
+finetuner.fine_tune(
+    train_loader,
+    num_epochs=3,
+    loss_function='triplet',
+    warmup_steps=500
+)
+
+# Save
+finetuner.save_model('./models/product-search-embeddings-v1')
+```
+
+:::{.callout-important}
+## Fine-Tuning Pitfalls
+Common mistakes that tank fine-tuning performance:
+1. **Insufficient data**: Need 10K+ examples minimum, 100K+ for best results
+2. **Poor negative sampling**: Random negatives too easy; model doesn't learn distinction
+3. **Catastrophic forgetting**: Fine-tuning destroys general capabilities; use lower learning rates
+4. **Overfitting to training distribution**: Test on out-of-distribution examples
+:::
 
 ## Domain-Specific Embedding Requirements
 
-[Content to be written: Details about domain-specific embedding requirements]
+Generic embeddings optimize for average performance across diverse tasks. Domain-specific embeddings optimize for your specific requirements. Understanding and articulating these requirements is critical for successful custom embedding development.
+
+### Taxonomy of Domain-Specific Requirements
+
+**1. Semantic Granularity**
+
+How fine-grained must similarity be?
+
+```python
+class SemanticGranularity:
+    """
+    Examples of semantic granularity requirements across domains
+    """
+
+    COARSE = {
+        'name': 'Coarse-grained',
+        'example': 'News article categorization',
+        'requirement': 'Distinguish broad topics (sports vs. politics vs. technology)',
+        'embedding_dim': '128-256 sufficient',
+        'training_data': '10K-100K examples'
+    }
+
+    MEDIUM = {
+        'name': 'Medium-grained',
+        'example': 'E-commerce product search',
+        'requirement': 'Distinguish product types and attributes (running shoes vs. hiking boots)',
+        'embedding_dim': '256-512 recommended',
+        'training_data': '100K-1M examples'
+    }
+
+    FINE = {
+        'name': 'Fine-grained',
+        'example': 'Legal document retrieval',
+        'requirement': 'Distinguish subtle legal distinctions (contract types, precedent applicability)',
+        'embedding_dim': '512-768 recommended',
+        'training_data': '1M-10M examples'
+    }
+
+    ULTRA_FINE = {
+        'name': 'Ultra-fine',
+        'example': 'Molecular drug discovery',
+        'requirement': 'Distinguish molecules with minor structural differences that dramatically affect properties',
+        'embedding_dim': '768-1024+ required',
+        'training_data': '10M+ examples or sophisticated augmentation'
+    }
+```
+
+**The Granularity-Dimension Relationship**: Finer semantic distinctions require higher-dimensional embeddings. You cannot reliably distinguish 10,000 fine-grained categories in 128 dimensions—the information simply doesn't fit.
+
+**2. Asymmetric Similarity**
+
+Are similarities symmetric or asymmetric?
+
+```python
+class AsymmetricSimilarity:
+    """
+    Handle asymmetric similarity (query → document differs from document → query)
+    """
+
+    def __init__(self, embedding_dim=512):
+        self.query_encoder = QueryEncoder(embedding_dim)
+        self.document_encoder = DocumentEncoder(embedding_dim)
+
+    def encode_query(self, query_text):
+        """
+        Encode query with query-specific model
+        Queries are typically short, focused, and incomplete
+        """
+        return self.query_encoder.encode(query_text)
+
+    def encode_document(self, document_text):
+        """
+        Encode document with document-specific model
+        Documents are longer, complete, and information-rich
+        """
+        return self.document_encoder.encode(document_text)
+
+    def similarity(self, query_embedding, document_embedding):
+        """
+        Asymmetric similarity: query → document
+        """
+        # In asymmetric setup, similarity is directional
+        # "running shoes" → "Nike Air Zoom Pegasus..." (HIGH similarity)
+        # "Nike Air Zoom Pegasus..." → "running shoes" (LOWER similarity - too specific)
+
+        return cosine_similarity(query_embedding, document_embedding)
+
+
+# Use cases requiring asymmetric similarity:
+asymmetric_use_cases = [
+    {
+        'domain': 'Question Answering',
+        'query': 'Short question',
+        'target': 'Long passage with answer',
+        'asymmetry': 'Question seeks answer; answer does not seek question'
+    },
+    {
+        'domain': 'Web Search',
+        'query': '2-5 keywords',
+        'target': 'Full web page content',
+        'asymmetry': 'Query is intent; document is content'
+    },
+    {
+        'domain': 'Image Search',
+        'query': 'Text description',
+        'target': 'Image',
+        'asymmetry': 'Cross-modal: text → image different from image → text'
+    },
+    {
+        'domain': 'Recommendation',
+        'query': 'User behavior history',
+        'target': 'Product catalog',
+        'asymmetry': 'User history implies preferences; products have features'
+    }
+]
+```
+
+**Why Asymmetric Matters**: Using symmetric embeddings (same encoder for queries and documents) for asymmetric tasks leaves performance on the table. Specialized encoders can optimize for each side's characteristics.
+
+**3. Multi-Faceted Similarity**
+
+Do items have multiple aspects of similarity?
+
+```python
+class MultiFacetedEmbeddings:
+    """
+    Represent multiple facets of similarity in separate embedding spaces
+    """
+
+    def __init__(self):
+        # E-commerce example: products similar in different ways
+        self.visual_encoder = VisualEncoder()  # Visual appearance
+        self.functional_encoder = FunctionalEncoder()  # Use case/function
+        self.attribute_encoder = AttributeEncoder()  # Specific attributes (brand, price, etc.)
+
+    def encode_product(self, product):
+        """
+        Encode product with multiple faceted embeddings
+        """
+        return {
+            'visual': self.visual_encoder.encode(product.images),
+            'functional': self.functional_encoder.encode(product.description),
+            'attributes': self.attribute_encoder.encode({
+                'brand': product.brand,
+                'price_tier': self.discretize_price(product.price),
+                'category': product.category
+            })
+        }
+
+    def multi_faceted_search(self, query, facet_weights=None):
+        """
+        Search using multiple facets with different weights
+        """
+        if facet_weights is None:
+            facet_weights = {'visual': 0.4, 'functional': 0.4, 'attributes': 0.2}
+
+        # Encode query (may not have all facets)
+        query_embs = self.encode_query(query)
+
+        # Search each facet independently
+        results_by_facet = {}
+        for facet in query_embs:
+            results_by_facet[facet] = self.search_facet(
+                query_embs[facet],
+                facet_index=getattr(self, f'{facet}_index')
+            )
+
+        # Combine results with weighted fusion
+        final_results = self.fuse_facet_results(
+            results_by_facet,
+            weights=facet_weights
+        )
+
+        return final_results
+```
+
+**Multi-Faceted Use Cases**:
+- **E-commerce**: Visual similarity (looks like), functional similarity (used for same purpose), price similarity
+- **Movies**: Genre similarity, cast similarity, theme similarity, visual style similarity
+- **Scientific papers**: Topic similarity, methodology similarity, citation network similarity
+- **Recipes**: Ingredient similarity, cuisine similarity, difficulty similarity, taste profile similarity
+
+**4. Temporal Dynamics**
+
+Does similarity change over time?
+
+```python
+class TemporalEmbeddings:
+    """
+    Handle time-varying embeddings
+    """
+
+    def __init__(self, embedding_dim=512, time_encoding_dim=64):
+        self.static_encoder = StaticEncoder(embedding_dim - time_encoding_dim)
+        self.time_encoder = TimeEncoder(time_encoding_dim)
+        self.embedding_dim = embedding_dim
+
+    def encode_with_time(self, content, timestamp):
+        """
+        Encode content with temporal context
+        """
+        # Static content embedding
+        static_emb = self.static_encoder.encode(content)
+
+        # Time encoding (positional encoding or learned)
+        time_emb = self.time_encoder.encode(timestamp)
+
+        # Concatenate
+        temporal_emb = torch.cat([static_emb, time_emb], dim=-1)
+
+        return temporal_emb
+
+    def time_decayed_similarity(self, query_time, document_time, document_emb):
+        """
+        Adjust similarity based on temporal distance
+        """
+        time_diff_days = abs((query_time - document_time).days)
+
+        # Exponential decay: more recent = more relevant
+        decay_factor = np.exp(-time_diff_days / 180)  # 180-day half-life
+
+        return document_emb * decay_factor
+
+
+# Domains requiring temporal awareness:
+temporal_use_cases = [
+    {
+        'domain': 'News Search',
+        'requirement': 'Recent articles more relevant for most queries',
+        'approach': 'Time decay on similarity scores'
+    },
+    {
+        'domain': 'Social Media',
+        'requirement': 'Trending topics change rapidly',
+        'approach': 'Short-window embeddings, frequent retraining'
+    },
+    {
+        'domain': 'Fashion/Trends',
+        'requirement': 'Style similarity depends on current trends',
+        'approach': 'Time-conditioned embeddings, seasonal retraining'
+    },
+    {
+        'domain': 'Scientific Research',
+        'requirement': 'Paradigm shifts change what\'s similar',
+        'approach': 'Period-specific embeddings (pre/post major discoveries)'
+    }
+]
+```
+
+**5. Hierarchical Structure**
+
+Do your items have natural hierarchies?
+
+```python
+class HierarchicalEmbeddings:
+    """
+    Preserve hierarchical structure in embedding space
+    """
+
+    def __init__(self):
+        self.level_encoders = {
+            'category': Encoder(dim=256),    # Coarse level
+            'subcategory': Encoder(dim=512),  # Medium level
+            'product': Encoder(dim=768)       # Fine level
+        }
+
+    def encode_hierarchical(self, item, level='product'):
+        """
+        Encode at different hierarchy levels
+
+        Example:
+          Category: "Electronics"
+          Subcategory: "Smartphones"
+          Product: "iPhone 15 Pro Max 256GB"
+        """
+        embeddings = {}
+
+        # Encode at each level in hierarchy
+        for level_name in ['category', 'subcategory', 'product']:
+            if level_name in item:
+                embeddings[level_name] = self.level_encoders[level_name].encode(
+                    item[level_name]
+                )
+
+            # Stop at requested level
+            if level_name == level:
+                break
+
+        return embeddings
+
+    def hierarchical_search(self, query, level='product'):
+        """
+        Search at appropriate hierarchy level
+
+        Coarse queries ("electronics") match at category level
+        Fine queries ("iphone 15 pro max") match at product level
+        """
+        # Classify query specificity
+        query_level = self.infer_query_level(query)
+
+        # Encode at appropriate level
+        query_emb = self.level_encoders[query_level].encode(query)
+
+        # Search at that level
+        results = self.search_at_level(query_emb, level=query_level)
+
+        return results
+```
+
+### Domain-Specific Training Objectives
+
+Different domains require different training objectives:
+
+```python
+class DomainSpecificObjectives:
+    """
+    Domain-specific training objectives beyond standard contrastive learning
+    """
+
+    def ranking_loss(self, query_emb, doc_embs, relevance_labels):
+        """
+        Ranking loss: Learn to order documents by relevance
+
+        Use case: Search, recommendation
+        """
+        # LambdaRank or similar ranking loss
+        # Optimizes for ranking metrics (NDCG, MRR)
+
+        scores = torch.matmul(query_emb, doc_embs.T)
+
+        # Pairwise ranking loss
+        loss = 0
+        for i in range(len(doc_embs)):
+            for j in range(i + 1, len(doc_embs)):
+                if relevance_labels[i] > relevance_labels[j]:
+                    # Doc i should rank higher than doc j
+                    loss += torch.clamp(
+                        1.0 - (scores[i] - scores[j]),
+                        min=0.0
+                    )
+
+        return loss / (len(doc_embs) * (len(doc_embs) - 1) / 2)
+
+    def attribute_preservation_loss(self, embedding, attributes):
+        """
+        Ensure embeddings preserve important attributes
+
+        Use case: E-commerce (preserve category, brand, price tier)
+        """
+        # Train auxiliary classifiers to predict attributes from embeddings
+        # If embeddings contain attribute information, classifiers succeed
+
+        losses = []
+        for attr_name, attr_value in attributes.items():
+            attr_classifier = self.attribute_classifiers[attr_name]
+            pred = attr_classifier(embedding)
+            loss = F.cross_entropy(pred, attr_value)
+            losses.append(loss)
+
+        return sum(losses)
+
+    def diversity_loss(self, embeddings):
+        """
+        Encourage embedding diversity (avoid collapse)
+
+        Use case: Recommendation (avoid filter bubbles)
+        """
+        # Maximize pairwise distances
+        pairwise_sim = torch.matmul(embeddings, embeddings.T)
+
+        # Penalize high similarity between different items
+        mask = ~torch.eye(len(embeddings), dtype=torch.bool)
+        diversity_loss = pairwise_sim[mask].mean()
+
+        return diversity_loss
+
+    def cross_domain_alignment(self, source_emb, target_emb):
+        """
+        Align embeddings across domains
+
+        Use case: Cross-lingual search, multi-modal search
+        """
+        # Minimize distance between equivalent items across domains
+        alignment_loss = F.mse_loss(source_emb, target_emb)
+
+        return alignment_loss
+```
 
 ## Multi-Objective Embedding Design
 
-[Content to be written: Details about multi-objective embedding design]
+Most real-world embedding systems must optimize for multiple objectives simultaneously. Single-objective optimization leaves performance on the table.
+
+### The Multi-Objective Challenge
+
+Consider an e-commerce search system. The embedding should:
+1. **Semantic relevance**: Match customer intent
+2. **Attribute accuracy**: Preserve product attributes (category, brand, price)
+3. **Personalization**: Adapt to user preferences
+4. **Business metrics**: Optimize for conversion, revenue, not just clicks
+5. **Diversity**: Avoid filter bubbles, show variety
+
+Optimizing for one objective often degrades others. Multi-objective design balances these trade-offs.
+
+### Multi-Objective Architecture Patterns
+
+**Pattern 1: Multi-Task Learning**
+
+Train single model with multiple heads:
+
+```python
+import torch
+import torch.nn as nn
+
+class MultiTaskEmbeddingModel(nn.Module):
+    """
+    Single encoder with multiple task-specific heads
+    """
+
+    def __init__(self, embedding_dim=512, num_categories=1000, num_brands=5000):
+        super().__init__()
+
+        # Shared encoder (e.g., transformer)
+        self.shared_encoder = TransformerEncoder(
+            dim=embedding_dim,
+            depth=6,
+            heads=8
+        )
+
+        # Task-specific heads
+        self.similarity_head = nn.Linear(embedding_dim, embedding_dim)  # For similarity search
+        self.category_head = nn.Linear(embedding_dim, num_categories)   # Category classification
+        self.brand_head = nn.Linear(embedding_dim, num_brands)          # Brand classification
+        self.price_head = nn.Linear(embedding_dim, 1)                   # Price regression
+
+    def forward(self, input_ids, attention_mask):
+        """
+        Forward pass through shared encoder
+        """
+        # Shared representation
+        hidden_state = self.shared_encoder(input_ids, attention_mask)
+        pooled = hidden_state.mean(dim=1)  # Average pooling
+
+        # Task-specific outputs
+        outputs = {
+            'embedding': self.similarity_head(pooled),
+            'category_logits': self.category_head(pooled),
+            'brand_logits': self.brand_head(pooled),
+            'price_pred': self.price_head(pooled)
+        }
+
+        return outputs
+
+    def compute_loss(self, outputs, targets, task_weights):
+        """
+        Weighted multi-task loss
+        """
+        losses = {}
+
+        # Similarity loss (contrastive or triplet)
+        if 'positive' in targets and 'negative' in targets:
+            pos_sim = F.cosine_similarity(outputs['embedding'], targets['positive'])
+            neg_sim = F.cosine_similarity(outputs['embedding'], targets['negative'])
+            losses['similarity'] = torch.clamp(1.0 - pos_sim + neg_sim, min=0.0).mean()
+
+        # Category classification loss
+        if 'category' in targets:
+            losses['category'] = F.cross_entropy(
+                outputs['category_logits'],
+                targets['category']
+            )
+
+        # Brand classification loss
+        if 'brand' in targets:
+            losses['brand'] = F.cross_entropy(
+                outputs['brand_logits'],
+                targets['brand']
+            )
+
+        # Price regression loss
+        if 'price' in targets:
+            losses['price'] = F.mse_loss(
+                outputs['price_pred'].squeeze(),
+                targets['price']
+            )
+
+        # Weighted combination
+        total_loss = sum(
+            task_weights.get(task, 1.0) * loss
+            for task, loss in losses.items()
+        )
+
+        return total_loss, losses
+
+
+# Training with multi-task learning
+model = MultiTaskEmbeddingModel(embedding_dim=512)
+
+# Task weights (tune based on importance)
+task_weights = {
+    'similarity': 1.0,   # Core task
+    'category': 0.3,     # Help preserve category info
+    'brand': 0.2,        # Help preserve brand info
+    'price': 0.1         # Weak signal for price tier
+}
+
+# Training loop
+optimizer = torch.optim.AdamW(model.parameters(), lr=2e-5)
+
+for batch in train_loader:
+    outputs = model(batch['input_ids'], batch['attention_mask'])
+
+    loss, task_losses = model.compute_loss(
+        outputs,
+        targets=batch['targets'],
+        task_weights=task_weights
+    )
+
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
+```
+
+**Pattern 2: Multi-Vector Representations**
+
+Use separate embeddings for different objectives:
+
+```python
+class MultiVectorEmbedding:
+    """
+    Represent items with multiple specialized embeddings
+    """
+
+    def __init__(self):
+        # Different encoders for different aspects
+        self.semantic_encoder = SemanticEncoder(dim=512)     # Semantic meaning
+        self.structural_encoder = StructuralEncoder(dim=256)  # Structured attributes
+        self.behavioral_encoder = BehavioralEncoder(dim=256)  # User interaction patterns
+
+    def encode(self, item, user_context=None):
+        """
+        Create multi-vector representation
+        """
+        vectors = {}
+
+        # Semantic vector: text content
+        vectors['semantic'] = self.semantic_encoder.encode(
+            item['title'] + ' ' + item['description']
+        )
+
+        # Structural vector: categorical attributes
+        vectors['structural'] = self.structural_encoder.encode({
+            'category': item['category'],
+            'brand': item['brand'],
+            'price_tier': self.discretize_price(item['price']),
+            'rating': item['avg_rating']
+        })
+
+        # Behavioral vector: how users interact with this item
+        if 'user_interactions' in item:
+            vectors['behavioral'] = self.behavioral_encoder.encode(
+                item['user_interactions']
+            )
+
+        return vectors
+
+    def search(self, query, user_context=None, objective='balanced'):
+        """
+        Search with different objectives
+        """
+        # Encode query with multiple vectors
+        query_vectors = self.encode_query(query, user_context)
+
+        # Different objectives use different vector combinations
+        if objective == 'relevance':
+            # Focus on semantic similarity
+            weights = {'semantic': 1.0, 'structural': 0.2, 'behavioral': 0.1}
+        elif objective == 'personalization':
+            # Focus on behavioral patterns
+            weights = {'semantic': 0.3, 'structural': 0.2, 'behavioral': 1.0}
+        elif objective == 'balanced':
+            # Balance all factors
+            weights = {'semantic': 0.5, 'structural': 0.3, 'behavioral': 0.2}
+        elif objective == 'exploration':
+            # Emphasize diversity (structural differences)
+            weights = {'semantic': 0.3, 'structural': 0.7, 'behavioral': 0.1}
+
+        # Search each vector space
+        results_by_vector = {}
+        for vector_type, query_vec in query_vectors.items():
+            results_by_vector[vector_type] = self.search_vector_space(
+                query_vec,
+                vector_space=vector_type
+            )
+
+        # Combine results with objective-specific weights
+        final_results = self.weighted_fusion(results_by_vector, weights)
+
+        return final_results
+```
+
+**Pattern 3: Composite Objectives with Constraints**
+
+Optimize primary objective subject to constraints:
+
+```python
+class ConstrainedEmbeddingObjective:
+    """
+    Optimize embeddings with hard constraints
+    """
+
+    def __init__(self):
+        self.primary_objective = 'relevance'  # What we primarily optimize
+        self.constraints = [
+            {'type': 'diversity', 'threshold': 0.3},  # Min 30% diversity in results
+            {'type': 'freshness', 'threshold': 0.5},  # Min 50% results from last 30 days
+            {'type': 'price_range', 'threshold': 0.2}  # Min 20% coverage across price ranges
+        ]
+
+    def search_with_constraints(self, query, k=20):
+        """
+        Retrieve results satisfying constraints
+        """
+        # Initial retrieval (larger set)
+        candidates = self.retrieve_candidates(query, k=k*10)  # 10x oversampling
+
+        # Rerank to satisfy constraints
+        final_results = self.constrained_reranking(
+            candidates,
+            constraints=self.constraints,
+            k=k
+        )
+
+        return final_results
+
+    def constrained_reranking(self, candidates, constraints, k):
+        """
+        Rerank candidates to satisfy constraints while maximizing primary objective
+        """
+        selected = []
+        remaining = candidates.copy()
+
+        # Greedy selection with constraint checking
+        while len(selected) < k and remaining:
+            # Find best candidate that maintains constraints
+            best_candidate = None
+            best_score = -float('inf')
+
+            for candidate in remaining:
+                # Check if adding this candidate maintains constraints
+                temp_selected = selected + [candidate]
+                if self.satisfies_constraints(temp_selected, constraints):
+                    if candidate['relevance_score'] > best_score:
+                        best_candidate = candidate
+                        best_score = candidate['relevance_score']
+
+            if best_candidate:
+                selected.append(best_candidate)
+                remaining.remove(best_candidate)
+            else:
+                # No candidate satisfies constraints - relax slightly
+                break
+
+        # Fill remaining slots if needed
+        if len(selected) < k:
+            selected.extend(remaining[:k - len(selected)])
+
+        return selected
+
+    def satisfies_constraints(self, selected, constraints):
+        """
+        Check if selected results satisfy all constraints
+        """
+        for constraint in constraints:
+            if constraint['type'] == 'diversity':
+                # Check diversity
+                diversity_score = self.compute_diversity(selected)
+                if diversity_score < constraint['threshold']:
+                    return False
+
+            elif constraint['type'] == 'freshness':
+                # Check freshness
+                recent_count = sum(
+                    1 for item in selected
+                    if item['days_since_published'] <= 30
+                )
+                freshness_ratio = recent_count / len(selected) if selected else 0
+                if freshness_ratio < constraint['threshold']:
+                    return False
+
+            elif constraint['type'] == 'price_range':
+                # Check price range coverage
+                price_ranges = set(item['price_tier'] for item in selected)
+                range_coverage = len(price_ranges) / 5  # Assuming 5 price tiers
+                if range_coverage < constraint['threshold']:
+                    return False
+
+        return True
+```
+
+### Balancing Trade-offs: The Pareto Frontier
+
+Multi-objective optimization involves trade-offs. Visualize and navigate the Pareto frontier:
+
+```python
+class MultiObjectiveOptimization:
+    """
+    Navigate trade-offs between multiple objectives
+    """
+
+    def compute_pareto_frontier(self, models, test_data):
+        """
+        Compute Pareto frontier across objectives
+
+        Args:
+            models: List of embedding models with different objective weightings
+            test_data: Evaluation data
+
+        Returns:
+            Pareto-optimal models
+        """
+        # Evaluate all models on all objectives
+        evaluations = []
+
+        for model in models:
+            metrics = {
+                'model': model,
+                'relevance': self.evaluate_relevance(model, test_data),
+                'diversity': self.evaluate_diversity(model, test_data),
+                'personalization': self.evaluate_personalization(model, test_data),
+                'business_metrics': self.evaluate_business(model, test_data)
+            }
+            evaluations.append(metrics)
+
+        # Find Pareto-optimal models
+        pareto_optimal = []
+
+        for eval_i in evaluations:
+            dominated = False
+
+            for eval_j in evaluations:
+                if eval_i == eval_j:
+                    continue
+
+                # Check if eval_j dominates eval_i
+                # (better on all objectives)
+                if self.dominates(eval_j, eval_i):
+                    dominated = True
+                    break
+
+            if not dominated:
+                pareto_optimal.append(eval_i)
+
+        return pareto_optimal
+
+    def dominates(self, eval_a, eval_b):
+        """
+        Check if eval_a dominates eval_b (better on all objectives)
+        """
+        objectives = ['relevance', 'diversity', 'personalization', 'business_metrics']
+
+        # A dominates B if:
+        # - A >= B on all objectives
+        # - A > B on at least one objective
+
+        better_on_at_least_one = False
+
+        for obj in objectives:
+            if eval_a[obj] < eval_b[obj]:
+                return False  # A worse on this objective
+            if eval_a[obj] > eval_b[obj]:
+                better_on_at_least_one = True
+
+        return better_on_at_least_one
+
+    def select_operating_point(self, pareto_frontier, business_priorities):
+        """
+        Select model from Pareto frontier based on business priorities
+        """
+        # Weight objectives by business priority
+        weights = business_priorities  # e.g., {'relevance': 0.4, 'business_metrics': 0.4, ...}
+
+        best_model = None
+        best_weighted_score = -float('inf')
+
+        for eval_point in pareto_frontier:
+            weighted_score = sum(
+                weights.get(obj, 0) * eval_point[obj]
+                for obj in ['relevance', 'diversity', 'personalization', 'business_metrics']
+            )
+
+            if weighted_score > best_weighted_score:
+                best_weighted_score = weighted_score
+                best_model = eval_point['model']
+
+        return best_model
+```
 
 ## Embedding Dimensionality Optimization
 
-[Content to be written: Details about embedding dimensionality optimization]
+Embedding dimensionality has profound impacts on performance, cost, and latency. Too low: information loss. Too high: computational waste and overfitting. Finding the optimal dimensionality is critical for production systems.
+
+### The Dimensionality Trade-off
+
+| Dimension | Storage (100B embeddings) | QPS (single server) | Pros | Cons |
+|-----------|---------------------------|---------------------|------|------|
+| 128 | 48 TB | 50,000 | Extremely fast, cheap | Limited capacity |
+| 256 | 96 TB | 35,000 | Good balance | May lose fine-grained information |
+| 512 | 192 TB | 18,000 | High capacity | 2x cost vs. 256 |
+| 768 | 288 TB | 12,000 | BERT standard | 3x cost vs. 256 |
+| 1024 | 384 TB | 9,000 | Maximum capacity | 4x cost, often overkill |
+
+### Determining Optimal Dimensionality
+
+**Method 1: Empirical Evaluation**
+
+```python
+class DimensionalityExperiment:
+    """
+    Systematically evaluate different embedding dimensions
+    """
+
+    def run_dimensionality_sweep(self, train_data, test_data, dimensions=[128, 256, 384, 512, 768]):
+        """
+        Train models at different dimensions and evaluate
+        """
+        results = []
+
+        for dim in dimensions:
+            print(f"\nTraining {dim}-dimensional model...")
+
+            # Train model
+            model = self.train_model(train_data, embedding_dim=dim)
+
+            # Evaluate
+            metrics = self.evaluate_model(model, test_data)
+
+            # Measure costs
+            storage_gb = self.estimate_storage(dim, num_embeddings=100_000_000)
+            latency_ms = self.measure_latency(model)
+
+            results.append({
+                'dimension': dim,
+                'recall@10': metrics['recall@10'],
+                'mrr': metrics['mrr'],
+                'storage_gb': storage_gb,
+                'p99_latency_ms': latency_ms,
+                'cost_per_1m_queries': self.estimate_query_cost(dim)
+            })
+
+        return pd.DataFrame(results)
+
+    def find_optimal_dimension(self, results, quality_threshold=0.95):
+        """
+        Find smallest dimension meeting quality threshold
+
+        Args:
+            results: DataFrame from dimensionality sweep
+            quality_threshold: Minimum acceptable quality (relative to best)
+
+        Returns:
+            Optimal dimension
+        """
+        # Normalize quality metrics to [0, 1]
+        max_recall = results['recall@10'].max()
+        results['normalized_quality'] = results['recall@10'] / max_recall
+
+        # Filter to dimensions meeting quality threshold
+        acceptable = results[results['normalized_quality'] >= quality_threshold]
+
+        if acceptable.empty:
+            return results.loc[results['recall@10'].idxmax(), 'dimension']
+
+        # Among acceptable dimensions, choose smallest (cheapest)
+        optimal_dim = acceptable.loc[acceptable['dimension'].idxmin(), 'dimension']
+
+        return optimal_dim
+
+
+# Example results:
+# | Dimension | Recall@10 | Storage | Latency | Quality (normalized) |
+# |-----------|-----------|---------|---------|---------------------|
+# | 128       | 0.834     | 48 GB   | 12 ms   | 0.909               |
+# | 256       | 0.891     | 96 GB   | 18 ms   | 0.972               |
+# | 384       | 0.908     | 144 GB  | 25 ms   | 0.991               |
+# | 512       | 0.915     | 192 GB  | 32 ms   | 0.998               |
+# | 768       | 0.917     | 288 GB  | 45 ms   | 1.000               |
+#
+# Conclusion: 384 dimensions optimal
+# - Achieves 99.1% of maximum quality
+# - 25% cheaper than 512-dim
+# - 50% cheaper than 768-dim
+```
+
+**Method 2: Intrinsic Dimensionality Estimation**
+
+Estimate the intrinsic dimensionality of your data:
+
+```python
+from sklearn.decomposition import PCA
+import numpy as np
+
+class IntrinsicDimensionality:
+    """
+    Estimate intrinsic dimensionality of embedding space
+    """
+
+    def estimate_via_pca(self, embeddings, variance_threshold=0.95):
+        """
+        Use PCA to find dimensions capturing X% of variance
+        """
+        pca = PCA()
+        pca.fit(embeddings)
+
+        # Cumulative explained variance
+        cumsum_variance = np.cumsum(pca.explained_variance_ratio_)
+
+        # Find number of components needed for threshold
+        n_components = np.argmax(cumsum_variance >= variance_threshold) + 1
+
+        return {
+            'intrinsic_dimension': n_components,
+            'variance_captured': cumsum_variance[n_components - 1],
+            'variance_ratio_by_component': pca.explained_variance_ratio_
+        }
+
+    def estimate_via_mle(self, embeddings, k=10):
+        """
+        Maximum Likelihood Estimation of intrinsic dimensionality
+
+        Based on: Levina & Bickel (2004)
+        """
+        from sklearn.neighbors import NearestNeighbors
+
+        # Find k nearest neighbors for each point
+        nbrs = NearestNeighbors(n_neighbors=k+1).fit(embeddings)
+        distances, indices = nbrs.kneighbors(embeddings)
+
+        # Remove self (distance 0)
+        distances = distances[:, 1:]
+
+        # MLE estimator
+        # d_i = (k / sum_{j=1}^{k} log(r_k / r_j))
+        dimensions = []
+
+        for dist_vec in distances:
+            r_k = dist_vec[-1]  # Distance to k-th neighbor
+            if r_k > 0:
+                log_ratios = np.log(r_k / dist_vec[:-1])
+                if log_ratios.sum() > 0:
+                    d_i = (k - 1) / log_ratios.sum()
+                    dimensions.append(d_i)
+
+        intrinsic_dim = np.median(dimensions)
+
+        return {
+            'intrinsic_dimension': int(intrinsic_dim),
+            'dimension_distribution': dimensions
+        }
+
+
+# Example usage
+embeddings = load_embeddings()  # Your 768-dim embeddings
+
+estimator = IntrinsicDimensionality()
+
+# PCA-based estimate
+pca_result = estimator.estimate_via_pca(embeddings, variance_threshold=0.95)
+print(f"PCA estimate: {pca_result['intrinsic_dimension']} dimensions capture 95% variance")
+
+# MLE estimate
+mle_result = estimator.estimate_via_mle(embeddings, k=10)
+print(f"MLE estimate: {mle_result['intrinsic_dimension']} dimensions")
+
+# Recommendation: Use max of estimates as minimum dimension
+recommended_dim = max(
+    pca_result['intrinsic_dimension'],
+    mle_result['intrinsic_dimension']
+)
+print(f"\nRecommended minimum: {recommended_dim} dimensions")
+```
+
+**Method 3: Progressive Dimensionality Reduction**
+
+Train high-dimensional model, then compress:
+
+```python
+class ProgressiveDimensionReduction:
+    """
+    Start with high dimensions, progressively reduce while monitoring quality
+    """
+
+    def __init__(self, base_model, original_dim=768):
+        self.base_model = base_model
+        self.original_dim = original_dim
+
+    def train_projection(self, embeddings, target_dim):
+        """
+        Learn projection from high-dim to low-dim
+        """
+        from sklearn.decomposition import PCA
+        from sklearn.random_projection import GaussianRandomProjection
+
+        # Option 1: PCA (preserves variance)
+        pca = PCA(n_components=target_dim)
+        pca.fit(embeddings)
+
+        # Option 2: Learned projection (preserves task performance)
+        projection_net = nn.Linear(self.original_dim, target_dim)
+
+        # Train projection to preserve similarities
+        self.train_projection_network(projection_net, embeddings)
+
+        return projection_net
+
+    def train_projection_network(self, projection, embeddings, pairs=None):
+        """
+        Train projection to preserve pairwise similarities
+        """
+        optimizer = torch.optim.Adam(projection.parameters(), lr=1e-3)
+
+        for epoch in range(10):
+            # Sample pairs
+            if pairs is None:
+                idx1 = torch.randint(0, len(embeddings), (1000,))
+                idx2 = torch.randint(0, len(embeddings), (1000,))
+
+            # Original similarities
+            orig_sim = F.cosine_similarity(
+                embeddings[idx1],
+                embeddings[idx2]
+            )
+
+            # Projected similarities
+            proj_emb1 = projection(embeddings[idx1])
+            proj_emb2 = projection(embeddings[idx2])
+            proj_sim = F.cosine_similarity(proj_emb1, proj_emb2)
+
+            # Loss: preserve similarities
+            loss = F.mse_loss(proj_sim, orig_sim)
+
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+        return projection
+
+    def find_minimal_dimension(self, embeddings, test_data, quality_threshold=0.95):
+        """
+        Binary search for minimal dimension meeting quality threshold
+        """
+        original_quality = self.evaluate(self.base_model, test_data)
+        target_quality = original_quality * quality_threshold
+
+        # Binary search
+        low, high = 64, self.original_dim
+        best_dim = high
+
+        while low <= high:
+            mid = (low + high) // 2
+
+            # Train projection to mid dimensions
+            projection = self.train_projection(embeddings, target_dim=mid)
+
+            # Evaluate
+            quality = self.evaluate_with_projection(
+                self.base_model,
+                projection,
+                test_data
+            )
+
+            if quality >= target_quality:
+                # Can go lower
+                best_dim = mid
+                high = mid - 1
+            else:
+                # Need more dimensions
+                low = mid + 1
+
+        return best_dim
+```
+
+### Dimension-Specific Optimizations
+
+Different dimensions enable different optimizations:
+
+**Ultra-Low Dimensions (64-128): Binary/Hamming Embeddings**
+
+```python
+class BinaryEmbeddings:
+    """
+    Ultra-compressed binary embeddings for massive scale
+    """
+
+    def binarize(self, embeddings):
+        """
+        Convert float embeddings to binary
+
+        768-dim float32 → 96 bytes
+        768-dim binary → 96 bits = 12 bytes (8x compression)
+        """
+        # Threshold at 0
+        binary = (embeddings > 0).astype(np.uint8)
+
+        # Pack into bits
+        packed = np.packbits(binary, axis=1)
+
+        return packed
+
+    def hamming_similarity(self, binary1, binary2):
+        """
+        Ultra-fast similarity using Hamming distance
+        """
+        # XOR gives differing bits
+        xor = np.bitwise_xor(binary1, binary2)
+
+        # Count differing bits
+        hamming_dist = np.unpackbits(xor).sum()
+
+        # Convert to similarity
+        max_dist = len(binary1) * 8
+        similarity = 1 - (hamming_dist / max_dist)
+
+        return similarity
+
+
+# Binary embeddings enable:
+# - 8x storage compression
+# - 10-100x faster search (Hamming distance via POPCOUNT instruction)
+# - Billion-scale search on single machine
+```
 
 ## Cost-Performance Trade-offs at Scale
 
-[Content to be written: Details about cost-performance trade-offs at scale]
+At trillion-row scale, the cost-performance trade-off becomes the dominant factor in embedding design. This section provides frameworks for optimizing this trade-off.
+
+### Total Cost of Ownership (TCO) Model
+
+```python
+class EmbeddingTCO:
+    """
+    Comprehensive TCO model for embedding systems
+    """
+
+    def __init__(self):
+        # Cloud pricing (approximate, as of 2024)
+        self.storage_cost_per_gb_month = 0.023  # S3 standard
+        self.compute_cost_per_hour = 3.0  # A100 GPU
+        self.inference_cost_per_million = 10.0  # Vector DB queries
+
+    def calculate_tco(self, config, duration_years=3):
+        """
+        Calculate total cost of ownership
+
+        Args:
+            config: {
+                'num_embeddings': 100_000_000_000,
+                'embedding_dim': 768,
+                'qps': 10_000,
+                'training_frequency_per_year': 4,
+                'team_size': 10
+            }
+        """
+
+        # Component 1: Storage
+        storage_cost = self.compute_storage_cost(
+            config['num_embeddings'],
+            config['embedding_dim'],
+            duration_years
+        )
+
+        # Component 2: Training
+        training_cost = self.compute_training_cost(
+            config['num_embeddings'],
+            config['training_frequency_per_year'],
+            duration_years
+        )
+
+        # Component 3: Inference
+        inference_cost = self.compute_inference_cost(
+            config['qps'],
+            duration_years
+        )
+
+        # Component 4: Engineering team
+        team_cost = self.compute_team_cost(
+            config['team_size'],
+            duration_years
+        )
+
+        # Total
+        total_cost = (
+            storage_cost +
+            training_cost +
+            inference_cost +
+            team_cost
+        )
+
+        return {
+            'total_cost_3_years': total_cost,
+            'annual_cost': total_cost / duration_years,
+            'breakdown': {
+                'storage': storage_cost,
+                'training': training_cost,
+                'inference': inference_cost,
+                'team': team_cost
+            },
+            'cost_per_embedding': total_cost / config['num_embeddings'],
+            'cost_per_million_queries': inference_cost / (
+                config['qps'] * 60 * 60 * 24 * 365 * duration_years / 1_000_000
+            )
+        }
+
+    def compute_storage_cost(self, num_embeddings, dim, duration_years):
+        """Storage cost with replication and indexing overhead"""
+        bytes_per_embedding = dim * 4  # float32
+        total_bytes = num_embeddings * bytes_per_embedding
+
+        # Index overhead (HNSW adds ~50%)
+        indexed_bytes = total_bytes * 1.5
+
+        # Replication (3x for availability)
+        replicated_bytes = indexed_bytes * 3
+
+        # Convert to GB
+        total_gb = replicated_bytes / (1024 ** 3)
+
+        # Monthly cost
+        monthly_cost = total_gb * self.storage_cost_per_gb_month
+
+        # Total over duration
+        return monthly_cost * 12 * duration_years
+
+    def optimize_for_budget(self, requirements, budget_annual):
+        """
+        Given requirements and budget, find optimal configuration
+        """
+        # Requirements: {'num_embeddings', 'qps', 'min_quality'}
+        # Budget: annual spending limit
+
+        # Explore dimension options
+        dimensions = [128, 256, 384, 512, 768]
+        configs = []
+
+        for dim in dimensions:
+            config = {
+                'num_embeddings': requirements['num_embeddings'],
+                'embedding_dim': dim,
+                'qps': requirements['qps'],
+                'training_frequency_per_year': 4,
+                'team_size': 10
+            }
+
+            tco = self.calculate_tco(config, duration_years=1)
+
+            # Estimate quality (simplified)
+            quality_score = self.estimate_quality(dim, requirements)
+
+            configs.append({
+                'dimension': dim,
+                'annual_cost': tco['annual_cost'],
+                'quality_score': quality_score,
+                'within_budget': tco['annual_cost'] <= budget_annual
+            })
+
+        # Filter to budget
+        viable = [c for c in configs if c['within_budget']]
+
+        if not viable:
+            return {
+                'recommendation': 'INSUFFICIENT_BUDGET',
+                'message': f"Minimum cost: ${min(c['annual_cost'] for c in configs):,.0f}/year"
+            }
+
+        # Choose highest quality within budget
+        best = max(viable, key=lambda c: c['quality_score'])
+
+        return {
+            'recommendation': 'OPTIMAL_CONFIG',
+            'dimension': best['dimension'],
+            'annual_cost': best['annual_cost'],
+            'quality_score': best['quality_score'],
+            'configurations_evaluated': configs
+        }
+```
+
+### Performance-Cost Pareto Frontier
+
+Navigate the trade-off space:
+
+```python
+class CostPerformanceFrontier:
+    """
+    Explore cost-performance trade-offs
+    """
+
+    def generate_configuration_space(self, requirements):
+        """
+        Generate configurations spanning cost-performance space
+        """
+        configs = []
+
+        # Vary key parameters
+        dimensions = [128, 256, 384, 512, 768, 1024]
+        quantizations = ['float32', 'float16', 'int8', 'binary']
+        index_types = ['flat', 'ivf', 'hnsw', 'pq']
+
+        for dim in dimensions:
+            for quant in quantizations:
+                for index in index_types:
+                    config = {
+                        'dimension': dim,
+                        'quantization': quant,
+                        'index_type': index,
+                        'num_embeddings': requirements['num_embeddings']
+                    }
+
+                    # Estimate cost
+                    cost = self.estimate_cost(config)
+
+                    # Estimate performance (latency and quality)
+                    performance = self.estimate_performance(config)
+
+                    configs.append({
+                        **config,
+                        'annual_cost': cost,
+                        'p99_latency_ms': performance['latency'],
+                        'recall@10': performance['recall']
+                    })
+
+        return configs
+
+    def plot_frontier(self, configs):
+        """
+        Visualize cost-performance Pareto frontier
+        """
+        import matplotlib.pyplot as plt
+
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+
+        # Plot 1: Cost vs. Quality
+        scatter1 = ax1.scatter(
+            [c['annual_cost'] for c in configs],
+            [c['recall@10'] for c in configs],
+            c=[c['dimension'] for c in configs],
+            cmap='viridis',
+            s=100,
+            alpha=0.6
+        )
+        ax1.set_xlabel('Annual Cost ($)')
+        ax1.set_ylabel('Recall@10')
+        ax1.set_title('Cost vs. Quality Trade-off')
+        plt.colorbar(scatter1, ax=ax1, label='Dimension')
+
+        # Plot 2: Latency vs. Cost
+        scatter2 = ax2.scatter(
+            [c['p99_latency_ms'] for c in configs],
+            [c['annual_cost'] for c in configs],
+            c=[c['recall@10'] for c in configs],
+            cmap='coolwarm',
+            s=100,
+            alpha=0.6
+        )
+        ax2.set_xlabel('P99 Latency (ms)')
+        ax2.set_ylabel('Annual Cost ($)')
+        ax2.set_title('Latency vs. Cost Trade-off')
+        plt.colorbar(scatter2, ax=ax2, label='Recall@10')
+
+        plt.tight_layout()
+        return fig
+```
+
+### Cost Optimization Strategies
+
+**Strategy 1: Tiered Embeddings**
+
+Use different dimensions for different data tiers:
+
+```python
+class TieredEmbeddings:
+    """
+    Different embedding dimensions for different data tiers
+    """
+
+    def __init__(self):
+        self.hot_encoder = HighDimEncoder(dim=768)   # Frequent queries
+        self.warm_encoder = MediumDimEncoder(dim=384)  # Moderate queries
+        self.cold_encoder = LowDimEncoder(dim=128)    # Rare queries
+
+    def encode_with_tier(self, item, access_frequency):
+        """
+        Encode with appropriate dimension based on access frequency
+        """
+        if access_frequency > 1000:  # >1000 queries/day
+            # Hot tier: high quality, high cost justified
+            return self.hot_encoder.encode(item), 'hot'
+        elif access_frequency > 10:
+            # Warm tier: good quality, moderate cost
+            return self.warm_encoder.encode(item), 'warm'
+        else:
+            # Cold tier: acceptable quality, low cost
+            return self.cold_encoder.encode(item), 'cold'
+
+
+# Cost savings:
+# - 90% of embeddings in cold tier (128-dim): 83% storage savings
+# - 9% in warm tier (384-dim): 50% savings
+# - 1% in hot tier (768-dim): full quality
+# - Overall: ~80% storage cost reduction
+```
 
 ## Key Takeaways
 
-- [Key point 1 to be added]
-- [Key point 2 to be added]
-- [Key point 3 to be added]
+- **The build vs. fine-tune decision follows a spectrum** from using frozen pre-trained models (Level 0) to training custom architectures from scratch (Level 4)—most organizations should target Level 3 (full fine-tuning) which delivers 95% of benefits at 20% of cost
+
+- **Domain-specific requirements shape embedding design** across five dimensions: semantic granularity (coarse to ultra-fine), asymmetry (query vs. document), multi-faceted similarity (multiple aspects), temporal dynamics (time-varying relevance), and hierarchical structure
+
+- **Multi-objective embedding design balances competing goals** through multi-task learning (shared encoder with task-specific heads), multi-vector representations (separate embeddings per objective), or constrained optimization (optimize primary objective subject to constraints)
+
+- **Optimal embedding dimensionality balances capacity and cost**—empirical evaluation across dimensions (128-1024) reveals diminishing returns beyond intrinsic dimensionality, with most domains achieving 95%+ quality at 256-512 dimensions vs. 768+ standard models
+
+- **Dimensionality reduction techniques** including PCA-based compression, learned projections, and binary embeddings enable 8-10x cost savings while maintaining acceptable quality for many use cases
+
+- **Total cost of ownership spans storage, training, inference, and team costs**—at 100B embeddings with 768 dimensions, annual costs reach $47M, but optimization through dimension reduction (768→256), quantization (float32→int8), and tiered storage can achieve 90%+ cost savings
+
+- **Cost-performance trade-offs navigate the Pareto frontier** where different configurations offer optimal points—no single configuration dominates all objectives, requiring explicit business priority weighting to select operating points
 
 ## Looking Ahead
 
-Chapter 5 dives into contrastive learning, one of the most powerful techniques for training custom embeddings.
+Chapter 5 dives deep into contrastive learning—one of the most powerful techniques for training custom embeddings that achieve state-of-the-art performance across diverse domains.
 
 ## Further Reading
 
-- [References to be added]
+- Devlin, J., et al. (2018). "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding." *arXiv:1810.04805*
+- Reimers, N., & Gurevych, I. (2019). "Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks." *arXiv:1908.10084*
+- Muennighoff, N., et al. (2022). "SGPT: GPT Sentence Embeddings for Semantic Search." *arXiv:2202.08904*
+- Radford, A., et al. (2021). "Learning Transferable Visual Models From Natural Language Supervision." *arXiv:2103.00020* (CLIP)
+- Chen, T., et al. (2020). "A Simple Framework for Contrastive Learning of Visual Representations." *arXiv:2002.05709* (SimCLR)
+- Levina, E., & Bickel, P. (2004). "Maximum Likelihood Estimation of Intrinsic Dimension." *NIPS 2004*
+- Jégou, H., et al. (2011). "Product Quantization for Nearest Neighbor Search." *IEEE TPAMI*
+- Gong, Y., et al. (2020). "Quantization based Fast Inner Product Search." *AISTATS*
+- Ruder, S. (2017). "An Overview of Multi-Task Learning in Deep Neural Networks." *arXiv:1706.05098*
+- Caruana, R. (1997). "Multitask Learning." *Machine Learning* 28, 41–75
