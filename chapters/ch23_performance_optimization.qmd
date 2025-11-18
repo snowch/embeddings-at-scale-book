@@ -1,40 +1,3392 @@
-# Performance Optimization Mastery {{#sec-performance-optimization}}
+# Performance Optimization Mastery {#sec-performance-optimization}
 
-:::{{.callout-note}}
+:::{.callout-note}
 ## Chapter Overview
-This chapter covers query optimization strategies, index tuning for specific workloads, and 3 more topics.
+Performance optimization—from sub-50ms query response to efficient resource utilization to cost-effective scaling—determines whether embedding systems deliver value or disappoint users. This chapter covers performance optimization mastery: query optimization strategies that reduce latency from 500ms to <50ms through intelligent query planning, result caching, and parallel execution, index tuning for specific workloads that adapts HNSW, IVF, and LSH parameters to access patterns and enables 10-100× throughput improvements, caching strategies for hot embeddings that reduce database load by 70-90% through multi-tier caching and intelligent invalidation, compression techniques for storage efficiency that reduce costs by 75%+ while maintaining 95%+ accuracy through quantization and dimensionality reduction, and network optimization for distributed queries that minimizes cross-datacenter latency and bandwidth through intelligent sharding, replication, and query routing. These techniques transform embedding systems from expensive, slow prototypes to production systems that serve millions of queries per second at pennies per million queries.
 :::
+
+After transforming media and entertainment (@sec-media-entertainment), **performance optimization becomes critical for production deployment**. Early embedding prototypes often work beautifully at small scale—1M embeddings, 100 queries per minute, single datacenter—but fail catastrophically at production scale: 256+ trillion embeddings, 1M+ queries per second, global distribution. **Performance optimization** transforms research prototypes into production systems through systematic query optimization (reduce unnecessary computation), index tuning (adapt data structures to workload patterns), caching (avoid repeated work), compression (reduce storage and bandwidth), and network optimization (minimize latency and maximize throughput)—enabling 100-1000× cost reduction while maintaining or improving quality.
 
 ## Query Optimization Strategies
 
-[Content to be written: Details about query optimization strategies]
+Vector similarity search—finding k nearest neighbors in high-dimensional space—appears deceptively simple but hides tremendous complexity. Naive approaches (scan all embeddings, compute all similarities, sort, return top-k) work at small scale but collapse at production scale. **Query optimization strategies** transform expensive full scans into intelligent searches that examine <0.01% of embeddings while maintaining 95%+ recall, reducing latency from 500ms to <50ms and enabling throughput scaling from 100 to 100,000+ queries per second.
+
+### The Query Performance Challenge
+
+Production vector queries face limitations:
+
+- **Dimensionality curse**: Euclidean distance loses meaning in 768+ dimensions
+- **Scale explosion**: 256 trillion embeddings × 768 dimensions = 200+ petabytes
+- **Latency requirements**: Users expect <50ms response, recommendation systems need <10ms
+- **Throughput demands**: 1M+ queries per second during peak hours
+- **Accuracy requirements**: <95% recall is unacceptable for many applications
+- **Cost constraints**: Full scans cost $1000+ per million queries, unsustainable
+- **Dynamic data**: New embeddings arrive continuously, requiring real-time indexing
+
+**Optimization approach**: Multi-stage retrieval that progressively narrows candidates, uses approximate methods for initial filtering, exact methods for final ranking, leverages index structures (HNSW, IVF, product quantization), applies query-specific optimizations (early termination, result reranking, batch processing), and adapts strategies based on query characteristics (k value, filtering constraints, quality requirements).
+
+```python
+"""
+Query Optimization for Vector Similarity Search
+
+Architecture:
+1. Query analysis: Determine query characteristics, select strategy
+2. Multi-stage retrieval: Coarse → medium → fine filtering
+3. Index selection: Choose optimal index for query pattern
+4. Parallel execution: Distribute work across cores/nodes
+5. Result reranking: Refine top-k with exact distances
+
+Techniques:
+- Approximate nearest neighbor (ANN): HNSW, IVF, LSH
+- Multi-stage filtering: Reduce candidates progressively
+- Query-aware index selection: Adapt to query characteristics
+- Parallel query execution: Leverage multiple cores/GPUs
+- Result caching: Avoid redundant computation
+- Early termination: Stop when quality threshold met
+- Adaptive batching: Group similar queries for efficiency
+
+Performance targets:
+- Latency: p50 < 20ms, p99 < 50ms for 10M+ embeddings
+- Throughput: 10,000+ queries/second per node
+- Recall: >95% for top-10, >98% for top-100
+- Cost: <$0.10 per million queries
+"""
+
+import numpy as np
+import torch
+from typing import List, Dict, Optional, Tuple, Any
+from dataclasses import dataclass, field
+from datetime import datetime
+import time
+from collections import defaultdict
+import heapq
+
+@dataclass
+class QueryPlan:
+    """
+    Execution plan for vector similarity query
+    
+    Attributes:
+        query_id: Unique query identifier
+        query_vector: Query embedding
+        k: Number of results to return
+        filters: Metadata filters to apply
+        min_score: Minimum similarity score threshold
+        strategy: Execution strategy (exact, hnsw, ivf, hybrid)
+        index_name: Index to use
+        use_cache: Whether to check cache first
+        parallel_degree: Number of parallel workers
+        timeout_ms: Maximum execution time
+        explain: Return execution statistics
+    """
+    query_id: str
+    query_vector: np.ndarray
+    k: int = 10
+    filters: Dict[str, Any] = field(default_factory=dict)
+    min_score: float = 0.0
+    strategy: str = "auto"  # "exact", "hnsw", "ivf", "hybrid", "auto"
+    index_name: Optional[str] = None
+    use_cache: bool = True
+    parallel_degree: int = 4
+    timeout_ms: int = 50
+    explain: bool = False
+
+@dataclass
+class QueryResult:
+    """
+    Query execution result with statistics
+    
+    Attributes:
+        query_id: Query identifier
+        results: List of (id, score) tuples
+        execution_time_ms: Total execution time
+        candidates_scanned: Number of candidates examined
+        exact_distances_computed: Number of exact distance calculations
+        cache_hit: Whether result from cache
+        strategy_used: Actual strategy used
+        index_used: Index used for retrieval
+        recall_estimate: Estimated recall (if ground truth available)
+        explain_info: Detailed execution statistics
+    """
+    query_id: str
+    results: List[Tuple[str, float]]
+    execution_time_ms: float
+    candidates_scanned: int
+    exact_distances_computed: int
+    cache_hit: bool = False
+    strategy_used: str = ""
+    index_used: str = ""
+    recall_estimate: Optional[float] = None
+    explain_info: Dict[str, Any] = field(default_factory=dict)
+
+class QueryOptimizer:
+    """
+    Intelligent query optimization for vector similarity search
+    
+    Analyzes query characteristics and selects optimal execution strategy
+    """
+    
+    def __init__(self, config: Dict[str, Any]):
+        self.config = config
+        self.query_history = []
+        self.performance_stats = defaultdict(list)
+        
+    def analyze_query(self, plan: QueryPlan) -> Dict[str, Any]:
+        """
+        Analyze query characteristics to inform optimization
+        
+        Returns:
+            analysis: Query characteristics and recommendations
+        """
+        analysis = {
+            'query_id': plan.query_id,
+            'vector_dim': len(plan.query_vector),
+            'k_value': plan.k,
+            'has_filters': bool(plan.filters),
+            'filter_selectivity': self._estimate_filter_selectivity(plan.filters),
+            'recommended_strategy': None,
+            'recommended_index': None,
+            'estimated_candidates': 0,
+        }
+        
+        # Estimate filter selectivity
+        if plan.filters:
+            selectivity = analysis['filter_selectivity']
+            # High selectivity (filters remove >90%) → scan filtered subset
+            if selectivity < 0.1:
+                analysis['recommended_strategy'] = 'filtered_scan'
+                analysis['estimated_candidates'] = int(
+                    self.config.get('total_vectors', 1e9) * selectivity
+                )
+            # Medium selectivity → HNSW with post-filtering
+            elif selectivity < 0.5:
+                analysis['recommended_strategy'] = 'hnsw_postfilter'
+                analysis['estimated_candidates'] = plan.k * 10
+            # Low selectivity → standard ANN
+            else:
+                analysis['recommended_strategy'] = 'hnsw'
+                analysis['estimated_candidates'] = plan.k * 5
+        else:
+            # No filters - strategy based on k and dataset size
+            if plan.k < 10:
+                analysis['recommended_strategy'] = 'hnsw'
+                analysis['estimated_candidates'] = plan.k * 5
+            elif plan.k < 100:
+                analysis['recommended_strategy'] = 'ivf_pq'
+                analysis['estimated_candidates'] = plan.k * 10
+            else:
+                analysis['recommended_strategy'] = 'hybrid'
+                analysis['estimated_candidates'] = plan.k * 20
+        
+        # Select optimal index
+        analysis['recommended_index'] = self._select_index(
+            analysis['recommended_strategy'],
+            plan.filters
+        )
+        
+        return analysis
+    
+    def _estimate_filter_selectivity(self, filters: Dict[str, Any]) -> float:
+        """
+        Estimate what fraction of vectors pass filters
+        
+        Uses statistics from previous queries and metadata distributions
+        """
+        if not filters:
+            return 1.0
+        
+        # In production, query metadata statistics
+        # For demonstration, use heuristics
+        selectivity = 1.0
+        for field, value in filters.items():
+            if isinstance(value, list):
+                # IN clause - estimate from list length and cardinality
+                field_cardinality = self.config.get(
+                    f'{field}_cardinality', 1000
+                )
+                selectivity *= min(len(value) / field_cardinality, 1.0)
+            elif isinstance(value, tuple):
+                # Range query - estimate from range width
+                selectivity *= 0.1  # Conservative estimate
+            else:
+                # Equality - estimate from cardinality
+                field_cardinality = self.config.get(
+                    f'{field}_cardinality', 100
+                )
+                selectivity *= 1.0 / field_cardinality
+        
+        return max(selectivity, 0.0001)  # At least 0.01% selectivity
+    
+    def _select_index(
+        self,
+        strategy: str,
+        filters: Dict[str, Any]
+    ) -> str:
+        """
+        Select optimal index based on strategy and filters
+        """
+        if strategy == 'filtered_scan':
+            return 'metadata_index'
+        elif strategy == 'hnsw' or strategy == 'hnsw_postfilter':
+            return 'hnsw_index'
+        elif strategy == 'ivf_pq':
+            return 'ivf_pq_index'
+        elif strategy == 'hybrid':
+            return 'hnsw_index'  # Start with HNSW, fall back if needed
+        else:
+            return 'hnsw_index'  # Default
+    
+    def optimize_k_value(self, k: int, strategy: str) -> int:
+        """
+        Adjust k value based on strategy to maintain recall
+        
+        ANN methods need to retrieve more candidates than k
+        to achieve target recall after filtering
+        """
+        if strategy == 'exact':
+            return k
+        elif strategy == 'hnsw':
+            # HNSW typically needs 1.5-2× k for 95% recall
+            return int(k * 1.5)
+        elif strategy == 'ivf_pq':
+            # IVF-PQ needs 3-5× k for 95% recall
+            return int(k * 3)
+        elif strategy == 'filtered_scan':
+            # Filtered scan is exact
+            return k
+        else:
+            # Conservative default
+            return int(k * 2)
+    
+    def estimate_query_cost(
+        self,
+        plan: QueryPlan,
+        analysis: Dict[str, Any]
+    ) -> Dict[str, float]:
+        """
+        Estimate computational cost of query execution
+        
+        Returns:
+            costs: Estimated CPU time, memory, I/O operations
+        """
+        strategy = analysis['recommended_strategy']
+        candidates = analysis['estimated_candidates']
+        
+        costs = {
+            'cpu_ms': 0.0,
+            'memory_mb': 0.0,
+            'io_operations': 0,
+            'network_mb': 0.0,
+        }
+        
+        # CPU cost (distance computations)
+        vector_dim = len(plan.query_vector)
+        if strategy == 'exact':
+            # Full scan cost
+            total_vectors = self.config.get('total_vectors', 1e9)
+            costs['cpu_ms'] = total_vectors * vector_dim * 1e-6  # μs per distance
+            costs['memory_mb'] = total_vectors * vector_dim * 4 / 1024**2  # float32
+        elif strategy in ['hnsw', 'hnsw_postfilter']:
+            # HNSW graph traversal cost
+            costs['cpu_ms'] = candidates * vector_dim * 2e-6  # 2μs per comparison
+            costs['memory_mb'] = candidates * vector_dim * 4 / 1024**2
+            costs['io_operations'] = candidates // 100  # Graph structure reads
+        elif strategy == 'ivf_pq':
+            # IVF-PQ quantized distance cost
+            costs['cpu_ms'] = candidates * 0.1e-6  # Quantized distances faster
+            costs['memory_mb'] = candidates * 64 / 1024**2  # PQ codes smaller
+            costs['io_operations'] = 100  # Coarse quantizer + cluster reads
+        elif strategy == 'filtered_scan':
+            # Scan filtered subset
+            filtered_vectors = int(
+                self.config.get('total_vectors', 1e9) * 
+                analysis['filter_selectivity']
+            )
+            costs['cpu_ms'] = filtered_vectors * vector_dim * 1e-6
+            costs['memory_mb'] = filtered_vectors * vector_dim * 4 / 1024**2
+            costs['io_operations'] = filtered_vectors // 10000
+        
+        # Network cost for distributed queries
+        if self.config.get('distributed', False):
+            costs['network_mb'] = (
+                len(plan.query_vector) * 4 / 1024**2 +  # Query vector
+                plan.k * (vector_dim * 4 + 16) / 1024**2  # Results
+            )
+        
+        return costs
+
+class MultiStageRetrieval:
+    """
+    Multi-stage retrieval pipeline: coarse → medium → fine filtering
+    
+    Progressively narrows candidate set while maintaining recall
+    """
+    
+    def __init__(self, config: Dict[str, Any]):
+        self.config = config
+        self.optimizer = QueryOptimizer(config)
+        
+    def execute_query(
+        self,
+        plan: QueryPlan,
+        stages: Optional[List[str]] = None
+    ) -> QueryResult:
+        """
+        Execute multi-stage retrieval query
+        
+        Args:
+            plan: Query execution plan
+            stages: Override default stages (for testing)
+        
+        Returns:
+            result: Query results with execution statistics
+        """
+        start_time = time.time()
+        
+        # Analyze query
+        analysis = self.optimizer.analyze_query(plan)
+        
+        # Select execution stages
+        if stages is None:
+            stages = self._select_stages(plan, analysis)
+        
+        # Execute stages
+        candidates = set()
+        candidates_scanned = 0
+        exact_distances = 0
+        explain_info = {
+            'stages': [],
+            'analysis': analysis,
+        }
+        
+        for stage_name in stages:
+            stage_start = time.time()
+            
+            if stage_name == 'coarse_ivf':
+                # Stage 1: IVF coarse filtering
+                stage_candidates = self._coarse_ivf_stage(
+                    plan.query_vector,
+                    k=min(plan.k * 100, 10000)
+                )
+                candidates.update(stage_candidates)
+                candidates_scanned += len(stage_candidates)
+                
+            elif stage_name == 'hnsw_graph':
+                # Stage 2: HNSW graph search
+                stage_candidates = self._hnsw_stage(
+                    plan.query_vector,
+                    k=plan.k * 10
+                )
+                if candidates:
+                    # Intersect with previous stage
+                    candidates &= set(stage_candidates)
+                else:
+                    candidates = set(stage_candidates)
+                candidates_scanned += len(stage_candidates)
+                
+            elif stage_name == 'pq_filtering':
+                # Stage 3: Product quantization refinement
+                stage_candidates = self._pq_filtering_stage(
+                    plan.query_vector,
+                    candidates=list(candidates),
+                    k=plan.k * 3
+                )
+                candidates = set(stage_candidates)
+                candidates_scanned += len(stage_candidates)
+                
+            elif stage_name == 'exact_reranking':
+                # Stage 4: Exact distance reranking
+                results = self._exact_reranking_stage(
+                    plan.query_vector,
+                    candidates=list(candidates),
+                    k=plan.k,
+                    filters=plan.filters
+                )
+                exact_distances += len(candidates)
+                
+            stage_time = (time.time() - stage_start) * 1000
+            explain_info['stages'].append({
+                'name': stage_name,
+                'time_ms': stage_time,
+                'candidates_after': len(candidates) if stage_name != 'exact_reranking' else len(results),
+            })
+        
+        # Finalize results
+        execution_time = (time.time() - start_time) * 1000
+        
+        return QueryResult(
+            query_id=plan.query_id,
+            results=results,
+            execution_time_ms=execution_time,
+            candidates_scanned=candidates_scanned,
+            exact_distances_computed=exact_distances,
+            strategy_used=','.join(stages),
+            index_used=analysis['recommended_index'],
+            explain_info=explain_info if plan.explain else {}
+        )
+    
+    def _select_stages(
+        self,
+        plan: QueryPlan,
+        analysis: Dict[str, Any]
+    ) -> List[str]:
+        """
+        Select optimal retrieval stages based on query characteristics
+        """
+        strategy = analysis['recommended_strategy']
+        
+        if strategy == 'exact':
+            return ['exact_reranking']
+        
+        elif strategy == 'hnsw':
+            return ['hnsw_graph', 'exact_reranking']
+        
+        elif strategy == 'hnsw_postfilter':
+            return ['hnsw_graph', 'exact_reranking']
+        
+        elif strategy == 'ivf_pq':
+            return ['coarse_ivf', 'pq_filtering', 'exact_reranking']
+        
+        elif strategy == 'hybrid':
+            return ['coarse_ivf', 'hnsw_graph', 'pq_filtering', 'exact_reranking']
+        
+        elif strategy == 'filtered_scan':
+            # Filter first, then search filtered subset
+            return ['exact_reranking']  # Filtering happens in reranking
+        
+        else:
+            # Default: HNSW + reranking
+            return ['hnsw_graph', 'exact_reranking']
+    
+    def _coarse_ivf_stage(
+        self,
+        query: np.ndarray,
+        k: int
+    ) -> List[str]:
+        """
+        IVF coarse filtering - identify relevant clusters
+        
+        Returns candidate IDs from top clusters
+        """
+        # In production, query actual IVF index
+        # For demonstration, simulate cluster selection
+        n_clusters = self.config.get('ivf_clusters', 4096)
+        vectors_per_cluster = self.config.get(
+            'total_vectors', 1e9
+        ) // n_clusters
+        
+        # Simulate selecting top 10 clusters
+        n_probe = min(10, n_clusters)
+        candidates_per_cluster = k // n_probe
+        
+        candidates = []
+        for i in range(n_probe):
+            # Simulate cluster IDs
+            cluster_id = f"cluster_{i}"
+            for j in range(candidates_per_cluster):
+                candidates.append(f"{cluster_id}_vec_{j}")
+        
+        return candidates
+    
+    def _hnsw_stage(
+        self,
+        query: np.ndarray,
+        k: int
+    ) -> List[str]:
+        """
+        HNSW graph search - navigate similarity graph
+        
+        Returns candidate IDs from graph traversal
+        """
+        # In production, query actual HNSW index
+        # For demonstration, simulate graph search
+        ef_search = max(k, 100)  # HNSW ef_search parameter
+        
+        candidates = []
+        for i in range(ef_search):
+            candidates.append(f"hnsw_vec_{i}")
+        
+        return candidates
+    
+    def _pq_filtering_stage(
+        self,
+        query: np.ndarray,
+        candidates: List[str],
+        k: int
+    ) -> List[str]:
+        """
+        Product quantization filtering - refine with quantized distances
+        
+        Returns top-k candidates by PQ distance
+        """
+        # In production, compute actual PQ distances
+        # For demonstration, simulate PQ filtering
+        
+        # Simulate PQ distance computation (much faster than exact)
+        scored_candidates = []
+        for cand_id in candidates[:k]:
+            # Random score for demo
+            score = np.random.random()
+            scored_candidates.append((cand_id, score))
+        
+        # Sort by score
+        scored_candidates.sort(key=lambda x: x[1], reverse=True)
+        
+        return [cand_id for cand_id, _ in scored_candidates[:k]]
+    
+    def _exact_reranking_stage(
+        self,
+        query: np.ndarray,
+        candidates: List[str],
+        k: int,
+        filters: Dict[str, Any]
+    ) -> List[Tuple[str, float]]:
+        """
+        Exact distance reranking - compute exact similarities for final results
+        
+        Returns top-k by exact distance, applying filters
+        """
+        # In production, fetch actual vectors and compute exact distances
+        # For demonstration, simulate exact reranking
+        
+        scored_results = []
+        for cand_id in candidates:
+            # Simulate filter check
+            if filters and not self._passes_filters(cand_id, filters):
+                continue
+            
+            # Simulate exact distance (in production, actual cosine similarity)
+            score = np.random.random()
+            scored_results.append((cand_id, score))
+        
+        # Sort and return top-k
+        scored_results.sort(key=lambda x: x[1], reverse=True)
+        return scored_results[:k]
+    
+    def _passes_filters(
+        self,
+        candidate_id: str,
+        filters: Dict[str, Any]
+    ) -> bool:
+        """
+        Check if candidate passes metadata filters
+        """
+        # In production, query actual metadata
+        # For demonstration, simulate filter check
+        return np.random.random() > 0.3  # 70% pass rate
+
+class ParallelQueryExecutor:
+    """
+    Parallel query execution for high throughput
+    
+    Distributes queries across CPU cores and GPU devices
+    """
+    
+    def __init__(
+        self,
+        config: Dict[str, Any],
+        n_workers: int = 4
+    ):
+        self.config = config
+        self.n_workers = n_workers
+        self.retrieval = MultiStageRetrieval(config)
+        
+    def execute_batch(
+        self,
+        plans: List[QueryPlan]
+    ) -> List[QueryResult]:
+        """
+        Execute batch of queries in parallel
+        
+        Args:
+            plans: List of query plans to execute
+        
+        Returns:
+            results: Query results in same order as plans
+        """
+        # Group queries by strategy for batching efficiency
+        strategy_groups = defaultdict(list)
+        for i, plan in enumerate(plans):
+            analysis = self.retrieval.optimizer.analyze_query(plan)
+            strategy = analysis['recommended_strategy']
+            strategy_groups[strategy].append((i, plan))
+        
+        # Execute each strategy group
+        all_results = [None] * len(plans)
+        
+        for strategy, group in strategy_groups.items():
+            if strategy == 'hnsw':
+                # Batch HNSW queries - can share graph traversals
+                results = self._batch_hnsw_queries(
+                    [plan for _, plan in group]
+                )
+            elif strategy == 'ivf_pq':
+                # Batch IVF-PQ queries - can share cluster lookups
+                results = self._batch_ivf_queries(
+                    [plan for _, plan in group]
+                )
+            else:
+                # Execute individually
+                results = [
+                    self.retrieval.execute_query(plan)
+                    for _, plan in group
+                ]
+            
+            # Place results in correct positions
+            for (i, _), result in zip(group, results):
+                all_results[i] = result
+        
+        return all_results
+    
+    def _batch_hnsw_queries(
+        self,
+        plans: List[QueryPlan]
+    ) -> List[QueryResult]:
+        """
+        Execute batch of HNSW queries efficiently
+        
+        Shares graph structure reads across queries
+        """
+        # In production, use batched HNSW search
+        # For demonstration, execute individually
+        return [
+            self.retrieval.execute_query(plan)
+            for plan in plans
+        ]
+    
+    def _batch_ivf_queries(
+        self,
+        plans: List[QueryPlan]
+    ) -> List[QueryResult]:
+        """
+        Execute batch of IVF queries efficiently
+        
+        Shares cluster lookups across queries
+        """
+        # In production, use batched IVF search
+        # For demonstration, execute individually
+        return [
+            self.retrieval.execute_query(plan)
+            for plan in plans
+        ]
+```
+
+### Query Planning and Optimization
+
+**Query planning** analyzes query characteristics and selects optimal execution strategy:
+
+
+:::{.callout-tip}
+## Query Planning Heuristics
+
+**Small k (< 10)**:
+- Use HNSW for best precision
+- ef_search = max(k × 2, 50)
+- Single-stage retrieval sufficient
+
+**Medium k (10-100)**:
+- Use IVF-PQ for efficiency
+- n_probe = 10-50 clusters
+- Two-stage: coarse → refine
+
+**Large k (> 100)**:
+- Hybrid approach
+- IVF coarse → HNSW refine → exact rerank
+- Consider distributed execution
+
+**High-selectivity filters (> 90% filtered)**:
+- Filter first, search filtered subset
+- Traditional database index + vector scan
+- May be faster than ANN with post-filtering
+
+**Low-selectivity filters (< 50% filtered)**:
+- Search first, filter results
+- Standard ANN + post-filter
+- Less overhead than pre-filtering
+
+**Time-sensitive queries (< 10ms budget)**:
+- Use fastest index (HNSW)
+- Accept slightly lower recall
+- Enable aggressive caching
+- Consider approximate distances (PQ, LSH)
+
+**Batch queries**:
+- Group by similarity (same filters, similar k)
+- Share index structure reads
+- Amortize query planning overhead
+- GPU batch processing for large batches
+:::
+
+**Performance characteristics:**
+
+| Strategy | Latency (p50) | Recall | Throughput | Cost/1M queries |
+|----------|---------------|--------|------------|-----------------|
+| Exact scan | 500ms | 100% | 10 QPS | $50.00 |
+| HNSW | 15ms | 97% | 5,000 QPS | $0.30 |
+| IVF-PQ | 8ms | 94% | 10,000 QPS | $0.15 |
+| Hybrid | 25ms | 98% | 3,000 QPS | $0.45 |
+| Filtered scan | 100ms | 100% | 100 QPS | $5.00 |
 
 ## Index Tuning for Specific Workloads
 
-[Content to be written: Details about index tuning for specific workloads]
+Vector indexes—HNSW, IVF, Product Quantization, LSH—have dozens of tuning parameters that dramatically impact performance. Default parameters work reasonably at small scale but fail catastrophically at production scale. **Index tuning for specific workloads** adapts index parameters to access patterns, data characteristics, and hardware constraints, enabling 10-100× throughput improvements while maintaining quality.
+
+### The Index Tuning Challenge
+
+Vector indexes face diverse workload characteristics:
+
+- **Query patterns**: Top-10 vs top-1000, single queries vs batches
+- **Data distribution**: Clustered vs uniform, high vs low dimensionality
+- **Update patterns**: Static vs continuously growing, bulk vs streaming
+- **Quality requirements**: 90% recall acceptable vs 99%+ required
+- **Latency constraints**: <5ms for real-time vs <100ms for batch
+- **Hardware**: CPU-only vs GPU-accelerated, RAM vs SSD
+- **Scale**: 1M vectors vs 256 trillion vectors
+
+**Tuning approach**: Measure actual workload characteristics (query distribution, access patterns, quality requirements), benchmark index variants on representative data, optimize index parameters through systematic search or learned tuning, validate on production-like traffic, and continuously monitor and adapt as workload evolves.
+
+```python
+"""
+Index Tuning for Specific Workloads
+
+Architecture:
+1. Workload profiler: Analyze query patterns, data characteristics
+2. Benchmark suite: Test index configurations on representative data
+3. Parameter optimizer: Search parameter space for optimal config
+4. Validation framework: Test on production-like traffic
+5. Adaptive tuning: Continuously monitor and adjust
+
+Techniques:
+- HNSW tuning: ef_construction, M, ef_search, layer scaling
+- IVF tuning: n_clusters, n_probe, training set size
+- PQ tuning: n_subvectors, n_bits, training method
+- LSH tuning: n_tables, n_bits, hash function selection
+- Hybrid indexes: Combine multiple strategies
+
+Index selection criteria:
+- Query latency requirements
+- Recall requirements
+- Update frequency
+- Dataset size and growth
+- Memory/disk constraints
+- Hardware availability
+"""
+
+import numpy as np
+from typing import List, Dict, Optional, Tuple, Any
+from dataclasses import dataclass, field
+from datetime import datetime
+import json
+import time
+
+@dataclass
+class WorkloadProfile:
+    """
+    Characterization of vector workload for index tuning
+    
+    Attributes:
+        total_vectors: Total number of vectors in dataset
+        vector_dim: Dimensionality of vectors
+        queries_per_second: Average query rate
+        k_distribution: Distribution of k values (histogram)
+        filter_rate: Fraction of queries with filters
+        update_rate: Vectors added/updated per second
+        batch_size: Typical batch size (1 for single queries)
+        latency_p50_requirement: 50th percentile latency requirement (ms)
+        latency_p99_requirement: 99th percentile latency requirement (ms)
+        recall_requirement: Minimum acceptable recall
+        memory_budget_gb: Available RAM for indexes
+        storage_budget_gb: Available disk for vectors
+        has_gpu: Whether GPU acceleration available
+    """
+    total_vectors: int
+    vector_dim: int
+    queries_per_second: float
+    k_distribution: Dict[int, float] = field(default_factory=dict)  # k → probability
+    filter_rate: float = 0.0
+    update_rate: float = 0.0
+    batch_size: int = 1
+    latency_p50_requirement: float = 50.0  # ms
+    latency_p99_requirement: float = 100.0  # ms
+    recall_requirement: float = 0.95
+    memory_budget_gb: float = 32.0
+    storage_budget_gb: float = 1000.0
+    has_gpu: bool = False
+
+@dataclass
+class IndexConfig:
+    """
+    Configuration for vector index
+    
+    Attributes:
+        index_type: Type of index (hnsw, ivf, pq, lsh, hybrid)
+        parameters: Index-specific parameters
+        hardware: Hardware configuration (cpu, gpu, mixed)
+        build_time_hours: Time to build index (estimated)
+        memory_gb: RAM required for index
+        storage_gb: Disk space required
+        expected_latency_p50: Expected 50th percentile latency
+        expected_latency_p99: Expected 99th percentile latency
+        expected_recall: Expected recall at these latencies
+        expected_throughput: Expected queries per second
+    """
+    index_type: str
+    parameters: Dict[str, Any] = field(default_factory=dict)
+    hardware: str = "cpu"
+    build_time_hours: float = 1.0
+    memory_gb: float = 10.0
+    storage_gb: float = 100.0
+    expected_latency_p50: float = 20.0
+    expected_latency_p99: float = 50.0
+    expected_recall: float = 0.95
+    expected_throughput: float = 1000.0
+
+class HNSWTuner:
+    """
+    HNSW index parameter tuning
+    
+    HNSW parameters:
+    - M: Number of connections per layer (16-64 typical)
+    - ef_construction: Size of dynamic candidate list during construction (100-500)
+    - ef_search: Size of dynamic candidate list during search (k to 1000+)
+    - max_layers: Maximum number of layers (automatically computed)
+    """
+    
+    def __init__(self, profile: WorkloadProfile):
+        self.profile = profile
+        
+    def tune(self) -> IndexConfig:
+        """
+        Tune HNSW parameters for workload
+        
+        Returns:
+            config: Optimized HNSW configuration
+        """
+        # Estimate optimal M based on dimensionality and recall requirement
+        if self.profile.recall_requirement >= 0.98:
+            M = 48  # Higher M for high recall
+        elif self.profile.recall_requirement >= 0.95:
+            M = 32  # Moderate M for balanced performance
+        else:
+            M = 16  # Lower M for speed
+        
+        # Adjust M for high dimensionality
+        if self.profile.vector_dim >= 768:
+            M = min(M * 1.5, 64)
+        
+        # Estimate ef_construction based on M and recall
+        ef_construction = max(M * 4, 200)
+        if self.profile.recall_requirement >= 0.98:
+            ef_construction = max(ef_construction * 2, 400)
+        
+        # Estimate ef_search based on k distribution and latency requirements
+        typical_k = self._get_typical_k()
+        ef_search = typical_k * 2
+        
+        # Adjust for recall requirements
+        if self.profile.recall_requirement >= 0.98:
+            ef_search = typical_k * 4
+        elif self.profile.recall_requirement >= 0.95:
+            ef_search = typical_k * 2
+        else:
+            ef_search = max(typical_k * 1.5, 50)
+        
+        # Adjust for latency requirements
+        if self.profile.latency_p50_requirement < 10:
+            # Aggressive latency requirement - reduce ef_search
+            ef_search = max(ef_search * 0.7, typical_k)
+        
+        # Estimate resource requirements
+        memory_gb = self._estimate_memory(M, ef_construction)
+        storage_gb = self._estimate_storage(M)
+        build_time_hours = self._estimate_build_time(M, ef_construction)
+        
+        # Estimate performance
+        expected_latency_p50 = self._estimate_latency(M, ef_search, 50)
+        expected_latency_p99 = self._estimate_latency(M, ef_search, 99)
+        expected_recall = self._estimate_recall(M, ef_search)
+        expected_throughput = 1000 / expected_latency_p50  # Per core
+        
+        return IndexConfig(
+            index_type="hnsw",
+            parameters={
+                "M": int(M),
+                "ef_construction": int(ef_construction),
+                "ef_search": int(ef_search),
+            },
+            hardware="cpu",
+            build_time_hours=build_time_hours,
+            memory_gb=memory_gb,
+            storage_gb=storage_gb,
+            expected_latency_p50=expected_latency_p50,
+            expected_latency_p99=expected_latency_p99,
+            expected_recall=expected_recall,
+            expected_throughput=expected_throughput,
+        )
+    
+    def _get_typical_k(self) -> int:
+        """Get typical k value from distribution"""
+        if not self.profile.k_distribution:
+            return 10  # Default
+        
+        # Weighted average
+        total = sum(self.profile.k_distribution.values())
+        avg_k = sum(
+            k * prob for k, prob in self.profile.k_distribution.items()
+        ) / total
+        
+        return int(avg_k)
+    
+    def _estimate_memory(self, M: float, ef_construction: float) -> float:
+        """
+        Estimate memory requirements for HNSW index
+        
+        Memory = vectors + graph structure + construction buffers
+        """
+        # Vector storage
+        vector_memory = (
+            self.profile.total_vectors * 
+            self.profile.vector_dim * 
+            4 / 1024**3  # float32 in GB
+        )
+        
+        # Graph structure (adjacency lists)
+        avg_layers = np.log2(self.profile.total_vectors) / np.log2(1.0 / np.log(2))
+        graph_memory = (
+            self.profile.total_vectors * 
+            M * avg_layers * 
+            8 / 1024**3  # Pointers in GB
+        )
+        
+        # Construction buffers
+        construction_memory = (
+            ef_construction * 
+            self.profile.vector_dim * 
+            4 / 1024**3
+        )
+        
+        return vector_memory + graph_memory + construction_memory
+    
+    def _estimate_storage(self, M: float) -> float:
+        """Estimate disk storage requirements"""
+        # Similar to memory but can use compression
+        return self._estimate_memory(M, 0) * 0.8
+    
+    def _estimate_build_time(self, M: float, ef_construction: float) -> float:
+        """
+        Estimate index construction time
+        
+        Roughly linear in dataset size, quadratic in ef_construction
+        """
+        base_time_per_million = 0.1  # hours per million vectors
+        complexity_factor = (M / 32) * (ef_construction / 200)
+        
+        return (
+            self.profile.total_vectors / 1e6 * 
+            base_time_per_million * 
+            complexity_factor
+        )
+    
+    def _estimate_latency(
+        self,
+        M: float,
+        ef_search: float,
+        percentile: int
+    ) -> float:
+        """
+        Estimate query latency at given percentile
+        
+        Latency increases with ef_search and dimensionality
+        """
+        # Base latency for distance computation
+        base_latency = self.profile.vector_dim * 1e-6  # 1μs per dimension
+        
+        # Graph traversal cost
+        traversal_latency = ef_search * base_latency * np.log(M)
+        
+        # Add overhead for sorting, result assembly
+        overhead = 0.5  # ms
+        
+        latency_p50 = traversal_latency * 1000 + overhead
+        
+        # p99 is typically 2-3× p50 for HNSW
+        if percentile == 99:
+            return latency_p50 * 2.5
+        else:
+            return latency_p50
+    
+    def _estimate_recall(self, M: float, ef_search: float) -> float:
+        """
+        Estimate recall for given parameters
+        
+        Higher M and ef_search → higher recall
+        """
+        # Empirical formula (approximation)
+        typical_k = self._get_typical_k()
+        
+        if ef_search >= typical_k * 4 and M >= 32:
+            return 0.98
+        elif ef_search >= typical_k * 2 and M >= 24:
+            return 0.95
+        elif ef_search >= typical_k * 1.5 and M >= 16:
+            return 0.90
+        else:
+            return 0.85
+
+class IVFTuner:
+    """
+    IVF (Inverted File Index) parameter tuning
+    
+    IVF parameters:
+    - n_clusters: Number of Voronoi cells (sqrt(N) to N/100 typical)
+    - n_probe: Number of clusters to search (1 to n_clusters)
+    - training_size: Number of vectors for k-means training
+    """
+    
+    def __init__(self, profile: WorkloadProfile):
+        self.profile = profile
+        
+    def tune(self) -> IndexConfig:
+        """
+        Tune IVF parameters for workload
+        
+        Returns:
+            config: Optimized IVF configuration
+        """
+        # Estimate optimal n_clusters
+        # Rule of thumb: sqrt(N) to N/100 depending on requirements
+        if self.profile.recall_requirement >= 0.98:
+            # Fewer clusters for high recall
+            n_clusters = max(int(np.sqrt(self.profile.total_vectors)), 256)
+        elif self.profile.recall_requirement >= 0.95:
+            # Moderate clusters
+            n_clusters = max(
+                int(np.sqrt(self.profile.total_vectors) * 2),
+                512
+            )
+        else:
+            # Many clusters for speed
+            n_clusters = max(
+                int(np.sqrt(self.profile.total_vectors) * 4),
+                1024
+            )
+        
+        # Cap at reasonable maximum
+        n_clusters = min(n_clusters, 65536)
+        
+        # Estimate optimal n_probe
+        typical_k = self._get_typical_k()
+        
+        if self.profile.recall_requirement >= 0.98:
+            n_probe = max(int(n_clusters * 0.05), 50)  # Search 5% of clusters
+        elif self.profile.recall_requirement >= 0.95:
+            n_probe = max(int(n_clusters * 0.02), 20)  # Search 2% of clusters
+        else:
+            n_probe = max(int(n_clusters * 0.01), 10)  # Search 1% of clusters
+        
+        # Adjust for latency requirements
+        if self.profile.latency_p50_requirement < 10:
+            n_probe = max(n_probe // 2, 5)
+        
+        # Training size (typically 10-100× n_clusters)
+        training_size = min(
+            n_clusters * 50,
+            int(self.profile.total_vectors * 0.1)
+        )
+        
+        # Estimate resources
+        memory_gb = self._estimate_memory(n_clusters)
+        storage_gb = self._estimate_storage(n_clusters)
+        build_time_hours = self._estimate_build_time(n_clusters, training_size)
+        
+        # Estimate performance
+        expected_latency_p50 = self._estimate_latency(n_clusters, n_probe, 50)
+        expected_latency_p99 = self._estimate_latency(n_clusters, n_probe, 99)
+        expected_recall = self._estimate_recall(n_clusters, n_probe)
+        expected_throughput = 1000 / expected_latency_p50
+        
+        return IndexConfig(
+            index_type="ivf",
+            parameters={
+                "n_clusters": n_clusters,
+                "n_probe": n_probe,
+                "training_size": training_size,
+            },
+            hardware="cpu",
+            build_time_hours=build_time_hours,
+            memory_gb=memory_gb,
+            storage_gb=storage_gb,
+            expected_latency_p50=expected_latency_p50,
+            expected_latency_p99=expected_latency_p99,
+            expected_recall=expected_recall,
+            expected_throughput=expected_throughput,
+        )
+    
+    def _get_typical_k(self) -> int:
+        """Get typical k value from distribution"""
+        if not self.profile.k_distribution:
+            return 10
+        total = sum(self.profile.k_distribution.values())
+        avg_k = sum(
+            k * prob for k, prob in self.profile.k_distribution.items()
+        ) / total
+        return int(avg_k)
+    
+    def _estimate_memory(self, n_clusters: int) -> float:
+        """
+        Estimate memory for IVF index
+        
+        Memory = vectors + centroids + inverted lists
+        """
+        # Vector storage
+        vector_memory = (
+            self.profile.total_vectors * 
+            self.profile.vector_dim * 
+            4 / 1024**3
+        )
+        
+        # Centroid storage
+        centroid_memory = (
+            n_clusters * 
+            self.profile.vector_dim * 
+            4 / 1024**3
+        )
+        
+        # Inverted list pointers
+        list_memory = (
+            self.profile.total_vectors * 
+            8 / 1024**3  # Pointer per vector
+        )
+        
+        return vector_memory + centroid_memory + list_memory
+    
+    def _estimate_storage(self, n_clusters: int) -> float:
+        """Estimate disk storage"""
+        return self._estimate_memory(n_clusters) * 0.9
+    
+    def _estimate_build_time(
+        self,
+        n_clusters: int,
+        training_size: int
+    ) -> float:
+        """
+        Estimate build time
+        
+        Dominated by k-means clustering time
+        """
+        # k-means iterations (typically 10-50)
+        n_iterations = 20
+        
+        # Time per iteration (empirical)
+        time_per_iteration = (
+            training_size * n_clusters * self.profile.vector_dim * 1e-9
+        )  # hours
+        
+        kmeans_time = n_iterations * time_per_iteration
+        
+        # Assignment time (assign all vectors to clusters)
+        assignment_time = (
+            self.profile.total_vectors * n_clusters * 
+            self.profile.vector_dim * 1e-10
+        )
+        
+        return kmeans_time + assignment_time
+    
+    def _estimate_latency(
+        self,
+        n_clusters: int,
+        n_probe: int,
+        percentile: int
+    ) -> float:
+        """Estimate query latency"""
+        # Coarse quantization cost (find nearest centroids)
+        coarse_cost = n_clusters * self.profile.vector_dim * 1e-6
+        
+        # Fine search cost (search n_probe clusters)
+        vectors_per_cluster = self.profile.total_vectors / n_clusters
+        candidates = n_probe * vectors_per_cluster
+        fine_cost = candidates * self.profile.vector_dim * 1e-6
+        
+        latency_p50 = (coarse_cost + fine_cost) * 1000  # to ms
+        
+        if percentile == 99:
+            return latency_p50 * 2.0
+        else:
+            return latency_p50
+    
+    def _estimate_recall(self, n_clusters: int, n_probe: int) -> float:
+        """Estimate recall"""
+        # Probability of finding nearest neighbor
+        # Depends on cluster quality and n_probe
+        probe_ratio = n_probe / n_clusters
+        
+        if probe_ratio >= 0.05:
+            return 0.98
+        elif probe_ratio >= 0.02:
+            return 0.95
+        elif probe_ratio >= 0.01:
+            return 0.90
+        else:
+            return 0.85
+
+class IndexSelector:
+    """
+    Select optimal index type and configuration for workload
+    
+    Compares HNSW, IVF, PQ, and hybrid approaches
+    """
+    
+    def __init__(self, profile: WorkloadProfile):
+        self.profile = profile
+        self.hnsw_tuner = HNSWTuner(profile)
+        self.ivf_tuner = IVFTuner(profile)
+        
+    def select(self) -> IndexConfig:
+        """
+        Select best index configuration for workload
+        
+        Returns:
+            config: Recommended index configuration
+        """
+        # Generate candidate configurations
+        candidates = []
+        
+        # HNSW candidate
+        hnsw_config = self.hnsw_tuner.tune()
+        candidates.append(hnsw_config)
+        
+        # IVF candidate
+        ivf_config = self.ivf_tuner.tune()
+        candidates.append(ivf_config)
+        
+        # Score each candidate
+        scores = []
+        for config in candidates:
+            score = self._score_config(config)
+            scores.append((score, config))
+        
+        # Return best scoring configuration
+        scores.sort(reverse=True, key=lambda x: x[0])
+        best_config = scores[0][1]
+        
+        return best_config
+    
+    def _score_config(self, config: IndexConfig) -> float:
+        """
+        Score configuration based on how well it meets requirements
+        
+        Returns:
+            score: Higher is better (0-100)
+        """
+        score = 100.0
+        
+        # Latency penalty
+        if config.expected_latency_p50 > self.profile.latency_p50_requirement:
+            score -= 30 * (
+                config.expected_latency_p50 / 
+                self.profile.latency_p50_requirement - 1
+            )
+        
+        if config.expected_latency_p99 > self.profile.latency_p99_requirement:
+            score -= 20 * (
+                config.expected_latency_p99 / 
+                self.profile.latency_p99_requirement - 1
+            )
+        
+        # Recall penalty
+        if config.expected_recall < self.profile.recall_requirement:
+            score -= 50 * (
+                self.profile.recall_requirement - config.expected_recall
+            )
+        
+        # Memory penalty
+        if config.memory_gb > self.profile.memory_budget_gb:
+            score -= 25 * (
+                config.memory_gb / self.profile.memory_budget_gb - 1
+            )
+        
+        # Build time penalty (minor)
+        if config.build_time_hours > 24:
+            score -= 5 * (config.build_time_hours / 24 - 1)
+        
+        return max(score, 0)
+```
+
+### Index-Specific Tuning Guidelines
+
+:::{.callout-tip}
+## HNSW Tuning Guidelines
+
+**For high recall (>98%)**:
+- M = 48-64 (more connections)
+- ef_construction = 400-500
+- ef_search = k × 4 to k × 8
+- Expect: 20-40ms p50, 98-99% recall
+
+**For balanced performance (95-98% recall)**:
+- M = 24-32
+- ef_construction = 200-300
+- ef_search = k × 2 to k × 4
+- Expect: 10-20ms p50, 95-97% recall
+
+**For speed (<10ms p50)**:
+- M = 16-24
+- ef_construction = 100-200
+- ef_search = k × 1.5 to k × 2
+- Expect: 5-10ms p50, 90-95% recall
+
+**Memory optimization**:
+- Lower M reduces graph size (proportional savings)
+- Store vectors on SSD, keep graph in RAM
+- Use memory-mapped files for large datasets
+
+**Build-time optimization**:
+- Lower ef_construction speeds build (linear)
+- Parallel construction with graph merging
+- Incremental updates for streaming data
+:::
+
+:::{.callout-tip}
+## IVF Tuning Guidelines
+
+**For high recall (>98%)**:
+- n_clusters = sqrt(N)
+- n_probe = 5-10% of clusters
+- Expect: 15-30ms p50, 97-99% recall
+
+**For balanced performance (95-98% recall)**:
+- n_clusters = 2× sqrt(N)
+- n_probe = 2-5% of clusters
+- Expect: 8-15ms p50, 95-97% recall
+
+**For speed (<10ms p50)**:
+- n_clusters = 4× sqrt(N)
+- n_probe = 1-2% of clusters
+- Expect: 3-8ms p50, 90-95% recall
+
+**With Product Quantization**:
+- Combine IVF with PQ for 10-20× compression
+- n_subvectors = 8-16 for 768-dim vectors
+- n_bits = 8 for good accuracy, 4 for compression
+- Expect: 50-75% accuracy loss, 5-10× speedup
+
+**GPU acceleration**:
+- Batch queries (32-256 per batch)
+- Use GPU IVF-PQ for 10-100× throughput
+- Expect: 0.5-2ms per query on V100 GPU
+:::
+
 
 ## Caching Strategies for Hot Embeddings
 
-[Content to be written: Details about caching strategies for hot embeddings]
+Vector similarity search involves reading embeddings from storage (RAM, SSD, network), computing similarities, and sorting results. At scale, **storage access dominates cost**—reading 100B 768-dimensional vectors requires 300+ TB of data transfer. **Caching strategies** exploit access patterns (20% of embeddings receive 80% of queries) to reduce database load by 70-90% through multi-tier caching, intelligent prefetching, and adaptive eviction policies.
+
+### The Caching Challenge
+
+Production vector workloads exhibit skewed access patterns:
+
+- **Popularity skew**: 1% of content receives 50%+ of queries (viral videos, trending products)
+- **Temporal locality**: Recent content accessed more frequently than old content
+- **Spatial locality**: Similar queries access similar embeddings (related products, semantic clusters)
+- **Query patterns**: Repeated queries (homepage recommendations), batch processing
+- **Cold starts**: New embeddings with no access history yet
+- **Cache invalidation**: Embeddings updated, requiring cache refresh
+- **Multi-tenancy**: Different users have different access patterns
+
+**Caching approach**: Multi-tier cache hierarchy (L1: CPU cache, L2: RAM, L3: SSD, L4: network), adaptive replacement policies (LRU, LFU, ARC), query-aware prefetching (predict likely next queries), result caching (cache full query results, not just embeddings), and intelligent invalidation (lazy vs eager, version-based, TTL).
+
+```python
+"""
+Multi-Tier Caching for Hot Embeddings
+
+Architecture:
+1. L1 cache: Hot embeddings in process memory (GB scale)
+2. L2 cache: Warm embeddings in shared memory (10s GB scale)
+3. L3 cache: Cold embeddings on local SSD (100s GB scale)
+4. L4 storage: Full dataset in distributed storage (PB scale)
+5. Result cache: Cache entire query results
+6. Negative cache: Cache "not found" to avoid repeated lookups
+
+Techniques:
+- Adaptive replacement: Learn access patterns, optimize eviction
+- Prefetching: Predict likely queries, preload embeddings
+- Compression: Store compressed embeddings in cache
+- Hierarchical caching: Small hot cache + large warm cache
+- Query result caching: Cache top-k results for repeated queries
+- Probabilistic structures: Bloom filters for negative caching
+
+Performance targets:
+- Cache hit rate: >70% for L1+L2, >90% for L1+L2+L3
+- Cache lookup latency: <0.1ms L1, <1ms L2, <5ms L3
+- Memory efficiency: >100× compression with <5% accuracy loss
+- Invalidation latency: <100ms for critical updates
+"""
+
+import numpy as np
+from typing import List, Dict, Optional, Tuple, Any, Set
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from collections import OrderedDict, defaultdict
+import hashlib
+import time
+
+@dataclass
+class CacheEntry:
+    """
+    Cached embedding or query result
+    
+    Attributes:
+        key: Cache key (embedding ID or query hash)
+        value: Cached data (embedding vector or query results)
+        size_bytes: Memory size of cached data
+        access_count: Number of times accessed
+        last_access: Timestamp of last access
+        creation_time: When entry was added to cache
+        ttl_seconds: Time-to-live (None = no expiration)
+        version: Data version (for invalidation)
+        compressed: Whether value is compressed
+    """
+    key: str
+    value: Any
+    size_bytes: int
+    access_count: int = 0
+    last_access: datetime = field(default_factory=datetime.now)
+    creation_time: datetime = field(default_factory=datetime.now)
+    ttl_seconds: Optional[int] = None
+    version: int = 1
+    compressed: bool = False
+
+@dataclass
+class CacheStats:
+    """
+    Cache performance statistics
+    
+    Attributes:
+        hits: Number of cache hits
+        misses: Number of cache misses
+        evictions: Number of entries evicted
+        invalidations: Number of entries invalidated
+        total_size_bytes: Current cache size
+        hit_rate: hits / (hits + misses)
+        avg_lookup_ms: Average lookup latency
+        entries: Number of cached entries
+    """
+    hits: int = 0
+    misses: int = 0
+    evictions: int = 0
+    invalidations: int = 0
+    total_size_bytes: int = 0
+    avg_lookup_ms: float = 0.0
+    entries: int = 0
+    
+    @property
+    def hit_rate(self) -> float:
+        """Calculate cache hit rate"""
+        total = self.hits + self.misses
+        return self.hits / total if total > 0 else 0.0
+
+class MultiTierCache:
+    """
+    Multi-tier LRU cache for hot embeddings
+    
+    L1: Hot cache (most frequently accessed)
+    L2: Warm cache (recently accessed)
+    L3: Cold cache (less frequently accessed)
+    
+    Each tier has different size/latency trade-offs
+    """
+    
+    def __init__(
+        self,
+        l1_capacity_mb: float = 1024,      # 1GB L1
+        l2_capacity_mb: float = 10240,     # 10GB L2
+        l3_capacity_mb: float = 102400,    # 100GB L3
+        enable_compression: bool = True
+    ):
+        self.l1_capacity_bytes = int(l1_capacity_mb * 1024 * 1024)
+        self.l2_capacity_bytes = int(l2_capacity_mb * 1024 * 1024)
+        self.l3_capacity_bytes = int(l3_capacity_mb * 1024 * 1024)
+        self.enable_compression = enable_compression
+        
+        # L1 cache: OrderedDict for LRU behavior
+        self.l1_cache: OrderedDict[str, CacheEntry] = OrderedDict()
+        self.l1_size_bytes = 0
+        
+        # L2 cache: Larger, for warm entries
+        self.l2_cache: OrderedDict[str, CacheEntry] = OrderedDict()
+        self.l2_size_bytes = 0
+        
+        # L3 cache: Even larger, may use compression
+        self.l3_cache: OrderedDict[str, CacheEntry] = OrderedDict()
+        self.l3_size_bytes = 0
+        
+        # Statistics
+        self.stats = {
+            'l1': CacheStats(),
+            'l2': CacheStats(),
+            'l3': CacheStats(),
+            'total': CacheStats()
+        }
+        
+        # Access frequency tracking for promotion/demotion
+        self.access_freq: Dict[str, int] = defaultdict(int)
+    
+    def get(self, key: str) -> Optional[Any]:
+        """
+        Get value from cache, checking all tiers
+        
+        Args:
+            key: Cache key
+        
+        Returns:
+            value: Cached value or None if not found
+        """
+        start_time = time.time()
+        
+        # Check L1 cache
+        if key in self.l1_cache:
+            entry = self.l1_cache[key]
+            entry.access_count += 1
+            entry.last_access = datetime.now()
+            self.access_freq[key] += 1
+            
+            # Move to end (most recently used)
+            self.l1_cache.move_to_end(key)
+            
+            self.stats['l1'].hits += 1
+            self.stats['total'].hits += 1
+            self._update_latency(start_time, 'l1')
+            
+            return entry.value
+        
+        # Check L2 cache
+        if key in self.l2_cache:
+            entry = self.l2_cache[key]
+            entry.access_count += 1
+            entry.last_access = datetime.now()
+            self.access_freq[key] += 1
+            
+            self.l2_cache.move_to_end(key)
+            
+            self.stats['l2'].hits += 1
+            self.stats['total'].hits += 1
+            
+            # Promote to L1 if accessed frequently
+            if entry.access_count >= 10:
+                self._promote_to_l1(key, entry)
+            
+            self._update_latency(start_time, 'l2')
+            return entry.value
+        
+        # Check L3 cache
+        if key in self.l3_cache:
+            entry = self.l3_cache[key]
+            entry.access_count += 1
+            entry.last_access = datetime.now()
+            self.access_freq[key] += 1
+            
+            self.l3_cache.move_to_end(key)
+            
+            self.stats['l3'].hits += 1
+            self.stats['total'].hits += 1
+            
+            # Decompress if needed
+            value = entry.value
+            if entry.compressed:
+                value = self._decompress(value)
+            
+            # Promote to L2 if accessed frequently
+            if entry.access_count >= 5:
+                self._promote_to_l2(key, entry)
+            
+            self._update_latency(start_time, 'l3')
+            return value
+        
+        # Cache miss
+        self.stats['l1'].misses += 1
+        self.stats['l2'].misses += 1
+        self.stats['l3'].misses += 1
+        self.stats['total'].misses += 1
+        
+        return None
+    
+    def put(
+        self,
+        key: str,
+        value: Any,
+        tier: str = 'l1'
+    ) -> None:
+        """
+        Put value into cache at specified tier
+        
+        Args:
+            key: Cache key
+            value: Value to cache
+            tier: Which cache tier ('l1', 'l2', 'l3')
+        """
+        # Calculate size
+        size_bytes = self._estimate_size(value)
+        
+        # Create entry
+        entry = CacheEntry(
+            key=key,
+            value=value,
+            size_bytes=size_bytes
+        )
+        
+        # Put into appropriate tier
+        if tier == 'l1':
+            self._put_l1(key, entry)
+        elif tier == 'l2':
+            self._put_l2(key, entry)
+        elif tier == 'l3':
+            # Compress for L3 if enabled
+            if self.enable_compression and isinstance(value, np.ndarray):
+                entry.value = self._compress(value)
+                entry.compressed = True
+                entry.size_bytes = self._estimate_size(entry.value)
+            self._put_l3(key, entry)
+    
+    def _put_l1(self, key: str, entry: CacheEntry) -> None:
+        """Put entry into L1 cache"""
+        # Evict if needed
+        while self.l1_size_bytes + entry.size_bytes > self.l1_capacity_bytes:
+            if not self.l1_cache:
+                break
+            self._evict_l1()
+        
+        # Add entry
+        self.l1_cache[key] = entry
+        self.l1_size_bytes += entry.size_bytes
+        self.stats['l1'].entries += 1
+        self.stats['l1'].total_size_bytes = self.l1_size_bytes
+    
+    def _put_l2(self, key: str, entry: CacheEntry) -> None:
+        """Put entry into L2 cache"""
+        while self.l2_size_bytes + entry.size_bytes > self.l2_capacity_bytes:
+            if not self.l2_cache:
+                break
+            self._evict_l2()
+        
+        self.l2_cache[key] = entry
+        self.l2_size_bytes += entry.size_bytes
+        self.stats['l2'].entries += 1
+        self.stats['l2'].total_size_bytes = self.l2_size_bytes
+    
+    def _put_l3(self, key: str, entry: CacheEntry) -> None:
+        """Put entry into L3 cache"""
+        while self.l3_size_bytes + entry.size_bytes > self.l3_capacity_bytes:
+            if not self.l3_cache:
+                break
+            self._evict_l3()
+        
+        self.l3_cache[key] = entry
+        self.l3_size_bytes += entry.size_bytes
+        self.stats['l3'].entries += 1
+        self.stats['l3'].total_size_bytes = self.l3_size_bytes
+    
+    def _evict_l1(self) -> None:
+        """Evict LRU entry from L1, demote to L2"""
+        key, entry = self.l1_cache.popitem(last=False)
+        self.l1_size_bytes -= entry.size_bytes
+        self.stats['l1'].evictions += 1
+        self.stats['l1'].entries -= 1
+        
+        # Demote to L2
+        self._put_l2(key, entry)
+    
+    def _evict_l2(self) -> None:
+        """Evict LRU entry from L2, demote to L3"""
+        key, entry = self.l2_cache.popitem(last=False)
+        self.l2_size_bytes -= entry.size_bytes
+        self.stats['l2'].evictions += 1
+        self.stats['l2'].entries -= 1
+        
+        # Demote to L3
+        self._put_l3(key, entry)
+    
+    def _evict_l3(self) -> None:
+        """Evict LRU entry from L3"""
+        key, entry = self.l3_cache.popitem(last=False)
+        self.l3_size_bytes -= entry.size_bytes
+        self.stats['l3'].evictions += 1
+        self.stats['l3'].entries -= 1
+    
+    def _promote_to_l1(self, key: str, entry: CacheEntry) -> None:
+        """Promote entry from L2 to L1"""
+        # Remove from L2
+        if key in self.l2_cache:
+            del self.l2_cache[key]
+            self.l2_size_bytes -= entry.size_bytes
+            self.stats['l2'].entries -= 1
+            
+            # Add to L1
+            self._put_l1(key, entry)
+    
+    def _promote_to_l2(self, key: str, entry: CacheEntry) -> None:
+        """Promote entry from L3 to L2"""
+        # Decompress if needed
+        if entry.compressed:
+            entry.value = self._decompress(entry.value)
+            entry.compressed = False
+            entry.size_bytes = self._estimate_size(entry.value)
+        
+        # Remove from L3
+        if key in self.l3_cache:
+            del self.l3_cache[key]
+            self.l3_size_bytes -= entry.size_bytes
+            self.stats['l3'].entries -= 1
+            
+            # Add to L2
+            self._put_l2(key, entry)
+    
+    def invalidate(self, key: str) -> None:
+        """
+        Invalidate cache entry across all tiers
+        
+        Args:
+            key: Cache key to invalidate
+        """
+        # Remove from L1
+        if key in self.l1_cache:
+            entry = self.l1_cache.pop(key)
+            self.l1_size_bytes -= entry.size_bytes
+            self.stats['l1'].invalidations += 1
+            self.stats['l1'].entries -= 1
+        
+        # Remove from L2
+        if key in self.l2_cache:
+            entry = self.l2_cache.pop(key)
+            self.l2_size_bytes -= entry.size_bytes
+            self.stats['l2'].invalidations += 1
+            self.stats['l2'].entries -= 1
+        
+        # Remove from L3
+        if key in self.l3_cache:
+            entry = self.l3_cache.pop(key)
+            self.l3_size_bytes -= entry.size_bytes
+            self.stats['l3'].invalidations += 1
+            self.stats['l3'].entries -= 1
+        
+        # Remove from frequency tracking
+        if key in self.access_freq:
+            del self.access_freq[key]
+    
+    def _estimate_size(self, value: Any) -> int:
+        """Estimate memory size of value"""
+        if isinstance(value, np.ndarray):
+            return value.nbytes
+        elif isinstance(value, (list, tuple)):
+            return len(value) * 8  # Rough estimate
+        elif isinstance(value, bytes):
+            return len(value)
+        else:
+            return 1024  # Default estimate
+    
+    def _compress(self, vector: np.ndarray) -> bytes:
+        """
+        Compress vector for storage
+        
+        Uses quantization for ~4× compression
+        """
+        # Simple quantization: float32 → uint8
+        # Map [min, max] → [0, 255]
+        vmin, vmax = vector.min(), vector.max()
+        quantized = ((vector - vmin) / (vmax - vmin) * 255).astype(np.uint8)
+        
+        # Store min/max for decompression
+        metadata = np.array([vmin, vmax], dtype=np.float32)
+        
+        return metadata.tobytes() + quantized.tobytes()
+    
+    def _decompress(self, compressed: bytes) -> np.ndarray:
+        """Decompress vector"""
+        # Extract metadata
+        metadata = np.frombuffer(compressed[:8], dtype=np.float32)
+        vmin, vmax = metadata[0], metadata[1]
+        
+        # Extract quantized values
+        quantized = np.frombuffer(compressed[8:], dtype=np.uint8)
+        
+        # Dequantize
+        vector = quantized.astype(np.float32) / 255.0 * (vmax - vmin) + vmin
+        
+        return vector
+    
+    def _update_latency(self, start_time: float, tier: str) -> None:
+        """Update average latency statistics"""
+        latency_ms = (time.time() - start_time) * 1000
+        
+        # Exponential moving average
+        alpha = 0.1
+        current_avg = self.stats[tier].avg_lookup_ms
+        self.stats[tier].avg_lookup_ms = (
+            alpha * latency_ms + (1 - alpha) * current_avg
+        )
+    
+    def get_stats(self) -> Dict[str, CacheStats]:
+        """Get cache statistics"""
+        # Update total stats
+        self.stats['total'].entries = (
+            self.stats['l1'].entries + 
+            self.stats['l2'].entries + 
+            self.stats['l3'].entries
+        )
+        self.stats['total'].total_size_bytes = (
+            self.l1_size_bytes + 
+            self.l2_size_bytes + 
+            self.l3_size_bytes
+        )
+        
+        return self.stats
+
+class QueryResultCache:
+    """
+    Cache complete query results
+    
+    Caches (query_vector, k, filters) → [(id, score), ...]
+    """
+    
+    def __init__(self, capacity_mb: float = 1024):
+        self.capacity_bytes = int(capacity_mb * 1024 * 1024)
+        self.cache: OrderedDict[str, CacheEntry] = OrderedDict()
+        self.size_bytes = 0
+        self.stats = CacheStats()
+    
+    def get(
+        self,
+        query_vector: np.ndarray,
+        k: int,
+        filters: Optional[Dict[str, Any]] = None
+    ) -> Optional[List[Tuple[str, float]]]:
+        """
+        Get cached query results
+        
+        Args:
+            query_vector: Query embedding
+            k: Number of results
+            filters: Query filters
+        
+        Returns:
+            results: Cached results or None if not found
+        """
+        key = self._make_key(query_vector, k, filters)
+        
+        if key in self.cache:
+            entry = self.cache[key]
+            entry.access_count += 1
+            entry.last_access = datetime.now()
+            
+            # Move to end (most recently used)
+            self.cache.move_to_end(key)
+            
+            self.stats.hits += 1
+            return entry.value
+        
+        self.stats.misses += 1
+        return None
+    
+    def put(
+        self,
+        query_vector: np.ndarray,
+        k: int,
+        filters: Optional[Dict[str, Any]],
+        results: List[Tuple[str, float]]
+    ) -> None:
+        """
+        Cache query results
+        
+        Args:
+            query_vector: Query embedding
+            k: Number of results
+            filters: Query filters
+            results: Query results to cache
+        """
+        key = self._make_key(query_vector, k, filters)
+        
+        # Estimate size (results + metadata)
+        size_bytes = len(results) * (64 + 8)  # ID + score
+        
+        # Evict if needed
+        while self.size_bytes + size_bytes > self.capacity_bytes:
+            if not self.cache:
+                break
+            self._evict()
+        
+        # Create entry
+        entry = CacheEntry(
+            key=key,
+            value=results,
+            size_bytes=size_bytes
+        )
+        
+        self.cache[key] = entry
+        self.size_bytes += size_bytes
+        self.stats.entries += 1
+    
+    def _make_key(
+        self,
+        query_vector: np.ndarray,
+        k: int,
+        filters: Optional[Dict[str, Any]]
+    ) -> str:
+        """
+        Create cache key from query parameters
+        
+        Hash query vector to fixed-length key
+        """
+        # Hash query vector
+        vector_hash = hashlib.sha256(query_vector.tobytes()).hexdigest()[:16]
+        
+        # Hash filters
+        if filters:
+            filter_str = json.dumps(filters, sort_keys=True)
+            filter_hash = hashlib.sha256(filter_str.encode()).hexdigest()[:8]
+        else:
+            filter_hash = "nofilter"
+        
+        return f"{vector_hash}_{k}_{filter_hash}"
+    
+    def _evict(self) -> None:
+        """Evict LRU entry"""
+        key, entry = self.cache.popitem(last=False)
+        self.size_bytes -= entry.size_bytes
+        self.stats.evictions += 1
+        self.stats.entries -= 1
+
+class AdaptivePrefetcher:
+    """
+    Adaptive prefetching based on query patterns
+    
+    Learns which embeddings likely to be accessed next
+    """
+    
+    def __init__(self, cache: MultiTierCache):
+        self.cache = cache
+        self.query_history: List[str] = []
+        self.transition_probs: Dict[str, Dict[str, float]] = defaultdict(
+            lambda: defaultdict(float)
+        )
+        self.history_size = 1000
+    
+    def record_access(self, key: str) -> None:
+        """
+        Record access pattern for learning
+        
+        Args:
+            key: Accessed cache key
+        """
+        if self.query_history:
+            # Update transition probabilities
+            prev_key = self.query_history[-1]
+            self.transition_probs[prev_key][key] += 1
+        
+        # Add to history
+        self.query_history.append(key)
+        
+        # Trim history
+        if len(self.query_history) > self.history_size:
+            self.query_history = self.query_history[-self.history_size:]
+    
+    def prefetch(self, current_key: str, n: int = 10) -> List[str]:
+        """
+        Predict likely next accesses and prefetch
+        
+        Args:
+            current_key: Current access
+            n: Number of entries to prefetch
+        
+        Returns:
+            prefetch_keys: Predicted next accesses
+        """
+        if current_key not in self.transition_probs:
+            return []
+        
+        # Get transition probabilities
+        transitions = self.transition_probs[current_key]
+        
+        # Normalize
+        total = sum(transitions.values())
+        if total == 0:
+            return []
+        
+        normalized = {
+            k: v / total 
+            for k, v in transitions.items()
+        }
+        
+        # Sort by probability
+        sorted_keys = sorted(
+            normalized.items(),
+            key=lambda x: x[1],
+            reverse=True
+        )
+        
+        # Return top-n
+        return [k for k, _ in sorted_keys[:n]]
+```
+
+### Caching Best Practices
+
+:::{.callout-tip}
+## Cache Tier Selection
+
+**L1 cache (1-10GB, <0.1ms)**:
+- Most frequently accessed embeddings (top 0.1%)
+- Active query results
+- User session data
+- Real-time recommendations
+
+**L2 cache (10-100GB, <1ms)**:
+- Frequently accessed embeddings (top 1-10%)
+- Recent query results
+- Popular content
+- Warm data for active users
+
+**L3 cache (100GB-1TB, <5ms)**:
+- Occasionally accessed embeddings (top 10-50%)
+- Historical query results
+- Compressed older data
+- Prefetched candidates
+
+**Storage (PB scale, 10-100ms)**:
+- Full dataset
+- Cold embeddings (accessed <1/day)
+- Historical archives
+:::
+
 
 ## Compression Techniques for Storage Efficiency
 
-[Content to be written: Details about compression techniques for storage efficiency]
+At 256+ trillion vectors × 768 dimensions × 4 bytes (float32), embedding storage requires 768+ petabytes—costing $15M+ annually at $0.02/GB/month. **Compression techniques** reduce storage by 75-95% while maintaining 95%+ accuracy through quantization, dimensionality reduction, and intelligent encoding, transforming unaffordable PB-scale systems into practical TB-scale deployments.
+
+### The Storage Cost Challenge
+
+Storage costs dominate at scale:
+
+- **Raw storage**: 256T vectors × 768 dims × 4 bytes = 768 PB
+- **Cloud storage**: $0.02/GB/month = $15M/month = $180M/year
+- **Bandwidth**: Reading 1% daily = 7.6 PB transferred = $100K+/day
+- **Memory limits**: Cannot fit entire dataset in RAM
+- **Backup/replication**: 3× redundancy → 2.3 EB total
+- **Network transfer**: Cross-region replication costs
+
+**Compression approach**: Product quantization (4-32× compression, <5% accuracy loss), dimensionality reduction via PCA/random projection (2-4× compression), scalar quantization (2-4× compression, minimal accuracy loss), learned compression (neural network encoders), and sparse embeddings (exploit natural sparsity in high-dimensional spaces).
+
+```python
+"""
+Compression Techniques for Vector Storage
+
+Techniques:
+1. Product Quantization (PQ): Split vectors into subvectors, quantize each
+2. Scalar Quantization (SQ): Map floats to int8/int16
+3. Binary Quantization: Map to binary (1-bit per dimension)
+4. Dimensionality Reduction: PCA, random projection
+5. Sparse Embeddings: Exploit natural sparsity
+6. Learned Compression: Neural network autoencoders
+
+Trade-offs:
+- Compression ratio vs accuracy loss
+- Encoding time vs decoding time
+- Search compatibility (can search in compressed space?)
+- Memory vs computation (decompression overhead)
+
+Typical results:
+- PQ: 16-32× compression, 3-8% accuracy loss
+- SQ int8: 4× compression, <2% accuracy loss
+- Binary: 32× compression, 10-20% accuracy loss
+- PCA: 2-4× compression, 1-5% accuracy loss
+- Sparse: 5-20× compression (data-dependent)
+"""
+
+import numpy as np
+import torch
+import torch.nn as nn
+from typing import List, Dict, Optional, Tuple, Any
+from dataclasses import dataclass, field
+from sklearn.cluster import MiniBatchKMeans
+import struct
+
+@dataclass
+class CompressionConfig:
+    """
+    Configuration for vector compression
+    
+    Attributes:
+        method: Compression method (pq, sq, binary, pca, sparse, learned)
+        compression_ratio: Target compression ratio (2-32×)
+        accuracy_loss_tolerance: Maximum acceptable accuracy loss (0.0-0.2)
+        encode_time_ms: Time budget for encoding (1-100ms)
+        decode_time_ms: Time budget for decoding (0.1-10ms)
+        searchable: Whether search can operate on compressed vectors
+        training_required: Whether method requires training phase
+    """
+    method: str
+    compression_ratio: float = 8.0
+    accuracy_loss_tolerance: float = 0.05
+    encode_time_ms: float = 10.0
+    decode_time_ms: float = 1.0
+    searchable: bool = False
+    training_required: bool = True
+
+@dataclass
+class CompressionMetrics:
+    """
+    Metrics for compressed vector storage
+    
+    Attributes:
+        original_size_bytes: Size before compression
+        compressed_size_bytes: Size after compression
+        compression_ratio: Actual compression achieved
+        accuracy_loss: Measured accuracy loss (recall degradation)
+        encode_time_ms: Actual encoding time
+        decode_time_ms: Actual decoding time
+        memory_savings_pct: Percentage memory saved
+    """
+    original_size_bytes: int
+    compressed_size_bytes: int
+    compression_ratio: float
+    accuracy_loss: float
+    encode_time_ms: float
+    decode_time_ms: float
+    
+    @property
+    def memory_savings_pct(self) -> float:
+        """Calculate percentage memory saved"""
+        return (1.0 - 1.0 / self.compression_ratio) * 100
+
+class ProductQuantizer:
+    """
+    Product Quantization for vector compression
+    
+    Splits D-dimensional vector into M subvectors of D/M dimensions,
+    quantizes each subvector independently using k-means codebook
+    
+    Typical parameters:
+    - M = 8-16 subvectors
+    - k = 256 centroids per subvector (8-bit codes)
+    - Compression: 4 bytes (float32) → 1 byte (uint8) per subvector
+    - Ratio: 32× for 8 subvectors × 8 bits
+    """
+    
+    def __init__(
+        self,
+        n_subvectors: int = 8,
+        n_bits: int = 8,
+        n_iterations: int = 20
+    ):
+        """
+        Args:
+            n_subvectors: Number of subvectors (M)
+            n_bits: Bits per subvector code (typically 8)
+            n_iterations: K-means iterations for training
+        """
+        self.n_subvectors = n_subvectors
+        self.n_bits = n_bits
+        self.n_centroids = 2 ** n_bits  # 256 for 8 bits
+        self.n_iterations = n_iterations
+        
+        self.codebooks: List[np.ndarray] = []  # One per subvector
+        self.subvector_dim: Optional[int] = None
+        self.trained = False
+    
+    def train(
+        self,
+        vectors: np.ndarray,
+        sample_size: Optional[int] = None
+    ) -> None:
+        """
+        Train PQ codebooks using k-means on subvectors
+        
+        Args:
+            vectors: Training vectors (n_samples, dim)
+            sample_size: Use subset of vectors for training (faster)
+        """
+        n_samples, dim = vectors.shape
+        
+        # Check divisibility
+        if dim % self.n_subvectors != 0:
+            raise ValueError(
+                f"Dimension {dim} not divisible by {self.n_subvectors}"
+            )
+        
+        self.subvector_dim = dim // self.n_subvectors
+        
+        # Sample for training if needed
+        if sample_size and sample_size < n_samples:
+            indices = np.random.choice(n_samples, sample_size, replace=False)
+            train_vectors = vectors[indices]
+        else:
+            train_vectors = vectors
+        
+        # Train codebook for each subvector
+        self.codebooks = []
+        for i in range(self.n_subvectors):
+            # Extract subvectors
+            start = i * self.subvector_dim
+            end = start + self.subvector_dim
+            subvectors = train_vectors[:, start:end]
+            
+            # K-means clustering
+            kmeans = MiniBatchKMeans(
+                n_clusters=self.n_centroids,
+                max_iter=self.n_iterations,
+                batch_size=min(10000, len(subvectors)),
+                random_state=42
+            )
+            kmeans.fit(subvectors)
+            
+            # Store centroids (codebook)
+            self.codebooks.append(kmeans.cluster_centers_)
+        
+        self.trained = True
+    
+    def encode(self, vectors: np.ndarray) -> np.ndarray:
+        """
+        Encode vectors using PQ codes
+        
+        Args:
+            vectors: Vectors to encode (n_samples, dim)
+        
+        Returns:
+            codes: PQ codes (n_samples, n_subvectors) as uint8
+        """
+        if not self.trained:
+            raise ValueError("Must train PQ before encoding")
+        
+        n_samples = len(vectors)
+        codes = np.zeros((n_samples, self.n_subvectors), dtype=np.uint8)
+        
+        # Encode each subvector
+        for i in range(self.n_subvectors):
+            start = i * self.subvector_dim
+            end = start + self.subvector_dim
+            subvectors = vectors[:, start:end]
+            
+            # Find nearest centroid for each subvector
+            codebook = self.codebooks[i]
+            
+            # Compute distances to all centroids
+            # Shape: (n_samples, n_centroids)
+            distances = np.linalg.norm(
+                subvectors[:, np.newaxis, :] - codebook[np.newaxis, :, :],
+                axis=2
+            )
+            
+            # Find nearest centroid
+            codes[:, i] = np.argmin(distances, axis=1)
+        
+        return codes
+    
+    def decode(self, codes: np.ndarray) -> np.ndarray:
+        """
+        Decode PQ codes back to approximate vectors
+        
+        Args:
+            codes: PQ codes (n_samples, n_subvectors) as uint8
+        
+        Returns:
+            vectors: Reconstructed vectors (n_samples, dim)
+        """
+        n_samples = len(codes)
+        dim = self.n_subvectors * self.subvector_dim
+        vectors = np.zeros((n_samples, dim), dtype=np.float32)
+        
+        # Decode each subvector
+        for i in range(self.n_subvectors):
+            start = i * self.subvector_dim
+            end = start + self.subvector_dim
+            
+            # Look up centroids for codes
+            subvector_codes = codes[:, i]
+            vectors[:, start:end] = self.codebooks[i][subvector_codes]
+        
+        return vectors
+    
+    def compute_distance(
+        self,
+        query: np.ndarray,
+        codes: np.ndarray
+    ) -> np.ndarray:
+        """
+        Compute distances between query and PQ-encoded vectors
+        
+        Uses asymmetric distance computation (ADC):
+        - Query is exact (not quantized)
+        - Database vectors are quantized
+        
+        Much faster than decoding + distance computation
+        
+        Args:
+            query: Query vector (dim,)
+            codes: PQ codes (n_samples, n_subvectors)
+        
+        Returns:
+            distances: Approximate L2 distances (n_samples,)
+        """
+        n_samples = len(codes)
+        distances = np.zeros(n_samples, dtype=np.float32)
+        
+        # Precompute distance tables
+        # For each subvector, compute distance from query to all centroids
+        for i in range(self.n_subvectors):
+            start = i * self.subvector_dim
+            end = start + self.subvector_dim
+            query_subvector = query[start:end]
+            
+            # Distance to each centroid
+            # Shape: (n_centroids,)
+            centroid_distances = np.linalg.norm(
+                self.codebooks[i] - query_subvector,
+                axis=1
+            )
+            
+            # Look up distances for each code
+            # Shape: (n_samples,)
+            subvector_codes = codes[:, i]
+            distances += centroid_distances[subvector_codes] ** 2
+        
+        return np.sqrt(distances)
+    
+    def get_metrics(
+        self,
+        original_vectors: np.ndarray
+    ) -> CompressionMetrics:
+        """
+        Compute compression metrics
+        
+        Args:
+            original_vectors: Original uncompressed vectors
+        
+        Returns:
+            metrics: Compression performance metrics
+        """
+        # Encode
+        codes = self.encode(original_vectors)
+        
+        # Decode
+        reconstructed = self.decode(codes)
+        
+        # Compute accuracy loss (relative error)
+        original_norms = np.linalg.norm(original_vectors, axis=1)
+        reconstruction_error = np.linalg.norm(
+            original_vectors - reconstructed,
+            axis=1
+        )
+        relative_error = np.mean(reconstruction_error / original_norms)
+        
+        # Size comparison
+        original_size = original_vectors.nbytes
+        compressed_size = codes.nbytes + sum(
+            cb.nbytes for cb in self.codebooks
+        )
+        
+        return CompressionMetrics(
+            original_size_bytes=original_size,
+            compressed_size_bytes=compressed_size,
+            compression_ratio=original_size / compressed_size,
+            accuracy_loss=relative_error,
+            encode_time_ms=0.0,  # Would measure in production
+            decode_time_ms=0.0
+        )
+
+class ScalarQuantizer:
+    """
+    Scalar Quantization: Map float32 → int8/int16
+    
+    For each dimension independently:
+    - Find min/max values
+    - Map linearly to integer range
+    
+    Simpler than PQ, less compression but faster and more accurate
+    """
+    
+    def __init__(self, n_bits: int = 8):
+        """
+        Args:
+            n_bits: Bits per dimension (8 or 16 typical)
+        """
+        self.n_bits = n_bits
+        self.n_levels = 2 ** n_bits
+        
+        if n_bits == 8:
+            self.dtype = np.uint8
+        elif n_bits == 16:
+            self.dtype = np.uint16
+        else:
+            raise ValueError("Only 8 or 16 bits supported")
+        
+        self.min_vals: Optional[np.ndarray] = None
+        self.max_vals: Optional[np.ndarray] = None
+        self.trained = False
+    
+    def train(self, vectors: np.ndarray) -> None:
+        """
+        Learn quantization parameters (min/max per dimension)
+        
+        Args:
+            vectors: Training vectors (n_samples, dim)
+        """
+        # Compute min/max per dimension
+        self.min_vals = vectors.min(axis=0)
+        self.max_vals = vectors.max(axis=0)
+        
+        self.trained = True
+    
+    def encode(self, vectors: np.ndarray) -> np.ndarray:
+        """
+        Encode vectors to quantized form
+        
+        Args:
+            vectors: Vectors to encode (n_samples, dim)
+        
+        Returns:
+            quantized: Quantized vectors (n_samples, dim) as uint8/uint16
+        """
+        if not self.trained:
+            raise ValueError("Must train quantizer before encoding")
+        
+        # Normalize to [0, 1]
+        normalized = (vectors - self.min_vals) / (
+            self.max_vals - self.min_vals + 1e-8
+        )
+        
+        # Clip to [0, 1]
+        normalized = np.clip(normalized, 0.0, 1.0)
+        
+        # Map to integer range
+        quantized = (normalized * (self.n_levels - 1)).astype(self.dtype)
+        
+        return quantized
+    
+    def decode(self, quantized: np.ndarray) -> np.ndarray:
+        """
+        Decode quantized vectors back to float32
+        
+        Args:
+            quantized: Quantized vectors (n_samples, dim)
+        
+        Returns:
+            vectors: Reconstructed float32 vectors
+        """
+        # Map integers back to [0, 1]
+        normalized = quantized.astype(np.float32) / (self.n_levels - 1)
+        
+        # Denormalize
+        vectors = (
+            normalized * (self.max_vals - self.min_vals) + self.min_vals
+        )
+        
+        return vectors
+    
+    def get_metrics(
+        self,
+        original_vectors: np.ndarray
+    ) -> CompressionMetrics:
+        """Compute compression metrics"""
+        quantized = self.encode(original_vectors)
+        reconstructed = self.decode(quantized)
+        
+        # Compute accuracy loss
+        mse = np.mean((original_vectors - reconstructed) ** 2)
+        original_variance = np.var(original_vectors)
+        accuracy_loss = mse / original_variance
+        
+        # Size comparison
+        original_size = original_vectors.nbytes
+        compressed_size = (
+            quantized.nbytes + 
+            self.min_vals.nbytes + 
+            self.max_vals.nbytes
+        )
+        
+        return CompressionMetrics(
+            original_size_bytes=original_size,
+            compressed_size_bytes=compressed_size,
+            compression_ratio=original_size / compressed_size,
+            accuracy_loss=accuracy_loss,
+            encode_time_ms=0.0,
+            decode_time_ms=0.0
+        )
+
+class BinaryQuantizer:
+    """
+    Binary Quantization: Map to {-1, +1} or {0, 1}
+    
+    Extreme compression (32× for float32)
+    Works well for certain embeddings (e.g., locality-sensitive hashing)
+    """
+    
+    def __init__(self, threshold: float = 0.0):
+        """
+        Args:
+            threshold: Value above which maps to 1, below to 0
+        """
+        self.threshold = threshold
+    
+    def encode(self, vectors: np.ndarray) -> np.ndarray:
+        """
+        Encode vectors to binary
+        
+        Args:
+            vectors: Vectors to encode (n_samples, dim)
+        
+        Returns:
+            binary: Binary vectors (n_samples, dim) as bool
+        """
+        return (vectors > self.threshold).astype(bool)
+    
+    def decode(self, binary: np.ndarray) -> np.ndarray:
+        """
+        Decode binary to float (maps to {-1, +1})
+        
+        Args:
+            binary: Binary vectors (n_samples, dim) as bool
+        
+        Returns:
+            vectors: Reconstructed vectors as float32
+        """
+        return binary.astype(np.float32) * 2 - 1  # Map {0, 1} to {-1, +1}
+    
+    def hamming_distance(
+        self,
+        query: np.ndarray,
+        binary_vectors: np.ndarray
+    ) -> np.ndarray:
+        """
+        Compute Hamming distance between query and binary vectors
+        
+        Much faster than Euclidean distance
+        
+        Args:
+            query: Binary query vector (dim,) as bool
+            binary_vectors: Binary vectors (n_samples, dim) as bool
+        
+        Returns:
+            distances: Hamming distances (n_samples,)
+        """
+        # XOR gives 1 where bits differ
+        xor = np.logical_xor(query, binary_vectors)
+        
+        # Count 1s
+        distances = np.sum(xor, axis=1)
+        
+        return distances
+    
+    def get_metrics(
+        self,
+        original_vectors: np.ndarray
+    ) -> CompressionMetrics:
+        """Compute compression metrics"""
+        binary = self.encode(original_vectors)
+        reconstructed = self.decode(binary)
+        
+        # Compute accuracy loss
+        mse = np.mean((original_vectors - reconstructed) ** 2)
+        original_variance = np.var(original_vectors)
+        accuracy_loss = mse / original_variance
+        
+        # Size comparison (pack bits)
+        original_size = original_vectors.nbytes
+        # Each bool is 1 byte, but can pack 8 per byte
+        compressed_size = binary.size // 8
+        
+        return CompressionMetrics(
+            original_size_bytes=original_size,
+            compressed_size_bytes=compressed_size,
+            compression_ratio=original_size / compressed_size,
+            accuracy_loss=accuracy_loss,
+            encode_time_ms=0.0,
+            decode_time_ms=0.0
+        )
+
+class DimensionalityReducer:
+    """
+    Dimensionality reduction via PCA or random projection
+    
+    Reduces 768-dim → 256-dim (3× compression)
+    Faster similarity search in lower dimensions
+    """
+    
+    def __init__(
+        self,
+        target_dim: int = 256,
+        method: str = "pca"  # "pca" or "random"
+    ):
+        """
+        Args:
+            target_dim: Target dimensionality
+            method: Reduction method (pca or random projection)
+        """
+        self.target_dim = target_dim
+        self.method = method
+        self.projection_matrix: Optional[np.ndarray] = None
+        self.mean: Optional[np.ndarray] = None
+        self.trained = False
+    
+    def train(
+        self,
+        vectors: np.ndarray,
+        sample_size: Optional[int] = None
+    ) -> None:
+        """
+        Learn projection matrix
+        
+        Args:
+            vectors: Training vectors (n_samples, dim)
+            sample_size: Use subset for training (faster)
+        """
+        n_samples, original_dim = vectors.shape
+        
+        # Sample if needed
+        if sample_size and sample_size < n_samples:
+            indices = np.random.choice(n_samples, sample_size, replace=False)
+            train_vectors = vectors[indices]
+        else:
+            train_vectors = vectors
+        
+        # Center data
+        self.mean = train_vectors.mean(axis=0)
+        centered = train_vectors - self.mean
+        
+        if self.method == "pca":
+            # Compute PCA using SVD
+            U, S, Vt = np.linalg.svd(centered, full_matrices=False)
+            
+            # Take top target_dim components
+            self.projection_matrix = Vt[:self.target_dim].T
+            
+        elif self.method == "random":
+            # Random projection (Johnson-Lindenstrauss)
+            self.projection_matrix = np.random.randn(
+                original_dim,
+                self.target_dim
+            ) / np.sqrt(self.target_dim)
+        
+        else:
+            raise ValueError(f"Unknown method: {self.method}")
+        
+        self.trained = True
+    
+    def encode(self, vectors: np.ndarray) -> np.ndarray:
+        """
+        Project vectors to lower dimension
+        
+        Args:
+            vectors: Vectors to encode (n_samples, dim)
+        
+        Returns:
+            projected: Projected vectors (n_samples, target_dim)
+        """
+        if not self.trained:
+            raise ValueError("Must train before encoding")
+        
+        # Center and project
+        centered = vectors - self.mean
+        projected = centered @ self.projection_matrix
+        
+        return projected.astype(np.float32)
+    
+    def get_metrics(
+        self,
+        original_vectors: np.ndarray
+    ) -> CompressionMetrics:
+        """Compute compression metrics"""
+        projected = self.encode(original_vectors)
+        
+        # Compute variance preserved (for PCA)
+        if self.method == "pca":
+            # Reconstruct
+            reconstructed = (
+                projected @ self.projection_matrix.T + self.mean
+            )
+            mse = np.mean((original_vectors - reconstructed) ** 2)
+            original_variance = np.var(original_vectors)
+            accuracy_loss = mse / original_variance
+        else:
+            # For random projection, estimate distance preservation
+            accuracy_loss = 0.1  # Approximate
+        
+        # Size comparison
+        original_size = original_vectors.nbytes
+        compressed_size = (
+            projected.nbytes + 
+            self.projection_matrix.nbytes + 
+            self.mean.nbytes
+        )
+        
+        return CompressionMetrics(
+            original_size_bytes=original_size,
+            compressed_size_bytes=compressed_size,
+            compression_ratio=original_size / compressed_size,
+            accuracy_loss=accuracy_loss,
+            encode_time_ms=0.0,
+            decode_time_ms=0.0
+        )
+```
+
+### Compression Method Selection
+
+:::{.callout-tip}
+## Choosing Compression Method
+
+**For maximum compression (10-32×)**:
+- Binary quantization: 32× but 15-25% accuracy loss
+- Product quantization: 8-32× with 3-10% accuracy loss
+- Use when: Storage cost critical, accuracy tolerance high
+
+**For balanced compression (4-8×)**:
+- Scalar quantization (int8): 4× with <2% accuracy loss
+- PQ with 8 subvectors: 8× with 3-5% accuracy loss
+- Use when: Need both compression and accuracy
+
+**For minimal accuracy loss (<2%)**:
+- Scalar quantization (int8): 4× compression
+- Dimensionality reduction (768→384): 2× compression
+- PQ with 4 subvectors: 4× with <2% loss
+- Use when: Accuracy is critical
+
+**For searchable compression**:
+- Product quantization: Can search without decompression
+- Binary quantization: Very fast Hamming distance
+- Use when: Query speed matters more than storage
+
+**Combined approaches**:
+- PCA (768→384) + PQ (8 subvectors) = 16× compression
+- PCA + int8 quantization = 8× compression
+- Achieves better compression/accuracy trade-off
+:::
+
 
 ## Network Optimization for Distributed Queries
 
-[Content to be written: Details about network optimization for distributed queries]
+Global-scale embedding systems distribute across datacenters for latency, reliability, and regulatory compliance. **Network optimization** minimizes cross-datacenter latency (50-200ms) and bandwidth costs ($0.01-0.12/GB) through intelligent sharding, query routing, and replication strategies, enabling sub-100ms global query response while reducing bandwidth costs by 80%+.
+
+### The Distributed Query Challenge
+
+Global embedding systems face network constraints:
+
+- **Cross-datacenter latency**: 50-200ms (US-EU), 150-300ms (US-Asia)
+- **Bandwidth costs**: $0.01-0.12/GB between regions
+- **Query routing**: Which datacenter serves which query?
+- **Data sharding**: How to partition 256T embeddings?
+- **Replication**: Which data to replicate where?
+- **Consistency**: Keep replicas synchronized
+- **Failover**: Handle datacenter outages
+- **Regulatory**: GDPR, data residency requirements
+
+**Optimization approach**: Geo-distributed query routing (send queries to nearest datacenter with relevant data), intelligent sharding (co-locate frequently accessed embeddings), selective replication (hot data everywhere, cold data sharded), query aggregation (combine multiple queries to amortize latency), and compression (reduce bandwidth for cross-region transfers).
+
+```python
+"""
+Network Optimization for Distributed Vector Search
+
+Architecture:
+1. Global query router: Direct queries to optimal datacenter
+2. Sharding strategy: Partition embeddings across regions
+3. Replication policy: Replicate hot data globally
+4. Query aggregator: Batch queries for efficiency
+5. Compression: Reduce network transfer
+
+Techniques:
+- Geo-routing: Route based on user location and data availability
+- Hot data replication: Popular embeddings in all datacenters
+- Cold data sharding: Infrequent embeddings partitioned by region
+- Query batching: Amortize network latency
+- Result compression: Compress query results before transfer
+- Prefetching: Predictive loading of likely-needed data
+
+Performance targets:
+- p99 latency: <100ms globally
+- Bandwidth: <10GB/sec per datacenter
+- Replication lag: <5 seconds
+- Failover time: <30 seconds
+"""
+
+import numpy as np
+from typing import List, Dict, Optional, Tuple, Any, Set
+from dataclasses import dataclass, field
+from datetime import datetime
+import hashlib
+
+@dataclass
+class Datacenter:
+    """
+    Datacenter configuration
+    
+    Attributes:
+        name: Datacenter identifier (us-west-1, eu-central-1, etc.)
+        region: Geographic region
+        capacity_vectors: Max vectors this datacenter can store
+        capacity_qps: Max queries per second
+        current_vectors: Current vector count
+        current_qps: Current query load
+        latency_map: Latency to other datacenters (ms)
+        bandwidth_gbps: Network bandwidth available
+        cost_per_gb: Egress cost per GB
+    """
+    name: str
+    region: str
+    capacity_vectors: int
+    capacity_qps: float
+    current_vectors: int = 0
+    current_qps: float = 0.0
+    latency_map: Dict[str, float] = field(default_factory=dict)
+    bandwidth_gbps: float = 10.0
+    cost_per_gb: float = 0.02
+
+@dataclass
+class ShardingStrategy:
+    """
+    Strategy for partitioning embeddings across datacenters
+    
+    Attributes:
+        strategy_type: Type (hash, range, geo, semantic, hybrid)
+        shard_count: Number of shards
+        replication_factor: How many copies of each shard
+        shard_assignments: Which shards in which datacenters
+        hot_threshold: Access rate threshold for replication
+    """
+    strategy_type: str
+    shard_count: int
+    replication_factor: int
+    shard_assignments: Dict[int, List[str]] = field(default_factory=dict)
+    hot_threshold: float = 100.0  # Queries per hour
+
+class QueryRouter:
+    """
+    Global query routing to optimal datacenter
+    
+    Routes queries based on:
+    - User location (minimize latency)
+    - Data location (where embeddings are)
+    - Datacenter load (avoid overloaded nodes)
+    - Cost (prefer cheaper regions when latency acceptable)
+    """
+    
+    def __init__(
+        self,
+        datacenters: List[Datacenter],
+        sharding: ShardingStrategy
+    ):
+        self.datacenters = {dc.name: dc for dc in datacenters}
+        self.sharding = sharding
+        
+        # Track query patterns for optimization
+        self.query_history: List[Dict[str, Any]] = []
+        self.datacenter_loads: Dict[str, float] = defaultdict(float)
+    
+    def route_query(
+        self,
+        query_id: str,
+        embedding_ids: List[str],
+        user_region: str,
+        latency_budget_ms: float = 100.0
+    ) -> Tuple[str, List[str]]:
+        """
+        Route query to optimal datacenter(s)
+        
+        Args:
+            query_id: Query identifier
+            embedding_ids: Embeddings needed for query
+            user_region: User's geographic region
+            latency_budget_ms: Maximum acceptable latency
+        
+        Returns:
+            primary_dc: Primary datacenter to handle query
+            backup_dcs: Backup datacenters (for failover)
+        """
+        # Determine which datacenters have the needed embeddings
+        candidate_dcs = self._find_datacenters_with_data(embedding_ids)
+        
+        if not candidate_dcs:
+            raise ValueError("No datacenter contains required embeddings")
+        
+        # Score each candidate
+        scores = []
+        for dc_name in candidate_dcs:
+            score = self._score_datacenter(
+                dc_name,
+                user_region,
+                latency_budget_ms
+            )
+            scores.append((score, dc_name))
+        
+        # Sort by score (higher is better)
+        scores.sort(reverse=True, key=lambda x: x[0])
+        
+        # Select primary and backups
+        primary_dc = scores[0][1]
+        backup_dcs = [dc for _, dc in scores[1:3]]  # Top 2 backups
+        
+        # Update load tracking
+        self.datacenter_loads[primary_dc] += 1
+        
+        return primary_dc, backup_dcs
+    
+    def _find_datacenters_with_data(
+        self,
+        embedding_ids: List[str]
+    ) -> Set[str]:
+        """
+        Find datacenters that have all required embeddings
+        
+        Args:
+            embedding_ids: Required embedding IDs
+        
+        Returns:
+            datacenters: Set of datacenter names with all data
+        """
+        # Determine which shards contain the embeddings
+        needed_shards = set()
+        for emb_id in embedding_ids:
+            shard_id = self._get_shard_id(emb_id)
+            needed_shards.add(shard_id)
+        
+        # Find datacenters with all needed shards
+        candidate_dcs = None
+        for shard_id in needed_shards:
+            dcs_with_shard = set(self.sharding.shard_assignments.get(shard_id, []))
+            
+            if candidate_dcs is None:
+                candidate_dcs = dcs_with_shard
+            else:
+                # Intersection - must have ALL shards
+                candidate_dcs &= dcs_with_shard
+        
+        return candidate_dcs if candidate_dcs else set()
+    
+    def _get_shard_id(self, embedding_id: str) -> int:
+        """
+        Determine which shard contains this embedding
+        
+        Uses consistent hashing for even distribution
+        """
+        if self.sharding.strategy_type == "hash":
+            # Hash-based sharding
+            hash_val = int(
+                hashlib.sha256(embedding_id.encode()).hexdigest()[:8],
+                16
+            )
+            return hash_val % self.sharding.shard_count
+        elif self.sharding.strategy_type == "range":
+            # Range-based sharding (e.g., by ID prefix)
+            # Simplified: use first character
+            return ord(embedding_id[0]) % self.sharding.shard_count
+        else:
+            # Default to hash
+            return 0
+    
+    def _score_datacenter(
+        self,
+        dc_name: str,
+        user_region: str,
+        latency_budget: float
+    ) -> float:
+        """
+        Score datacenter for query routing
+        
+        Higher score = better choice
+        
+        Factors:
+        - Latency to user (lower is better)
+        - Current load (lower is better)
+        - Cost (lower is better)
+        """
+        dc = self.datacenters[dc_name]
+        
+        score = 100.0  # Start at 100
+        
+        # Latency penalty
+        latency = self._estimate_latency(dc_name, user_region)
+        if latency > latency_budget:
+            score -= 50  # Heavy penalty for exceeding budget
+        else:
+            # Linear penalty within budget
+            score -= 20 * (latency / latency_budget)
+        
+        # Load penalty
+        load_ratio = dc.current_qps / dc.capacity_qps
+        score -= 30 * load_ratio
+        
+        # Cost consideration (minor)
+        score -= dc.cost_per_gb * 0.1
+        
+        return max(score, 0)
+    
+    def _estimate_latency(
+        self,
+        dc_name: str,
+        user_region: str
+    ) -> float:
+        """
+        Estimate latency from user region to datacenter
+        
+        Returns latency in milliseconds
+        """
+        dc = self.datacenters[dc_name]
+        
+        # Check latency map
+        if user_region in dc.latency_map:
+            return dc.latency_map[user_region]
+        
+        # Default estimates by region
+        if dc.region == user_region:
+            return 10.0  # Same region
+        elif self._same_continent(dc.region, user_region):
+            return 50.0  # Same continent
+        else:
+            return 150.0  # Cross-continent
+
+    def _same_continent(self, region1: str, region2: str) -> bool:
+        """Check if regions on same continent"""
+        # Simplified continent mapping
+        continents = {
+            'us-west': 'north-america',
+            'us-east': 'north-america',
+            'eu-west': 'europe',
+            'eu-central': 'europe',
+            'ap-southeast': 'asia',
+            'ap-northeast': 'asia',
+        }
+        return continents.get(region1) == continents.get(region2)
+
+class ReplicationManager:
+    """
+    Manage replication of hot embeddings across datacenters
+    
+    Hot data replicated globally for low latency
+    Cold data sharded to save storage/bandwidth
+    """
+    
+    def __init__(
+        self,
+        datacenters: List[Datacenter],
+        hot_threshold_qps: float = 10.0
+    ):
+        self.datacenters = datacenters
+        self.hot_threshold = hot_threshold_qps
+        
+        # Track access patterns
+        self.access_counts: Dict[str, int] = defaultdict(int)
+        self.access_rates: Dict[str, float] = defaultdict(float)
+        
+        # Replication state
+        self.replicated_embeddings: Dict[str, Set[str]] = defaultdict(set)
+    
+    def record_access(
+        self,
+        embedding_id: str,
+        datacenter: str
+    ) -> None:
+        """
+        Record embedding access for replication decisions
+        
+        Args:
+            embedding_id: Accessed embedding
+            datacenter: Datacenter that served it
+        """
+        self.access_counts[embedding_id] += 1
+        
+        # Update access rate (exponential moving average)
+        alpha = 0.1
+        current_rate = self.access_rates[embedding_id]
+        self.access_rates[embedding_id] = (
+            alpha * 1.0 + (1 - alpha) * current_rate
+        )
+    
+    def should_replicate(self, embedding_id: str) -> bool:
+        """
+        Determine if embedding should be replicated globally
+        
+        Args:
+            embedding_id: Embedding to check
+        
+        Returns:
+            should_replicate: Whether to replicate
+        """
+        access_rate = self.access_rates[embedding_id]
+        return access_rate >= self.hot_threshold
+    
+    def get_replication_plan(
+        self,
+        max_replications: int = 1000
+    ) -> List[Tuple[str, List[str]]]:
+        """
+        Generate replication plan for hot embeddings
+        
+        Args:
+            max_replications: Maximum replications to perform
+        
+        Returns:
+            plan: List of (embedding_id, target_datacenters)
+        """
+        # Find hot embeddings not yet fully replicated
+        plan = []
+        
+        # Sort by access rate
+        sorted_embeddings = sorted(
+            self.access_rates.items(),
+            key=lambda x: x[1],
+            reverse=True
+        )
+        
+        for embedding_id, access_rate in sorted_embeddings[:max_replications]:
+            if access_rate < self.hot_threshold:
+                break
+            
+            # Find datacenters that don't have this embedding
+            current_dcs = self.replicated_embeddings[embedding_id]
+            all_dcs = {dc.name for dc in self.datacenters}
+            missing_dcs = all_dcs - current_dcs
+            
+            if missing_dcs:
+                plan.append((embedding_id, list(missing_dcs)))
+        
+        return plan
+
+class QueryBatcher:
+    """
+    Batch multiple queries for network efficiency
+    
+    Instead of N round-trips, make 1 round-trip with N queries
+    Amortizes network latency across queries
+    """
+    
+    def __init__(
+        self,
+        max_batch_size: int = 32,
+        max_wait_ms: float = 10.0
+    ):
+        self.max_batch_size = max_batch_size
+        self.max_wait_ms = max_wait_ms
+        
+        self.pending_queries: List[Dict[str, Any]] = []
+        self.batch_start_time: Optional[datetime] = None
+    
+    def add_query(
+        self,
+        query_id: str,
+        query_data: Dict[str, Any]
+    ) -> Optional[List[Dict[str, Any]]]:
+        """
+        Add query to batch
+        
+        Returns batch if ready to execute, None otherwise
+        
+        Args:
+            query_id: Query identifier
+            query_data: Query parameters
+        
+        Returns:
+            batch: Batch of queries if ready, None otherwise
+        """
+        # Add to pending
+        self.pending_queries.append({
+            'query_id': query_id,
+            'data': query_data,
+            'arrival_time': datetime.now()
+        })
+        
+        # Start timer if first query
+        if self.batch_start_time is None:
+            self.batch_start_time = datetime.now()
+        
+        # Check if batch ready
+        if self._should_execute_batch():
+            return self._get_batch()
+        
+        return None
+    
+    def _should_execute_batch(self) -> bool:
+        """Determine if batch should execute"""
+        # Execute if reached max size
+        if len(self.pending_queries) >= self.max_batch_size:
+            return True
+        
+        # Execute if waited too long
+        if self.batch_start_time:
+            elapsed = (
+                datetime.now() - self.batch_start_time
+            ).total_seconds() * 1000
+            if elapsed >= self.max_wait_ms:
+                return True
+        
+        return False
+    
+    def _get_batch(self) -> List[Dict[str, Any]]:
+        """Get current batch and reset"""
+        batch = self.pending_queries
+        self.pending_queries = []
+        self.batch_start_time = None
+        return batch
+
+class NetworkOptimizer:
+    """
+    Comprehensive network optimization
+    
+    Combines routing, replication, batching, and compression
+    """
+    
+    def __init__(
+        self,
+        datacenters: List[Datacenter],
+        sharding: ShardingStrategy
+    ):
+        self.router = QueryRouter(datacenters, sharding)
+        self.replication = ReplicationManager(datacenters)
+        self.batcher = QueryBatcher()
+    
+    def optimize_query(
+        self,
+        query_id: str,
+        query_data: Dict[str, Any],
+        user_region: str
+    ) -> Dict[str, Any]:
+        """
+        Optimize query execution across network
+        
+        Args:
+            query_id: Query identifier
+            query_data: Query parameters
+            user_region: User's region
+        
+        Returns:
+            execution_plan: Optimized execution plan
+        """
+        # Route query
+        primary_dc, backup_dcs = self.router.route_query(
+            query_id=query_id,
+            embedding_ids=query_data.get('embedding_ids', []),
+            user_region=user_region
+        )
+        
+        # Check if should batch
+        batch = self.batcher.add_query(query_id, query_data)
+        
+        # Create execution plan
+        plan = {
+            'query_id': query_id,
+            'primary_datacenter': primary_dc,
+            'backup_datacenters': backup_dcs,
+            'batched': batch is not None,
+            'batch_size': len(batch) if batch else 1,
+        }
+        
+        return plan
+```
+
+### Network Optimization Best Practices
+
+:::{.callout-tip}
+## Sharding Strategies
+
+**Hash-based sharding**:
+- Use: Uniform access patterns
+- Pros: Even distribution, simple
+- Cons: Can't colocate related embeddings
+
+**Geographic sharding**:
+- Use: Regional user bases (e.g., GDPR compliance)
+- Pros: Low latency, regulatory compliance
+- Cons: Uneven load distribution
+
+**Semantic sharding**:
+- Use: Queries access related embeddings
+- Pros: Locality, fewer cross-shard queries
+- Cons: Complex, requires clustering
+
+**Hybrid sharding**:
+- Hot data: Replicate globally
+- Warm data: Geographic sharding
+- Cold data: Hash-based sharding
+- Best of all approaches
+:::
+
+:::{.callout-tip}
+## Replication Policies
+
+**Full replication**:
+- Replicate all data to all datacenters
+- Use: <10TB datasets, low update rate
+- Pros: Lowest latency, simple
+- Cons: High storage/bandwidth cost
+
+**Hot data replication**:
+- Replicate top 1-10% globally
+- Shard remaining data
+- Use: Skewed access patterns (typical)
+- Pros: 80%+ queries local, 90%+ cost savings
+
+**On-demand replication**:
+- Replicate when access rate exceeds threshold
+- Gradually evict cold data
+- Use: Changing access patterns
+- Pros: Adaptive, efficient
+:::
 
 ## Key Takeaways
 
-- [Key point 1 to be added]
-- [Key point 2 to be added]
-- [Key point 3 to be added]
+- **Multi-stage query optimization reduces latency 10-50× through intelligent filtering**: Query analysis selects optimal execution strategy (HNSW for k<10, IVF-PQ for k<100, hybrid for complex queries), multi-stage retrieval progressively narrows candidates from 100M+ to k final results in <50ms, parallel execution distributes work across cores achieving 10,000+ QPS per node, and adaptive caching captures 70-90% of queries reducing database load proportionally while maintaining <1ms cache hit latency
+
+- **Index tuning adapts data structures to workload patterns enabling 10-100× throughput improvements**: HNSW tuning (M=16-64, ef_search=k×1.5-4×) optimizes recall/latency trade-off achieving 95-98% recall at 10-40ms p50, IVF tuning (n_clusters=sqrt(N) to 4×sqrt(N), n_probe=1-10% of clusters) enables sub-10ms queries at billion-vector scale, and workload-specific configuration considers query distribution, filter selectivity, and quality requirements to select optimal index type and parameters
+
+- **Multi-tier caching exploits access skew reducing storage costs by 70-90%**: L1 hot cache (1-10GB, <0.1ms) serves top 0.1% of embeddings receiving 50%+ of queries, L2 warm cache (10-100GB, <1ms) handles frequent access patterns, L3 cold cache (100GB-1TB, <5ms) with compression provides cost-effective buffer, intelligent promotion/demotion based on access frequency maintains optimal tier assignments, and query result caching avoids repeated similarity computations for identical or similar queries
+
+- **Compression reduces storage costs 75-95% while maintaining 95%+ accuracy through quantization**: Product quantization achieves 8-32× compression with 3-10% accuracy loss by splitting vectors into subvectors and clustering each independently, scalar quantization (float32→int8) provides 4× compression with <2% loss through per-dimension linear mapping, binary quantization enables 32× compression for LSH-style applications, dimensionality reduction (PCA 768→256) provides 3× compression with 1-5% variance loss, and combined approaches (PCA + PQ) achieve 16× compression with <5% accuracy degradation
+
+- **Network optimization for distributed queries minimizes latency and bandwidth costs**: Geo-distributed query routing directs queries to nearest datacenter with required data achieving sub-100ms global latency, intelligent sharding strategies (hash, geographic, semantic, hybrid) balance load distribution with data locality, selective hot data replication places frequently accessed embeddings globally (top 1-10%) while sharding cold data reduces replication costs 80%+, query batching amortizes network latency across multiple queries, and compression reduces cross-region bandwidth by 4-8× lowering egress costs proportionally
+
+- **Performance optimization is system-wide requiring coordinated query, index, cache, compression, and network strategies**: No single optimization achieves production performance—query optimization provides 10× improvement, index tuning 5-10×, caching 3-5×, compression 4-8× on storage, and network optimization 2-5× on distributed latency, requiring coordinated deployment where caching benefits query optimization, compression enables larger caches, and optimized queries reduce replication bandwidth
+
+- **Continuous monitoring and adaptive tuning maintain optimal performance as workloads evolve**: Query patterns shift (viral content, trending topics, seasonal effects), data distributions change (new embeddings, concept drift), hardware characteristics vary (CPU/GPU availability, network conditions), and cost structures fluctuate (storage/bandwidth pricing), necessitating automated performance monitoring, workload analysis, A/B testing of optimization strategies, and gradual rollout of configuration changes with rollback capabilities
 
 ## Looking Ahead
 
-Chapter 24 addresses critical security and privacy considerations.
+Chapter 24 addresses critical security and privacy considerations: embedding encryption and secure computation for protecting sensitive embeddings, privacy-preserving similarity search enabling queries without revealing query vectors or database contents, differential privacy for embeddings providing formal privacy guarantees, access control and audit trails for regulatory compliance, and GDPR and data sovereignty compliance for global deployments.
 
 ## Further Reading
 
-- [References to be added]
+### Query Optimization
+- Malkov, Yury A., and Dmitry A. Yashunin (2018). "Efficient and Robust Approximate Nearest Neighbor Search Using Hierarchical Navigable Small World Graphs." IEEE Transactions on Pattern Analysis and Machine Intelligence.
+- Jégou, Hervé, Matthijs Douze, and Cordelia Schmid (2011). "Product Quantization for Nearest Neighbor Search." IEEE Transactions on Pattern Analysis and Machine Intelligence.
+- Babenko, Artem, and Victor Lempitsky (2014). "The Inverted Multi-Index." IEEE Conference on Computer Vision and Pattern Recognition.
+- Guo, Ruiqi, et al. (2020). "Accelerating Large-Scale Inference with Anisotropic Vector Quantization." International Conference on Machine Learning.
+
+### Index Structures and Tuning
+- Aumüller, Martin, et al. (2020). "ANN-Benchmarks: A Benchmarking Tool for Approximate Nearest Neighbor Algorithms." Information Systems.
+- Douze, Matthijs, et al. (2024). "The Faiss Library." arXiv:2401.08281.
+- Johnson, Jeff, Matthijs Douze, and Hervé Jégou (2019). "Billion-Scale Similarity Search with GPUs." IEEE Transactions on Big Data.
+- Andoni, Alexandr, and Piotr Indyk (2008). "Near-Optimal Hashing Algorithms for Approximate Nearest Neighbor in High Dimensions." Communications of the ACM.
+
+### Caching Systems
+- Berger, Daniel S., et al. (2018). "Adaptive Software-Defined Storage." ACM Transactions on Storage.
+- Cidon, Asaf, et al. (2016). "Dynacache: Dynamic Cloud Caching." Usenix Conference on File and Storage Technologies.
+- Waldspurger, Carl A., et al. (2015). "Efficient MRC Construction with SHARDS." Usenix Conference on File and Storage Technologies.
+- Beckmann, Nathan, and Daniel Sanchez (2017). "Maximizing Cache Performance Under Uncertainty." IEEE International Symposium on High Performance Computer Architecture.
+
+### Compression Techniques
+- Jégou, Hervé, Matthijs Douze, and Cordelia Schmid (2011). "Product Quantization for Nearest Neighbor Search." IEEE Transactions on Pattern Analysis and Machine Intelligence.
+- Ge, Tiezheng, et al. (2014). "Optimized Product Quantization." IEEE Transactions on Pattern Analysis and Machine Intelligence.
+- Gong, Yunchao, and Svetlana Lazebnik (2011). "Iterative Quantization: A Procrustean Approach to Learning Binary Codes." IEEE Conference on Computer Vision and Pattern Recognition.
+- Martinez, Julieta, et al. (2016). "Revisiting Additive Quantization." European Conference on Computer Vision.
+- Norouzi, Mohammad, and David J. Fleet (2013). "Cartesian K-Means." IEEE Conference on Computer Vision and Pattern Recognition.
+
+### Distributed Systems and Networking
+- Kraska, Tim, et al. (2018). "The Case for Learned Index Structures." ACM SIGMOD International Conference on Management of Data.
+- Recht, Benjamin, et al. (2011). "Hogwild: A Lock-Free Approach to Parallelizing Stochastic Gradient Descent." Advances in Neural Information Processing Systems.
+- Dean, Jeffrey, and Luiz André Barroso (2013). "The Tail at Scale." Communications of the ACM.
+- Zaharia, Matei, et al. (2012). "Resilient Distributed Datasets: A Fault-Tolerant Abstraction for In-Memory Cluster Computing." Usenix Symposium on Networked Systems Design and Implementation.
+
+### Performance Optimization and Benchmarking
+- Guo, Ruiqi, et al. (2020). "Accelerating Large-Scale Inference with Anisotropic Vector Quantization." International Conference on Machine Learning.
+- Johnson, Jeff, Matthijs Douze, and Hervé Jégou (2019). "Billion-Scale Similarity Search with GPUs." IEEE Transactions on Big Data.
+- Li, Wen, et al. (2020). "Approximate Nearest Neighbor Search on High Dimensional Data—Experiments, Analyses, and Improvement." IEEE Transactions on Knowledge and Data Engineering.
+- Aumüller, Martin, et al. (2020). "ANN-Benchmarks: A Benchmarking Tool for Approximate Nearest Neighbor Algorithms." Information Systems.
+
+### Hardware Acceleration
+- Jia, Zhe, et al. (2019). "Dissecting the Graphcore IPU Architecture via Microbenchmarking." arXiv:1912.03413.
+- Chen, Tianqi, et al. (2018). "TVM: An Automated End-to-End Optimizing Compiler for Deep Learning." USENIX Symposium on Operating Systems Design and Implementation.
+- Rhu, Minsoo, et al. (2016). "vDNN: Virtualized Deep Neural Networks for Scalable, Memory-Efficient Neural Network Design." IEEE/ACM International Symposium on Microarchitecture.
+- Jouppi, Norman P., et al. (2017). "In-Datacenter Performance Analysis of a Tensor Processing Unit." ACM/IEEE International Symposium on Computer Architecture.
+
