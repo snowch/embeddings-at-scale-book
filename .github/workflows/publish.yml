@@ -41,6 +41,18 @@ jobs:
       - name: Render Book (all formats)
         run: quarto render
 
+      # --- NEW STEP STARTS HERE ---
+      - name: Upload Render Log on Failure
+        if: failure() 
+        uses: actions/upload-artifact@v4
+        with:
+          name: quarto-error-log
+          # Captures index.log or any other log files in the root
+          path: |
+             index.log
+             *.log
+      # --- NEW STEP ENDS HERE ---
+
       - name: Ensure .nojekyll exists
         run: touch _book/.nojekyll
 
@@ -64,14 +76,3 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: '_book'
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
