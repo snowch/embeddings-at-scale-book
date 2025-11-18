@@ -2831,6 +2831,1046 @@ Traditional process control faces limitations:
 - **Recipe management**: Thousands of product-specific parameter sets
 - **Quality feedback lag**: Defects discovered hours after production
 
+**Embedding approach**: Learn embeddings of manufacturing states (sensor readings, quality outcomes, process parameters). Reinforcement learning agents navigate embedding space to find optimal parameter combinations. Adapt in real-time as conditions change, materials vary, or new products are introduced.
+```python
+"""
+Process Automation with Reinforcement Learning in Embedding Space
+
+Architecture:
+1. State encoder: Manufacturing state to embedding
+2. Action encoder: Parameter adjustments to embedding
+3. Policy network: Select optimal actions given state
+4. Value network: Estimate expected outcomes
+5. Reward model: Quality, throughput, cost objectives
+
+Techniques:
+- Model-based RL: Learn process dynamics, plan ahead
+- Multi-objective optimization: Balance competing goals
+- Safe exploration: Constrain actions to safe operating region
+- Transfer learning: Adapt policies across similar processes
+- Online learning: Continuous improvement from production data
+
+Production considerations:
+- Safety constraints: Never violate critical limits
+- Stability: Smooth parameter transitions, avoid oscillation
+- Explainability: Operators understand and trust decisions
+- Human-in-the-loop: Override capability for edge cases
+- Gradual rollout: A/B testing before full deployment
+"""
+
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from typing import List, Dict, Optional, Tuple, Any
+from dataclasses import dataclass, field
+from datetime import datetime
+import random
+from collections import deque
+
+@dataclass
+class ProcessState:
+    """
+    Current manufacturing process state
+    
+    Attributes:
+        timestamp: State timestamp
+        process_id: Process identifier
+        parameters: Current parameter values (temp, pressure, speed, etc.)
+        sensor_readings: Real-time sensor data
+        quality_metrics: Recent quality measurements
+        throughput: Current production rate
+        material_properties: Current batch characteristics
+        equipment_condition: Machine health indicators
+        embedding: Learned state embedding
+    """
+    timestamp: datetime
+    process_id: str
+    parameters: Dict[str, float]
+    sensor_readings: Dict[str, np.ndarray]
+    quality_metrics: Dict[str, float]
+    throughput: float
+    material_properties: Dict[str, float]
+    equipment_condition: Dict[str, float]
+    embedding: Optional[np.ndarray] = None
+
+@dataclass
+class ProcessAction:
+    """
+    Process parameter adjustment
+    
+    Attributes:
+        action_id: Unique identifier
+        parameter_name: Which parameter to adjust
+        delta: Amount to change (can be positive or negative)
+        magnitude: Size of adjustment (0=no change, 1=max change)
+        timestamp: When action was taken
+        reason: Explanation for adjustment
+    """
+    action_id: str
+    parameter_name: str
+    delta: float
+    magnitude: float
+    timestamp: datetime
+    reason: str = ""
+
+@dataclass
+class ProcessReward:
+    """
+    Reward signal for reinforcement learning
+    
+    Attributes:
+        quality_score: Quality improvement (higher is better)
+        throughput_score: Production rate improvement
+        cost_score: Cost reduction (negative of cost)
+        energy_score: Energy efficiency improvement
+        total_reward: Weighted combination of all scores
+        breakdown: Individual component contributions
+    """
+    quality_score: float
+    throughput_score: float
+    cost_score: float
+    energy_score: float
+    total_reward: float
+    breakdown: Dict[str, float] = field(default_factory=dict)
+
+class ProcessStateEncoder(nn.Module):
+    """
+    Encode process state to embedding
+    
+    Combines:
+    - Current parameter settings
+    - Sensor readings (temperature, pressure, vibration, etc.)
+    - Quality metrics (defect rate, dimensional accuracy)
+    - Throughput and efficiency metrics
+    - Material and equipment condition
+    
+    Output: 256-dim process state embedding
+    """
+    
+    def __init__(self, embedding_dim=256):
+        super().__init__()
+        self.embedding_dim = embedding_dim
+        
+        # Parameter encoder
+        self.param_encoder = nn.Sequential(
+            nn.Linear(20, 64),  # Process parameters
+            nn.ReLU(),
+            nn.Linear(64, 64)
+        )
+        
+        # Sensor encoder (simplified: would use specialized encoders per sensor type)
+        self.sensor_encoder = nn.Sequential(
+            nn.Linear(50, 128),  # Aggregated sensor features
+            nn.ReLU(),
+            nn.Linear(128, 128)
+        )
+        
+        # Quality/performance encoder
+        self.quality_encoder = nn.Sequential(
+            nn.Linear(10, 32),  # Quality metrics, throughput
+            nn.ReLU(),
+            nn.Linear(32, 32)
+        )
+        
+        # Material/equipment encoder
+        self.context_encoder = nn.Sequential(
+            nn.Linear(15, 32),  # Material properties, equipment condition
+            nn.ReLU(),
+            nn.Linear(32, 32)
+        )
+        
+        # Fusion
+        self.fusion = nn.Sequential(
+            nn.Linear(64 + 128 + 32 + 32, 256),
+            nn.ReLU(),
+            nn.Dropout(0.1),
+            nn.Linear(256, embedding_dim)
+        )
+        
+    def forward(
+        self,
+        parameters: torch.Tensor,
+        sensors: torch.Tensor,
+        quality: torch.Tensor,
+        context: torch.Tensor
+    ) -> torch.Tensor:
+        """
+        Args:
+            parameters: [batch, 20] process parameters
+            sensors: [batch, 50] sensor readings
+            quality: [batch, 10] quality/performance metrics
+            context: [batch, 15] material/equipment context
+        Returns:
+            embeddings: [batch, embedding_dim] state embeddings
+        """
+        param_emb = self.param_encoder(parameters)
+        sensor_emb = self.sensor_encoder(sensors)
+        quality_emb = self.quality_encoder(quality)
+        context_emb = self.context_encoder(context)
+        
+        concat = torch.cat([param_emb, sensor_emb, quality_emb, context_emb], dim=1)
+        embedding = self.fusion(concat)
+        
+        return F.normalize(embedding, p=2, dim=1)
+
+class ProcessActionEncoder(nn.Module):
+    """
+    Encode process actions to embedding space
+    
+    Actions represent parameter adjustments:
+    - Which parameter to change
+    - Direction (increase/decrease)
+    - Magnitude (small/large change)
+    
+    Output: 64-dim action embedding
+    """
+    
+    def __init__(self, num_parameters=20, embedding_dim=64):
+        super().__init__()
+        self.embedding_dim = embedding_dim
+        self.num_parameters = num_parameters
+        
+        # Parameter index embedding
+        self.param_embedding = nn.Embedding(num_parameters, 32)
+        
+        # Magnitude encoder
+        self.magnitude_encoder = nn.Sequential(
+            nn.Linear(1, 16),
+            nn.ReLU(),
+            nn.Linear(16, 16)
+        )
+        
+        # Fusion
+        self.fusion = nn.Sequential(
+            nn.Linear(32 + 16, 64),
+            nn.ReLU(),
+            nn.Linear(64, embedding_dim)
+        )
+        
+    def forward(
+        self,
+        parameter_indices: torch.Tensor,
+        magnitudes: torch.Tensor
+    ) -> torch.Tensor:
+        """
+        Args:
+            parameter_indices: [batch] which parameters to adjust
+            magnitudes: [batch, 1] adjustment magnitudes (-1 to 1)
+        Returns:
+            embeddings: [batch, embedding_dim] action embeddings
+        """
+        param_emb = self.param_embedding(parameter_indices)
+        mag_emb = self.magnitude_encoder(magnitudes)
+        
+        concat = torch.cat([param_emb, mag_emb], dim=1)
+        embedding = self.fusion(concat)
+        
+        return F.normalize(embedding, p=2, dim=1)
+
+class ProcessPolicyNetwork(nn.Module):
+    """
+    Policy network for selecting process actions
+    
+    Given current state embedding, output action distribution:
+    - Which parameter to adjust
+    - How much to adjust it
+    
+    Uses actor-critic architecture for stable learning
+    """
+    
+    def __init__(
+        self,
+        state_dim=256,
+        action_dim=64,
+        num_parameters=20,
+        hidden_dim=256
+    ):
+        super().__init__()
+        self.num_parameters = num_parameters
+        
+        # Shared feature extraction
+        self.shared = nn.Sequential(
+            nn.Linear(state_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.ReLU()
+        )
+        
+        # Actor: policy for selecting actions
+        self.actor_param = nn.Linear(hidden_dim, num_parameters)  # Which parameter
+        self.actor_magnitude = nn.Sequential(
+            nn.Linear(hidden_dim, 64),
+            nn.ReLU(),
+            nn.Linear(64, 1),
+            nn.Tanh()  # Output in [-1, 1]
+        )
+        
+        # Critic: value function estimation
+        self.critic = nn.Sequential(
+            nn.Linear(hidden_dim, 64),
+            nn.ReLU(),
+            nn.Linear(64, 1)
+        )
+        
+    def forward(
+        self,
+        state_embedding: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """
+        Args:
+            state_embedding: [batch, state_dim] process state
+        Returns:
+            param_logits: [batch, num_parameters] parameter selection logits
+            magnitudes: [batch, 1] adjustment magnitudes
+            values: [batch, 1] state value estimates
+        """
+        features = self.shared(state_embedding)
+        
+        param_logits = self.actor_param(features)
+        magnitudes = self.actor_magnitude(features)
+        values = self.critic(features)
+        
+        return param_logits, magnitudes, values
+    
+    def select_action(
+        self,
+        state_embedding: torch.Tensor,
+        deterministic: bool = False
+    ) -> Tuple[int, float]:
+        """
+        Select action given state
+        
+        Args:
+            state_embedding: [1, state_dim] current state
+            deterministic: If True, select best action; if False, sample
+        Returns:
+            parameter_index: Which parameter to adjust
+            magnitude: How much to adjust (-1 to 1)
+        """
+        param_logits, magnitudes, _ = self.forward(state_embedding)
+        
+        if deterministic:
+            # Select best action
+            parameter_index = torch.argmax(param_logits, dim=1).item()
+            magnitude = magnitudes[0, 0].item()
+        else:
+            # Sample action
+            param_dist = torch.distributions.Categorical(logits=param_logits)
+            parameter_index = param_dist.sample().item()
+            
+            # Add exploration noise to magnitude
+            magnitude = magnitudes[0, 0].item() + np.random.normal(0, 0.1)
+            magnitude = np.clip(magnitude, -1.0, 1.0)
+        
+        return parameter_index, magnitude
+
+class ProcessDynamicsModel(nn.Module):
+    """
+    Learn process dynamics: predict next state given current state and action
+    
+    Enables model-based planning and what-if analysis
+    """
+    
+    def __init__(self, state_dim=256, action_dim=64):
+        super().__init__()
+        
+        self.dynamics = nn.Sequential(
+            nn.Linear(state_dim + action_dim, 512),
+            nn.ReLU(),
+            nn.Linear(512, 512),
+            nn.ReLU(),
+            nn.Linear(512, state_dim)
+        )
+        
+        # Predict rewards
+        self.reward_predictor = nn.Sequential(
+            nn.Linear(state_dim + action_dim, 256),
+            nn.ReLU(),
+            nn.Linear(256, 5)  # Quality, throughput, cost, energy, total
+        )
+        
+    def forward(
+        self,
+        state: torch.Tensor,
+        action: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Predict next state and reward
+        
+        Args:
+            state: [batch, state_dim] current state
+            action: [batch, action_dim] action taken
+        Returns:
+            next_state: [batch, state_dim] predicted next state
+            rewards: [batch, 5] predicted reward components
+        """
+        combined = torch.cat([state, action], dim=1)
+        
+        # Predict delta and add to current state (residual connection)
+        delta = self.dynamics(combined)
+        next_state = state + delta
+        next_state = F.normalize(next_state, p=2, dim=1)
+        
+        # Predict rewards
+        rewards = self.reward_predictor(combined)
+        
+        return next_state, rewards
+
+class AdaptiveProcessController:
+    """
+    Adaptive process control using reinforcement learning
+    
+    Workflow:
+    1. Observe current process state
+    2. Encode state to embedding
+    3. Policy network selects action
+    4. Apply action to process
+    5. Observe outcome and reward
+    6. Update policy to maximize reward
+    
+    Features:
+    - Safe exploration: Constrain actions to safe operating region
+    - Multi-objective optimization: Balance quality, throughput, cost
+    - Online learning: Continuous improvement from production data
+    - Transfer learning: Adapt to new products/materials quickly
+    - Explainability: Log why actions were taken
+    """
+    
+    def __init__(
+        self,
+        state_encoder: ProcessStateEncoder,
+        action_encoder: ProcessActionEncoder,
+        policy_network: ProcessPolicyNetwork,
+        dynamics_model: Optional[ProcessDynamicsModel] = None
+    ):
+        self.state_encoder = state_encoder
+        self.action_encoder = action_encoder
+        self.policy_network = policy_network
+        self.dynamics_model = dynamics_model
+        
+        # Experience replay buffer
+        self.replay_buffer = deque(maxlen=10000)
+        
+        # Safety constraints (parameter bounds)
+        self.safety_constraints = {
+            'temperature': (60.0, 80.0),
+            'pressure': (80.0, 120.0),
+            'speed': (800.0, 1200.0),
+            'feed_rate': (30.0, 70.0)
+        }
+        
+        # Reward weights for multi-objective optimization
+        self.reward_weights = {
+            'quality': 0.4,
+            'throughput': 0.3,
+            'cost': 0.2,
+            'energy': 0.1
+        }
+        
+        # Learning rate and discount factor
+        self.learning_rate = 0.0001
+        self.gamma = 0.99
+        
+        # Optimizers
+        self.policy_optimizer = torch.optim.Adam(
+            self.policy_network.parameters(),
+            lr=self.learning_rate
+        )
+        
+        if self.dynamics_model:
+            self.dynamics_optimizer = torch.optim.Adam(
+                self.dynamics_model.parameters(),
+                lr=self.learning_rate
+            )
+        
+        # Performance tracking
+        self.episode_rewards: List[float] = []
+        self.episode_quality: List[float] = []
+        self.episode_throughput: List[float] = []
+        
+    def encode_state(self, state: ProcessState) -> np.ndarray:
+        """Convert process state to embedding"""
+        with torch.no_grad():
+            # Extract features (simplified)
+            params = torch.tensor(
+                [state.parameters.get(f'param_{i}', 0.0) for i in range(20)],
+                dtype=torch.float32
+            ).unsqueeze(0)
+            
+            sensors = torch.tensor(
+                [state.sensor_readings.get(f'sensor_{i}', 0.0) for i in range(50)],
+                dtype=torch.float32
+            ).unsqueeze(0)
+            
+            quality = torch.tensor(
+                [
+                    state.quality_metrics.get('defect_rate', 0.02),
+                    state.quality_metrics.get('dimensional_accuracy', 0.95),
+                    state.throughput / 100.0,  # Normalize
+                ] + [0.0] * 7,
+                dtype=torch.float32
+            ).unsqueeze(0)
+            
+            context = torch.tensor(
+                [state.material_properties.get(f'prop_{i}', 0.0) for i in range(10)] +
+                [state.equipment_condition.get(f'cond_{i}', 0.0) for i in range(5)],
+                dtype=torch.float32
+            ).unsqueeze(0)
+            
+            embedding = self.state_encoder(params, sensors, quality, context)
+            return embedding.cpu().numpy()[0]
+    
+    def select_action(
+        self,
+        state: ProcessState,
+        exploration: bool = True
+    ) -> ProcessAction:
+        """
+        Select process action given current state
+        
+        Args:
+            state: Current process state
+            exploration: If True, add exploration noise; if False, greedy
+        Returns:
+            Action to take
+        """
+        # Encode state
+        state_embedding = self.encode_state(state)
+        state_tensor = torch.tensor(state_embedding, dtype=torch.float32).unsqueeze(0)
+        
+        # Select action
+        with torch.no_grad():
+            param_idx, magnitude = self.policy_network.select_action(
+                state_tensor,
+                deterministic=not exploration
+            )
+        
+        # Map parameter index to name
+        param_names = list(self.safety_constraints.keys())
+        if param_idx >= len(param_names):
+            param_idx = param_idx % len(param_names)
+        param_name = param_names[param_idx]
+        
+        # Calculate actual delta within safety constraints
+        current_value = state.parameters.get(param_name, 70.0)
+        min_val, max_val = self.safety_constraints[param_name]
+        max_delta = (max_val - min_val) * 0.1  # Max 10% change per step
+        
+        delta = magnitude * max_delta
+        new_value = current_value + delta
+        
+        # Enforce safety constraints
+        new_value = np.clip(new_value, min_val, max_val)
+        delta = new_value - current_value
+        
+        return ProcessAction(
+            action_id=f"action_{datetime.now().timestamp()}",
+            parameter_name=param_name,
+            delta=delta,
+            magnitude=magnitude,
+            timestamp=datetime.now(),
+            reason=f"Policy selected to adjust {param_name} by {delta:.2f}"
+        )
+    
+    def compute_reward(
+        self,
+        prev_state: ProcessState,
+        action: ProcessAction,
+        new_state: ProcessState
+    ) -> ProcessReward:
+        """
+        Compute reward signal for taken action
+        
+        Rewards:
+        - Quality improvement: Lower defect rate, better accuracy
+        - Throughput improvement: Higher production rate
+        - Cost reduction: Lower energy, material waste
+        - Stability: Smooth operation, low variance
+        """
+        # Quality score (lower defect rate is better)
+        prev_defects = prev_state.quality_metrics.get('defect_rate', 0.02)
+        new_defects = new_state.quality_metrics.get('defect_rate', 0.02)
+        quality_improvement = prev_defects - new_defects
+        quality_score = quality_improvement * 100  # Scale up
+        
+        # Throughput score
+        throughput_improvement = new_state.throughput - prev_state.throughput
+        throughput_score = throughput_improvement / 100.0  # Normalize
+        
+        # Cost score (negative of cost increase)
+        # Simplified: use action magnitude as proxy for adjustment cost
+        cost_score = -abs(action.magnitude) * 0.1
+        
+        # Energy score (simplified)
+        energy_score = -0.05  # Small penalty for any action
+        
+        # Weighted total
+        total_reward = (
+            self.reward_weights['quality'] * quality_score +
+            self.reward_weights['throughput'] * throughput_score +
+            self.reward_weights['cost'] * cost_score +
+            self.reward_weights['energy'] * energy_score
+        )
+        
+        return ProcessReward(
+            quality_score=quality_score,
+            throughput_score=throughput_score,
+            cost_score=cost_score,
+            energy_score=energy_score,
+            total_reward=total_reward,
+            breakdown={
+                'quality': quality_score,
+                'throughput': throughput_score,
+                'cost': cost_score,
+                'energy': energy_score
+            }
+        )
+    
+    def update_policy(
+        self,
+        state: ProcessState,
+        action: ProcessAction,
+        reward: ProcessReward,
+        next_state: ProcessState,
+        done: bool = False
+    ):
+        """
+        Update policy network using experience
+        
+        Uses Advantage Actor-Critic (A2C) algorithm
+        """
+        # Encode states
+        state_emb = torch.tensor(
+            self.encode_state(state),
+            dtype=torch.float32
+        ).unsqueeze(0)
+        
+        next_state_emb = torch.tensor(
+            self.encode_state(next_state),
+            dtype=torch.float32
+        ).unsqueeze(0)
+        
+        # Get action representation
+        param_names = list(self.safety_constraints.keys())
+        param_idx = param_names.index(action.parameter_name)
+        
+        # Forward pass
+        param_logits, magnitudes, values = self.policy_network(state_emb)
+        _, _, next_values = self.policy_network(next_state_emb)
+        
+        # Compute advantage
+        reward_tensor = torch.tensor([[reward.total_reward]], dtype=torch.float32)
+        
+        if done:
+            target = reward_tensor
+        else:
+            target = reward_tensor + self.gamma * next_values.detach()
+        
+        advantage = target - values
+        
+        # Policy loss (negative log probability weighted by advantage)
+        param_dist = torch.distributions.Categorical(logits=param_logits)
+        log_prob_param = param_dist.log_prob(torch.tensor([param_idx]))
+        
+        # Magnitude loss (mean squared error)
+        magnitude_target = torch.tensor([[action.magnitude]], dtype=torch.float32)
+        magnitude_loss = F.mse_loss(magnitudes, magnitude_target)
+        
+        # Value loss
+        value_loss = F.mse_loss(values, target.detach())
+        
+        # Total loss
+        policy_loss = -(log_prob_param * advantage.detach()).mean()
+        total_loss = policy_loss + 0.5 * value_loss + 0.1 * magnitude_loss
+        
+        # Update
+        self.policy_optimizer.zero_grad()
+        total_loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.policy_network.parameters(), 1.0)
+        self.policy_optimizer.step()
+        
+        # Store experience
+        self.replay_buffer.append({
+            'state': state,
+            'action': action,
+            'reward': reward,
+            'next_state': next_state,
+            'done': done
+        })
+    
+    def run_episode(
+        self,
+        initial_state: ProcessState,
+        num_steps: int = 50,
+        exploration: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Run control episode
+        
+        Args:
+            initial_state: Starting process state
+            num_steps: Number of control steps
+            exploration: Whether to explore or exploit
+        Returns:
+            Episode summary with rewards and metrics
+        """
+        state = initial_state
+        total_reward = 0.0
+        actions_taken = []
+        rewards = []
+        
+        for step in range(num_steps):
+            # Select action
+            action = self.select_action(state, exploration=exploration)
+            actions_taken.append(action)
+            
+            # Simulate process response (simplified: would interact with real process)
+            next_state = self._simulate_process_response(state, action)
+            
+            # Compute reward
+            reward = self.compute_reward(state, action, next_state)
+            rewards.append(reward)
+            total_reward += reward.total_reward
+            
+            # Update policy
+            done = (step == num_steps - 1)
+            self.update_policy(state, action, reward, next_state, done)
+            
+            state = next_state
+        
+        # Track metrics
+        self.episode_rewards.append(total_reward)
+        final_quality = state.quality_metrics.get('defect_rate', 0.02)
+        self.episode_quality.append(final_quality)
+        self.episode_throughput.append(state.throughput)
+        
+        return {
+            'total_reward': total_reward,
+            'num_steps': num_steps,
+            'actions': actions_taken,
+            'rewards': rewards,
+            'final_state': state,
+            'avg_quality': final_quality,
+            'final_throughput': state.throughput
+        }
+    
+    def _simulate_process_response(
+        self,
+        state: ProcessState,
+        action: ProcessAction
+    ) -> ProcessState:
+        """
+        Simulate how process responds to action
+        
+        In production, this would interact with real process
+        For demonstration, use simplified model
+        """
+        # Copy state
+        new_state = ProcessState(
+            timestamp=datetime.now(),
+            process_id=state.process_id,
+            parameters=state.parameters.copy(),
+            sensor_readings={k: v.copy() if isinstance(v, np.ndarray) else v 
+                           for k, v in state.sensor_readings.items()},
+            quality_metrics=state.quality_metrics.copy(),
+            throughput=state.throughput,
+            material_properties=state.material_properties.copy(),
+            equipment_condition=state.equipment_condition.copy()
+        )
+        
+        # Apply action
+        new_state.parameters[action.parameter_name] += action.delta
+        
+        # Simulate quality response (simplified model)
+        # Optimal temperature is 70, quality degrades away from it
+        temp = new_state.parameters.get('temperature', 70.0)
+        temp_factor = 1.0 - abs(temp - 70.0) / 20.0  # Best at 70
+        
+        # Optimal speed is 1000
+        speed = new_state.parameters.get('speed', 1000.0)
+        speed_factor = 1.0 - abs(speed - 1000.0) / 400.0
+        
+        # Base defect rate
+        base_defect_rate = 0.02
+        new_state.quality_metrics['defect_rate'] = base_defect_rate * (2.0 - temp_factor) * (2.0 - speed_factor)
+        
+        # Throughput depends on speed
+        new_state.throughput = speed / 10.0  # Simplified
+        
+        return new_state
+
+# Demonstration
+def demonstrate_process_automation():
+    """
+    Demonstrate adaptive process control
+    
+    Scenarios:
+    - Learning optimal parameters from scratch
+    - Adapting to material variation
+    - Multi-objective optimization
+    - Transfer to new product
+    """
+    print("\n=== Process Automation Demonstration ===\n")
+    
+    # Initialize system
+    state_encoder = ProcessStateEncoder(embedding_dim=256)
+    action_encoder = ProcessActionEncoder(num_parameters=4, embedding_dim=64)
+    policy_network = ProcessPolicyNetwork(
+        state_dim=256,
+        action_dim=64,
+        num_parameters=4,
+        hidden_dim=256
+    )
+    dynamics_model = ProcessDynamicsModel(state_dim=256, action_dim=64)
+    
+    controller = AdaptiveProcessController(
+        state_encoder,
+        action_encoder,
+        policy_network,
+        dynamics_model
+    )
+    
+    print("Phase 1: Learning optimal parameters...")
+    
+    # Initial state (suboptimal parameters)
+    initial_state = ProcessState(
+        timestamp=datetime.now(),
+        process_id="PROCESS_001",
+        parameters={
+            'temperature': 65.0,  # Suboptimal (optimal is 70)
+            'pressure': 100.0,
+            'speed': 900.0,  # Suboptimal (optimal is 1000)
+            'feed_rate': 50.0
+        },
+        sensor_readings={f'sensor_{i}': 0.0 for i in range(50)},
+        quality_metrics={'defect_rate': 0.04, 'dimensional_accuracy': 0.90},
+        throughput=85.0,
+        material_properties={f'prop_{i}': 0.5 for i in range(10)},
+        equipment_condition={f'cond_{i}': 0.9 for i in range(5)}
+    )
+    
+    # Run training episodes
+    num_episodes = 10
+    for episode in range(num_episodes):
+        result = controller.run_episode(
+            initial_state,
+            num_steps=20,
+            exploration=(episode < 8)  # Explore first 8 episodes
+        )
+        
+        if episode % 2 == 0:
+            print(f"Episode {episode + 1}/{num_episodes}:")
+            print(f"  Total Reward: {result['total_reward']:.2f}")
+            print(f"  Final Defect Rate: {result['avg_quality']:.3%}")
+            print(f"  Final Throughput: {result['final_throughput']:.1f} units/hr")
+    
+    print("\nPhase 2: Optimized parameters learned")
+    
+    # Run final episode with learned policy
+    final_result = controller.run_episode(
+        initial_state,
+        num_steps=20,
+        exploration=False  # Pure exploitation
+    )
+    
+    print(f"\nFinal Performance:")
+    print(f"  Defect Rate: {final_result['avg_quality']:.3%}")
+    print(f"  Throughput: {final_result['final_throughput']:.1f} units/hr")
+    print(f"  Total Reward: {final_result['total_reward']:.2f}")
+    
+    print("\nKey Actions Taken:")
+    for i, action in enumerate(final_result['actions'][:5]):
+        print(f"  Step {i+1}: Adjust {action.parameter_name} by {action.delta:+.2f}")
+    
+    print("\n=== Process Automation Complete ===")
+```
+
+### 3. Add Main Execution Block
+```python
+# Main execution
+if __name__ == "__main__":
+    """
+    Run all demonstrations
+    
+    Uncomment the demonstrations you want to run:
+    - Quality Control: Predictive defect detection
+    - Supply Chain: Risk analysis and optimization
+    - Predictive Maintenance: Equipment RUL prediction
+    - Process Automation: Adaptive parameter control
+    - Digital Twin: Virtual process simulation
+    """
+    
+    print("=" * 70)
+    print("MANUFACTURING AND INDUSTRY 4.0 DEMONSTRATIONS")
+    print("=" * 70)
+    
+    # Uncomment to run specific demonstrations
+    
+    # demonstrate_quality_control()
+    # demonstrate_supply_chain_intelligence()
+    # demonstrate_predictive_maintenance()
+    # demonstrate_process_automation()
+    # demonstrate_digital_twin()
+    
+    # Run all demonstrations
+    demonstrations = [
+        ("Quality Control", demonstrate_quality_control),
+        ("Supply Chain Intelligence", demonstrate_supply_chain_intelligence),
+        ("Predictive Maintenance", demonstrate_predictive_maintenance),
+        ("Process Automation", demonstrate_process_automation),
+        ("Digital Twin", demonstrate_digital_twin)
+    ]
+    
+    for name, demo_func in demonstrations:
+        print(f"\n{'=' * 70}")
+        print(f"Running: {name}")
+        print(f"{'=' * 70}")
+        try:
+            demo_func()
+        except Exception as e:
+            print(f"\nError in {name}: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    print(f"\n{'=' * 70}")
+    print("ALL DEMONSTRATIONS COMPLETE")
+    print(f"{'=' * 70}")
+```
+
+### 4. Additional Helper Function for Complete Integration
+```python
+class ManufacturingPlatform:
+    """
+    Integrated platform combining all manufacturing intelligence systems
+    
+    Provides unified interface for:
+    - Quality control predictions
+    - Supply chain risk analysis
+    - Predictive maintenance scheduling
+    - Process optimization
+    - Digital twin simulation
+    """
+    
+    def __init__(self):
+        # Initialize all subsystems
+        self.quality_system = None
+        self.supply_chain_system = None
+        self.maintenance_system = None
+        self.process_controller = None
+        self.digital_twin = None
+        
+        print("Manufacturing Intelligence Platform Initialized")
+    
+    def setup_quality_control(self):
+        """Initialize quality control system"""
+        encoder = MultiSensorFusionEncoder(embedding_dim=512)
+        self.quality_system = QualityControlSystem(encoder, embedding_dim=512)
+        print("✓ Quality Control System Ready")
+    
+    def setup_supply_chain(self):
+        """Initialize supply chain intelligence"""
+        supplier_enc = SupplierEncoder(embedding_dim=256)
+        material_enc = MaterialEncoder(embedding_dim=256)
+        demand_enc = DemandEncoder(embedding_dim=256)
+        graph_enc = SupplyChainGraphEncoder(embedding_dim=256)
+        
+        self.supply_chain_system = SupplyChainIntelligenceSystem(
+            supplier_enc, material_enc, demand_enc, graph_enc
+        )
+        print("✓ Supply Chain Intelligence Ready")
+    
+    def setup_predictive_maintenance(self):
+        """Initialize predictive maintenance"""
+        encoder = EquipmentStateEncoder(embedding_dim=512)
+        model = TemporalDegradationModel(embedding_dim=512)
+        self.maintenance_system = PredictiveMaintenanceSystem(encoder, model)
+        print("✓ Predictive Maintenance Ready")
+    
+    def setup_process_control(self):
+        """Initialize adaptive process control"""
+        state_enc = ProcessStateEncoder(embedding_dim=256)
+        action_enc = ProcessActionEncoder(num_parameters=20, embedding_dim=64)
+        policy = ProcessPolicyNetwork(state_dim=256, action_dim=64, num_parameters=20)
+        dynamics = ProcessDynamicsModel(state_dim=256, action_dim=64)
+        
+        self.process_controller = AdaptiveProcessController(
+            state_enc, action_enc, policy, dynamics
+        )
+        print("✓ Process Control System Ready")
+    
+    def setup_digital_twin(self):
+        """Initialize digital twin"""
+        transition = StateTransitionModel(state_dim=512, action_dim=128)
+        self.digital_twin = DigitalTwinSystem(transition)
+        print("✓ Digital Twin Ready")
+    
+    def initialize_all(self):
+        """Initialize all subsystems"""
+        print("\nInitializing Manufacturing Intelligence Platform...\n")
+        self.setup_quality_control()
+        self.setup_supply_chain()
+        self.setup_predictive_maintenance()
+        self.setup_process_control()
+        self.setup_digital_twin()
+        print("\n✓ All Systems Operational\n")
+    
+    def get_system_status(self) -> Dict[str, bool]:
+        """Get status of all subsystems"""
+        return {
+            'quality_control': self.quality_system is not None,
+            'supply_chain': self.supply_chain_system is not None,
+            'predictive_maintenance': self.maintenance_system is not None,
+            'process_control': self.process_controller is not None,
+            'digital_twin': self.digital_twin is not None
+        }
+    
+    def generate_dashboard_summary(self) -> str:
+        """Generate summary for dashboard"""
+        status = self.get_system_status()
+        active_systems = sum(status.values())
+        
+        summary = f"""
+        ╔════════════════════════════════════════════════════════╗
+        ║     MANUFACTURING INTELLIGENCE PLATFORM STATUS         ║
+        ╠════════════════════════════════════════════════════════╣
+        ║  Active Systems: {active_systems}/5                                  ║
+        ║                                                        ║
+        ║  Quality Control:        {'✓ ACTIVE' if status['quality_control'] else '✗ INACTIVE'}              ║
+        ║  Supply Chain:           {'✓ ACTIVE' if status['supply_chain'] else '✗ INACTIVE'}              ║
+        ║  Predictive Maintenance: {'✓ ACTIVE' if status['predictive_maintenance'] else '✗ INACTIVE'}              ║
+        ║  Process Control:        {'✓ ACTIVE' if status['process_control'] else '✗ INACTIVE'}              ║
+        ║  Digital Twin:           {'✓ ACTIVE' if status['digital_twin'] else '✗ INACTIVE'}              ║
+        ╚════════════════════════════════════════════════════════╝
+        """
+        return summary
+
+# Demonstration of integrated platform
+def demonstrate_integrated_platform():
+    """Demonstrate integrated manufacturing platform"""
+    print("\n" + "=" * 70)
+    print("INTEGRATED MANUFACTURING INTELLIGENCE PLATFORM")
+    print("=" * 70 + "\n")
+    
+    platform = ManufacturingPlatform()
+    platform.initialize_all()
+    
+    print(platform.generate_dashboard_summary())
+    
+    print("\nPlatform ready for:")
+    print("  • Real-time quality monitoring and defect prediction")
+    print("  • Supply chain risk analysis and optimization")
+    print("  • Equipment health monitoring and maintenance scheduling")
+    print("  • Adaptive process control and parameter optimization")
+    print("  • Virtual process simulation and what-if analysis")
+    print("\n" + "=" * 70 + "\n")
+
+# Add to main execution
+if __name__ == "__main__":
+    # ... existing demonstration code ...
+    
+    # Add integrated platform demonstration
+    demonstrate_integrated_platform()
 ```
 
 :::{.callout-note}
