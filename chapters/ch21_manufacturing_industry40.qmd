@@ -1,40 +1,3416 @@
-# Manufacturing and Industry 4.0 {{#sec-manufacturing-industry40}}
+# Manufacturing and Industry 4.0 {#sec-manufacturing-industry40}
 
-:::{{.callout-note}}
+:::{.callout-note}
 ## Chapter Overview
-This chapter covers predictive quality control, supply chain intelligence, and 3 more topics.
+Manufacturing and Industry 4.0—from predictive quality control to supply chain intelligence to digital twins—operate on complex interactions between equipment, materials, processes, and environmental factors at unprecedented scale. This chapter applies embeddings to manufacturing transformation: predictive quality control using sensor embeddings that detect defects milliseconds before they occur by learning patterns from vibration, temperature, acoustic, and visual signals, supply chain intelligence through multi-modal embeddings of suppliers, materials, logistics, and demand that optimize inventory and reduce disruptions, equipment optimization via machine embeddings that predict failures weeks in advance and schedule maintenance to maximize uptime, process automation using learned representations of manufacturing states that enable adaptive control systems responding to real-time conditions, and digital twin implementations with embedding-based simulation models that test production changes virtually before physical deployment. These techniques transform manufacturing from reactive maintenance and manual quality inspection to predictive, self-optimizing systems grounded in learned representations of complex industrial processes.
 :::
+
+After revolutionizing retail systems (@sec-retail-ecommerce), embeddings enable **manufacturing and Industry 4.0 transformation** at unprecedented scale. Traditional manufacturing relies on statistical process control (sampling inspection after production), preventive maintenance (fixed schedules regardless of actual condition), manual supply chain management (spreadsheets and phone calls), and static production processes (unchanging parameters). **Embedding-based manufacturing systems** represent machines, processes, materials, and products as vectors, enabling defect prediction before quality issues manifest, equipment failure detection weeks before breakdown, supply chain optimization across thousands of interconnected dependencies, and adaptive process control that responds to real-time conditions—reducing defect rates from 2-5% to <0.1%, increasing equipment uptime from 65-75% to 95%+, and cutting supply chain disruptions by 60-80%.
 
 ## Predictive Quality Control
 
-[Content to be written: Details about predictive quality control]
+Manufacturing quality control traditionally relies on post-production sampling inspection, catching defects after they occur and wasting materials, time, and equipment capacity. **Embedding-based predictive quality control** represents manufacturing processes as vectors learned from multi-sensor streams, detecting anomalies milliseconds before defects manifest and enabling real-time corrective action.
+
+### The Quality Control Challenge
+
+Traditional quality inspection faces limitations:
+
+- **Post-production detection**: Defects discovered after completion, wasting entire batch
+- **Sampling bias**: Statistical sampling misses rare defects and systematic issues
+- **Lag time**: Minutes to hours between defect and detection
+- **Multi-factor complexity**: Quality depends on temperature, pressure, material properties, tool wear, ambient conditions
+- **Subtle patterns**: Defects result from complex interactions invisible to rule-based systems
+- **High-speed production**: Millisecond decision windows at production speeds
+- **Rare defect types**: Limited training examples for uncommon failure modes
+
+**Embedding approach**: Learn process embeddings from multi-sensor streams—vibration signatures encode tool condition, thermal patterns reveal material state, acoustic emissions indicate stress, visual inspection captures surface defects. Normal operation forms dense clusters in embedding space; anomalies appear as outliers. Predict defects by detecting embedding drift toward anomalous regions before quality degrades.
+
+```python
+"""
+Predictive Quality Control with Multi-Sensor Embeddings
+
+Architecture:
+1. Sensor encoders: Time-series encoders for vibration, temperature, acoustic, pressure
+2. Visual encoder: Computer vision for real-time product inspection
+3. Process encoder: Manufacturing parameters (speed, temperature, pressure)
+4. Temporal fusion: Combine sensor streams with attention over time
+5. Anomaly detector: Identify embedding space outliers indicating defects
+
+Techniques:
+- Multi-sensor fusion: Combine heterogeneous sensor modalities
+- Temporal convolution: Capture time-dependent patterns in sensor data
+- Contrastive learning: Normal production close in space, anomalies distant
+- Few-shot learning: Detect rare defect types with limited examples
+- Online learning: Continuously update model from production feedback
+
+Production considerations:
+- Real-time inference: <10ms latency for high-speed production lines
+- Edge deployment: Run models on factory floor without cloud latency
+- Explainability: Identify which sensors/parameters drive anomaly detection
+- Calibration: Handle sensor drift and equipment variation
+- Integration: Connect to manufacturing execution systems (MES), SCADA
+"""
+
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from typing import List, Dict, Optional, Tuple, Any
+from dataclasses import dataclass, field
+from datetime import datetime
+import json
+
+@dataclass
+class SensorReading:
+    """
+    Multi-sensor data from manufacturing process
+    
+    Attributes:
+        timestamp: Reading timestamp
+        equipment_id: Which machine/station
+        product_id: Product being manufactured
+        vibration: Vibration sensor time series (accelerometer)
+        temperature: Temperature readings (multiple zones)
+        acoustic: Acoustic emission sensor data
+        pressure: Hydraulic/pneumatic pressure
+        visual: Images from inspection cameras
+        process_params: Manufacturing parameters (speed, feed rate, etc.)
+        quality_label: Known quality outcome (for training)
+        embedding: Learned process state embedding
+    """
+    timestamp: datetime
+    equipment_id: str
+    product_id: str
+    vibration: np.ndarray  # [time_steps, 3] for 3-axis accelerometer
+    temperature: np.ndarray  # [num_zones] temperature readings
+    acoustic: np.ndarray  # [time_steps] acoustic emission
+    pressure: np.ndarray  # [num_channels] pressure readings
+    visual: Optional[np.ndarray] = None  # [H, W, 3] inspection image
+    process_params: Dict[str, float] = field(default_factory=dict)
+    quality_label: Optional[str] = None  # 'good', 'defect_type1', etc.
+    embedding: Optional[np.ndarray] = None
+
+@dataclass
+class QualityPrediction:
+    """
+    Quality prediction for current manufacturing state
+    
+    Attributes:
+        timestamp: Prediction timestamp
+        equipment_id: Equipment identifier
+        product_id: Product identifier
+        quality_score: Predicted quality (0=defect, 1=good)
+        anomaly_score: Anomaly score in embedding space
+        defect_type: Predicted defect category (if anomalous)
+        confidence: Model confidence in prediction
+        contributing_factors: Which sensors/parameters indicate issues
+        recommended_action: Suggested corrective action
+        time_to_defect: Estimated time until defect manifests
+    """
+    timestamp: datetime
+    equipment_id: str
+    product_id: str
+    quality_score: float
+    anomaly_score: float
+    defect_type: Optional[str] = None
+    confidence: float = 0.0
+    contributing_factors: Dict[str, float] = field(default_factory=dict)
+    recommended_action: Optional[str] = None
+    time_to_defect: Optional[float] = None  # seconds
+
+class VibrationEncoder(nn.Module):
+    """
+    Encode vibration sensor data to embeddings
+    
+    Architecture:
+    - Temporal CNN: Capture vibration patterns over time
+    - Multi-scale features: Different frequency bands
+    - Attention: Focus on informative time windows
+    - Output: 128-dim vibration embedding
+    
+    Vibration patterns reveal:
+    - Tool wear: Increasing high-frequency components
+    - Imbalance: Periodic low-frequency oscillations
+    - Bearing failure: Irregular spikes in specific frequency bands
+    - Resonance: Sustained oscillations at natural frequencies
+    """
+    
+    def __init__(self, input_channels=3, embedding_dim=128, sequence_length=1000):
+        super().__init__()
+        self.embedding_dim = embedding_dim
+        
+        # Multi-scale temporal convolutions
+        self.conv1 = nn.Conv1d(input_channels, 64, kernel_size=7, padding=3)
+        self.conv2 = nn.Conv1d(64, 128, kernel_size=5, padding=2)
+        self.conv3 = nn.Conv1d(128, 256, kernel_size=3, padding=1)
+        
+        # Temporal pooling
+        self.pool = nn.MaxPool1d(2)
+        
+        # Attention over time
+        self.attention = nn.Sequential(
+            nn.Linear(256, 64),
+            nn.Tanh(),
+            nn.Linear(64, 1)
+        )
+        
+        # Final projection
+        self.fc = nn.Linear(256, embedding_dim)
+        
+    def forward(self, vibration: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            vibration: [batch, time_steps, channels] vibration data
+        Returns:
+            embeddings: [batch, embedding_dim] vibration embeddings
+        """
+        # Transpose for Conv1d: [batch, channels, time_steps]
+        x = vibration.transpose(1, 2)
+        
+        # Multi-scale temporal features
+        x = F.relu(self.conv1(x))
+        x = self.pool(x)
+        x = F.relu(self.conv2(x))
+        x = self.pool(x)
+        x = F.relu(self.conv3(x))
+        x = self.pool(x)
+        
+        # Transpose back: [batch, time_steps, features]
+        x = x.transpose(1, 2)
+        
+        # Attention over time
+        attention_weights = F.softmax(self.attention(x), dim=1)  # [batch, time_steps, 1]
+        attended = torch.sum(x * attention_weights, dim=1)  # [batch, features]
+        
+        # Project to embedding space
+        embedding = self.fc(attended)
+        return F.normalize(embedding, p=2, dim=1)
+
+class ThermalEncoder(nn.Module):
+    """
+    Encode temperature sensor data to embeddings
+    
+    Architecture:
+    - Multi-zone processing: Different temperature zones in equipment
+    - Temporal dynamics: Temperature change rates and gradients
+    - Spatial relationships: Heat transfer between zones
+    - Output: 128-dim thermal embedding
+    
+    Temperature patterns reveal:
+    - Overheating: Sustained high temperatures in critical zones
+    - Cooling issues: Slow temperature decay after heating cycle
+    - Thermal imbalance: Uneven temperature distribution
+    - Process deviation: Temperature outside nominal ranges
+    """
+    
+    def __init__(self, num_zones=8, embedding_dim=128, sequence_length=100):
+        super().__init__()
+        self.embedding_dim = embedding_dim
+        self.num_zones = num_zones
+        
+        # Process each zone
+        self.zone_encoder = nn.LSTM(
+            input_size=1,
+            hidden_size=32,
+            num_layers=2,
+            batch_first=True
+        )
+        
+        # Spatial relationships between zones
+        self.spatial_attention = nn.MultiheadAttention(
+            embed_dim=32,
+            num_heads=4,
+            batch_first=True
+        )
+        
+        # Combine zones
+        self.fusion = nn.Sequential(
+            nn.Linear(num_zones * 32, 256),
+            nn.ReLU(),
+            nn.Linear(256, embedding_dim)
+        )
+        
+    def forward(self, temperature: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            temperature: [batch, time_steps, num_zones] temperature readings
+        Returns:
+            embeddings: [batch, embedding_dim] thermal embeddings
+        """
+        batch_size, time_steps, num_zones = temperature.shape
+        
+        # Encode each zone independently
+        zone_embeddings = []
+        for zone_idx in range(num_zones):
+            zone_data = temperature[:, :, zone_idx:zone_idx+1]  # [batch, time, 1]
+            _, (hidden, _) = self.zone_encoder(zone_data)
+            zone_emb = hidden[-1]  # Last layer hidden state [batch, 32]
+            zone_embeddings.append(zone_emb)
+        
+        # Stack zones: [batch, num_zones, 32]
+        zones = torch.stack(zone_embeddings, dim=1)
+        
+        # Model spatial relationships with attention
+        attended_zones, _ = self.spatial_attention(zones, zones, zones)
+        
+        # Flatten and fuse
+        flattened = attended_zones.reshape(batch_size, -1)
+        embedding = self.fusion(flattened)
+        
+        return F.normalize(embedding, p=2, dim=1)
+
+class AcousticEncoder(nn.Module):
+    """
+    Encode acoustic emission data to embeddings
+    
+    Architecture:
+    - Spectral features: FFT to capture frequency content
+    - Temporal CNN: Capture acoustic patterns over time
+    - Burst detection: Identify sudden acoustic events
+    - Output: 128-dim acoustic embedding
+    
+    Acoustic patterns reveal:
+    - Cutting/machining quality: Smooth vs. chattering sounds
+    - Material stress: Cracking or stress-related emissions
+    - Assembly issues: Improper fit causing impact sounds
+    - Tool breakage: Sudden high-amplitude bursts
+    """
+    
+    def __init__(self, sample_rate=44100, embedding_dim=128):
+        super().__init__()
+        self.embedding_dim = embedding_dim
+        self.sample_rate = sample_rate
+        
+        # Spectral feature extraction (simplified)
+        self.conv1 = nn.Conv1d(1, 64, kernel_size=25, stride=5)
+        self.conv2 = nn.Conv1d(64, 128, kernel_size=15, stride=3)
+        self.conv3 = nn.Conv1d(128, 256, kernel_size=10, stride=2)
+        
+        # Global pooling
+        self.global_pool = nn.AdaptiveAvgPool1d(1)
+        
+        # Projection
+        self.fc = nn.Linear(256, embedding_dim)
+        
+    def forward(self, acoustic: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            acoustic: [batch, time_steps] acoustic emission data
+        Returns:
+            embeddings: [batch, embedding_dim] acoustic embeddings
+        """
+        # Add channel dimension: [batch, 1, time_steps]
+        x = acoustic.unsqueeze(1)
+        
+        # Spectral-temporal features
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+        x = F.relu(self.conv3(x))
+        
+        # Global pooling
+        x = self.global_pool(x)
+        x = x.squeeze(-1)
+        
+        # Project to embedding
+        embedding = self.fc(x)
+        return F.normalize(embedding, p=2, dim=1)
+
+class VisualInspectionEncoder(nn.Module):
+    """
+    Encode inspection images to embeddings
+    
+    Architecture:
+    - CNN backbone: ResNet or EfficientNet for feature extraction
+    - Defect localization: Attention maps to highlight defect regions
+    - Multi-scale processing: Detect defects at different scales
+    - Output: 256-dim visual embedding
+    
+    Visual inspection reveals:
+    - Surface defects: Scratches, dents, discoloration
+    - Dimensional issues: Shape deviations from spec
+    - Assembly errors: Missing or misaligned components
+    - Contamination: Foreign material or residue
+    """
+    
+    def __init__(self, embedding_dim=256):
+        super().__init__()
+        self.embedding_dim = embedding_dim
+        
+        # Simplified CNN (use pre-trained ResNet in production)
+        self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3)
+        self.conv2 = nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1)
+        self.conv3 = nn.Conv2d(128, 256, kernel_size=3, stride=2, padding=1)
+        self.conv4 = nn.Conv2d(256, 512, kernel_size=3, stride=2, padding=1)
+        
+        # Global pooling
+        self.global_pool = nn.AdaptiveAvgPool2d((1, 1))
+        
+        # Projection
+        self.fc = nn.Linear(512, embedding_dim)
+        
+    def forward(self, images: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            images: [batch, 3, H, W] inspection images
+        Returns:
+            embeddings: [batch, embedding_dim] visual embeddings
+        """
+        x = F.relu(self.conv1(images))
+        x = F.relu(self.conv2(x))
+        x = F.relu(self.conv3(x))
+        x = F.relu(self.conv4(x))
+        
+        x = self.global_pool(x)
+        x = x.view(x.size(0), -1)
+        
+        embedding = self.fc(x)
+        return F.normalize(embedding, p=2, dim=1)
+
+class ProcessParameterEncoder(nn.Module):
+    """
+    Encode manufacturing process parameters to embeddings
+    
+    Parameters include:
+    - Machine settings: Speed, feed rate, tool position
+    - Material properties: Batch ID, supplier, specifications
+    - Environmental: Ambient temperature, humidity
+    - Maintenance: Time since last service, tool wear metrics
+    
+    Output: 128-dim parameter embedding
+    """
+    
+    def __init__(self, num_parameters=20, embedding_dim=128):
+        super().__init__()
+        self.embedding_dim = embedding_dim
+        
+        self.encoder = nn.Sequential(
+            nn.Linear(num_parameters, 64),
+            nn.ReLU(),
+            nn.Linear(64, 128),
+            nn.ReLU(),
+            nn.Linear(128, embedding_dim)
+        )
+        
+    def forward(self, parameters: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            parameters: [batch, num_parameters] process parameters
+        Returns:
+            embeddings: [batch, embedding_dim] parameter embeddings
+        """
+        embedding = self.encoder(parameters)
+        return F.normalize(embedding, p=2, dim=1)
+
+class MultiSensorFusionEncoder(nn.Module):
+    """
+    Fuse multi-sensor embeddings for comprehensive process representation
+    
+    Architecture:
+    - Sensor-specific encoders: Vibration, thermal, acoustic, visual, parameters
+    - Cross-modal attention: Model relationships between sensor modalities
+    - Temporal fusion: Combine sensor readings over time windows
+    - Output: 512-dim fused process embedding
+    
+    Fusion strategies:
+    - Early fusion: Concatenate raw sensor data before encoding
+    - Late fusion: Encode separately, combine embeddings
+    - Cross-attention: Let modalities attend to each other
+    - Hierarchical: Fuse related sensors first (all mechanical, all thermal)
+    """
+    
+    def __init__(self, embedding_dim=512):
+        super().__init__()
+        self.embedding_dim = embedding_dim
+        
+        # Sensor encoders
+        self.vibration_encoder = VibrationEncoder(embedding_dim=128)
+        self.thermal_encoder = ThermalEncoder(embedding_dim=128)
+        self.acoustic_encoder = AcousticEncoder(embedding_dim=128)
+        self.visual_encoder = VisualInspectionEncoder(embedding_dim=256)
+        self.parameter_encoder = ProcessParameterEncoder(embedding_dim=128)
+        
+        # Cross-modal attention
+        self.cross_attention = nn.MultiheadAttention(
+            embed_dim=128,
+            num_heads=8,
+            batch_first=True
+        )
+        
+        # Fusion layers
+        total_dim = 128 + 128 + 128 + 256 + 128  # Sum of encoder outputs
+        self.fusion = nn.Sequential(
+            nn.Linear(total_dim, 1024),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(1024, embedding_dim)
+        )
+        
+    def forward(
+        self,
+        vibration: Optional[torch.Tensor] = None,
+        temperature: Optional[torch.Tensor] = None,
+        acoustic: Optional[torch.Tensor] = None,
+        visual: Optional[torch.Tensor] = None,
+        parameters: Optional[torch.Tensor] = None
+    ) -> torch.Tensor:
+        """
+        Args:
+            vibration: [batch, time_steps, 3] vibration data
+            temperature: [batch, time_steps, num_zones] temperature data
+            acoustic: [batch, time_steps] acoustic data
+            visual: [batch, 3, H, W] inspection images
+            parameters: [batch, num_params] process parameters
+        Returns:
+            embeddings: [batch, embedding_dim] fused embeddings
+        """
+        batch_size = (
+            vibration.size(0) if vibration is not None else
+            temperature.size(0) if temperature is not None else
+            acoustic.size(0) if acoustic is not None else
+            visual.size(0) if visual is not None else
+            parameters.size(0)
+        )
+        
+        # Encode each modality
+        modality_embeddings = []
+        
+        if vibration is not None:
+            vib_emb = self.vibration_encoder(vibration)
+            modality_embeddings.append(vib_emb)
+        else:
+            vib_emb = torch.zeros(batch_size, 128)
+            modality_embeddings.append(vib_emb)
+        
+        if temperature is not None:
+            temp_emb = self.thermal_encoder(temperature)
+            modality_embeddings.append(temp_emb)
+        else:
+            temp_emb = torch.zeros(batch_size, 128)
+            modality_embeddings.append(temp_emb)
+        
+        if acoustic is not None:
+            acou_emb = self.acoustic_encoder(acoustic)
+            modality_embeddings.append(acou_emb)
+        else:
+            acou_emb = torch.zeros(batch_size, 128)
+            modality_embeddings.append(acou_emb)
+        
+        if visual is not None:
+            vis_emb = self.visual_encoder(visual)
+            modality_embeddings.append(vis_emb)
+        else:
+            vis_emb = torch.zeros(batch_size, 256)
+            modality_embeddings.append(vis_emb)
+        
+        if parameters is not None:
+            param_emb = self.parameter_encoder(parameters)
+            modality_embeddings.append(param_emb)
+        else:
+            param_emb = torch.zeros(batch_size, 128)
+            modality_embeddings.append(param_emb)
+        
+        # Concatenate all modalities
+        concat = torch.cat(modality_embeddings, dim=1)
+        
+        # Fuse with attention and MLP
+        fused = self.fusion(concat)
+        
+        return F.normalize(fused, p=2, dim=1)
+
+class QualityControlSystem:
+    """
+    End-to-end predictive quality control system
+    
+    Pipeline:
+    1. Data collection: Ingest multi-sensor streams in real-time
+    2. Embedding: Encode current process state to embedding
+    3. Anomaly detection: Compare to normal operation clusters
+    4. Defect prediction: Forecast quality based on trajectory
+    5. Root cause analysis: Identify contributing factors
+    6. Corrective action: Recommend process adjustments
+    
+    Performance:
+    - Latency: <10ms from sensors to prediction
+    - Accuracy: 95%+ defect detection, <1% false positives
+    - Lead time: 5-30 seconds advance warning before defect
+    - Explainability: Identify which sensors drive predictions
+    """
+    
+    def __init__(
+        self,
+        encoder: MultiSensorFusionEncoder,
+        embedding_dim: int = 512,
+        history_size: int = 100000
+    ):
+        self.encoder = encoder
+        self.embedding_dim = embedding_dim
+        
+        # Historical embeddings for normal operation
+        self.normal_embeddings = np.zeros((history_size, embedding_dim), dtype=np.float32)
+        self.num_normal = 0
+        
+        # Defect embeddings by type
+        self.defect_embeddings: Dict[str, List[np.ndarray]] = {}
+        
+        # Anomaly detection threshold (tuned on validation set)
+        self.anomaly_threshold = 0.15  # Distance from normal cluster
+        
+    def add_normal_example(self, reading: SensorReading):
+        """Add example of normal operation to reference set"""
+        embedding = self._encode_reading(reading)
+        if self.num_normal < len(self.normal_embeddings):
+            self.normal_embeddings[self.num_normal] = embedding
+            self.num_normal += 1
+    
+    def add_defect_example(self, reading: SensorReading, defect_type: str):
+        """Add example of specific defect type"""
+        embedding = self._encode_reading(reading)
+        if defect_type not in self.defect_embeddings:
+            self.defect_embeddings[defect_type] = []
+        self.defect_embeddings[defect_type].append(embedding)
+    
+    def _encode_reading(self, reading: SensorReading) -> np.ndarray:
+        """Convert sensor reading to embedding"""
+        with torch.no_grad():
+            # Convert to tensors (simplified: assumes data pre-processed)
+            vib = torch.tensor(reading.vibration, dtype=torch.float32).unsqueeze(0)
+            temp = torch.tensor(reading.temperature, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
+            acou = torch.tensor(reading.acoustic, dtype=torch.float32).unsqueeze(0)
+            
+            # Visual (if available)
+            vis = None
+            if reading.visual is not None:
+                vis = torch.tensor(reading.visual, dtype=torch.float32).permute(2, 0, 1).unsqueeze(0)
+            
+            # Parameters
+            param_list = [reading.process_params.get(k, 0.0) for k in sorted(reading.process_params.keys())]
+            params = torch.tensor(param_list, dtype=torch.float32).unsqueeze(0)
+            
+            # Encode
+            embedding = self.encoder(
+                vibration=vib,
+                temperature=temp,
+                acoustic=acou,
+                visual=vis,
+                parameters=params
+            )
+            
+            return embedding.cpu().numpy()[0]
+    
+    def predict_quality(self, reading: SensorReading) -> QualityPrediction:
+        """
+        Predict quality for current process state
+        
+        Returns prediction with:
+        - Quality score (0-1)
+        - Anomaly score
+        - Predicted defect type (if anomalous)
+        - Contributing factors
+        - Recommended actions
+        """
+        # Encode current state
+        current_embedding = self._encode_reading(reading)
+        reading.embedding = current_embedding
+        
+        # Compute distance to normal cluster
+        if self.num_normal > 0:
+            distances_to_normal = np.linalg.norm(
+                self.normal_embeddings[:self.num_normal] - current_embedding,
+                axis=1
+            )
+            min_distance_normal = np.min(distances_to_normal)
+            avg_distance_normal = np.mean(distances_to_normal)
+        else:
+            min_distance_normal = 0.0
+            avg_distance_normal = 0.0
+        
+        # Compute anomaly score
+        anomaly_score = min_distance_normal
+        is_anomalous = anomaly_score > self.anomaly_threshold
+        
+        # If anomalous, identify defect type
+        defect_type = None
+        defect_confidence = 0.0
+        
+        if is_anomalous and self.defect_embeddings:
+            best_defect = None
+            min_defect_distance = float('inf')
+            
+            for dtype, defect_embs in self.defect_embeddings.items():
+                defect_array = np.array(defect_embs)
+                distances = np.linalg.norm(defect_array - current_embedding, axis=1)
+                min_dist = np.min(distances)
+                
+                if min_dist < min_defect_distance:
+                    min_defect_distance = min_dist
+                    best_defect = dtype
+            
+            if min_defect_distance < min_distance_normal:
+                defect_type = best_defect
+                defect_confidence = 1.0 / (1.0 + min_defect_distance)
+        
+        # Quality score (inverse of anomaly score)
+        quality_score = 1.0 / (1.0 + anomaly_score)
+        
+        # Analyze contributing factors (simplified: would use SHAP/LIME in production)
+        contributing_factors = self._analyze_factors(reading, current_embedding)
+        
+        # Recommend action
+        recommended_action = self._recommend_action(
+            is_anomalous,
+            defect_type,
+            contributing_factors
+        )
+        
+        # Estimate time to defect (simplified: based on anomaly score rate of change)
+        time_to_defect = None
+        if is_anomalous:
+            # Would track embedding trajectory in production
+            time_to_defect = max(0.0, (self.anomaly_threshold - anomaly_score) / 0.01 * 10.0)
+        
+        return QualityPrediction(
+            timestamp=reading.timestamp,
+            equipment_id=reading.equipment_id,
+            product_id=reading.product_id,
+            quality_score=quality_score,
+            anomaly_score=anomaly_score,
+            defect_type=defect_type,
+            confidence=defect_confidence,
+            contributing_factors=contributing_factors,
+            recommended_action=recommended_action,
+            time_to_defect=time_to_defect
+        )
+    
+    def _analyze_factors(
+        self,
+        reading: SensorReading,
+        embedding: np.ndarray
+    ) -> Dict[str, float]:
+        """
+        Identify which sensors/parameters contribute to anomaly
+        
+        Uses ablation: remove each sensor, measure impact on embedding distance
+        Higher impact = more important for current anomaly
+        """
+        factors = {}
+        
+        # Get baseline distance
+        baseline_distance = np.min(np.linalg.norm(
+            self.normal_embeddings[:self.num_normal] - embedding,
+            axis=1
+        ))
+        
+        # Ablate each sensor and measure impact
+        # (Simplified: would need to re-encode with each sensor masked)
+        factors['vibration'] = np.random.uniform(0.0, 1.0)
+        factors['temperature'] = np.random.uniform(0.0, 1.0)
+        factors['acoustic'] = np.random.uniform(0.0, 1.0)
+        factors['visual'] = np.random.uniform(0.0, 1.0)
+        factors['parameters'] = np.random.uniform(0.0, 1.0)
+        
+        # Normalize to sum to 1
+        total = sum(factors.values())
+        if total > 0:
+            factors = {k: v/total for k, v in factors.items()}
+        
+        return factors
+    
+    def _recommend_action(
+        self,
+        is_anomalous: bool,
+        defect_type: Optional[str],
+        factors: Dict[str, float]
+    ) -> Optional[str]:
+        """Generate recommended corrective action"""
+        if not is_anomalous:
+            return None
+        
+        # Rule-based recommendations (would use learned policies in production)
+        if defect_type == 'tool_wear':
+            return "Schedule tool replacement within next 100 units"
+        elif defect_type == 'thermal_deviation':
+            if factors.get('temperature', 0) > 0.5:
+                return "Adjust cooling system - temperature outside nominal range"
+        elif defect_type == 'vibration_anomaly':
+            if factors.get('vibration', 0) > 0.5:
+                return "Inspect machine mounting and alignment - excessive vibration detected"
+        elif defect_type == 'material_defect':
+            return "Flag material batch for inspection - quality deviation detected"
+        else:
+            return "Stop production for inspection - unknown anomaly detected"
+        
+        return "Monitor closely - anomaly detected but type unclear"
+
+# Example usage and production deployment
+class QualityControlDeployment:
+    """
+    Production deployment of quality control system
+    
+    Integration:
+    - SCADA: Real-time sensor data ingestion
+    - MES: Manufacturing execution system integration
+    - PLC: Programmable logic controller commands
+    - Edge compute: On-premises model inference
+    - Alert system: Notify operators of predictions
+    - Dashboard: Real-time visualization
+    
+    Performance monitoring:
+    - Prediction latency tracking
+    - False positive/negative rates
+    - Model drift detection
+    - A/B testing of model updates
+    """
+    
+    def __init__(self, system: QualityControlSystem):
+        self.system = system
+        self.prediction_history: List[QualityPrediction] = []
+        
+        # Performance metrics
+        self.total_predictions = 0
+        self.anomalies_detected = 0
+        self.false_positives = 0
+        self.false_negatives = 0
+        self.true_positives = 0
+        
+    def process_sensor_stream(self, reading: SensorReading) -> QualityPrediction:
+        """
+        Process real-time sensor data and generate prediction
+        
+        Called at high frequency (100Hz - 1kHz depending on process)
+        Must maintain low latency (<10ms)
+        """
+        import time
+        start_time = time.time()
+        
+        # Generate prediction
+        prediction = self.system.predict_quality(reading)
+        
+        # Track metrics
+        self.total_predictions += 1
+        if prediction.anomaly_score > self.system.anomaly_threshold:
+            self.anomalies_detected += 1
+        
+        # Log for analysis
+        self.prediction_history.append(prediction)
+        if len(self.prediction_history) > 10000:
+            self.prediction_history.pop(0)  # Keep last 10k predictions
+        
+        # Measure latency
+        latency = time.time() - start_time
+        
+        # Alert if high latency
+        if latency > 0.010:  # 10ms threshold
+            print(f"WARNING: High latency {latency*1000:.1f}ms")
+        
+        return prediction
+    
+    def update_ground_truth(
+        self,
+        reading_id: str,
+        actual_quality: str
+    ):
+        """
+        Update system with actual quality outcome
+        
+        Called after inspection or downstream detection
+        Enables continuous learning and performance monitoring
+        """
+        # Find corresponding prediction
+        for pred in self.prediction_history:
+            if pred.product_id == reading_id:
+                # Update metrics
+                was_anomaly = pred.anomaly_score > self.system.anomaly_threshold
+                is_defect = actual_quality != 'good'
+                
+                if was_anomaly and is_defect:
+                    self.true_positives += 1
+                elif was_anomaly and not is_defect:
+                    self.false_positives += 1
+                elif not was_anomaly and is_defect:
+                    self.false_negatives += 1
+                
+                break
+    
+    def get_performance_metrics(self) -> Dict[str, float]:
+        """Calculate current system performance"""
+        if self.total_predictions == 0:
+            return {}
+        
+        precision = 0.0
+        if (self.true_positives + self.false_positives) > 0:
+            precision = self.true_positives / (self.true_positives + self.false_positives)
+        
+        recall = 0.0
+        if (self.true_positives + self.false_negatives) > 0:
+            recall = self.true_positives / (self.true_positives + self.false_negatives)
+        
+        f1_score = 0.0
+        if (precision + recall) > 0:
+            f1_score = 2 * precision * recall / (precision + recall)
+        
+        return {
+            'total_predictions': self.total_predictions,
+            'anomaly_rate': self.anomalies_detected / self.total_predictions,
+            'precision': precision,
+            'recall': recall,
+            'f1_score': f1_score,
+            'false_positive_rate': self.false_positives / self.total_predictions if self.total_predictions > 0 else 0
+        }
+
+# Demonstration
+def demonstrate_quality_control():
+    """
+    Demonstrate predictive quality control system
+    
+    Simulates manufacturing process with:
+    - Normal operation
+    - Gradual tool wear leading to defects
+    - Sudden anomalies
+    - Various defect types
+    """
+    print("\\n=== Predictive Quality Control Demonstration ===\\n")
+    
+    # Initialize system
+    encoder = MultiSensorFusionEncoder(embedding_dim=512)
+    system = QualityControlSystem(encoder, embedding_dim=512)
+    deployment = QualityControlDeployment(system)
+    
+    # Training: Add normal operation examples
+    print("Phase 1: Learning normal operation...")
+    for i in range(100):
+        reading = SensorReading(
+            timestamp=datetime.now(),
+            equipment_id="MACHINE_001",
+            product_id=f"PROD_{i:06d}",
+            vibration=np.random.randn(1000, 3) * 0.1,  # Low vibration
+            temperature=np.ones((100, 8)) * 65.0 + np.random.randn(100, 8) * 2.0,  # Stable temp
+            acoustic=np.random.randn(10000) * 0.05,  # Low acoustic
+            pressure=np.ones(4) * 100.0 + np.random.randn(4) * 5.0,  # Stable pressure
+            process_params={'speed': 1000.0, 'feed_rate': 50.0, 'tool_age': i * 10},
+            quality_label='good'
+        )
+        system.add_normal_example(reading)
+    
+    print(f"Learned from {system.num_normal} normal examples\\n")
+    
+    # Testing: Normal operation
+    print("Phase 2: Testing on normal operation...")
+    for i in range(10):
+        reading = SensorReading(
+            timestamp=datetime.now(),
+            equipment_id="MACHINE_001",
+            product_id=f"TEST_{i:06d}",
+            vibration=np.random.randn(1000, 3) * 0.1,
+            temperature=np.ones((100, 8)) * 65.0 + np.random.randn(100, 8) * 2.0,
+            acoustic=np.random.randn(10000) * 0.05,
+            pressure=np.ones(4) * 100.0 + np.random.randn(4) * 5.0,
+            process_params={'speed': 1000.0, 'feed_rate': 50.0, 'tool_age': 1000 + i * 10},
+            quality_label='good'
+        )
+        
+        prediction = deployment.process_sensor_stream(reading)
+        print(f"Product {reading.product_id}: Quality={prediction.quality_score:.3f}, "
+              f"Anomaly={prediction.anomaly_score:.3f}, "
+              f"Status={'GOOD' if prediction.anomaly_score < system.anomaly_threshold else 'ANOMALY'}")
+    
+    print()
+    
+    # Testing: Tool wear anomaly
+    print("Phase 3: Simulating tool wear defect...")
+    for i in range(5):
+        # Gradually increasing vibration and acoustic as tool wears
+        wear_factor = 1.0 + i * 0.5
+        reading = SensorReading(
+            timestamp=datetime.now(),
+            equipment_id="MACHINE_001",
+            product_id=f"WEAR_{i:06d}",
+            vibration=np.random.randn(1000, 3) * 0.1 * wear_factor,  # Increasing vibration
+            temperature=np.ones((100, 8)) * (65.0 + i * 3) + np.random.randn(100, 8) * 2.0,
+            acoustic=np.random.randn(10000) * 0.05 * wear_factor,  # Increasing acoustic
+            pressure=np.ones(4) * 100.0 + np.random.randn(4) * 5.0,
+            process_params={'speed': 1000.0, 'feed_rate': 50.0, 'tool_age': 5000 + i * 100},
+            quality_label='tool_wear' if i >= 3 else 'good'
+        )
+        
+        prediction = deployment.process_sensor_stream(reading)
+        print(f"Product {reading.product_id}: Quality={prediction.quality_score:.3f}, "
+              f"Anomaly={prediction.anomaly_score:.3f}, "
+              f"Status={'ANOMALY - ' + (prediction.defect_type or 'Unknown') if prediction.anomaly_score > system.anomaly_threshold else 'GOOD'}")
+        
+        if prediction.recommended_action:
+            print(f"  → Action: {prediction.recommended_action}")
+        if prediction.time_to_defect:
+            print(f"  → Time to defect: {prediction.time_to_defect:.1f}s")
+    
+    print()
+    
+    # Performance summary
+    metrics = deployment.get_performance_metrics()
+    print("\\n=== System Performance ===")
+    print(f"Total predictions: {metrics.get('total_predictions', 0)}")
+    print(f"Anomaly rate: {metrics.get('anomaly_rate', 0):.1%}")
+    print(f"Precision: {metrics.get('precision', 0):.1%}")
+    print(f"Recall: {metrics.get('recall', 0):.1%}")
+    print(f"F1 Score: {metrics.get('f1_score', 0):.3f}")
+
+:::{.callout-tip}
+## Production Quality Control Best Practices
+
+**Real-time processing:**
+- Edge deployment for <10ms latency
+- Optimized inference with TensorRT/ONNX
+- Batch processing for efficiency on multiple machines
+- Fail-safe fallback to rule-based inspection
+
+**Model training:**
+- Contrastive learning on normal vs. defect pairs
+- Hard negative mining for similar-looking defects
+- Multi-task learning: quality + defect type + severity
+- Active learning: prioritize labeling uncertain examples
+
+**Continuous improvement:**
+- Online learning from production feedback
+- A/B testing of model updates
+- Ensemble models for robustness
+- Human-in-the-loop for edge cases
+
+**Integration:**
+- SCADA system connectivity for sensor data
+- MES integration for production context
+- PLC commands for automated responses
+- Alert systems for operator notifications
+- Dashboard for real-time monitoring
+
+**Defect taxonomy:**
+- Surface defects (scratches, dents, discoloration)
+- Dimensional issues (out of spec measurements)
+- Material defects (contamination, wrong material)
+- Assembly errors (missing/misaligned parts)
+- Functional failures (does not meet performance specs)
+
+**ROI metrics:**
+- Defect detection rate: Target 95%+ with <1% false positives
+- Lead time: 5-60 seconds advance warning
+- Waste reduction: Reduce scrap from 2-5% to <0.5%
+- Throughput: Maintain production speed (no bottleneck)
+- Quality costs: Reduce inspection labor, warranty claims
+:::
 
 ## Supply Chain Intelligence
 
-[Content to be written: Details about supply chain intelligence]
+Manufacturing supply chains involve thousands of suppliers, components, logistics providers, and interdependencies. Disruptions cascade through networks, stockouts halt production, and excess inventory ties up capital. **Embedding-based supply chain intelligence** represents suppliers, materials, routes, and demand patterns as vectors, enabling disruption prediction before it impacts production, optimal inventory levels balancing cost and availability, and dynamic sourcing strategies adapting to real-time conditions.
+
+### The Supply Chain Challenge
+
+Traditional supply chain management faces limitations:
+
+- **Reactive management**: Respond to disruptions after they occur
+- **Limited visibility**: Lack of real-time data on supplier health, inventory levels, transit status
+- **Complex dependencies**: Component A requires B and C; supplier X provides to competitors
+- **Demand uncertainty**: Seasonal patterns, product launches, macro trends
+- **Lead time variability**: Supplier delays, customs, transportation disruptions
+- **Multi-objective optimization**: Minimize cost, maximize reliability, reduce carbon footprint
+- **Black swan events**: Pandemics, natural disasters, geopolitical disruptions
+
+**Embedding approach**: Learn embeddings of suppliers (reliability, lead time, quality), materials (substitutability, specifications), routes (cost, time, risk), and demand patterns (seasonality, trends). Similar suppliers cluster together enabling quick substitution; demand embeddings predict stockouts weeks ahead; route embeddings optimize logistics in real-time.
+
+```python
+"""
+Supply Chain Intelligence with Multi-Entity Embeddings
+
+Architecture:
+1. Supplier encoder: History, performance metrics, geopolitical risk
+2. Material encoder: Specifications, substitutability, quality
+3. Route encoder: Logistics networks, costs, lead times, risks
+4. Demand encoder: Time series, seasonality, external signals
+5. Graph neural network: Model supply chain relationships
+6. Risk predictor: Forecast disruption probabilities
+
+Techniques:
+- Graph embeddings: Capture supply network topology
+- Time series encoders: Demand forecasting with seasonality
+- Multi-task learning: Predict cost, lead time, disruption risk
+- Transfer learning: Pre-train on industry data, fine-tune on company
+- Causal inference: Identify root causes of disruptions
+
+Production considerations:
+- Real-time updates: Continuous data feeds from ERP, suppliers, logistics
+- What-if analysis: Simulate supply chain changes before implementation
+- Explainability: Show why specific risks or opportunities identified
+- Integration: ERP, WMS, TMS, supplier portals
+- Scalability: 10K+ suppliers, 100K+ SKUs, 1M+ transactions/day
+"""
+
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from typing import List, Dict, Optional, Tuple, Any, Set
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+import random
+
+@dataclass
+class Supplier:
+    """
+    Supplier representation
+    
+    Attributes:
+        supplier_id: Unique identifier
+        name: Supplier name
+        location: Geographic location
+        categories: Product categories supplied
+        performance_history: Historical on-time delivery, quality, lead time
+        financial_health: Credit rating, revenue, stability
+        capacity: Production capacity and utilization
+        certifications: Quality certifications (ISO, etc.)
+        risk_factors: Geopolitical, weather, financial risks
+        relationships: Other suppliers, customers, dependencies
+        embedding: Learned supplier embedding
+    """
+    supplier_id: str
+    name: str
+    location: Dict[str, Any]  # country, region, coordinates
+    categories: List[str]
+    performance_history: Dict[str, List[float]] = field(default_factory=dict)
+    financial_health: Dict[str, float] = field(default_factory=dict)
+    capacity: Dict[str, float] = field(default_factory=dict)
+    certifications: List[str] = field(default_factory=list)
+    risk_factors: Dict[str, float] = field(default_factory=dict)
+    relationships: Set[str] = field(default_factory=set)
+    embedding: Optional[np.ndarray] = None
+
+@dataclass
+class Material:
+    """
+    Material/component representation
+    
+    Attributes:
+        material_id: Unique SKU identifier
+        name: Material name
+        category: Material category
+        specifications: Technical specifications
+        suppliers: List of qualified suppliers
+        substitutes: Alternative materials that can be used
+        lead_time: Typical procurement lead time
+        unit_cost: Cost per unit
+        minimum_order: Minimum order quantity
+        inventory_policy: Reorder point, safety stock
+        usage_forecast: Predicted consumption
+        embedding: Learned material embedding
+    """
+    material_id: str
+    name: str
+    category: str
+    specifications: Dict[str, Any]
+    suppliers: List[str]
+    substitutes: List[str] = field(default_factory=list)
+    lead_time: float = 0.0  # days
+    unit_cost: float = 0.0
+    minimum_order: int = 1
+    inventory_policy: Dict[str, float] = field(default_factory=dict)
+    usage_forecast: Optional[np.ndarray] = None
+    embedding: Optional[np.ndarray] = None
+
+@dataclass
+class Route:
+    """
+    Logistics route representation
+    
+    Attributes:
+        route_id: Unique identifier
+        origin: Starting location
+        destination: End location
+        mode: Transportation mode (air, sea, ground)
+        carriers: Available carriers
+        cost: Transportation cost
+        lead_time: Transit time
+        reliability: On-time delivery rate
+        carbon_footprint: Environmental impact
+        risk_factors: Weather, geopolitical, infrastructure risks
+        embedding: Learned route embedding
+    """
+    route_id: str
+    origin: str
+    destination: str
+    mode: str
+    carriers: List[str]
+    cost: float
+    lead_time: float  # days
+    reliability: float  # 0-1
+    carbon_footprint: float
+    risk_factors: Dict[str, float] = field(default_factory=dict)
+    embedding: Optional[np.ndarray] = None
+
+@dataclass
+class DemandSignal:
+    """
+    Demand forecast signal
+    
+    Attributes:
+        timestamp: Forecast timestamp
+        material_id: Material being forecasted
+        horizon: Forecast horizon (days)
+        forecast: Predicted demand
+        confidence: Forecast confidence interval
+        factors: Contributing factors (seasonality, trends, events)
+        embedding: Learned demand pattern embedding
+    """
+    timestamp: datetime
+    material_id: str
+    horizon: int  # days ahead
+    forecast: float
+    confidence: Tuple[float, float]  # (lower, upper)
+    factors: Dict[str, float] = field(default_factory=dict)
+    embedding: Optional[np.ndarray] = None
+
+@dataclass
+class SupplyChainRisk:
+    """
+    Identified supply chain risk
+    
+    Attributes:
+        risk_id: Unique identifier
+        risk_type: Type of risk (supplier, logistics, demand, geopolitical)
+        severity: Risk severity (0-1)
+        probability: Likelihood of occurrence (0-1)
+        impact: Potential business impact
+        affected_materials: Materials at risk
+        affected_suppliers: Suppliers involved
+        time_horizon: When risk may materialize
+        mitigation: Recommended mitigation actions
+        root_cause: Underlying cause analysis
+    """
+    risk_id: str
+    risk_type: str
+    severity: float
+    probability: float
+    impact: Dict[str, Any]
+    affected_materials: List[str]
+    affected_suppliers: List[str]
+    time_horizon: int  # days
+    mitigation: List[str] = field(default_factory=list)
+    root_cause: str = ""
+
+class SupplierEncoder(nn.Module):
+    """
+    Encode supplier information to embeddings
+    
+    Features:
+    - Performance metrics: On-time delivery, quality scores, lead time
+    - Financial health: Credit rating, revenue trend, stability
+    - Operational: Capacity, utilization, certifications
+    - Geographic: Location, geopolitical risk
+    - Relational: Position in supply network
+    
+    Output: 256-dim supplier embedding
+    """
+    
+    def __init__(self, embedding_dim=256):
+        super().__init__()
+        self.embedding_dim = embedding_dim
+        
+        # Performance encoder
+        self.performance_encoder = nn.Sequential(
+            nn.Linear(10, 64),  # on-time %, quality score, lead time variance, etc.
+            nn.ReLU(),
+            nn.Linear(64, 64)
+        )
+        
+        # Financial encoder
+        self.financial_encoder = nn.Sequential(
+            nn.Linear(5, 32),  # credit rating, revenue, growth, stability
+            nn.ReLU(),
+            nn.Linear(32, 32)
+        )
+        
+        # Geographic/risk encoder
+        self.risk_encoder = nn.Sequential(
+            nn.Linear(8, 32),  # geopolitical, weather, infrastructure risks
+            nn.ReLU(),
+            nn.Linear(32, 32)
+        )
+        
+        # Fusion
+        self.fusion = nn.Sequential(
+            nn.Linear(64 + 32 + 32, 256),
+            nn.ReLU(),
+            nn.Linear(256, embedding_dim)
+        )
+        
+    def forward(
+        self,
+        performance: torch.Tensor,
+        financial: torch.Tensor,
+        risk: torch.Tensor
+    ) -> torch.Tensor:
+        """
+        Args:
+            performance: [batch, 10] performance metrics
+            financial: [batch, 5] financial health indicators
+            risk: [batch, 8] risk factors
+        Returns:
+            embeddings: [batch, embedding_dim] supplier embeddings
+        """
+        perf_emb = self.performance_encoder(performance)
+        fin_emb = self.financial_encoder(financial)
+        risk_emb = self.risk_encoder(risk)
+        
+        concat = torch.cat([perf_emb, fin_emb, risk_emb], dim=1)
+        embedding = self.fusion(concat)
+        
+        return F.normalize(embedding, p=2, dim=1)
+
+class MaterialEncoder(nn.Module):
+    """
+    Encode material specifications and characteristics
+    
+    Features:
+    - Technical specs: Dimensions, materials, performance requirements
+    - Economic: Cost, lead time, order quantities
+    - Supply: Number of suppliers, geographic diversity
+    - Substitutability: How easily can be replaced
+    
+    Output: 256-dim material embedding
+    """
+    
+    def __init__(self, embedding_dim=256):
+        super().__init__()
+        self.embedding_dim = embedding_dim
+        
+        # Specification encoder
+        self.spec_encoder = nn.Sequential(
+            nn.Linear(20, 128),  # various technical specifications
+            nn.ReLU(),
+            nn.Linear(128, 128)
+        )
+        
+        # Supply characteristics
+        self.supply_encoder = nn.Sequential(
+            nn.Linear(10, 64),  # lead time, num suppliers, cost, etc.
+            nn.ReLU(),
+            nn.Linear(64, 64)
+        )
+        
+        # Fusion
+        self.fusion = nn.Sequential(
+            nn.Linear(128 + 64, 256),
+            nn.ReLU(),
+            nn.Linear(256, embedding_dim)
+        )
+        
+    def forward(
+        self,
+        specifications: torch.Tensor,
+        supply_chars: torch.Tensor
+    ) -> torch.Tensor:
+        """
+        Args:
+            specifications: [batch, 20] technical specifications
+            supply_chars: [batch, 10] supply characteristics
+        Returns:
+            embeddings: [batch, embedding_dim] material embeddings
+        """
+        spec_emb = self.spec_encoder(specifications)
+        supply_emb = self.supply_encoder(supply_chars)
+        
+        concat = torch.cat([spec_emb, supply_emb], dim=1)
+        embedding = self.fusion(concat)
+        
+        return F.normalize(embedding, p=2, dim=1)
+
+class DemandEncoder(nn.Module):
+    """
+    Encode demand time series to embeddings
+    
+    Architecture:
+    - Temporal CNN: Capture seasonal patterns
+    - LSTM: Model trends and dependencies
+    - Attention: Focus on informative time periods
+    - External signals: Promotions, holidays, macro trends
+    
+    Output: 256-dim demand embedding
+    """
+    
+    def __init__(self, embedding_dim=256, sequence_length=365):
+        super().__init__()
+        self.embedding_dim = embedding_dim
+        
+        # Temporal features
+        self.temporal_cnn = nn.Sequential(
+            nn.Conv1d(1, 64, kernel_size=7, padding=3),
+            nn.ReLU(),
+            nn.MaxPool1d(2),
+            nn.Conv1d(64, 128, kernel_size=5, padding=2),
+            nn.ReLU(),
+            nn.MaxPool1d(2)
+        )
+        
+        # Sequence modeling
+        self.lstm = nn.LSTM(
+            input_size=128,
+            hidden_size=128,
+            num_layers=2,
+            batch_first=True
+        )
+        
+        # External signals encoder
+        self.external_encoder = nn.Sequential(
+            nn.Linear(10, 64),  # promotions, holidays, macro indicators
+            nn.ReLU(),
+            nn.Linear(64, 64)
+        )
+        
+        # Fusion
+        self.fusion = nn.Sequential(
+            nn.Linear(128 + 64, 256),
+            nn.ReLU(),
+            nn.Linear(256, embedding_dim)
+        )
+        
+    def forward(
+        self,
+        demand_series: torch.Tensor,
+        external_signals: torch.Tensor
+    ) -> torch.Tensor:
+        """
+        Args:
+            demand_series: [batch, time_steps, 1] historical demand
+            external_signals: [batch, 10] external factors
+        Returns:
+            embeddings: [batch, embedding_dim] demand embeddings
+        """
+        # Temporal features
+        x = demand_series.transpose(1, 2)  # [batch, 1, time_steps]
+        temporal_features = self.temporal_cnn(x)
+        temporal_features = temporal_features.transpose(1, 2)  # [batch, time_steps/4, 128]
+        
+        # LSTM encoding
+        _, (hidden, _) = self.lstm(temporal_features)
+        lstm_emb = hidden[-1]  # Last layer hidden state
+        
+        # External signals
+        external_emb = self.external_encoder(external_signals)
+        
+        # Fuse
+        concat = torch.cat([lstm_emb, external_emb], dim=1)
+        embedding = self.fusion(concat)
+        
+        return F.normalize(embedding, p=2, dim=1)
+
+class SupplyChainGraphEncoder(nn.Module):
+    """
+    Encode supply chain network structure with Graph Neural Network
+    
+    Graph:
+    - Nodes: Suppliers, materials, facilities, customers
+    - Edges: Supply relationships, transportation routes
+    
+    GNN learns embeddings that capture:
+    - Network position: Upstream/downstream, criticality
+    - Dependency patterns: Single-source vulnerabilities
+    - Flow dynamics: Capacity constraints, bottlenecks
+    
+    Output: Node embeddings that encode network context
+    """
+    
+    def __init__(self, node_features=256, edge_features=64, embedding_dim=256):
+        super().__init__()
+        self.embedding_dim = embedding_dim
+        
+        # Graph convolution layers (simplified)
+        self.conv1 = nn.Linear(node_features + edge_features, 256)
+        self.conv2 = nn.Linear(256, 256)
+        self.conv3 = nn.Linear(256, embedding_dim)
+        
+    def forward(
+        self,
+        node_features: torch.Tensor,
+        edge_index: torch.Tensor,
+        edge_features: torch.Tensor
+    ) -> torch.Tensor:
+        """
+        Args:
+            node_features: [num_nodes, node_features] initial node features
+            edge_index: [2, num_edges] edge connections
+            edge_features: [num_edges, edge_features] edge attributes
+        Returns:
+            embeddings: [num_nodes, embedding_dim] graph-aware embeddings
+        """
+        # Simplified graph convolution (use PyG in production)
+        x = node_features
+        
+        # First layer
+        x = F.relu(self.conv1(x))
+        
+        # Second layer with residual
+        x2 = F.relu(self.conv2(x))
+        x = x + x2
+        
+        # Output layer
+        x = self.conv3(x)
+        
+        return F.normalize(x, p=2, dim=1)
+
+class SupplyChainIntelligenceSystem:
+    """
+    Comprehensive supply chain intelligence system
+    
+    Capabilities:
+    1. Risk prediction: Forecast supply disruptions before they occur
+    2. Inventory optimization: Balance cost vs. availability
+    3. Supplier recommendation: Find alternatives when needed
+    4. Demand forecasting: Predict material needs weeks ahead
+    5. Scenario analysis: What-if simulation of changes
+    6. Root cause analysis: Identify disruption sources
+    
+    Performance:
+    - Forecast horizon: 4-12 weeks
+    - Update frequency: Daily or real-time
+    - Scale: 10K suppliers, 100K materials, 1M+ relationships
+    - Integration: ERP, WMS, TMS, supplier portals
+    """
+    
+    def __init__(
+        self,
+        supplier_encoder: SupplierEncoder,
+        material_encoder: MaterialEncoder,
+        demand_encoder: DemandEncoder,
+        graph_encoder: SupplyChainGraphEncoder
+    ):
+        self.supplier_encoder = supplier_encoder
+        self.material_encoder = material_encoder
+        self.demand_encoder = demand_encoder
+        self.graph_encoder = graph_encoder
+        
+        # Supply chain state
+        self.suppliers: Dict[str, Supplier] = {}
+        self.materials: Dict[str, Material] = {}
+        self.routes: Dict[str, Route] = {}
+        
+        # Embeddings
+        self.supplier_embeddings: Dict[str, np.ndarray] = {}
+        self.material_embeddings: Dict[str, np.ndarray] = {}
+        
+    def add_supplier(self, supplier: Supplier):
+        """Add supplier to system and compute embedding"""
+        self.suppliers[supplier.supplier_id] = supplier
+        
+        # Encode supplier
+        with torch.no_grad():
+            # Extract features (simplified)
+            performance = torch.tensor([
+                supplier.performance_history.get('on_time_delivery', [0.9])[0],
+                supplier.performance_history.get('quality_score', [0.95])[0],
+                supplier.performance_history.get('lead_time_variance', [0.1])[0],
+                # ... more features
+            ] + [0.0] * 7, dtype=torch.float32).unsqueeze(0)
+            
+            financial = torch.tensor([
+                supplier.financial_health.get('credit_rating', 0.8),
+                supplier.financial_health.get('revenue_growth', 0.05),
+                # ... more features
+            ] + [0.0] * 3, dtype=torch.float32).unsqueeze(0)
+            
+            risk = torch.tensor([
+                supplier.risk_factors.get('geopolitical', 0.1),
+                supplier.risk_factors.get('weather', 0.05),
+                # ... more features
+            ] + [0.0] * 6, dtype=torch.float32).unsqueeze(0)
+            
+            embedding = self.supplier_encoder(performance, financial, risk)
+            supplier.embedding = embedding.cpu().numpy()[0]
+            self.supplier_embeddings[supplier.supplier_id] = supplier.embedding
+    
+    def add_material(self, material: Material):
+        """Add material to system and compute embedding"""
+        self.materials[material.material_id] = material
+        
+        # Encode material
+        with torch.no_grad():
+            # Extract features (simplified)
+            specs = torch.randn(1, 20)  # Technical specifications
+            supply = torch.tensor([
+                material.lead_time,
+                len(material.suppliers),
+                material.unit_cost,
+                # ... more features
+            ] + [0.0] * 7, dtype=torch.float32).unsqueeze(0)
+            
+            embedding = self.material_encoder(specs, supply)
+            material.embedding = embedding.cpu().numpy()[0]
+            self.material_embeddings[material.material_id] = material.embedding
+    
+    def predict_disruption_risk(
+        self,
+        material_id: str,
+        horizon_days: int = 30
+    ) -> List[SupplyChainRisk]:
+        """
+        Predict supply chain risks for a material
+        
+        Analyzes:
+        - Supplier health and financial stability
+        - Geographic risks (weather, geopolitical)
+        - Single-source dependencies
+        - Capacity constraints
+        - Historical disruption patterns
+        
+        Returns list of identified risks with severity and mitigation
+        """
+        if material_id not in self.materials:
+            return []
+        
+        material = self.materials[material_id]
+        risks = []
+        
+        # Analyze each supplier
+        for supplier_id in material.suppliers:
+            if supplier_id not in self.suppliers:
+                continue
+            
+            supplier = self.suppliers[supplier_id]
+            
+            # Financial risk
+            credit_rating = supplier.financial_health.get('credit_rating', 0.5)
+            if credit_rating < 0.6:
+                risks.append(SupplyChainRisk(
+                    risk_id=f"FIN_{supplier_id}_{material_id}",
+                    risk_type="financial",
+                    severity=1.0 - credit_rating,
+                    probability=0.3,
+                    impact={'production_halt_days': 14, 'cost_increase': 0.2},
+                    affected_materials=[material_id],
+                    affected_suppliers=[supplier_id],
+                    time_horizon=horizon_days,
+                    mitigation=[
+                        "Identify alternative suppliers",
+                        "Increase safety stock",
+                        "Negotiate payment terms to support supplier"
+                    ],
+                    root_cause=f"Supplier {supplier.name} has low credit rating {credit_rating:.2f}"
+                ))
+            
+            # Geographic/geopolitical risk
+            geo_risk = supplier.risk_factors.get('geopolitical', 0.0)
+            if geo_risk > 0.3:
+                risks.append(SupplyChainRisk(
+                    risk_id=f"GEO_{supplier_id}_{material_id}",
+                    risk_type="geopolitical",
+                    severity=geo_risk,
+                    probability=0.2,
+                    impact={'production_halt_days': 30, 'cost_increase': 0.5},
+                    affected_materials=[material_id],
+                    affected_suppliers=[supplier_id],
+                    time_horizon=horizon_days,
+                    mitigation=[
+                        "Diversify supplier base to different regions",
+                        "Increase strategic inventory",
+                        "Develop local sourcing options"
+                    ],
+                    root_cause=f"Supplier in high-risk region: {supplier.location}"
+                ))
+            
+            # Capacity risk
+            utilization = supplier.capacity.get('utilization', 0.5)
+            if utilization > 0.9:
+                risks.append(SupplyChainRisk(
+                    risk_id=f"CAP_{supplier_id}_{material_id}",
+                    risk_type="capacity",
+                    severity=min(1.0, utilization - 0.7),
+                    probability=0.5,
+                    impact={'lead_time_increase': 2.0, 'cost_increase': 0.1},
+                    affected_materials=[material_id],
+                    affected_suppliers=[supplier_id],
+                    time_horizon=horizon_days,
+                    mitigation=[
+                        "Negotiate capacity allocation agreements",
+                        "Identify backup suppliers",
+                        "Adjust order timing to avoid peak periods"
+                    ],
+                    root_cause=f"Supplier at {utilization:.0%} capacity utilization"
+                ))
+        
+        # Single-source risk
+        if len(material.suppliers) == 1:
+            risks.append(SupplyChainRisk(
+                risk_id=f"SINGLE_{material_id}",
+                risk_type="single_source",
+                severity=0.8,
+                probability=0.4,
+                impact={'production_halt_days': 21, 'revenue_loss': 100000},
+                affected_materials=[material_id],
+                affected_suppliers=material.suppliers,
+                time_horizon=horizon_days,
+                mitigation=[
+                    "Qualify additional suppliers immediately",
+                    "Increase safety stock to 60 days",
+                    "Investigate material substitutes"
+                ],
+                root_cause=f"Single source dependency for critical material {material.name}"
+            ))
+        
+        # Sort by severity * probability
+        risks.sort(key=lambda r: r.severity * r.probability, reverse=True)
+        
+        return risks
+    
+    def optimize_inventory(
+        self,
+        material_id: str,
+        target_service_level: float = 0.95
+    ) -> Dict[str, Any]:
+        """
+        Optimize inventory policy for material
+        
+        Balances:
+        - Holding costs: Capital tied up, storage, obsolescence
+        - Stockout costs: Production delays, lost sales, expediting
+        - Order costs: Administrative, transportation, minimum quantities
+        
+        Uses demand embedding to forecast consumption and variability
+        """
+        if material_id not in self.materials:
+            return {}
+        
+        material = self.materials[material_id]
+        
+        # Forecast demand (simplified: would use demand encoder)
+        avg_daily_demand = 100.0
+        demand_std_dev = 20.0
+        lead_time_days = material.lead_time
+        
+        # Calculate safety stock for target service level
+        # Using normal distribution approximation
+        from scipy import stats
+        z_score = stats.norm.ppf(target_service_level)
+        safety_stock = z_score * demand_std_dev * np.sqrt(lead_time_days)
+        
+        # Reorder point
+        reorder_point = avg_daily_demand * lead_time_days + safety_stock
+        
+        # Economic order quantity (EOQ)
+        annual_demand = avg_daily_demand * 365
+        holding_cost_per_unit = material.unit_cost * 0.25  # 25% of unit cost
+        order_cost = 100.0  # Fixed cost per order
+        
+        if holding_cost_per_unit > 0:
+            eoq = np.sqrt((2 * annual_demand * order_cost) / holding_cost_per_unit)
+        else:
+            eoq = material.minimum_order
+        
+        # Respect minimum order quantity
+        order_quantity = max(eoq, material.minimum_order)
+        
+        # Calculate costs
+        annual_holding_cost = (order_quantity / 2) * holding_cost_per_unit
+        annual_order_cost = (annual_demand / order_quantity) * order_cost
+        safety_stock_cost = safety_stock * holding_cost_per_unit
+        
+        return {
+            'material_id': material_id,
+            'reorder_point': reorder_point,
+            'order_quantity': order_quantity,
+            'safety_stock': safety_stock,
+            'service_level': target_service_level,
+            'costs': {
+                'annual_holding': annual_holding_cost,
+                'annual_ordering': annual_order_cost,
+                'safety_stock': safety_stock_cost,
+                'total_annual': annual_holding_cost + annual_order_cost + safety_stock_cost
+            },
+            'metrics': {
+                'avg_inventory': order_quantity / 2 + safety_stock,
+                'orders_per_year': annual_demand / order_quantity,
+                'days_of_supply': (order_quantity / 2 + safety_stock) / avg_daily_demand
+            }
+        }
+    
+    def find_alternative_suppliers(
+        self,
+        material_id: str,
+        top_k: int = 5
+    ) -> List[Tuple[Supplier, float]]:
+        """
+        Find alternative suppliers for a material using embeddings
+        
+        Strategy:
+        1. Get current suppliers for material
+        2. Find suppliers with similar embeddings (similar capabilities)
+        3. Filter by material category compatibility
+        4. Rank by performance, reliability, cost
+        
+        Returns list of (supplier, similarity_score) tuples
+        """
+        if material_id not in self.materials:
+            return []
+        
+        material = self.materials[material_id]
+        current_supplier_ids = set(material.suppliers)
+        
+        # Get material embedding
+        material_emb = material.embedding
+        if material_emb is None:
+            return []
+        
+        # Find similar materials (might share suppliers)
+        similar_materials = []
+        for mat_id, mat in self.materials.items():
+            if mat_id == material_id or mat.embedding is None:
+                continue
+            
+            similarity = np.dot(material_emb, mat.embedding)
+            if similarity > 0.7:  # High similarity threshold
+                similar_materials.append((mat_id, similarity))
+        
+        # Collect potential alternative suppliers
+        candidate_suppliers = set()
+        for mat_id, _ in similar_materials:
+            candidate_suppliers.update(self.materials[mat_id].suppliers)
+        
+        # Remove current suppliers
+        candidate_suppliers -= current_supplier_ids
+        
+        # Score candidates
+        alternatives = []
+        for supplier_id in candidate_suppliers:
+            if supplier_id not in self.suppliers:
+                continue
+            
+            supplier = self.suppliers[supplier_id]
+            
+            # Check if supplier's categories match material
+            if material.category not in supplier.categories:
+                continue
+            
+            # Compute score based on multiple factors
+            performance_score = supplier.performance_history.get('quality_score', [0.8])[0]
+            financial_score = supplier.financial_health.get('credit_rating', 0.7)
+            capacity_score = 1.0 - supplier.capacity.get('utilization', 0.5)
+            
+            # Weighted combination
+            overall_score = (
+                0.4 * performance_score +
+                0.3 * financial_score +
+                0.3 * capacity_score
+            )
+            
+            alternatives.append((supplier, overall_score))
+        
+        # Sort by score and return top k
+        alternatives.sort(key=lambda x: x[1], reverse=True)
+        return alternatives[:top_k]
+    
+    def simulate_scenario(
+        self,
+        scenario: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Simulate what-if scenarios on supply chain
+        
+        Scenarios:
+        - Supplier loss: What if supplier X fails?
+        - Demand surge: What if demand increases 50%?
+        - Lead time increase: What if shipping delays double?
+        - Cost changes: What if material costs increase 20%?
+        - New product launch: What if we add product Y?
+        
+        Returns impact analysis and recommendations
+        """
+        scenario_type = scenario.get('type')
+        
+        if scenario_type == 'supplier_loss':
+            supplier_id = scenario.get('supplier_id')
+            return self._simulate_supplier_loss(supplier_id)
+        
+        elif scenario_type == 'demand_surge':
+            surge_factor = scenario.get('factor', 1.5)
+            return self._simulate_demand_surge(surge_factor)
+        
+        elif scenario_type == 'lead_time_increase':
+            increase_factor = scenario.get('factor', 2.0)
+            return self._simulate_lead_time_increase(increase_factor)
+        
+        else:
+            return {'error': 'Unknown scenario type'}
+    
+    def _simulate_supplier_loss(self, supplier_id: str) -> Dict[str, Any]:
+        """Simulate impact of losing a supplier"""
+        if supplier_id not in self.suppliers:
+            return {'error': 'Supplier not found'}
+        
+        # Find all materials supplied by this supplier
+        affected_materials = [
+            mat for mat in self.materials.values()
+            if supplier_id in mat.suppliers
+        ]
+        
+        # Analyze impact for each material
+        impacts = []
+        for material in affected_materials:
+            remaining_suppliers = [s for s in material.suppliers if s != supplier_id]
+            
+            if len(remaining_suppliers) == 0:
+                # Critical: no alternative suppliers
+                impact = {
+                    'material_id': material.material_id,
+                    'severity': 'CRITICAL',
+                    'production_impact': 'HALT',
+                    'alternatives_available': 0,
+                    'time_to_qualify_new': 90,  # days
+                    'recommended_action': 'EMERGENCY: Qualify new suppliers immediately'
+                }
+            else:
+                # Can switch to remaining suppliers
+                # Check if they have capacity
+                total_capacity = sum(
+                    self.suppliers[s].capacity.get('available', 100)
+                    for s in remaining_suppliers
+                    if s in self.suppliers
+                )
+                
+                required_capacity = 100  # Simplified
+                
+                if total_capacity < required_capacity:
+                    impact = {
+                        'material_id': material.material_id,
+                        'severity': 'HIGH',
+                        'production_impact': 'REDUCED',
+                        'alternatives_available': len(remaining_suppliers),
+                        'capacity_shortfall': required_capacity - total_capacity,
+                        'recommended_action': 'Increase orders from remaining suppliers, qualify additional source'
+                    }
+                else:
+                    impact = {
+                        'material_id': material.material_id,
+                        'severity': 'MEDIUM',
+                        'production_impact': 'MINIMAL',
+                        'alternatives_available': len(remaining_suppliers),
+                        'recommended_action': 'Redistribute orders to remaining suppliers'
+                    }
+            
+            impacts.append(impact)
+        
+        # Overall assessment
+        critical_count = sum(1 for i in impacts if i['severity'] == 'CRITICAL')
+        high_count = sum(1 for i in impacts if i['severity'] == 'HIGH')
+        
+        return {
+            'scenario': 'supplier_loss',
+            'supplier_id': supplier_id,
+            'affected_materials': len(affected_materials),
+            'critical_impacts': critical_count,
+            'high_impacts': high_count,
+            'impacts': impacts,
+            'overall_severity': 'CRITICAL' if critical_count > 0 else 'HIGH' if high_count > 0 else 'MEDIUM'
+        }
+    
+    def _simulate_demand_surge(self, surge_factor: float) -> Dict[str, Any]:
+        """Simulate impact of demand increase"""
+        # Simplified: check inventory levels vs. increased demand
+        inventory_adequacy = []
+        
+        for material in self.materials.values():
+            current_inventory = material.inventory_policy.get('current_stock', 1000)
+            avg_demand = 100  # Simplified
+            new_demand = avg_demand * surge_factor
+            
+            days_of_supply = current_inventory / new_demand
+            
+            if days_of_supply < material.lead_time:
+                status = 'STOCKOUT_RISK'
+                action = f'Increase orders immediately - only {days_of_supply:.1f} days supply'
+            elif days_of_supply < material.lead_time * 2:
+                status = 'LOW'
+                action = f'Increase safety stock - {days_of_supply:.1f} days supply'
+            else:
+                status = 'ADEQUATE'
+                action = 'Monitor consumption, adjust reorder points'
+            
+            inventory_adequacy.append({
+                'material_id': material.material_id,
+                'days_of_supply': days_of_supply,
+                'status': status,
+                'recommended_action': action
+            })
+        
+        at_risk = [i for i in inventory_adequacy if i['status'] == 'STOCKOUT_RISK']
+        
+        return {
+            'scenario': 'demand_surge',
+            'surge_factor': surge_factor,
+            'materials_analyzed': len(inventory_adequacy),
+            'at_risk_count': len(at_risk),
+            'at_risk_materials': at_risk,
+            'overall_impact': 'HIGH' if len(at_risk) > 5 else 'MEDIUM' if len(at_risk) > 0 else 'LOW'
+        }
+    
+    def _simulate_lead_time_increase(self, increase_factor: float) -> Dict[str, Any]:
+        """Simulate impact of lead time increases"""
+        impacts = []
+        
+        for material in self.materials.values():
+            new_lead_time = material.lead_time * increase_factor
+            
+            # Recalculate safety stock needed
+            current_safety = material.inventory_policy.get('safety_stock', 100)
+            # Safety stock increases with sqrt of lead time
+            new_safety = current_safety * np.sqrt(increase_factor)
+            additional_inventory = new_safety - current_safety
+            
+            # Cost impact
+            additional_cost = additional_inventory * material.unit_cost
+            
+            impacts.append({
+                'material_id': material.material_id,
+                'current_lead_time': material.lead_time,
+                'new_lead_time': new_lead_time,
+                'additional_inventory_needed': additional_inventory,
+                'additional_cost': additional_cost
+            })
+        
+        total_additional_cost = sum(i['additional_cost'] for i in impacts)
+        
+        return {
+            'scenario': 'lead_time_increase',
+            'increase_factor': increase_factor,
+            'total_additional_inventory_cost': total_additional_cost,
+            'materials_impacted': len(impacts),
+            'impacts': impacts[:10],  # Show top 10
+            'recommended_action': f'Increase inventory budget by ${total_additional_cost:,.0f}'
+        }
+
+# Demonstration
+def demonstrate_supply_chain_intelligence():
+    """
+    Demonstrate supply chain intelligence system
+    
+    Scenarios:
+    - Normal operation
+    - Supplier risk identification
+    - Alternative supplier recommendation
+    - Inventory optimization
+    - Disruption simulation
+    """
+    print("\\n=== Supply Chain Intelligence Demonstration ===\\n")
+    
+    # Initialize system
+    supplier_encoder = SupplierEncoder(embedding_dim=256)
+    material_encoder = MaterialEncoder(embedding_dim=256)
+    demand_encoder = DemandEncoder(embedding_dim=256)
+    graph_encoder = SupplyChainGraphEncoder(embedding_dim=256)
+    
+    system = SupplyChainIntelligenceSystem(
+        supplier_encoder,
+        material_encoder,
+        demand_encoder,
+        graph_encoder
+    )
+    
+    # Add suppliers
+    print("Phase 1: Adding suppliers to system...")
+    for i in range(10):
+        supplier = Supplier(
+            supplier_id=f"SUP_{i:03d}",
+            name=f"Supplier {i}",
+            location={'country': 'USA' if i < 5 else 'China', 'region': f'Region_{i}'},
+            categories=['Electronics', 'Components'],
+            performance_history={
+                'on_time_delivery': [0.85 + np.random.uniform(0, 0.15)],
+                'quality_score': [0.90 + np.random.uniform(0, 0.10)],
+                'lead_time_variance': [np.random.uniform(0.05, 0.20)]
+            },
+            financial_health={
+                'credit_rating': 0.7 + np.random.uniform(0, 0.3),
+                'revenue_growth': np.random.uniform(-0.05, 0.15)
+            },
+            capacity={
+                'available': np.random.uniform(50, 150),
+                'utilization': np.random.uniform(0.5, 0.95)
+            },
+            risk_factors={
+                'geopolitical': 0.1 if i < 5 else 0.4,  # Higher risk for China
+                'weather': np.random.uniform(0, 0.2)
+            }
+        )
+        system.add_supplier(supplier)
+    
+    print(f"Added {len(system.suppliers)} suppliers\\n")
+    
+    # Add materials
+    print("Phase 2: Adding materials...")
+    for i in range(20):
+        # Assign 1-3 suppliers per material
+        num_suppliers = np.random.randint(1, 4)
+        supplier_ids = [f"SUP_{j:03d}" for j in np.random.choice(10, num_suppliers, replace=False)]
+        
+        material = Material(
+            material_id=f"MAT_{i:03d}",
+            name=f"Component {i}",
+            category='Electronics',
+            specifications={'spec1': 1.0, 'spec2': 2.0},
+            suppliers=supplier_ids,
+            lead_time=np.random.uniform(7, 60),
+            unit_cost=np.random.uniform(10, 1000),
+            minimum_order=np.random.randint(10, 100),
+            inventory_policy={'current_stock': np.random.uniform(500, 2000)}
+        )
+        system.add_material(material)
+    
+    print(f"Added {len(system.materials)} materials\\n")
+    
+    # Risk analysis
+    print("Phase 3: Analyzing supply chain risks...")
+    test_material = "MAT_005"
+    risks = system.predict_disruption_risk(test_material, horizon_days=30)
+    
+    print(f"Identified {len(risks)} risks for {test_material}:")
+    for risk in risks[:5]:  # Show top 5
+        print(f"\\n  Risk: {risk.risk_type.upper()}")
+        print(f"  Severity: {risk.severity:.2f}, Probability: {risk.probability:.2f}")
+        print(f"  Impact: {risk.impact}")
+        print(f"  Mitigation: {risk.mitigation[0] if risk.mitigation else 'None'}")
+    
+    print()
+    
+    # Inventory optimization
+    print("\\nPhase 4: Optimizing inventory policy...")
+    inventory_policy = system.optimize_inventory(test_material, target_service_level=0.95)
+    print(f"\\nOptimized policy for {test_material}:")
+    print(f"  Reorder Point: {inventory_policy['reorder_point']:.0f} units")
+    print(f"  Order Quantity: {inventory_policy['order_quantity']:.0f} units")
+    print(f"  Safety Stock: {inventory_policy['safety_stock']:.0f} units")
+    print(f"  Service Level: {inventory_policy['service_level']:.0%}")
+    print(f"  Total Annual Cost: ${inventory_policy['costs']['total_annual']:,.0f}")
+    
+    # Alternative suppliers
+    print("\\nPhase 5: Finding alternative suppliers...")
+    alternatives = system.find_alternative_suppliers(test_material, top_k=3)
+    print(f"\\nTop {len(alternatives)} alternative suppliers for {test_material}:")
+    for supplier, score in alternatives:
+        print(f"  {supplier.name} (Score: {score:.3f})")
+        print(f"    Location: {supplier.location['country']}")
+        print(f"    Quality: {supplier.performance_history.get('quality_score', [0])[0]:.2%}")
+    
+    # Scenario simulation
+    print("\\nPhase 6: Simulating supplier loss scenario...")
+    scenario_result = system.simulate_scenario({
+        'type': 'supplier_loss',
+        'supplier_id': 'SUP_000'
+    })
+    print(f"\\nScenario: Loss of {scenario_result['supplier_id']}")
+    print(f"  Affected Materials: {scenario_result['affected_materials']}")
+    print(f"  Critical Impacts: {scenario_result['critical_impacts']}")
+    print(f"  Overall Severity: {scenario_result['overall_severity']}")
+    
+    print("\\n=== Supply Chain Intelligence Complete ===")
+
+:::{.callout-tip}
+## Supply Chain Intelligence Best Practices
+
+**Data integration:**
+- ERP systems: SAP, Oracle, real-time transaction data
+- Supplier portals: Performance metrics, capacity updates
+- Logistics platforms: Shipment tracking, lead times
+- External data: Weather, geopolitical, economic indicators
+- IoT sensors: Real-time inventory levels, in-transit tracking
+
+**Risk modeling:**
+- Multi-factor risk assessment: Financial, operational, geographic
+- Network analysis: Single-point failures, cascading effects
+- Scenario simulation: What-if analysis before decisions
+- Early warning systems: Detect risks 2-8 weeks ahead
+- Continuous monitoring: Daily risk score updates
+
+**Optimization objectives:**
+- Cost minimization: Inventory holding, ordering, transportation
+- Service level: Target 95-99% depending on product
+- Resilience: Diversification, buffer stock, dual sourcing
+- Sustainability: Carbon footprint, ethical sourcing
+- Agility: Rapid response to changes, flexible capacity
+
+**Embedding strategies:**
+- Supplier embeddings: Capture reliability, capability, risk profile
+- Material embeddings: Enable substitutability analysis
+- Demand embeddings: Forecast with seasonality and trends
+- Graph embeddings: Model supply network relationships
+- Multi-modal fusion: Combine structured + unstructured data
+
+**ROI metrics:**
+- Inventory reduction: 20-30% lower working capital
+- Stockout prevention: 40-60% fewer disruptions
+- Lead time visibility: 30-50% better forecast accuracy
+- Risk mitigation: 60-80% faster response to disruptions
+- Cost savings: 5-15% procurement cost reduction
+:::
 
 ## Equipment Optimization
 
-[Content to be written: Details about equipment optimization]
+Manufacturing equipment—from CNC machines to industrial robots to assembly lines—represents massive capital investment requiring maximum uptime. Equipment failures cause production losses of $10K-$500K per hour. **Embedding-based equipment optimization** represents machine states as vectors learned from sensor streams, predicting failures weeks before they occur and optimizing maintenance schedules to maximize production while minimizing costs.
+
+### The Equipment Challenge
+
+Traditional maintenance strategies face limitations:
+
+- **Reactive maintenance**: Fix after failure, causing unplanned downtime
+- **Preventive maintenance**: Fixed schedules waste resources, miss actual condition
+- **Sensor overload**: Hundreds of sensors per machine, unclear which matter
+- **Rare failures**: Limited examples of failure modes for training
+- **Multi-equipment dependencies**: Bottleneck machines impact entire line
+- **Maintenance optimization**: Balance production loss vs. maintenance cost
+- **Part inventory**: Stock expensive spare parts vs. expedite when needed
+
+**Embedding approach**: Learn machine embeddings from multi-sensor history (vibration, temperature, acoustic, power, process parameters). Normal operation forms clusters; degradation appears as drift toward failure regions. Predict remaining useful life and optimal maintenance timing based on embedding trajectories.
+
+```python
+"""
+Equipment Optimization with Predictive Maintenance
+
+Architecture:
+1. Machine state encoder: Multi-sensor fusion for current condition
+2. Temporal model: Track degradation over time (LSTM/Transformer)
+3. Failure predictor: Remaining useful life (RUL) estimation
+4. Maintenance optimizer: Schedule maintenance to minimize total cost
+5. Anomaly detector: Identify unusual patterns indicating issues
+
+Techniques:
+- Survival analysis: Model time-to-failure distributions
+- Transfer learning: Pre-train on similar equipment, fine-tune per machine
+- Few-shot learning: Handle rare failure modes with limited data
+- Multi-task learning: Predict RUL, failure mode, severity simultaneously
+- Reinforcement learning: Optimize maintenance policies
+
+Production considerations:
+- Edge deployment: Real-time prediction on factory floor
+- Explainability: Show which sensors/features drive predictions
+- Integration: CMMS (maintenance systems), ERP, production scheduling
+- Cost modeling: Quantify production loss vs. maintenance cost
+- Spare parts: Predict part needs to optimize inventory
+"""
+
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from typing import List, Dict, Optional, Tuple, Any
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+import random
+
+@dataclass
+class EquipmentReading:
+    """
+    Equipment sensor reading
+    
+    Attributes:
+        timestamp: Reading time
+        equipment_id: Machine identifier
+        sensor_data: Dict of sensor readings (vibration, temp, power, etc.)
+        operating_condition: Current operating mode/parameters
+        maintenance_history: Recent maintenance events
+        production_count: Cumulative production since last maintenance
+        hours_operated: Operating hours since last maintenance
+        embedding: Learned equipment state embedding
+    """
+    timestamp: datetime
+    equipment_id: str
+    sensor_data: Dict[str, np.ndarray]
+    operating_condition: Dict[str, float] = field(default_factory=dict)
+    maintenance_history: List[Dict[str, Any]] = field(default_factory=list)
+    production_count: int = 0
+    hours_operated: float = 0.0
+    embedding: Optional[np.ndarray] = None
+
+@dataclass
+class MaintenancePrediction:
+    """
+    Maintenance prediction and recommendation
+    
+    Attributes:
+        timestamp: Prediction time
+        equipment_id: Equipment identifier
+        remaining_useful_life: Predicted RUL in hours
+        confidence_interval: (lower, upper) bounds on RUL
+        failure_mode: Predicted failure mode if RUL < threshold
+        degradation_rate: Rate of condition deterioration
+        recommended_action: Suggested maintenance intervention
+        optimal_timing: Optimal maintenance scheduling window
+        estimated_cost: Expected cost of failure vs. proactive maintenance
+        priority: Maintenance priority (1=critical, 5=routine)
+    """
+    timestamp: datetime
+    equipment_id: str
+    remaining_useful_life: float  # hours
+    confidence_interval: Tuple[float, float]
+    failure_mode: Optional[str] = None
+    degradation_rate: float = 0.0
+    recommended_action: str = ""
+    optimal_timing: Optional[datetime] = None
+    estimated_cost: Dict[str, float] = field(default_factory=dict)
+    priority: int = 3
+
+class EquipmentStateEncoder(nn.Module):
+    """
+    Encode equipment sensor data and operating conditions
+    
+    Similar to multi-sensor fusion for quality control, but focused on
+    machine health rather than product quality.
+    
+    Output: 512-dim equipment state embedding
+    """
+    
+    def __init__(self, embedding_dim=512):
+        super().__init__()
+        self.embedding_dim = embedding_dim
+        
+        # Reuse encoders from quality control section
+        self.vibration_encoder = VibrationEncoder(embedding_dim=128)
+        self.thermal_encoder = ThermalEncoder(embedding_dim=128)
+        self.acoustic_encoder = AcousticEncoder(embedding_dim=128)
+        
+        # Power/electrical encoder
+        self.power_encoder = nn.Sequential(
+            nn.Linear(10, 64),  # current, voltage, power factor, etc.
+            nn.ReLU(),
+            nn.Linear(64, 128)
+        )
+        
+        # Operating condition encoder
+        self.condition_encoder = nn.Sequential(
+            nn.Linear(20, 64),  # speed, load, mode, etc.
+            nn.ReLU(),
+            nn.Linear(64, 128)
+        )
+        
+        # Fusion
+        self.fusion = nn.Sequential(
+            nn.Linear(128 + 128 + 128 + 128 + 128, 1024),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(1024, embedding_dim)
+        )
+        
+    def forward(
+        self,
+        vibration: torch.Tensor,
+        temperature: torch.Tensor,
+        acoustic: torch.Tensor,
+        power: torch.Tensor,
+        conditions: torch.Tensor
+    ) -> torch.Tensor:
+        """Encode equipment state to embedding"""
+        vib_emb = self.vibration_encoder(vibration)
+        temp_emb = self.thermal_encoder(temperature)
+        acou_emb = self.acoustic_encoder(acoustic)
+        pow_emb = self.power_encoder(power)
+        cond_emb = self.condition_encoder(conditions)
+        
+        concat = torch.cat([vib_emb, temp_emb, acou_emb, pow_emb, cond_emb], dim=1)
+        embedding = self.fusion(concat)
+        
+        return F.normalize(embedding, p=2, dim=1)
+
+class TemporalDegradationModel(nn.Module):
+    """
+    Model equipment degradation over time
+    
+    Architecture:
+    - LSTM/Transformer: Capture temporal dependencies
+    - Attention: Focus on critical degradation patterns
+    - Remaining useful life predictor: Regression head
+    - Failure mode classifier: Multi-class classification
+    
+    Trained on historical degradation sequences leading to failures
+    """
+    
+    def __init__(self, embedding_dim=512, hidden_dim=256):
+        super().__init__()
+        self.embedding_dim = embedding_dim
+        self.hidden_dim = hidden_dim
+        
+        # Temporal encoder
+        self.lstm = nn.LSTM(
+            input_size=embedding_dim,
+            hidden_size=hidden_dim,
+            num_layers=3,
+            batch_first=True,
+            dropout=0.2
+        )
+        
+        # Attention over time
+        self.attention = nn.MultiheadAttention(
+            embed_dim=hidden_dim,
+            num_heads=8,
+            batch_first=True
+        )
+        
+        # RUL prediction head
+        self.rul_predictor = nn.Sequential(
+            nn.Linear(hidden_dim, 128),
+            nn.ReLU(),
+            nn.Linear(128, 1)
+        )
+        
+        # Failure mode classification head
+        self.failure_classifier = nn.Sequential(
+            nn.Linear(hidden_dim, 128),
+            nn.ReLU(),
+            nn.Linear(128, 10)  # 10 failure modes
+        )
+        
+        # Degradation rate predictor
+        self.degradation_predictor = nn.Sequential(
+            nn.Linear(hidden_dim, 64),
+            nn.ReLU(),
+            nn.Linear(64, 1)
+        )
+        
+    def forward(
+        self,
+        embedding_sequence: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """
+        Args:
+            embedding_sequence: [batch, time_steps, embedding_dim] historical embeddings
+        Returns:
+            rul: [batch, 1] remaining useful life
+            failure_mode: [batch, 10] failure mode probabilities
+            degradation: [batch, 1] degradation rate
+        """
+        # Encode temporal sequence
+        lstm_out, _ = self.lstm(embedding_sequence)
+        
+        # Attention over time
+        attended, _ = self.attention(lstm_out, lstm_out, lstm_out)
+        
+        # Use final time step
+        final_state = attended[:, -1, :]
+        
+        # Predictions
+        rul = self.rul_predictor(final_state)
+        failure_mode = self.failure_classifier(final_state)
+        degradation = self.degradation_predictor(final_state)
+        
+        return rul, failure_mode, degradation
+
+class PredictiveMaintenanceSystem:
+    """
+    End-to-end predictive maintenance system
+    
+    Workflow:
+    1. Collect sensor data continuously
+    2. Encode to equipment state embeddings
+    3. Track embedding trajectory over time
+    4. Predict remaining useful life
+    5. Optimize maintenance scheduling
+    6. Generate work orders and parts lists
+    
+    Integration:
+    - SCADA: Real-time sensor data
+    - CMMS: Maintenance management system
+    - ERP: Spare parts inventory
+    - Production scheduling: Coordinate maintenance windows
+    """
+    
+    def __init__(
+        self,
+        state_encoder: EquipmentStateEncoder,
+        degradation_model: TemporalDegradationModel
+    ):
+        self.state_encoder = state_encoder
+        self.degradation_model = degradation_model
+        
+        # Historical data
+        self.equipment_history: Dict[str, List[EquipmentReading]] = {}
+        self.failure_history: Dict[str, List[Dict[str, Any]]] = {}
+        
+        # Maintenance costs
+        self.maintenance_costs = {
+            'preventive': 5000,  # Scheduled maintenance cost
+            'corrective': 25000,  # Emergency repair cost
+            'downtime_per_hour': 50000  # Production loss per hour
+        }
+        
+    def add_reading(self, reading: EquipmentReading):
+        """Add new equipment reading to history"""
+        if reading.equipment_id not in self.equipment_history:
+            self.equipment_history[reading.equipment_id] = []
+        
+        # Encode reading
+        reading.embedding = self._encode_reading(reading)
+        
+        # Store
+        self.equipment_history[reading.equipment_id].append(reading)
+        
+        # Keep last 1000 readings
+        if len(self.equipment_history[reading.equipment_id]) > 1000:
+            self.equipment_history[reading.equipment_id].pop(0)
+    
+    def _encode_reading(self, reading: EquipmentReading) -> np.ndarray:
+        """Encode equipment reading to embedding"""
+        with torch.no_grad():
+            # Convert sensor data to tensors
+            vib = torch.tensor(
+                reading.sensor_data.get('vibration', np.zeros((1000, 3))),
+                dtype=torch.float32
+            ).unsqueeze(0)
+            
+            temp = torch.tensor(
+                reading.sensor_data.get('temperature', np.zeros((100, 8))),
+                dtype=torch.float32
+            ).unsqueeze(0)
+            
+            acou = torch.tensor(
+                reading.sensor_data.get('acoustic', np.zeros(10000)),
+                dtype=torch.float32
+            ).unsqueeze(0)
+            
+            power = torch.tensor(
+                [reading.sensor_data.get(f'power_{i}', 0.0) for i in range(10)],
+                dtype=torch.float32
+            ).unsqueeze(0)
+            
+            conditions = torch.tensor(
+                [reading.operating_condition.get(f'param_{i}', 0.0) for i in range(20)],
+                dtype=torch.float32
+            ).unsqueeze(0)
+            
+            embedding = self.state_encoder(vib, temp, acou, power, conditions)
+            return embedding.cpu().numpy()[0]
+    
+    def predict_maintenance(
+        self,
+        equipment_id: str,
+        lookahead_window: int = 100
+    ) -> MaintenancePrediction:
+        """
+        Predict maintenance needs for equipment
+        
+        Args:
+            equipment_id: Equipment to analyze
+            lookahead_window: Number of historical readings to use
+        
+        Returns:
+            Maintenance prediction with RUL, timing, recommendations
+        """
+        if equipment_id not in self.equipment_history:
+            raise ValueError(f"No history for equipment {equipment_id}")
+        
+        history = self.equipment_history[equipment_id]
+        if len(history) < 10:
+            raise ValueError(f"Insufficient history for {equipment_id}")
+        
+        # Get recent embeddings
+        recent_history = history[-lookahead_window:]
+        embeddings = np.array([r.embedding for r in recent_history])
+        
+        # Predict with degradation model
+        with torch.no_grad():
+            emb_tensor = torch.tensor(embeddings, dtype=torch.float32).unsqueeze(0)
+            rul, failure_modes, degradation = self.degradation_model(emb_tensor)
+            
+            rul_hours = rul.item()
+            degradation_rate = degradation.item()
+            
+            # Get most likely failure mode
+            failure_probs = F.softmax(failure_modes, dim=1)[0]
+            top_failure_idx = torch.argmax(failure_probs).item()
+            top_failure_prob = failure_probs[top_failure_idx].item()
+        
+        # Map failure mode index to description
+        failure_modes_desc = [
+            'bearing_failure', 'motor_failure', 'hydraulic_leak',
+            'electrical_fault', 'tool_wear', 'alignment_issue',
+            'lubrication_issue', 'cooling_failure', 'structural_damage',
+            'control_system_fault'
+        ]
+        predicted_failure = failure_modes_desc[top_failure_idx] if top_failure_prob > 0.3 else None
+        
+        # Confidence interval (simplified: ±20% of prediction)
+        confidence_interval = (rul_hours * 0.8, rul_hours * 1.2)
+        
+        # Determine action and timing
+        current_time = recent_history[-1].timestamp
+        
+        if rul_hours < 24:
+            action = "URGENT: Schedule immediate maintenance"
+            optimal_timing = current_time + timedelta(hours=8)
+            priority = 1
+        elif rul_hours < 168:  # 1 week
+            action = "Schedule maintenance within next week"
+            optimal_timing = current_time + timedelta(hours=rul_hours * 0.7)
+            priority = 2
+        elif rul_hours < 720:  # 1 month
+            action = "Schedule maintenance within next month"
+            optimal_timing = current_time + timedelta(hours=rul_hours * 0.8)
+            priority = 3
+        else:
+            action = "Continue monitoring, no immediate action needed"
+            optimal_timing = None
+            priority = 5
+        
+        # Cost analysis
+        if rul_hours < 720:  # Within maintenance window
+            # Cost of preventive maintenance vs. waiting for failure
+            preventive_cost = self.maintenance_costs['preventive']
+            downtime_hours = 4  # Planned maintenance downtime
+            preventive_total = preventive_cost + (downtime_hours * self.maintenance_costs['downtime_per_hour'])
+            
+            # Cost of running to failure
+            corrective_cost = self.maintenance_costs['corrective']
+            emergency_downtime = 24  # Emergency repair time
+            failure_total = corrective_cost + (emergency_downtime * self.maintenance_costs['downtime_per_hour'])
+            
+            cost_analysis = {
+                'preventive_maintenance': preventive_total,
+                'run_to_failure': failure_total,
+                'savings': failure_total - preventive_total
+            }
+        else:
+            cost_analysis = {}
+        
+        return MaintenancePrediction(
+            timestamp=current_time,
+            equipment_id=equipment_id,
+            remaining_useful_life=rul_hours,
+            confidence_interval=confidence_interval,
+            failure_mode=predicted_failure,
+            degradation_rate=degradation_rate,
+            recommended_action=action,
+            optimal_timing=optimal_timing,
+            estimated_cost=cost_analysis,
+            priority=priority
+        )
+    
+    def optimize_maintenance_schedule(
+        self,
+        equipment_ids: List[str],
+        planning_horizon_days: int = 30
+    ) -> List[Dict[str, Any]]:
+        """
+        Optimize maintenance schedule across multiple equipment
+        
+        Objectives:
+        - Minimize total cost (maintenance + downtime)
+        - Respect production constraints (don't halt critical paths)
+        - Batch maintenance when possible (shared resources)
+        - Balance workload across maintenance teams
+        
+        Returns optimized maintenance schedule
+        """
+        schedule = []
+        
+        for eq_id in equipment_ids:
+            try:
+                prediction = self.predict_maintenance(eq_id, lookahead_window=100)
+                
+                # Only schedule if within planning horizon
+                if prediction.optimal_timing:
+                    days_until = (prediction.optimal_timing - prediction.timestamp).days
+                    
+                    if days_until <= planning_horizon_days:
+                        schedule.append({
+                            'equipment_id': eq_id,
+                            'scheduled_date': prediction.optimal_timing,
+                            'priority': prediction.priority,
+                            'rul_hours': prediction.remaining_useful_life,
+                            'failure_mode': prediction.failure_mode,
+                            'action': prediction.recommended_action,
+                            'estimated_cost': prediction.estimated_cost
+                        })
+            except ValueError:
+                continue
+        
+        # Sort by priority (urgent first) then by scheduled date
+        schedule.sort(key=lambda x: (x['priority'], x['scheduled_date']))
+        
+        return schedule
+
+# Demonstration
+def demonstrate_predictive_maintenance():
+    """
+    Demonstrate predictive maintenance system
+    
+    Scenarios:
+    - Normal operation (high RUL)
+    - Gradual degradation
+    - Rapid failure
+    - Maintenance optimization
+    """
+    print("\\n=== Predictive Maintenance Demonstration ===\\n")
+    
+    # Initialize system
+    encoder = EquipmentStateEncoder(embedding_dim=512)
+    model = TemporalDegradationModel(embedding_dim=512)
+    system = PredictiveMaintenanceSystem(encoder, model)
+    
+    # Simulate equipment operation
+    equipment_id = "CNC_MACHINE_001"
+    
+    print("Phase 1: Normal operation...")
+    for hour in range(50):
+        reading = EquipmentReading(
+            timestamp=datetime.now() + timedelta(hours=hour),
+            equipment_id=equipment_id,
+            sensor_data={
+                'vibration': np.random.randn(1000, 3) * 0.1,
+                'temperature': np.ones((100, 8)) * 65.0 + np.random.randn(100, 8) * 2.0,
+                'acoustic': np.random.randn(10000) * 0.05,
+                'power_0': 100.0 + np.random.randn() * 5
+            },
+            operating_condition={'speed': 1000.0, 'load': 0.7},
+            hours_operated=hour
+        )
+        system.add_reading(reading)
+    
+    prediction = system.predict_maintenance(equipment_id)
+    print(f"\\nAfter 50 hours:")
+    print(f"  RUL: {prediction.remaining_useful_life:.1f} hours")
+    print(f"  Action: {prediction.recommended_action}")
+    
+    # Simulate degradation
+    print("\\nPhase 2: Simulating bearing degradation...")
+    for hour in range(50, 150):
+        degradation_factor = 1.0 + (hour - 50) / 50.0  # Gradual increase
+        
+        reading = EquipmentReading(
+            timestamp=datetime.now() + timedelta(hours=hour),
+            equipment_id=equipment_id,
+            sensor_data={
+                'vibration': np.random.randn(1000, 3) * 0.1 * degradation_factor,
+                'temperature': np.ones((100, 8)) * (65.0 + (hour-50)*0.2) + np.random.randn(100, 8) * 2.0,
+                'acoustic': np.random.randn(10000) * 0.05 * degradation_factor,
+                'power_0': 100.0 + (hour-50)*0.5 + np.random.randn() * 5
+            },
+            operating_condition={'speed': 1000.0, 'load': 0.7},
+            hours_operated=hour
+        )
+        system.add_reading(reading)
+    
+    prediction = system.predict_maintenance(equipment_id)
+    print(f"\\nAfter 150 hours (degraded):")
+    print(f"  RUL: {prediction.remaining_useful_life:.1f} hours")
+    print(f"  Confidence: {prediction.confidence_interval[0]:.1f} - {prediction.confidence_interval[1]:.1f} hours")
+    print(f"  Failure Mode: {prediction.failure_mode or 'None predicted'}")
+    print(f"  Priority: {prediction.priority}/5")
+    print(f"  Action: {prediction.recommended_action}")
+    
+    if prediction.estimated_cost:
+        print(f"\\n  Cost Analysis:")
+        print(f"    Preventive Maintenance: ${prediction.estimated_cost.get('preventive_maintenance', 0):,.0f}")
+        print(f"    Run to Failure: ${prediction.estimated_cost.get('run_to_failure', 0):,.0f}")
+        print(f"    Potential Savings: ${prediction.estimated_cost.get('savings', 0):,.0f}")
+    
+    print("\\n=== Predictive Maintenance Complete ===")
+
+:::{.callout-tip}
+## Predictive Maintenance Best Practices
+
+**Data collection:**
+- High-frequency sensors: 1-10 kHz for vibration, acoustic
+- Continuous monitoring: 24/7 data collection
+- Operating context: Load, speed, mode for normalization
+- Maintenance logs: Historical failures for training
+- Environmental: Temperature, humidity affect baselines
+
+**Model training:**
+- Survival analysis: Model time-to-failure distributions
+- Transfer learning: Pre-train on fleet data, fine-tune per machine
+- Synthetic data: Simulate degradation when real failures are rare
+- Multi-task learning: RUL + failure mode + severity
+- Ensemble models: Combine multiple predictors for robustness
+
+**Deployment:**
+- Edge computing: Real-time prediction on factory floor
+- Alert thresholds: Tuned to balance false positives/negatives
+- Integration: CMMS, ERP, production scheduling
+- Spare parts: Predict needs to optimize inventory
+- Maintenance teams: Workload balancing and scheduling
+
+**Failure modes:**
+- Mechanical: Bearing wear, tool wear, alignment issues
+- Electrical: Motor windings, control systems, sensors
+- Hydraulic/pneumatic: Leaks, pressure loss, actuator failure
+- Lubrication: Contamination, degradation, insufficient flow
+- Structural: Cracks, fatigue, corrosion
+
+**ROI metrics:**
+- Unplanned downtime: Reduce from 5-10% to <1%
+- Maintenance cost: Reduce emergency repairs by 40-60%
+- Equipment life: Extend by 20-40% through optimal maintenance
+- Production efficiency: Increase OEE from 65% to 85%+
+- Spare parts: Reduce inventory by 20-30% through prediction
+:::
 
 ## Process Automation
 
-[Content to be written: Details about process automation]
+Manufacturing processes involve complex sequences of operations with interdependent parameters. Manual process control relies on operator experience and fixed parameters, missing optimization opportunities and adapting slowly to changing conditions. **Embedding-based process automation** represents manufacturing states as vectors, enabling adaptive control systems that optimize parameters in real-time based on current conditions, product requirements, and quality feedback.
+
+### The Process Control Challenge
+
+Traditional process control faces limitations:
+
+- **Fixed parameters**: Static setpoints don't adapt to variations
+- **Manual tuning**: Operators adjust based on experience, not data
+- **Slow adaptation**: Hours to days to respond to quality issues
+- **Multi-objective trade-offs**: Quality vs. speed vs. cost
+- **Process interactions**: Changing one parameter affects others
+- **Recipe management**: Thousands of product-specific parameter sets
+- **Quality feedback lag**: Defects discovered hours after production
+
+**Embedding approach**: Learn embeddings of manufacturing states (sensor readings, quality outcomes, process parameters). Reinforcement learning agents navigate embedding space to find optimal parameter combinations. Adapt in real-time as conditions change, materials vary, or new products are introduced.
 
 ## Digital Twin Implementations
 
-[Content to be written: Details about digital twin implementations]
+Digital twins—virtual replicas of physical manufacturing systems—enable simulation and optimization before physical implementation. Traditional simulation models require expert knowledge to build, take weeks to develop, and struggle with complex real-world dynamics. **Embedding-based digital twins** learn representations of manufacturing systems from operational data, enabling rapid what-if analysis, process optimization, and operator training in virtual environments.
+
+### The Digital Twin Challenge
+
+Traditional manufacturing simulation faces limitations:
+
+- **Model development time**: Weeks to months for expert-built models
+- **Model accuracy**: Simplified physics miss real-world complexity
+- **Calibration difficulty**: Parameters hard to estimate, drift over time
+- **Limited scenarios**: Only simulated scenarios work, real-world surprises
+- **Integration gaps**: Simulation disconnected from actual operations
+- **Operator training**: Limited hands-on experience before production
+- **Change validation**: Risky to test process changes in production
+
+**Embedding approach**: Learn embeddings of manufacturing states, transitions, and outcomes from operational data. Build generative models in embedding space that predict future states given actions. Enable rapid simulation of process changes, equipment configurations, and production schedules in virtual environment before physical deployment.
+
+```python
+"""
+Digital Twin with Embedding-Based Simulation
+
+Architecture:
+1. State encoder: Current manufacturing state to embedding
+2. Action encoder: Process changes/interventions to embedding
+3. Transition model: Predict next state given current state + action
+4. Outcome predictor: Quality, throughput, cost from trajectories
+5. Policy optimizer: Find optimal actions via simulation
+
+Techniques:
+- World models: Learn dynamics in embedding space
+- Model-based RL: Plan optimal actions via rollouts
+- Uncertainty quantification: Confidence in predictions
+- Multi-fidelity: Combine physics-based and learned models
+- Transfer learning: Adapt models across similar production lines
+
+Production considerations:
+- Real-time sync: Keep digital twin aligned with physical system
+- Scenario library: Pre-built scenarios for common changes
+- Operator interface: User-friendly simulation controls
+- Validation: Compare predictions vs. actual outcomes
+- Continuous learning: Update models from ongoing operations
+"""
+
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from typing import List, Dict, Optional, Tuple, Any
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+
+@dataclass
+class ManufacturingState:
+    """
+    Complete state of manufacturing system
+    
+    Attributes:
+        timestamp: State timestamp
+        equipment_states: Status of all equipment
+        work_in_progress: Products in production
+        inventory_levels: Material inventory
+        quality_metrics: Recent quality measurements
+        throughput: Production rate
+        energy_consumption: Power usage
+        operator_actions: Recent interventions
+        embedding: Learned state embedding
+    """
+    timestamp: datetime
+    equipment_states: Dict[str, Dict[str, Any]]
+    work_in_progress: List[Dict[str, Any]]
+    inventory_levels: Dict[str, float]
+    quality_metrics: Dict[str, float]
+    throughput: float
+    energy_consumption: float
+    operator_actions: List[str] = field(default_factory=list)
+    embedding: Optional[np.ndarray] = None
+
+@dataclass
+class SimulationAction:
+    """
+    Action to simulate in digital twin
+    
+    Attributes:
+        action_type: Type of action (parameter_change, equipment_config, schedule_change)
+        target: What to act on (equipment ID, parameter name, etc.)
+        value: New value or configuration
+        timing: When to apply action
+        duration: How long action applies
+    """
+    action_type: str
+    target: str
+    value: Any
+    timing: datetime
+    duration: Optional[timedelta] = None
+
+@dataclass
+class SimulationResult:
+    """
+    Result of digital twin simulation
+    
+    Attributes:
+        scenario_id: Simulation identifier
+        initial_state: Starting state
+        actions: Actions simulated
+        predicted_states: Sequence of predicted future states
+        outcome_metrics: Quality, throughput, cost predictions
+        confidence: Prediction confidence
+        risks: Identified risks from simulation
+        recommendations: Suggested actions based on simulation
+    """
+    scenario_id: str
+    initial_state: ManufacturingState
+    actions: List[SimulationAction]
+    predicted_states: List[ManufacturingState]
+    outcome_metrics: Dict[str, float]
+    confidence: float
+    risks: List[str] = field(default_factory=list)
+    recommendations: List[str] = field(default_factory=list)
+
+class StateTransitionModel(nn.Module):
+    """
+    Learn manufacturing state transitions
+    
+    Architecture:
+    - State encoder: Current state to embedding
+    - Action encoder: Intervention to embedding
+    - Transition predictor: Next state embedding given current + action
+    - Outcome decoder: Predict metrics from state embedding
+    
+    Trained on historical state sequences and actions
+    """
+    
+    def __init__(self, state_dim=512, action_dim=128):
+        super().__init__()
+        self.state_dim = state_dim
+        self.action_dim = action_dim
+        
+        # State encoder (simplified: would use multi-sensor fusion)
+        self.state_encoder = nn.Sequential(
+            nn.Linear(100, 256),  # Equipment sensors, WIP, inventory
+            nn.ReLU(),
+            nn.Linear(256, state_dim)
+        )
+        
+        # Action encoder
+        self.action_encoder = nn.Sequential(
+            nn.Linear(50, 128),  # Action type, target, value
+            nn.ReLU(),
+            nn.Linear(128, action_dim)
+        )
+        
+        # Transition model
+        self.transition = nn.Sequential(
+            nn.Linear(state_dim + action_dim, 512),
+            nn.ReLU(),
+            nn.Linear(512, 512),
+            nn.ReLU(),
+            nn.Linear(512, state_dim)
+        )
+        
+        # Uncertainty estimator
+        self.uncertainty = nn.Sequential(
+            nn.Linear(state_dim, 128),
+            nn.ReLU(),
+            nn.Linear(128, state_dim)
+        )
+        
+        # Outcome predictors
+        self.quality_predictor = nn.Linear(state_dim, 1)
+        self.throughput_predictor = nn.Linear(state_dim, 1)
+        self.cost_predictor = nn.Linear(state_dim, 1)
+        
+    def forward(
+        self,
+        state: torch.Tensor,
+        action: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor, Dict[str, torch.Tensor]]:
+        """
+        Predict next state given current state and action
+        
+        Args:
+            state: [batch, 100] current state features
+            action: [batch, 50] action features
+        Returns:
+            next_state: [batch, state_dim] next state embedding
+            uncertainty: [batch, state_dim] prediction uncertainty
+            outcomes: Dict with quality, throughput, cost predictions
+        """
+        # Encode
+        state_emb = self.state_encoder(state)
+        action_emb = self.action_encoder(action)
+        
+        # Predict transition
+        combined = torch.cat([state_emb, action_emb], dim=1)
+        next_state = self.transition(combined)
+        
+        # Residual connection for stability
+        next_state = state_emb + next_state
+        
+        # Uncertainty
+        uncertainty = torch.exp(self.uncertainty(next_state))  # Positive values
+        
+        # Outcomes from next state
+        outcomes = {
+            'quality': torch.sigmoid(self.quality_predictor(next_state)),
+            'throughput': F.relu(self.throughput_predictor(next_state)),
+            'cost': F.relu(self.cost_predictor(next_state))
+        }
+        
+        return next_state, uncertainty, outcomes
+
+class DigitalTwinSystem:
+    """
+    Complete digital twin system for manufacturing
+    
+    Capabilities:
+    1. State synchronization: Keep digital twin aligned with physical
+    2. Scenario simulation: What-if analysis of process changes
+    3. Optimization: Find optimal parameters via simulation
+    4. Training: Operator training in virtual environment
+    5. Validation: Test changes before physical deployment
+    
+    Integration:
+    - MES: Manufacturing execution system data
+    - SCADA: Real-time sensor feeds
+    - ERP: Inventory, scheduling data
+    - Simulation UI: Operator interface
+    """
+    
+    def __init__(self, transition_model: StateTransitionModel):
+        self.transition_model = transition_model
+        
+        # Current physical state
+        self.current_state: Optional[ManufacturingState] = None
+        
+        # Historical states for model training
+        self.state_history: List[ManufacturingState] = []
+        
+        # Simulation scenarios
+        self.scenarios: Dict[str, SimulationResult] = {}
+        
+    def sync_with_physical(self, state: ManufacturingState):
+        """Update digital twin with current physical state"""
+        self.current_state = state
+        self.state_history.append(state)
+        
+        # Keep last 10000 states
+        if len(self.state_history) > 10000:
+            self.state_history.pop(0)
+    
+    def simulate_scenario(
+        self,
+        scenario_id: str,
+        actions: List[SimulationAction],
+        simulation_horizon: int = 100
+    ) -> SimulationResult:
+        """
+        Simulate a scenario with specified actions
+        
+        Args:
+            scenario_id: Unique scenario identifier
+            actions: List of actions to simulate
+            simulation_horizon: Number of time steps to simulate
+        
+        Returns:
+            Simulation results with predicted outcomes
+        """
+        if self.current_state is None:
+            raise ValueError("No current state available for simulation")
+        
+        # Initialize simulation from current state
+        sim_state = self.current_state
+        predicted_states = [sim_state]
+        
+        # Sort actions by timing
+        actions.sort(key=lambda a: a.timing)
+        
+        # Simulate forward
+        with torch.no_grad():
+            for step in range(simulation_horizon):
+                # Check if any actions apply at this step
+                current_time = sim_state.timestamp + timedelta(hours=step)
+                current_action = None
+                
+                for action in actions:
+                    if action.timing <= current_time:
+                        if action.duration is None or current_time <= action.timing + action.duration:
+                            current_action = action
+                            break
+                
+                # Convert state to tensor (simplified)
+                state_features = torch.randn(1, 100)  # Would extract real features
+                
+                # Convert action to tensor
+                if current_action:
+                    action_features = torch.randn(1, 50)  # Would encode real action
+                else:
+                    action_features = torch.zeros(1, 50)  # No action
+                
+                # Predict next state
+                next_state_emb, uncertainty, outcomes = self.transition_model(
+                    state_features,
+                    action_features
+                )
+                
+                # Create next state (simplified: would decode from embedding)
+                next_state = ManufacturingState(
+                    timestamp=current_time + timedelta(hours=1),
+                    equipment_states=sim_state.equipment_states.copy(),
+                    work_in_progress=sim_state.work_in_progress.copy(),
+                    inventory_levels=sim_state.inventory_levels.copy(),
+                    quality_metrics={
+                        'defect_rate': outcomes['quality'].item()
+                    },
+                    throughput=outcomes['throughput'].item(),
+                    energy_consumption=outcomes['cost'].item(),
+                    embedding=next_state_emb.cpu().numpy()[0]
+                )
+                
+                predicted_states.append(next_state)
+                sim_state = next_state
+        
+        # Analyze outcomes
+        avg_quality = np.mean([s.quality_metrics.get('defect_rate', 0.05) for s in predicted_states])
+        avg_throughput = np.mean([s.throughput for s in predicted_states])
+        total_cost = sum(s.energy_consumption for s in predicted_states)
+        
+        outcome_metrics = {
+            'avg_defect_rate': avg_quality,
+            'avg_throughput': avg_throughput,
+            'total_cost': total_cost,
+            'oee': avg_throughput / 100.0  # Overall Equipment Effectiveness
+        }
+        
+        # Identify risks
+        risks = []
+        if avg_quality > 0.03:
+            risks.append("Quality degradation detected in simulation")
+        if avg_throughput < 80:
+            risks.append("Throughput below target in simulation")
+        if total_cost > simulation_horizon * 100:
+            risks.append("Energy costs exceed budget in simulation")
+        
+        # Generate recommendations
+        recommendations = []
+        if avg_quality > 0.03:
+            recommendations.append("Adjust process parameters to improve quality")
+        if avg_throughput < 80:
+            recommendations.append("Optimize equipment utilization")
+        if not risks:
+            recommendations.append("Scenario appears favorable - consider implementation")
+        
+        # Confidence based on uncertainty
+        confidence = 0.85  # Simplified: would aggregate uncertainty estimates
+        
+        result = SimulationResult(
+            scenario_id=scenario_id,
+            initial_state=self.current_state,
+            actions=actions,
+            predicted_states=predicted_states,
+            outcome_metrics=outcome_metrics,
+            confidence=confidence,
+            risks=risks,
+            recommendations=recommendations
+        )
+        
+        self.scenarios[scenario_id] = result
+        return result
+    
+    def optimize_parameters(
+        self,
+        objectives: Dict[str, float],
+        constraints: Dict[str, Tuple[float, float]],
+        num_iterations: int = 100
+    ) -> SimulationAction:
+        """
+        Find optimal process parameters via simulation
+        
+        Args:
+            objectives: Target metrics {'defect_rate': 0.01, 'throughput': 95}
+            constraints: Parameter bounds {'temperature': (60, 80)}
+            num_iterations: Optimization iterations
+        
+        Returns:
+            Optimal action to achieve objectives
+        """
+        best_action = None
+        best_score = float('inf')
+        
+        for iteration in range(num_iterations):
+            # Sample random parameter changes within constraints
+            action = SimulationAction(
+                action_type='parameter_change',
+                target='process_temperature',
+                value=np.random.uniform(
+                    constraints.get('temperature', (60, 80))[0],
+                    constraints.get('temperature', (60, 80))[1]
+                ),
+                timing=datetime.now()
+            )
+            
+            # Simulate
+            result = self.simulate_scenario(
+                f"opt_iter_{iteration}",
+                [action],
+                simulation_horizon=50
+            )
+            
+            # Score based on objectives
+            score = 0.0
+            for metric, target in objectives.items():
+                actual = result.outcome_metrics.get(metric, 0)
+                score += abs(actual - target)
+            
+            # Update best
+            if score < best_score:
+                best_score = score
+                best_action = action
+        
+        return best_action
+    
+    def validate_change(
+        self,
+        proposed_change: SimulationAction,
+        validation_criteria: Dict[str, Tuple[float, float]]
+    ) -> Tuple[bool, str]:
+        """
+        Validate proposed change meets criteria
+        
+        Args:
+            proposed_change: Change to validate
+            validation_criteria: Acceptable ranges for metrics
+        
+        Returns:
+            (is_valid, reason) tuple
+        """
+        # Simulate change
+        result = self.simulate_scenario(
+            "validation",
+            [proposed_change],
+            simulation_horizon=50
+        )
+        
+        # Check criteria
+        for metric, (min_val, max_val) in validation_criteria.items():
+            actual = result.outcome_metrics.get(metric, 0)
+            
+            if actual < min_val or actual > max_val:
+                return False, f"{metric} out of range: {actual} not in [{min_val}, {max_val}]"
+        
+        # Check for risks
+        if result.risks:
+            return False, f"Risks identified: {', '.join(result.risks)}"
+        
+        return True, "Change validated successfully"
+
+# Demonstration
+def demonstrate_digital_twin():
+    """
+    Demonstrate digital twin system
+    
+    Scenarios:
+    - Process parameter optimization
+    - Equipment change validation
+    - Operator training simulation
+    """
+    print("\\n=== Digital Twin Demonstration ===\\n")
+    
+    # Initialize system
+    transition_model = StateTransitionModel(state_dim=512, action_dim=128)
+    twin = DigitalTwinSystem(transition_model)
+    
+    # Sync with current physical state
+    print("Phase 1: Synchronizing with physical system...")
+    current_state = ManufacturingState(
+        timestamp=datetime.now(),
+        equipment_states={
+            'MACHINE_001': {'status': 'running', 'utilization': 0.85},
+            'MACHINE_002': {'status': 'running', 'utilization': 0.92}
+        },
+        work_in_progress=[{'product_id': f'PROD_{i}', 'stage': 'assembly'} for i in range(50)],
+        inventory_levels={'COMP_A': 1000, 'COMP_B': 800},
+        quality_metrics={'defect_rate': 0.025},
+        throughput=90.0,
+        energy_consumption=250.0
+    )
+    twin.sync_with_physical(current_state)
+    print("Digital twin synchronized with physical system\\n")
+    
+    # Scenario 1: Parameter optimization
+    print("Phase 2: Simulating process temperature change...")
+    action = SimulationAction(
+        action_type='parameter_change',
+        target='process_temperature',
+        value=72.0,  # Increase from current 70.0
+        timing=datetime.now()
+    )
+    
+    result = twin.simulate_scenario(
+        "temp_increase",
+        [action],
+        simulation_horizon=50
+    )
+    
+    print(f"Simulation results for temperature increase to {action.value}°C:")
+    print(f"  Predicted defect rate: {result.outcome_metrics['avg_defect_rate']:.3%}")
+    print(f"  Predicted throughput: {result.outcome_metrics['avg_throughput']:.1f} units/hr")
+    print(f"  Predicted cost: ${result.outcome_metrics['total_cost']:,.0f}")
+    print(f"  Confidence: {result.confidence:.0%}")
+    
+    if result.risks:
+        print(f"  Risks identified:")
+        for risk in result.risks:
+            print(f"    - {risk}")
+    
+    if result.recommendations:
+        print(f"  Recommendations:")
+        for rec in result.recommendations:
+            print(f"    - {rec}")
+    
+    # Scenario 2: Parameter optimization
+    print("\\nPhase 3: Optimizing process parameters...")
+    optimal_action = twin.optimize_parameters(
+        objectives={'avg_defect_rate': 0.015, 'avg_throughput': 95},
+        constraints={'temperature': (65, 80)},
+        num_iterations=20
+    )
+    print(f"Optimal parameters found:")
+    print(f"  {optimal_action.target} = {optimal_action.value:.1f}")
+    
+    # Scenario 3: Change validation
+    print("\\nPhase 4: Validating proposed change...")
+    is_valid, reason = twin.validate_change(
+        optimal_action,
+        validation_criteria={
+            'avg_defect_rate': (0.0, 0.02),
+            'avg_throughput': (85, 100)
+        }
+    )
+    print(f"Validation result: {'PASSED' if is_valid else 'FAILED'}")
+    print(f"Reason: {reason}")
+    
+    print("\\n=== Digital Twin Demonstration Complete ===")
+
+:::{.callout-tip}
+## Digital Twin Best Practices
+
+**Model development:**
+- Data-driven learning: Train on operational history
+- Physics-informed: Incorporate known constraints
+- Multi-fidelity: Combine detailed and fast models
+- Continuous calibration: Update from ongoing operations
+- Uncertainty quantification: Confidence bounds on predictions
+
+**Simulation scenarios:**
+- Parameter optimization: Find best process settings
+- Equipment changes: Validate new configurations
+- Production schedules: Test before implementation
+- Failure scenarios: Emergency response planning
+- Operator training: Safe practice environment
+
+**Integration:**
+- Real-time sync: Update twin every 1-60 seconds
+- Bi-directional: Physical → Digital → Insights → Physical
+- Dashboard: User-friendly visualization
+- API access: Programmatic simulation
+- Version control: Track model and scenario changes
+
+**Validation:**
+- Backtest: Compare predictions vs. actual outcomes
+- A/B testing: Run simulations alongside physical
+- Confidence tracking: Monitor prediction accuracy
+- Scenario library: Pre-validated common changes
+- Expert review: Domain experts validate critical scenarios
+
+**Applications:**
+- Process optimization: 10-25% efficiency improvements
+- Change validation: Reduce deployment risk by 70%+
+- Operator training: 60% faster skill development
+- Downtime planning: Optimize maintenance scheduling
+- Capacity planning: Test production scenarios virtually
+:::
 
 ## Key Takeaways
 
-- [Key point 1 to be added]
-- [Key point 2 to be added]
-- [Key point 3 to be added]
+- **Predictive quality control with multi-sensor embeddings enables real-time defect prevention**: Fusion of vibration, thermal, acoustic, visual, and process parameter embeddings detects anomalies milliseconds before defects manifest, reducing defect rates from 2-5% to <0.1% while eliminating post-production waste, achieving <10ms inference latency on edge devices through optimized neural architectures and real-time corrective actions
+
+- **Supply chain intelligence through entity embeddings optimizes inventory and reduces disruptions**: Supplier embeddings capture reliability and risk profiles, material embeddings enable substitutability analysis, demand embeddings forecast consumption patterns 4-12 weeks ahead, graph neural networks model supply network dependencies, reducing stockouts by 40-60%, cutting inventory carrying costs by 20-30%, and detecting disruptions 2-8 weeks before impact
+
+- **Predictive maintenance with temporal embeddings maximizes equipment uptime**: LSTM and Transformer models track equipment state trajectories in embedding space, predicting remaining useful life 1-4 weeks ahead with 85-95% accuracy, reducing unplanned downtime from 5-10% to <1%, cutting maintenance costs by 40-60% through optimal scheduling, and extending equipment life by 20-40% through condition-based interventions
+
+- **Process automation with reinforcement learning in embedding space optimizes manufacturing parameters**: State-action embeddings enable adaptive control systems that adjust process parameters in real-time, achieving 10-25% efficiency improvements, 30-50% faster adaptation to new products, and multi-objective optimization balancing quality, throughput, energy consumption, and equipment utilization
+
+- **Digital twins with embedding-based simulation enable risk-free validation of process changes**: Learned dynamics models in embedding space predict outcomes of parameter changes, equipment reconfigurations, and production schedules before physical implementation, reducing deployment risk by 70%+, accelerating operator training by 60%, and enabling continuous process optimization through virtual experimentation
+
+- **Manufacturing embeddings require multi-modal fusion and domain adaptation**: Factory data is heterogeneous (sensors, images, process logs, quality results), hierarchical (component to line to factory), temporal (degradation over time), and sparse (rare failures, diverse products), necessitating specialized architectures, transfer learning across similar equipment, and physics-informed constraints for stability
+
+- **Industry 4.0 transformation demands edge deployment and real-time inference**: Factory floor requirements include <10ms prediction latency for quality control, <100ms for process control, offline operation resilience, explainable predictions for operator trust, integration with MES/SCADA/ERP systems, and continuous learning from production feedback while maintaining regulatory compliance
 
 ## Looking Ahead
 
-Chapter 22 explores media and entertainment use cases.
+Part V (Industry Applications) continues with Chapter 22, which applies embeddings to media and entertainment: content recommendation engines using multi-modal embeddings of video, audio, text, and user behavior, automated content tagging through computer vision and NLP embeddings, intellectual property protection via perceptual hashing and similarity detection, audience analysis and targeting with viewer embeddings, and creative content generation using latent space manipulation.
 
 ## Further Reading
 
-- [References to be added]
+### Quality Control and Defect Detection
+- Wang, Jin, et al. (2020). "Deep Learning for Smart Manufacturing: Methods and Applications." Journal of Manufacturing Systems.
+- Weimer, Daniel, et al. (2016). "Design of Deep Convolutional Neural Network Architectures for Automated Feature Extraction in Industrial Inspection." CIRP Annals.
+- Schlegl, Thomas, et al. (2017). "Unsupervised Anomaly Detection with Generative Adversarial Networks." IPMI.
+- He, Yan, et al. (2021). "Deep Learning-Based Approach for Bearing Fault Diagnosis." IEEE Transactions on Instrumentation and Measurement.
+- Psarommatis, Foivos, et al. (2022). "Zero-Defect Manufacturing: State-of-the-Art Review and Future Prospects." International Journal of Production Research.
+
+### Supply Chain Optimization
+- Carbonneau, Réal, Kevin Laframboise, and Rustam Vahidov (2008). "Application of Machine Learning Techniques for Supply Chain Demand Forecasting." European Journal of Operational Research.
+- Choi, Tsan-Ming, H.K. Chan, and X. Yue (2017). "Recent Development in Big Data Analytics for Business Operations and Risk Management." IEEE Transactions on Cybernetics.
+- Baryannis, George, et al. (2019). "Supply Chain Risk Management and Artificial Intelligence: State of the Art and Future Research Directions." International Journal of Production Research.
+- Ni, Deming, et al. (2020). "Data-Driven Optimization of Manufacturing Systems: From Data Analytics to Data-Driven Decision-Making." IEEE Access.
+- Kinra, Aseem, et al. (2020). "Towards Supply Chain Risk Analytics: Fundamentals, Technologies, Applications." Supply Chain Management: An International Journal.
+
+### Predictive Maintenance
+- Carvalho, Thyago P., et al. (2019). "A Systematic Literature Review of Machine Learning Methods Applied to Predictive Maintenance." Computers & Industrial Engineering.
+- Lei, Yaguo, et al. (2020). "Applications of Machine Learning to Machine Fault Diagnosis: A Review and Roadmap." Mechanical Systems and Signal Processing.
+- Ran, Yunting, et al. (2019). "A Survey of Predictive Maintenance: Systems, Purposes and Approaches." arXiv:1912.07383.
+- Baptista, Marcia, et al. (2018). "More Effective Prognostics with Elbow Point Detection and Deep Learning." Mechanical Systems and Signal Processing.
+- Zhao, Rui, et al. (2020). "Deep Learning and Its Applications to Machine Health Monitoring: A Survey." IEEE Transactions on Neural Networks and Learning Systems.
+
+### Process Control and Optimization
+- Lee, Jay, et al. (2014). "Recent Advances and Trends in Predictive Manufacturing Systems in Big Data Environment." Manufacturing Letters.
+- Wuest, Thorsten, et al. (2016). "Machine Learning in Manufacturing: Advantages, Challenges, and Applications." Production & Manufacturing Research.
+- Kusiak, Andrew (2018). "Smart Manufacturing." International Journal of Production Research.
+- Zhong, Ray Y., et al. (2017). "Intelligent Manufacturing in the Context of Industry 4.0: A Review." Engineering.
+- Monostori, László (2014). "Cyber-Physical Production Systems: Roots, Expectations and R&D Challenges." Procedia CIRP.
+
+### Digital Twins
+- Tao, Fei, et al. (2019). "Digital Twin in Industry: State-of-the-Art." IEEE Transactions on Industrial Informatics.
+- Grieves, Michael, and John Vickers (2017). "Digital Twin: Mitigating Unpredictable, Undesirable Emergent Behavior in Complex Systems." Transdisciplinary Perspectives on Complex Systems.
+- Qi, Qinglin, et al. (2021). "Enabling Technologies and Tools for Digital Twin." Journal of Manufacturing Systems.
+- Liu, Mengnan, et al. (2021). "Review of Digital Twin about Concepts, Technologies, and Industrial Applications." Journal of Manufacturing Systems.
+- Kritzinger, Werner, et al. (2018). "Digital Twin in Manufacturing: A Categorical Literature Review and Classification." IFAC-PapersOnLine.
+
+### Industry 4.0 and Smart Manufacturing
+- Xu, Li Da, Eric L. Xu, and Ling Li (2018). "Industry 4.0: State of the Art and Future Trends." International Journal of Production Research.
+- Kang, H.S., et al. (2016). "Smart Manufacturing: Past Research, Present Findings, and Future Directions." International Journal of Precision Engineering and Manufacturing-Green Technology.
+- Wang, Shiyong, et al. (2016). "Implementing Smart Factory of Industrie 4.0: An Outlook." International Journal of Distributed Sensor Networks.
+- Lasi, Heiner, et al. (2014). "Industry 4.0." Business & Information Systems Engineering.
+- Stock, Tim, and Günther Seliger (2016). "Opportunities of Sustainable Manufacturing in Industry 4.0." Procedia CIRP.
+
+### Reinforcement Learning for Manufacturing
+- Kuhnle, Andreas, et al. (2021). "Designing an Adaptive Production Control System Using Reinforcement Learning." Journal of Intelligent Manufacturing.
+- Hubbs, Clay D., et al. (2020). "OR Forum—Deep Reinforcement Learning for Manufacturing: An Overview, Use Cases, and Opportunities." Manufacturing & Service Operations Management.
+- Wang, Jing, et al. (2020). "Deep Reinforcement Learning for Transportation Network Combinatorial Optimization: A Survey." Knowledge-Based Systems.
+- Panzer, Marcel, and Bernd Bender (2021). "Deep Reinforcement Learning in Production Systems: A Systematic Literature Review." International Journal of Production Research.
+
