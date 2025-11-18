@@ -1,40 +1,2079 @@
-# Automated Decision Systems {{#sec-automated-decision-systems}}
+# Automated Decision Systems {#sec-automated-decision-systems}
 
-:::{{.callout-note}}
+:::{.callout-note}
 ## Chapter Overview
-This chapter covers embedding-driven business rules, dynamic pricing with embeddings, and 3 more topics.
+Automated decision systems drive critical business operations from pricing to lending to maintenance scheduling, traditionally relying on rigid rule-based logic or simple statistical models. This chapter transforms these systems with embeddings: embedding-driven business rules that replace hand-crafted if-then logic with learned patterns from historical decisions, dynamic pricing systems that optimize prices based on product and customer embeddings capturing market positioning and willingness-to-pay, supply chain optimization using facility and route embeddings to minimize costs while meeting service levels, risk scoring and underwriting with entity embeddings that encode creditworthiness and insurance risk from multi-modal data, and predictive maintenance systems using equipment embeddings to forecast failures and schedule interventions before breakdowns. These techniques transform brittle rule engines into adaptive decision systems that learn from outcomes and handle novel scenarios.
 :::
+
+After detecting anomalies and threats (@sec-anomaly-detection-security), embeddings enable **automated decision systems** that go beyond detection to take action—approving loans, setting prices, scheduling maintenance, routing shipments. Traditional decision systems use rule-based engines (if credit_score > 700 and income > $50K, approve) or simple models (logistic regression on 10-20 features). **Embedding-based decision systems** represent entities (customers, products, facilities) as vectors encoding rich context, enabling decisions that consider hundreds of implicit factors, transfer learning across domains, and continuous improvement as new data arrives.
 
 ## Embedding-Driven Business Rules
 
-[Content to be written: Details about embedding-driven business rules]
+Business rules encode domain knowledge: credit policies, pricing strategies, underwriting guidelines. **Embedding-driven business rules** replace rigid if-then logic with learned decision boundaries in embedding space, adapting to patterns that humans can't articulate and updating as business conditions change.
+
+### The Business Rules Challenge
+
+Traditional business rules face limitations:
+
+- **Brittleness**: Rules hardcode thresholds (credit score > 700) that don't generalize
+- **Maintenance burden**: Hundreds of rules accumulate, interact unpredictably
+- **Cold start**: No rules exist for new products, markets, situations
+- **Suboptimality**: Rules encode human intuition, miss non-linear patterns
+
+**Embedding approach**: Learn entity embeddings (customers, products, transactions) and decision boundaries from historical outcomes. New decisions query: "find similar past cases, what happened?"
+
+```python
+"""
+Embedding-Driven Business Rules
+
+Architecture:
+1. Entity encoders: Map customers/products/transactions to embeddings
+2. Historical decision database: Past decisions with outcomes
+3. Decision retrieval: Find similar past cases via ANN search
+4. Decision synthesis: Aggregate outcomes from similar cases
+5. Explainability: Surface which past cases influenced decision
+
+Techniques:
+- Case-based reasoning: Retrieve similar cases, apply their outcomes
+- Decision boundary learning: Train classifier in embedding space
+- Meta-learning: Learn to learn decision rules from few examples
+- Hybrid: Embeddings + explicit rules for regulatory compliance
+
+Production considerations:
+- Latency: <100ms for real-time decisions
+- Explainability: SHAP values, similar case explanations
+- Override mechanisms: Human review for edge cases
+- Fairness: Monitor for demographic disparities
+"""
+
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from typing import List, Dict, Optional, Tuple, Any
+from dataclasses import dataclass
+from datetime import datetime
+import random
+
+@dataclass
+class BusinessCase:
+    """
+    Historical business decision case
+    
+    Attributes:
+        case_id: Unique identifier
+        entity_type: Type (customer, product, transaction)
+        entity_id: Entity identifier
+        context: Decision context features
+        decision: Decision made (approve, reject, price, etc.)
+        outcome: Observed outcome (default, profit, churn, etc.)
+        timestamp: When decision occurred
+        embedding: Learned entity embedding
+    """
+    case_id: str
+    entity_type: str
+    entity_id: str
+    context: Dict[str, Any]
+    decision: Any
+    outcome: Optional[Any] = None
+    timestamp: Optional[float] = None
+    embedding: Optional[np.ndarray] = None
+    
+    def __post_init__(self):
+        if self.context is None:
+            self.context = {}
+
+@dataclass
+class DecisionRequest:
+    """
+    Request for automated decision
+    
+    Attributes:
+        request_id: Unique identifier
+        entity_type: Type (customer, product, transaction)
+        entity_id: Entity identifier
+        context: Current context features
+        required_confidence: Minimum confidence for auto-decision
+        human_review: Whether to force human review
+    """
+    request_id: str
+    entity_type: str
+    entity_id: str
+    context: Dict[str, Any]
+    required_confidence: float = 0.8
+    human_review: bool = False
+    
+    def __post_init__(self):
+        if self.context is None:
+            self.context = {}
+
+class EntityEncoder(nn.Module):
+    """
+    Encode entities to embeddings for decision making
+    
+    Architecture:
+    - Demographic features: Age, location, income, etc.
+    - Behavioral features: Transaction history, engagement patterns
+    - Contextual features: Current situation, external factors
+    - MLP: Combine features into entity embedding
+    
+    Training:
+    - Metric learning: Entities with similar outcomes close
+    - Outcome prediction: Embedding predicts decision outcome
+    - Contrastive: Positive outcomes close, negative outcomes far
+    """
+    
+    def __init__(
+        self,
+        embedding_dim: int = 128,
+        num_categorical_features: int = 10,
+        num_numerical_features: int = 20
+    ):
+        super().__init__()
+        self.embedding_dim = embedding_dim
+        
+        # Categorical feature embeddings
+        self.categorical_embeddings = nn.ModuleList([
+            nn.Embedding(1000, 16) for _ in range(num_categorical_features)
+        ])
+        
+        # Numerical feature encoder
+        self.numerical_encoder = nn.Sequential(
+            nn.Linear(num_numerical_features, 64),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(64, 64)
+        )
+        
+        # Combined encoder
+        feature_dim = num_categorical_features * 16 + 64
+        self.feature_encoder = nn.Sequential(
+            nn.Linear(feature_dim, 256),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(256, embedding_dim)
+        )
+    
+    def forward(
+        self,
+        categorical_features: torch.Tensor,
+        numerical_features: torch.Tensor
+    ) -> torch.Tensor:
+        """
+        Encode entities to embeddings
+        
+        Args:
+            categorical_features: Categorical features (batch_size, num_categorical)
+            numerical_features: Numerical features (batch_size, num_numerical)
+        
+        Returns:
+            Entity embeddings (batch_size, embedding_dim)
+        """
+        # Embed categorical features
+        cat_embs = []
+        for i, emb_layer in enumerate(self.categorical_embeddings):
+            cat_embs.append(emb_layer(categorical_features[:, i]))
+        cat_emb = torch.cat(cat_embs, dim=1)
+        
+        # Encode numerical features
+        num_emb = self.numerical_encoder(numerical_features)
+        
+        # Combine
+        combined = torch.cat([cat_emb, num_emb], dim=1)
+        
+        # Encode to entity embedding
+        entity_emb = self.feature_encoder(combined)
+        
+        # Normalize
+        entity_emb = F.normalize(entity_emb, p=2, dim=1)
+        
+        return entity_emb
+
+class DecisionModel(nn.Module):
+    """
+    Predict decision outcomes from embeddings
+    
+    Architecture:
+    - Entity embedding input
+    - MLP classifier/regressor
+    - Output: Decision outcome prediction
+    
+    Training:
+    - Classification: Binary (approve/reject) or multi-class
+    - Regression: Continuous outcome (LTV, default probability)
+    - Multi-task: Predict multiple outcomes jointly
+    """
+    
+    def __init__(
+        self,
+        embedding_dim: int = 128,
+        num_outcomes: int = 2,
+        task: str = 'classification'
+    ):
+        super().__init__()
+        self.task = task
+        
+        self.decision_head = nn.Sequential(
+            nn.Linear(embedding_dim, 256),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(128, num_outcomes)
+        )
+    
+    def forward(self, embeddings: torch.Tensor) -> torch.Tensor:
+        """
+        Predict outcomes from embeddings
+        
+        Args:
+            embeddings: Entity embeddings (batch_size, embedding_dim)
+        
+        Returns:
+            Predictions (batch_size, num_outcomes)
+        """
+        logits = self.decision_head(embeddings)
+        
+        if self.task == 'classification':
+            return F.softmax(logits, dim=1)
+        else:
+            return logits
+
+class CaseBasedReasoning:
+    """
+    Make decisions by retrieving similar historical cases
+    
+    Approach:
+    1. New request arrives
+    2. Encode request to embedding
+    3. Retrieve k similar past cases (ANN search)
+    4. Aggregate outcomes from similar cases
+    5. Make decision based on historical outcomes
+    6. Explain via similar cases
+    
+    Advantages:
+    - Intuitive: Decisions based on "what happened before"
+    - Explainable: Can show similar past cases
+    - Adaptive: Automatically incorporates new cases
+    - No retraining: Just add cases to database
+    """
+    
+    def __init__(
+        self,
+        encoder: EntityEncoder,
+        embedding_dim: int = 128,
+        k_neighbors: int = 10
+    ):
+        self.encoder = encoder
+        self.embedding_dim = embedding_dim
+        self.k_neighbors = k_neighbors
+        
+        # Historical case database
+        self.cases: List[BusinessCase] = []
+        self.case_embeddings: Optional[np.ndarray] = None
+    
+    def add_case(
+        self,
+        case: BusinessCase,
+        embedding: np.ndarray
+    ):
+        """
+        Add historical case to database
+        
+        Args:
+            case: Business case with outcome
+            embedding: Case embedding
+        """
+        case.embedding = embedding
+        self.cases.append(case)
+        
+        # Rebuild embedding matrix
+        if self.case_embeddings is None:
+            self.case_embeddings = embedding.reshape(1, -1)
+        else:
+            self.case_embeddings = np.vstack([
+                self.case_embeddings,
+                embedding.reshape(1, -1)
+            ])
+    
+    def retrieve_similar_cases(
+        self,
+        query_embedding: np.ndarray,
+        k: Optional[int] = None
+    ) -> List[Tuple[BusinessCase, float]]:
+        """
+        Retrieve k most similar historical cases
+        
+        Args:
+            query_embedding: Query embedding (embedding_dim,)
+            k: Number of neighbors (defaults to self.k_neighbors)
+        
+        Returns:
+            List of (case, similarity_score) tuples
+        """
+        if k is None:
+            k = self.k_neighbors
+        
+        if len(self.cases) == 0:
+            return []
+        
+        # Compute similarities
+        query_embedding = query_embedding / np.linalg.norm(query_embedding)
+        similarities = np.dot(self.case_embeddings, query_embedding)
+        
+        # Get top k
+        top_indices = np.argsort(similarities)[-k:][::-1]
+        
+        similar_cases = [
+            (self.cases[idx], similarities[idx])
+            for idx in top_indices
+        ]
+        
+        return similar_cases
+    
+    def make_decision(
+        self,
+        request: DecisionRequest,
+        request_embedding: np.ndarray
+    ) -> Tuple[Any, float, List[BusinessCase]]:
+        """
+        Make decision based on similar cases
+        
+        Args:
+            request: Decision request
+            request_embedding: Request embedding
+        
+        Returns:
+            (decision, confidence, supporting_cases)
+        """
+        # Retrieve similar cases
+        similar_cases = self.retrieve_similar_cases(request_embedding)
+        
+        if len(similar_cases) == 0:
+            # No historical cases - force human review
+            return None, 0.0, []
+        
+        # Aggregate outcomes
+        # For binary decisions: weighted vote
+        # For continuous: weighted average
+        
+        total_weight = 0.0
+        weighted_outcome = 0.0
+        supporting_cases = []
+        
+        for case, similarity in similar_cases:
+            if case.outcome is None:
+                continue
+            
+            weight = similarity  # Could use exponential: exp(10 * similarity)
+            weighted_outcome += weight * case.outcome
+            total_weight += weight
+            supporting_cases.append(case)
+        
+        if total_weight == 0:
+            return None, 0.0, []
+        
+        # Compute decision and confidence
+        avg_outcome = weighted_outcome / total_weight
+        
+        # For binary: outcome is 0/1, avg_outcome is probability
+        if isinstance(supporting_cases[0].outcome, bool):
+            decision = avg_outcome > 0.5
+            confidence = abs(avg_outcome - 0.5) * 2  # Scale to [0, 1]
+        else:
+            decision = avg_outcome
+            # Confidence based on similarity of top cases
+            top_similarities = [s for _, s in similar_cases[:3]]
+            confidence = np.mean(top_similarities)
+        
+        return decision, confidence, supporting_cases
+
+class HybridDecisionSystem:
+    """
+    Combine embedding-based decisions with rule-based constraints
+    
+    Architecture:
+    1. Embedding model makes initial decision
+    2. Rule engine enforces hard constraints
+    3. Hybrid score combines model + rules
+    
+    Use cases:
+    - Regulatory compliance: Hard rules for legal requirements
+    - Business constraints: Inventory, capacity limits
+    - Risk limits: Maximum exposure per category
+    - Fairness: Demographic parity constraints
+    """
+    
+    def __init__(
+        self,
+        encoder: EntityEncoder,
+        decision_model: DecisionModel,
+        rules: Optional[Dict[str, Any]] = None
+    ):
+        self.encoder = encoder
+        self.decision_model = decision_model
+        self.rules = rules or {}
+    
+    def check_rules(
+        self,
+        request: DecisionRequest
+    ) -> Tuple[bool, List[str]]:
+        """
+        Check hard constraint rules
+        
+        Args:
+            request: Decision request
+        
+        Returns:
+            (passed, violated_rules)
+        """
+        violated_rules = []
+        
+        # Example rules
+        if 'minimum_age' in self.rules:
+            if request.context.get('age', 0) < self.rules['minimum_age']:
+                violated_rules.append(f"Age below minimum ({self.rules['minimum_age']})")
+        
+        if 'maximum_amount' in self.rules:
+            if request.context.get('amount', 0) > self.rules['maximum_amount']:
+                violated_rules.append(f"Amount exceeds maximum ({self.rules['maximum_amount']})")
+        
+        if 'required_fields' in self.rules:
+            for field in self.rules['required_fields']:
+                if field not in request.context:
+                    violated_rules.append(f"Missing required field: {field}")
+        
+        return len(violated_rules) == 0, violated_rules
+    
+    def make_decision(
+        self,
+        request: DecisionRequest,
+        request_embedding: torch.Tensor
+    ) -> Dict[str, Any]:
+        """
+        Make decision combining model and rules
+        
+        Args:
+            request: Decision request
+            request_embedding: Request embedding
+        
+        Returns:
+            Decision result with explanation
+        """
+        # Check hard rules first
+        rules_passed, violated_rules = self.check_rules(request)
+        
+        if not rules_passed:
+            return {
+                'decision': 'reject',
+                'confidence': 1.0,
+                'reason': 'rule_violation',
+                'violated_rules': violated_rules,
+                'model_prediction': None
+            }
+        
+        # Get model prediction
+        with torch.no_grad():
+            prediction = self.decision_model(request_embedding.unsqueeze(0))
+            prediction = prediction.squeeze(0).cpu().numpy()
+        
+        # Interpret prediction
+        if self.decision_model.task == 'classification':
+            decision = 'approve' if prediction[1] > 0.5 else 'reject'
+            confidence = max(prediction)
+        else:
+            decision = float(prediction[0])
+            confidence = 0.9  # Placeholder
+        
+        # Check confidence threshold
+        if confidence < request.required_confidence:
+            return {
+                'decision': 'human_review',
+                'confidence': confidence,
+                'reason': 'low_confidence',
+                'model_prediction': decision,
+                'violated_rules': []
+            }
+        
+        return {
+            'decision': decision,
+            'confidence': confidence,
+            'reason': 'model_prediction',
+            'model_prediction': decision,
+            'violated_rules': []
+        }
+
+# Example: Credit approval system
+def credit_approval_example():
+    """
+    Credit approval using embedding-driven business rules
+    
+    Traditional approach:
+    - Credit score > 700
+    - Income > $50K
+    - Debt-to-income < 40%
+    - No recent delinquencies
+    
+    Embedding approach:
+    - Encode applicant to embedding
+    - Find similar past applicants
+    - Approve if similar applicants had low default rates
+    - Automatically adapts as new data arrives
+    """
+    
+    print("=== Credit Approval System ===")
+    print("\nTraditional rules:")
+    print("  IF credit_score > 700")
+    print("  AND income > $50,000")
+    print("  AND debt_to_income < 40%")
+    print("  AND no_recent_delinquencies")
+    print("  THEN approve")
+    
+    print("\n--- Application 1: Clear Approve ---")
+    print("Credit score: 750")
+    print("Income: $80,000")
+    print("Debt-to-income: 25%")
+    print("Recent delinquencies: 0")
+    print("Traditional: APPROVE (all rules passed)")
+    print("Embedding: APPROVE (confidence: 0.95)")
+    print("  Similar cases: 50 approved, 1 defaulted (2% default rate)")
+    
+    print("\n--- Application 2: Edge Case ---")
+    print("Credit score: 680")
+    print("Income: $65,000")
+    print("Debt-to-income: 38%")
+    print("Recent delinquencies: 0")
+    print("Traditional: REJECT (credit score < 700)")
+    print("Embedding: APPROVE (confidence: 0.78)")
+    print("  Similar cases: 30 approved, 2 defaulted (6.7% default rate)")
+    print("  Reason: Strong income and stable employment history")
+    print("  → System learns that 680 score + high income often performs well")
+    
+    print("\n--- Application 3: Novel Scenario ---")
+    print("Credit score: 720")
+    print("Income: $45,000 (gig economy)")
+    print("Debt-to-income: 35%")
+    print("Recent delinquencies: 0")
+    print("Traditional: REJECT (income < $50K)")
+    print("Embedding: HUMAN REVIEW (confidence: 0.65)")
+    print("  Similar cases: Only 5 gig economy workers in database")
+    print("  → Insufficient data, flag for human underwriter")
+    
+    print("\n--- Application 4: Regulatory Violation ---")
+    print("Credit score: 780")
+    print("Income: $120,000")
+    print("Debt-to-income: 20%")
+    print("Age: 17")
+    print("Traditional: REJECT (age < 18)")
+    print("Embedding: REJECT (rule violation)")
+    print("  Model prediction: Approve")
+    print("  Hard rule: Minimum age 18")
+    print("  → Rules override model for regulatory compliance")
+
+# Uncomment to run:
+# credit_approval_example()
+```
+
+:::{.callout-tip}
+## Embedding-Driven Business Rules Best Practices
+
+**Architecture:**
+- **Entity encoders**: Learn embeddings that predict outcomes
+- **Case-based reasoning**: Retrieve similar historical cases
+- **Hybrid systems**: Combine learned patterns + explicit rules
+- **Explainability**: Surface similar cases that influenced decision
+
+**Training:**
+- **Metric learning**: Entities with similar outcomes close in embedding space
+- **Multi-task**: Predict multiple outcomes jointly (default, LTV, churn)
+- **Temporal**: Weight recent cases higher (concept drift)
+- **Fairness**: Constrain to prevent disparate impact
+
+**Production:**
+- **Low latency**: <100ms for real-time decisions (credit cards, pricing)
+- **Confidence thresholds**: Route low-confidence to humans
+- **Rule compliance**: Hard constraints for regulations
+- **Monitoring**: Track decision quality, fairness metrics
+- **Feedback loops**: Continuously add outcomes to case database
+
+**Challenges:**
+- **Cold start**: No historical cases for new scenarios
+- **Distribution shift**: Decisions change underlying distribution
+- **Adversarial**: Bad actors game the system
+- **Fairness**: Embeddings can encode bias from historical data
+:::
 
 ## Dynamic Pricing with Embeddings
 
-[Content to be written: Details about dynamic pricing with embeddings]
+Pricing is complex: consider product attributes, customer willingness-to-pay, competitive positioning, inventory levels, time-of-day demand. **Embedding-based dynamic pricing** represents products and customers as vectors, enabling price optimization that considers hundreds of implicit factors.
+
+### The Dynamic Pricing Challenge
+
+Traditional pricing approaches:
+
+- **Cost-plus**: Price = cost × markup (ignores demand)
+- **Competitive**: Match competitor prices (race to bottom)
+- **Segmented**: Fixed tiers (doesn't capture individual WTP)
+- **Regression**: Linear models (misses non-linear patterns)
+
+**Embedding approach**: Learn product embeddings (quality, brand, features) and customer embeddings (purchase history, preferences). Price = f(product_emb, customer_emb, context).
+
+```python
+"""
+Dynamic Pricing with Embeddings
+
+Architecture:
+1. Product encoder: Product features → embedding
+2. Customer encoder: Customer features → embedding
+3. Context encoder: Market conditions, time, inventory
+4. Price model: (product, customer, context) → optimal price
+
+Techniques:
+- Demand modeling: Predict purchase probability at each price point
+- Elasticity learning: Encode price sensitivity in customer embedding
+- Competitive positioning: Products close in embedding space compete
+- Inventory pressure: Adjust price based on stock levels
+
+Production:
+- Real-time: Recompute prices as inventory/demand changes
+- A/B testing: Randomized price experiments
+- Constraints: Minimum margins, price stability (avoid volatility)
+"""
+
+@dataclass
+class Product:
+    """
+    Product available for purchase
+    
+    Attributes:
+        product_id: Unique identifier
+        category: Product category
+        brand: Brand name
+        features: Product features (size, color, etc.)
+        cost: Unit cost
+        inventory: Current inventory level
+        base_price: Base price (MSRP)
+        embedding: Learned product embedding
+    """
+    product_id: str
+    category: str
+    brand: str
+    features: Dict[str, Any]
+    cost: float
+    inventory: int
+    base_price: float
+    embedding: Optional[np.ndarray] = None
+    
+    def __post_init__(self):
+        if self.features is None:
+            self.features = {}
+
+@dataclass
+class Customer:
+    """
+    Customer making purchase decision
+    
+    Attributes:
+        customer_id: Unique identifier
+        demographics: Age, location, income
+        purchase_history: Past purchases
+        browsing_history: Products viewed
+        price_sensitivity: Estimated price sensitivity
+        embedding: Learned customer embedding
+    """
+    customer_id: str
+    demographics: Dict[str, Any]
+    purchase_history: List[str]
+    browsing_history: List[str]
+    price_sensitivity: Optional[float] = None
+    embedding: Optional[np.ndarray] = None
+    
+    def __post_init__(self):
+        if self.demographics is None:
+            self.demographics = {}
+        if self.purchase_history is None:
+            self.purchase_history = []
+        if self.browsing_history is None:
+            self.browsing_history = []
+
+class ProductEncoder(nn.Module):
+    """
+    Encode products to embeddings for pricing
+    
+    Architecture:
+    - Product features: Category, brand, attributes
+    - Price history: Historical prices and demand
+    - Competitive context: Similar product prices
+    - MLP: Combine features into product embedding
+    """
+    
+    def __init__(
+        self,
+        embedding_dim: int = 128,
+        num_categories: int = 100,
+        num_brands: int = 1000
+    ):
+        super().__init__()
+        self.embedding_dim = embedding_dim
+        
+        # Categorical embeddings
+        self.category_embedding = nn.Embedding(num_categories, 32)
+        self.brand_embedding = nn.Embedding(num_brands, 32)
+        
+        # Feature encoder
+        self.feature_encoder = nn.Sequential(
+            nn.Linear(64 + 10, 128),  # +10 for numerical features
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(128, embedding_dim)
+        )
+    
+    def forward(
+        self,
+        category_ids: torch.Tensor,
+        brand_ids: torch.Tensor,
+        numerical_features: torch.Tensor
+    ) -> torch.Tensor:
+        """
+        Encode products
+        
+        Args:
+            category_ids: Category IDs (batch_size,)
+            brand_ids: Brand IDs (batch_size,)
+            numerical_features: Numerical features (batch_size, num_features)
+        
+        Returns:
+            Product embeddings (batch_size, embedding_dim)
+        """
+        # Embed categorical features
+        cat_emb = self.category_embedding(category_ids)
+        brand_emb = self.brand_embedding(brand_ids)
+        
+        # Concatenate
+        combined = torch.cat([cat_emb, brand_emb, numerical_features], dim=1)
+        
+        # Encode
+        product_emb = self.feature_encoder(combined)
+        
+        # Normalize
+        product_emb = F.normalize(product_emb, p=2, dim=1)
+        
+        return product_emb
+
+class CustomerEncoder(nn.Module):
+    """
+    Encode customers to embeddings for pricing
+    
+    Architecture:
+    - Demographics: Age, income, location
+    - Purchase history: Past products, average spend
+    - Price sensitivity: Inferred from purchase patterns
+    - MLP: Combine features into customer embedding
+    """
+    
+    def __init__(
+        self,
+        embedding_dim: int = 128,
+        num_customers: int = 1000000
+    ):
+        super().__init__()
+        self.embedding_dim = embedding_dim
+        
+        # Customer ID embedding
+        self.customer_id_embedding = nn.Embedding(num_customers, embedding_dim // 2)
+        
+        # Feature encoder
+        self.feature_encoder = nn.Sequential(
+            nn.Linear(embedding_dim // 2 + 20, 128),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(128, embedding_dim)
+        )
+    
+    def forward(
+        self,
+        customer_ids: torch.Tensor,
+        numerical_features: torch.Tensor
+    ) -> torch.Tensor:
+        """
+        Encode customers
+        
+        Args:
+            customer_ids: Customer IDs (batch_size,)
+            numerical_features: Numerical features (batch_size, num_features)
+        
+        Returns:
+            Customer embeddings (batch_size, embedding_dim)
+        """
+        # Embed customer IDs
+        cust_emb = self.customer_id_embedding(customer_ids)
+        
+        # Concatenate with features
+        combined = torch.cat([cust_emb, numerical_features], dim=1)
+        
+        # Encode
+        customer_emb = self.feature_encoder(combined)
+        
+        # Normalize
+        customer_emb = F.normalize(customer_emb, p=2, dim=1)
+        
+        return customer_emb
+
+class DemandModel(nn.Module):
+    """
+    Predict purchase probability as function of price
+    
+    Model: P(purchase | product, customer, price, context)
+    
+    Architecture:
+    - Input: (product_emb, customer_emb, price, context)
+    - MLP: Predict purchase probability
+    - Training: Binary classification (purchased / not purchased)
+    
+    Usage:
+    - For each price point, predict demand
+    - Optimize: price * demand * (price - cost)
+    """
+    
+    def __init__(
+        self,
+        embedding_dim: int = 128,
+        context_dim: int = 10
+    ):
+        super().__init__()
+        
+        # Combined encoder
+        input_dim = embedding_dim * 2 + 1 + context_dim  # product + customer + price + context
+        
+        self.demand_predictor = nn.Sequential(
+            nn.Linear(input_dim, 256),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(128, 1),
+            nn.Sigmoid()
+        )
+    
+    def forward(
+        self,
+        product_emb: torch.Tensor,
+        customer_emb: torch.Tensor,
+        price: torch.Tensor,
+        context: torch.Tensor
+    ) -> torch.Tensor:
+        """
+        Predict purchase probability
+        
+        Args:
+            product_emb: Product embeddings (batch_size, embedding_dim)
+            customer_emb: Customer embeddings (batch_size, embedding_dim)
+            price: Prices (batch_size, 1)
+            context: Context features (batch_size, context_dim)
+        
+        Returns:
+            Purchase probabilities (batch_size, 1)
+        """
+        # Concatenate all inputs
+        combined = torch.cat([product_emb, customer_emb, price, context], dim=1)
+        
+        # Predict purchase probability
+        purchase_prob = self.demand_predictor(combined)
+        
+        return purchase_prob
+
+class DynamicPricingEngine:
+    """
+    Dynamic pricing engine using embeddings
+    
+    Approach:
+    1. Encode product and customer to embeddings
+    2. For each candidate price:
+       a. Predict purchase probability (demand model)
+       b. Compute expected profit: price * prob * (price - cost)
+    3. Select price maximizing expected profit
+    4. Apply constraints (minimum margin, price stability)
+    """
+    
+    def __init__(
+        self,
+        product_encoder: ProductEncoder,
+        customer_encoder: CustomerEncoder,
+        demand_model: DemandModel,
+        min_margin: float = 0.2,
+        max_price_change: float = 0.15
+    ):
+        self.product_encoder = product_encoder
+        self.customer_encoder = customer_encoder
+        self.demand_model = demand_model
+        self.min_margin = min_margin
+        self.max_price_change = max_price_change
+    
+    def optimize_price(
+        self,
+        product: Product,
+        customer: Customer,
+        context: Dict[str, Any],
+        num_price_points: int = 20
+    ) -> Tuple[float, Dict[str, Any]]:
+        """
+        Optimize price for product-customer pair
+        
+        Args:
+            product: Product to price
+            customer: Customer considering purchase
+            context: Market context (time, inventory, etc.)
+            num_price_points: Number of price points to evaluate
+        
+        Returns:
+            (optimal_price, analysis)
+        """
+        # Generate candidate prices
+        min_price = product.cost * (1 + self.min_margin)
+        max_price = product.base_price * (1 + self.max_price_change)
+        candidate_prices = np.linspace(min_price, max_price, num_price_points)
+        
+        # Encode product and customer (simplified - would use actual features)
+        product_emb = product.embedding
+        customer_emb = customer.embedding
+        
+        # Evaluate each price
+        best_price = None
+        best_profit = -float('inf')
+        price_analysis = []
+        
+        with torch.no_grad():
+            for price in candidate_prices:
+                # Convert to tensors
+                product_emb_t = torch.tensor(product_emb).unsqueeze(0).float()
+                customer_emb_t = torch.tensor(customer_emb).unsqueeze(0).float()
+                price_t = torch.tensor([[price]]).float()
+                
+                # Simplified context
+                context_t = torch.tensor([[
+                    context.get('hour', 12) / 24.0,
+                    context.get('day_of_week', 3) / 7.0,
+                    product.inventory / 1000.0,
+                    context.get('competitor_price', product.base_price) / product.base_price,
+                    *[0.0] * 6  # Placeholder
+                ]]).float()
+                
+                # Predict demand
+                purchase_prob = self.demand_model(
+                    product_emb_t,
+                    customer_emb_t,
+                    price_t,
+                    context_t
+                ).item()
+                
+                # Compute expected profit
+                margin = price - product.cost
+                expected_profit = purchase_prob * margin
+                
+                price_analysis.append({
+                    'price': price,
+                    'purchase_prob': purchase_prob,
+                    'margin': margin,
+                    'expected_profit': expected_profit
+                })
+                
+                if expected_profit > best_profit:
+                    best_profit = expected_profit
+                    best_price = price
+        
+        return best_price, {
+            'expected_profit': best_profit,
+            'price_analysis': price_analysis,
+            'base_price': product.base_price,
+            'cost': product.cost
+        }
+
+# Example: E-commerce dynamic pricing
+def dynamic_pricing_example():
+    """
+    Dynamic pricing for e-commerce
+    
+    Scenario:
+    - Product: Wireless headphones
+    - Cost: $50
+    - Base price: $100
+    - Customer segments: Price-sensitive, Premium, Impulse buyers
+    
+    Pricing optimization:
+    - Price-sensitive: Lower price (higher demand elasticity)
+    - Premium: Higher price (lower elasticity, values quality)
+    - Impulse: Base price (time-sensitive)
+    - Clearance: Lower price (high inventory pressure)
+    """
+    
+    print("=== Dynamic Pricing System ===")
+    print("\nProduct: Wireless Headphones")
+    print("  Cost: $50")
+    print("  Base price: $100")
+    print("  Current inventory: 500 units")
+    
+    print("\n--- Customer Segment: Price-Sensitive ---")
+    print("Characteristics:")
+    print("  - Compares prices across sites")
+    print("  - Waits for sales")
+    print("  - High price elasticity")
+    print("Traditional pricing: $100 (fixed)")
+    print("  Purchase probability: 15%")
+    print("  Expected profit: $100 * 0.15 * ($100 - $50) = $7.50")
+    print("\nDynamic pricing: $79")
+    print("  Purchase probability: 45%")
+    print("  Expected profit: $79 * 0.45 * ($79 - $50) = $10.33")
+    print("  → 38% profit increase by lowering price")
+    
+    print("\n--- Customer Segment: Premium ---")
+    print("Characteristics:")
+    print("  - Values quality and brand")
+    print("  - Less price-sensitive")
+    print("  - Low price elasticity")
+    print("Traditional pricing: $100 (fixed)")
+    print("  Purchase probability: 60%")
+    print("  Expected profit: $100 * 0.60 * ($100 - $50) = $30.00")
+    print("\nDynamic pricing: $115")
+    print("  Purchase probability: 52%")
+    print("  Expected profit: $115 * 0.52 * ($115 - $50) = $38.87")
+    print("  → 30% profit increase by raising price")
+    
+    print("\n--- Customer Segment: Impulse Buyer ---")
+    print("Characteristics:")
+    print("  - Making quick decision")
+    print("  - Moderate price sensitivity")
+    print("  - Time pressure")
+    print("Traditional pricing: $100 (fixed)")
+    print("  Purchase probability: 40%")
+    print("  Expected profit: $100 * 0.40 * ($100 - $50) = $20.00")
+    print("\nDynamic pricing: $95 (slight discount for urgency)")
+    print("  Purchase probability: 48%")
+    print("  Expected profit: $95 * 0.48 * ($95 - $50) = $20.52")
+    print("  → 3% profit increase")
+    
+    print("\n--- Clearance Scenario: High Inventory ---")
+    print("Inventory: 2,000 units (excess stock)")
+    print("Days until new model: 14 days")
+    print("Traditional pricing: $100 → $70 (30% off)")
+    print("  Purchase probability: 50%")
+    print("  Expected profit: $70 * 0.50 * ($70 - $50) = $7.00")
+    print("\nDynamic pricing: Personalized clearance")
+    print("  Price-sensitive customers: $65 (65% purchase prob)")
+    print("  Premium customers: $85 (40% purchase prob)")
+    print("  Average expected profit: $10.20")
+    print("  → 46% profit increase vs blanket discount")
+
+# Uncomment to run:
+# dynamic_pricing_example()
+```
+
+:::{.callout-tip}
+## Dynamic Pricing Best Practices
+
+**Demand modeling:**
+- **Price elasticity**: Encode in customer embedding (price sensitivity)
+- **Competitive response**: Monitor competitor prices, adjust accordingly
+- **Temporal patterns**: Time-of-day, day-of-week, seasonality
+- **Inventory pressure**: Increase discount as stock ages
+
+**Optimization:**
+- **Expected profit**: price × P(purchase | price) × (price - cost)
+- **Multi-objective**: Balance revenue, margin, market share
+- **Constraints**: Minimum margin, maximum discount, price stability
+- **A/B testing**: Randomized experiments to measure elasticity
+
+**Production:**
+- **Real-time**: Recompute prices as conditions change (hourly/daily)
+- **Personalization**: Different prices for different customer segments
+- **Fairness**: Avoid discriminatory pricing (same price for same features)
+- **Transparency**: Explain price changes to customers when asked
+
+**Challenges:**
+- **Strategic behavior**: Customers learn to wait for discounts
+- **Fairness**: Personalized pricing can seem unfair
+- **Complexity**: Many factors interact non-linearly
+- **Adverse selection**: Low prices attract low-value customers
+:::
 
 ## Supply Chain Optimization
 
-[Content to be written: Details about supply chain optimization]
+Supply chain optimization minimizes costs while meeting service levels: which suppliers, which routes, which warehouses. **Embedding-based supply chain optimization** represents facilities, routes, and products as vectors, enabling similarity-based decision-making at scale.
+
+### The Supply Chain Challenge
+
+Traditional approaches:
+
+- **Linear programming**: Optimal but requires perfect models, doesn't scale
+- **Heuristics**: Rules-of-thumb (use closest warehouse), suboptimal
+- **Simulation**: Slow, can't handle real-time decisions
+
+**Embedding approach**: Learn embeddings of facilities (warehouses, suppliers), products, and routes. Optimize decisions via learned representations that capture complex cost structures.
+
+```python
+"""
+Supply Chain Optimization with Embeddings
+
+Architecture:
+1. Facility encoder: Location, capacity, costs → embedding
+2. Product encoder: Size, weight, fragility → embedding
+3. Route encoder: Distance, time, reliability → embedding
+4. Cost model: (facility, product, route) → predicted cost
+
+Applications:
+- Warehouse selection: Which warehouse to fulfill order from
+- Supplier selection: Which supplier for each component
+- Route optimization: Which route for each shipment
+- Inventory allocation: How much inventory at each location
+
+Techniques:
+- Graph embeddings: Supply chain as graph, learn node embeddings
+- Reinforcement learning: Learn routing policy from simulations
+- Demand forecasting: Predict future demand using embeddings
+"""
+
+@dataclass
+class Facility:
+    """
+    Warehouse or distribution center
+    
+    Attributes:
+        facility_id: Unique identifier
+        location: (latitude, longitude)
+        capacity: Storage capacity
+        inventory: Current inventory by product
+        cost_structure: Fixed and variable costs
+        embedding: Learned facility embedding
+    """
+    facility_id: str
+    location: Tuple[float, float]
+    capacity: float
+    inventory: Dict[str, int]
+    cost_structure: Dict[str, float]
+    embedding: Optional[np.ndarray] = None
+    
+    def __post_init__(self):
+        if self.inventory is None:
+            self.inventory = {}
+        if self.cost_structure is None:
+            self.cost_structure = {}
+
+@dataclass
+class Order:
+    """
+    Customer order to fulfill
+    
+    Attributes:
+        order_id: Unique identifier
+        customer_location: (latitude, longitude)
+        products: List of (product_id, quantity)
+        delivery_deadline: Latest acceptable delivery time
+        priority: Order priority (standard, expedited, overnight)
+    """
+    order_id: str
+    customer_location: Tuple[float, float]
+    products: List[Tuple[str, int]]
+    delivery_deadline: float
+    priority: str = 'standard'
+
+class FacilityEncoder(nn.Module):
+    """
+    Encode facilities to embeddings
+    
+    Architecture:
+    - Location: Geographic coordinates
+    - Capacity: Storage capacity, throughput
+    - Costs: Fixed costs, variable costs per unit
+    - Performance: Historical on-time rate, damage rate
+    """
+    
+    def __init__(self, embedding_dim: int = 128):
+        super().__init__()
+        
+        self.encoder = nn.Sequential(
+            nn.Linear(20, 128),  # Location, capacity, costs, performance
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(128, embedding_dim)
+        )
+    
+    def forward(self, facility_features: torch.Tensor) -> torch.Tensor:
+        """
+        Encode facilities
+        
+        Args:
+            facility_features: Facility features (batch_size, num_features)
+        
+        Returns:
+            Facility embeddings (batch_size, embedding_dim)
+        """
+        facility_emb = self.encoder(facility_features)
+        facility_emb = F.normalize(facility_emb, p=2, dim=1)
+        return facility_emb
+
+class RouteCostModel(nn.Module):
+    """
+    Predict cost of fulfilling order from facility
+    
+    Model: cost(facility, order) = f(facility_emb, order_emb, distance, ...)
+    
+    Factors:
+    - Distance: Shipping distance
+    - Urgency: Delivery deadline, priority
+    - Inventory: Product availability at facility
+    - Capacity: Facility utilization
+    """
+    
+    def __init__(self, embedding_dim: int = 128):
+        super().__init__()
+        
+        input_dim = embedding_dim * 2 + 10  # facility + order + distance/urgency/etc
+        
+        self.cost_predictor = nn.Sequential(
+            nn.Linear(input_dim, 256),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Linear(128, 1)
+        )
+    
+    def forward(
+        self,
+        facility_emb: torch.Tensor,
+        order_emb: torch.Tensor,
+        context: torch.Tensor
+    ) -> torch.Tensor:
+        """
+        Predict fulfillment cost
+        
+        Args:
+            facility_emb: Facility embeddings (batch_size, embedding_dim)
+            order_emb: Order embeddings (batch_size, embedding_dim)
+            context: Context features (batch_size, num_features)
+        
+        Returns:
+            Predicted costs (batch_size, 1)
+        """
+        combined = torch.cat([facility_emb, order_emb, context], dim=1)
+        cost = self.cost_predictor(combined)
+        return cost
+
+class SupplyChainOptimizer:
+    """
+    Optimize supply chain decisions using embeddings
+    
+    Decisions:
+    - Warehouse selection: Which warehouse fulfills each order
+    - Inventory allocation: How much inventory at each warehouse
+    - Supplier selection: Which supplier for each product
+    - Route optimization: Which route for each shipment
+    """
+    
+    def __init__(
+        self,
+        facility_encoder: FacilityEncoder,
+        cost_model: RouteCostModel
+    ):
+        self.facility_encoder = facility_encoder
+        self.cost_model = cost_model
+    
+    def select_fulfillment_facility(
+        self,
+        order: Order,
+        facilities: List[Facility],
+        constraints: Optional[Dict[str, Any]] = None
+    ) -> Tuple[str, float, Dict[str, Any]]:
+        """
+        Select which facility should fulfill order
+        
+        Args:
+            order: Order to fulfill
+            facilities: Available facilities
+            constraints: Service level, capacity constraints
+        
+        Returns:
+            (facility_id, cost, analysis)
+        """
+        constraints = constraints or {}
+        
+        # Encode order (simplified)
+        order_features = self._extract_order_features(order)
+        order_emb = torch.tensor(order_features).unsqueeze(0).float()
+        
+        best_facility = None
+        best_cost = float('inf')
+        facility_analysis = []
+        
+        with torch.no_grad():
+            for facility in facilities:
+                # Check constraints
+                if not self._check_facility_constraints(facility, order, constraints):
+                    continue
+                
+                # Encode facility
+                facility_features = self._extract_facility_features(facility, order)
+                facility_emb = torch.tensor(facility_features).unsqueeze(0).float()
+                
+                # Context features
+                context = self._extract_context_features(facility, order)
+                context_t = torch.tensor(context).unsqueeze(0).float()
+                
+                # Predict cost
+                cost = self.cost_model(facility_emb, order_emb, context_t).item()
+                
+                # Compute distance
+                distance = self._compute_distance(facility.location, order.customer_location)
+                
+                facility_analysis.append({
+                    'facility_id': facility.facility_id,
+                    'cost': cost,
+                    'distance': distance,
+                    'has_inventory': all(
+                        facility.inventory.get(pid, 0) >= qty
+                        for pid, qty in order.products
+                    )
+                })
+                
+                if cost < best_cost:
+                    best_cost = cost
+                    best_facility = facility.facility_id
+        
+        return best_facility, best_cost, {
+            'analysis': facility_analysis,
+            'order_id': order.order_id
+        }
+    
+    def _extract_order_features(self, order: Order) -> np.ndarray:
+        """Extract order features for embedding"""
+        # Simplified - would include product details, location, urgency, etc.
+        return np.random.randn(128)
+    
+    def _extract_facility_features(self, facility: Facility, order: Order) -> np.ndarray:
+        """Extract facility features for embedding"""
+        # Simplified - would include location, capacity, costs, inventory
+        return np.random.randn(128)
+    
+    def _extract_context_features(self, facility: Facility, order: Order) -> np.ndarray:
+        """Extract context features (distance, urgency, etc.)"""
+        distance = self._compute_distance(facility.location, order.customer_location)
+        return np.array([distance / 1000.0] + [0.0] * 9)  # Simplified
+    
+    def _compute_distance(self, loc1: Tuple[float, float], loc2: Tuple[float, float]) -> float:
+        """Compute distance between locations"""
+        # Simplified Euclidean distance
+        return np.sqrt((loc1[0] - loc2[0])**2 + (loc1[1] - loc2[1])**2)
+    
+    def _check_facility_constraints(
+        self,
+        facility: Facility,
+        order: Order,
+        constraints: Dict[str, Any]
+    ) -> bool:
+        """Check if facility satisfies constraints"""
+        # Check inventory availability
+        for product_id, quantity in order.products:
+            if facility.inventory.get(product_id, 0) < quantity:
+                return False
+        
+        # Check capacity
+        if constraints.get('max_utilization'):
+            # Simplified capacity check
+            pass
+        
+        # Check service level (distance)
+        if constraints.get('max_distance'):
+            distance = self._compute_distance(facility.location, order.customer_location)
+            if distance > constraints['max_distance']:
+                return False
+        
+        return True
+
+# Example: Warehouse selection
+def supply_chain_example():
+    """
+    Warehouse selection for e-commerce order fulfillment
+    
+    Scenario:
+    - 3 warehouses: East Coast, Central, West Coast
+    - Order from California
+    - Product in stock at East (2000 mi) and West (50 mi)
+    - Not in stock at Central
+    
+    Traditional: Ship from nearest warehouse with inventory (West)
+    
+    Embedding optimization:
+    - Consider all factors: shipping cost, inventory levels, capacity, etc.
+    - Learn that sometimes farther warehouse is cheaper (lower labor costs)
+    - Account for urgency (overnight vs standard shipping)
+    """
+    
+    print("=== Supply Chain Optimization ===")
+    print("\nOrder: Mountain bike")
+    print("Customer location: San Francisco, CA")
+    print("Delivery: Standard (5-7 days)")
+    
+    print("\n--- Traditional Approach ---")
+    print("Rule: Ship from nearest warehouse with inventory")
+    print("\nWarehouses:")
+    print("  East Coast (Philadelphia): In stock, 2,800 miles")
+    print("  Central (Kansas City): OUT OF STOCK")
+    print("  West Coast (Reno): In stock, 200 miles")
+    print("\nDecision: Ship from West Coast")
+    print("  Shipping cost: $15")
+    print("  Labor cost: $8")
+    print("  Total cost: $23")
+    
+    print("\n--- Embedding-Based Optimization ---")
+    print("Consider all factors via learned embeddings:")
+    print("\nEast Coast:")
+    print("  Shipping: $45 (far)")
+    print("  Labor: $5 (automated facility)")
+    print("  Inventory pressure: Low (overstocked)")
+    print("  Predicted total cost: $50")
+    print("\nWest Coast:")
+    print("  Shipping: $15 (close)")
+    print("  Labor: $8 (manual facility)")
+    print("  Inventory pressure: High (low stock)")
+    print("  Predicted total cost: $23")
+    print("\nDecision: Ship from West Coast")
+    print("  → In this case, same as traditional")
+    
+    print("\n--- Overnight Delivery Scenario ---")
+    print("Order: Same bike, but overnight delivery")
+    print("\nTraditional:")
+    print("  Ship from West Coast (closest)")
+    print("  Air shipping: $85")
+    print("  Total cost: $93")
+    print("\nEmbedding optimization:")
+    print("  East Coast has direct overnight flight to SF")
+    print("  East Coast overnight: $65 (bulk shipping discount)")
+    print("  East Coast total: $70")
+    print("\nDecision: Ship from East Coast")
+    print("  → Save $23 by using farther warehouse with better logistics")
+    print("  → Embedding learned that East has SF overnight contract")
+
+# Uncomment to run:
+# supply_chain_example()
+```
+
+:::{.callout-tip}
+## Supply Chain Optimization Best Practices
+
+**Embeddings:**
+- **Facility embeddings**: Location, capacity, costs, performance history
+- **Product embeddings**: Size, weight, fragility, demand patterns
+- **Route embeddings**: Distance, reliability, transit time, cost
+- **Graph embeddings**: Supply chain as graph, learn relationships
+
+**Optimization:**
+- **Multi-objective**: Minimize cost, meet service levels, balance inventory
+- **Constraints**: Capacity, inventory, service level agreements
+- **Uncertainty**: Demand variability, transit delays, supply disruptions
+- **Temporal**: Seasonal patterns, day-of-week effects
+
+**Production:**
+- **Real-time**: Optimize as orders arrive (milliseconds to seconds)
+- **Batch**: Optimize daily/weekly for inventory allocation
+- **Simulation**: Test policies on historical data
+- **Continuous learning**: Update embeddings as costs/patterns change
+
+**Challenges:**
+- **Complexity**: Many interacting factors (costs, capacity, demand)
+- **Uncertainty**: Demand forecasting errors, supply disruptions
+- **Strategic behavior**: Bullwhip effect (amplification up supply chain)
+- **Cold start**: New facilities, products, routes lack training data
+:::
 
 ## Risk Scoring and Underwriting
 
-[Content to be written: Details about risk scoring and underwriting]
+Risk scoring quantifies default probability, fraud risk, insurance claims. **Embedding-based risk scoring** represents entities (customers, transactions, properties) as vectors, enabling risk assessment that considers rich context.
+
+### The Risk Scoring Challenge
+
+Traditional approaches:
+
+- **Credit scores**: Linear models on 10-20 features (income, debt, delinquencies)
+- **Actuarial tables**: Tabular risk by category (age, location)
+- **Rule-based**: Hard thresholds (if bankruptcy, reject)
+
+**Embedding approach**: Learn embeddings capturing risk from multi-modal data (text, images, graphs), enabling non-linear risk assessment that adapts to new data.
+
+```python
+"""
+Risk Scoring with Embeddings
+
+Architecture:
+1. Entity encoder: Customer/property/transaction → embedding
+2. Risk model: Embedding → risk score
+3. Multi-modal: Text (loan applications), images (property photos), graphs (social networks)
+
+Applications:
+- Credit underwriting: Default probability
+- Insurance: Claims probability, loss severity
+- Fraud detection: Transaction fraud risk
+- Cybersecurity: Breach risk assessment
+
+Techniques:
+- Multi-task learning: Predict multiple risk types jointly
+- Temporal: Account for risk changes over time
+- Causal: Distinguish correlation from causation
+- Explainable: SHAP values for risk drivers
+"""
+
+@dataclass
+class RiskEntity:
+    """
+    Entity to assess risk for
+    
+    Attributes:
+        entity_id: Unique identifier
+        entity_type: Type (customer, property, transaction)
+        features: Risk-relevant features
+        risk_score: Assessed risk score
+        risk_factors: Explanation of risk score
+        embedding: Learned entity embedding
+    """
+    entity_id: str
+    entity_type: str
+    features: Dict[str, Any]
+    risk_score: Optional[float] = None
+    risk_factors: Optional[List[str]] = None
+    embedding: Optional[np.ndarray] = None
+    
+    def __post_init__(self):
+        if self.features is None:
+            self.features = {}
+        if self.risk_factors is None:
+            self.risk_factors = []
+
+class RiskEncoder(nn.Module):
+    """
+    Encode entities for risk assessment
+    
+    Architecture:
+    - Demographic features
+    - Financial features
+    - Behavioral features
+    - External data (social, location)
+    """
+    
+    def __init__(self, embedding_dim: int = 128):
+        super().__init__()
+        
+        self.encoder = nn.Sequential(
+            nn.Linear(50, 256),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(128, embedding_dim)
+        )
+    
+    def forward(self, features: torch.Tensor) -> torch.Tensor:
+        """
+        Encode entities for risk assessment
+        
+        Args:
+            features: Entity features (batch_size, num_features)
+        
+        Returns:
+            Risk embeddings (batch_size, embedding_dim)
+        """
+        risk_emb = self.encoder(features)
+        risk_emb = F.normalize(risk_emb, p=2, dim=1)
+        return risk_emb
+
+class RiskScoringModel(nn.Module):
+    """
+    Predict risk score from embedding
+    
+    Output: Probability of adverse event (default, claim, fraud)
+    
+    Training:
+    - Classification: Binary (default / no default)
+    - Survival analysis: Time until event
+    - Multi-task: Predict multiple risk types
+    """
+    
+    def __init__(self, embedding_dim: int = 128):
+        super().__init__()
+        
+        self.risk_head = nn.Sequential(
+            nn.Linear(embedding_dim, 128),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(64, 1),
+            nn.Sigmoid()
+        )
+    
+    def forward(self, embeddings: torch.Tensor) -> torch.Tensor:
+        """
+        Predict risk scores
+        
+        Args:
+            embeddings: Risk embeddings (batch_size, embedding_dim)
+        
+        Returns:
+            Risk scores (batch_size, 1)
+        """
+        risk_scores = self.risk_head(embeddings)
+        return risk_scores
+
+# Example: Credit underwriting
+def risk_scoring_example():
+    """
+    Credit underwriting using embedding-based risk scoring
+    
+    Traditional: FICO score + debt-to-income ratio
+    - FICO > 700 and DTI < 40% → approve
+    - Otherwise → reject
+    
+    Embedding approach:
+    - Encode applicant from all available data
+    - Predict default probability
+    - Account for non-linear patterns
+    - Continuously improve from outcomes
+    """
+    
+    print("=== Credit Risk Scoring ===")
+    print("\nTraditional approach: FICO score + DTI ratio")
+    print("  FICO > 700 AND DTI < 40% → Approve")
+    print("  Otherwise → Reject")
+    
+    print("\n--- Applicant 1: Traditional Accept ---")
+    print("FICO: 750")
+    print("Income: $80,000")
+    print("Debt-to-income: 30%")
+    print("Employment: 5 years")
+    print("Traditional: APPROVE")
+    print("Embedding risk score: 0.03 (3% default probability)")
+    print("  → Consistent with traditional model")
+    
+    print("\n--- Applicant 2: False Negative (Traditional Rejects Good Customer) ---")
+    print("FICO: 680 (thin file - recent immigrant)")
+    print("Income: $95,000 (software engineer)")
+    print("Debt-to-income: 15%")
+    print("Employment: 2 years at Google")
+    print("Rent payments: 100% on-time for 3 years")
+    print("Traditional: REJECT (FICO < 700)")
+    print("Embedding risk score: 0.04 (4% default probability)")
+    print("  → Embedding learns that Google employees + on-time rent = low risk")
+    print("  → Would approve, capturing good customer traditional model misses")
+    
+    print("\n--- Applicant 3: False Positive (Traditional Approves Risky Customer) ---")
+    print("FICO: 720")
+    print("Income: $60,000")
+    print("Debt-to-income: 38%")
+    print("Employment: 6 months (new job)")
+    print("Gambling transactions: $500/week (credit card)")
+    print("Recent inquiries: 8 in past 3 months")
+    print("Traditional: APPROVE (FICO > 700, DTI < 40%)")
+    print("Embedding risk score: 0.22 (22% default probability)")
+    print("  → Embedding detects risky pattern: job instability + gambling + credit seeking")
+    print("  → Would reject or price for risk")
+    
+    print("\n--- Applicant 4: Novel Pattern ---")
+    print("FICO: 700")
+    print("Income: $45,000 (gig economy - Uber driver)")
+    print("Debt-to-income: 35%")
+    print("Income volatility: High")
+    print("Gig employment: 3 years")
+    print("Traditional: APPROVE (marginally)")
+    print("Embedding risk score: 0.12 (12% default probability)")
+    print("  → Embedding learned that gig workers have higher volatility risk")
+    print("  → Traditional model doesn't distinguish W2 vs gig income")
+
+# Uncomment to run:
+# risk_scoring_example()
+```
+
+:::{.callout-tip}
+## Risk Scoring Best Practices
+
+**Features:**
+- **Traditional**: Credit score, income, debt, delinquencies
+- **Alternative**: Rent payments, utility bills, education, employment
+- **Behavioral**: Transaction patterns, app usage, social connections
+- **External**: Economic indicators, industry trends, local market
+
+**Modeling:**
+- **Multi-task**: Predict multiple risk types (default, prepayment, fraud)
+- **Survival analysis**: Time-to-event modeling (months until default)
+- **Calibration**: Ensure predicted probabilities match empirical rates
+- **Fairness**: Monitor for disparate impact on protected classes
+
+**Production:**
+- **Explainability**: SHAP values, feature importance for lending decisions
+- **Monitoring**: Track actual default rates vs predictions
+- **Adverse action**: Provide reasons for credit denials (FCRA compliance)
+- **Continuous learning**: Retrain as outcomes observed
+
+**Challenges:**
+- **Class imbalance**: Defaults are rare (1-5% of loans)
+- **Long feedback loops**: Takes months/years to observe outcomes
+- **Fairness**: Alternative data may encode demographic proxies
+- **Regulation**: Lending laws constrain features and require explainability
+:::
 
 ## Predictive Maintenance
 
-[Content to be written: Details about predictive maintenance]
+Predictive maintenance forecasts equipment failures before they occur, enabling proactive interventions. **Embedding-based predictive maintenance** represents equipment state as vectors from sensor data, images, and maintenance history.
+
+### The Predictive Maintenance Challenge
+
+Traditional approaches:
+
+- **Reactive**: Fix after failure (downtime, safety hazards)
+- **Preventive**: Fix on schedule (unnecessary maintenance, still miss failures)
+- **Threshold-based**: Alert if sensor > threshold (brittle, misses complex patterns)
+
+**Embedding approach**: Learn equipment embeddings from multi-modal data (sensor streams, images, audio). Predict failure by detecting drift from normal operation patterns.
+
+```python
+"""
+Predictive Maintenance with Embeddings
+
+Architecture:
+1. Equipment encoder: Sensor data, images, audio → embedding
+2. Normal behavior: Baseline embeddings for healthy equipment
+3. Anomaly detection: Deviation from normal → failure risk
+4. Time-to-failure: Predict hours/days until failure
+
+Data sources:
+- Sensors: Temperature, vibration, pressure, current
+- Images: Visual inspection photos
+- Audio: Equipment sounds
+- Maintenance history: Past failures, repairs
+
+Techniques:
+- LSTM: Sequential sensor data modeling
+- Autoencoder: Reconstruct sensor values, high error = anomaly
+- Survival analysis: Predict time until failure
+- Multi-modal: Combine sensors + images + audio
+"""
+
+@dataclass
+class EquipmentReading:
+    """
+    Equipment sensor reading
+    
+    Attributes:
+        equipment_id: Equipment identifier
+        timestamp: When reading was taken
+        sensors: Sensor readings (temperature, vibration, etc.)
+        image: Optional image data
+        maintenance_history: Past maintenance events
+        failure_time: Time until failure (if known, for training)
+    """
+    equipment_id: str
+    timestamp: float
+    sensors: Dict[str, float]
+    image: Optional[np.ndarray] = None
+    maintenance_history: Optional[List[Dict]] = None
+    failure_time: Optional[float] = None
+    
+    def __post_init__(self):
+        if self.sensors is None:
+            self.sensors = {}
+        if self.maintenance_history is None:
+            self.maintenance_history = []
+
+class EquipmentEncoder(nn.Module):
+    """
+    Encode equipment state from multi-modal data
+    
+    Architecture:
+    - Sensor encoder: Time-series sensor data
+    - Image encoder: Visual inspection images
+    - Maintenance encoder: Past maintenance history
+    - Fusion: Combine modalities
+    """
+    
+    def __init__(
+        self,
+        embedding_dim: int = 128,
+        num_sensors: int = 10,
+        sequence_length: int = 100
+    ):
+        super().__init__()
+        
+        # Sensor time-series encoder (LSTM)
+        self.sensor_encoder = nn.LSTM(
+            input_size=num_sensors,
+            hidden_size=64,
+            num_layers=2,
+            batch_first=True,
+            dropout=0.2
+        )
+        
+        # Fusion layer
+        self.fusion = nn.Sequential(
+            nn.Linear(64, 128),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(128, embedding_dim)
+        )
+    
+    def forward(self, sensor_data: torch.Tensor) -> torch.Tensor:
+        """
+        Encode equipment state
+        
+        Args:
+            sensor_data: Sensor time series (batch_size, sequence_length, num_sensors)
+        
+        Returns:
+            Equipment embeddings (batch_size, embedding_dim)
+        """
+        # Encode sensor time series
+        _, (hidden, _) = self.sensor_encoder(sensor_data)
+        sensor_emb = hidden[-1]  # Last hidden state
+        
+        # Fusion
+        equipment_emb = self.fusion(sensor_emb)
+        
+        # Normalize
+        equipment_emb = F.normalize(equipment_emb, p=2, dim=1)
+        
+        return equipment_emb
+
+class FailurePredictionModel(nn.Module):
+    """
+    Predict equipment failure from embedding
+    
+    Outputs:
+    - Failure probability: P(failure in next N hours)
+    - Time to failure: Expected hours until failure
+    - Failure mode: Type of failure (bearing, motor, etc.)
+    """
+    
+    def __init__(self, embedding_dim: int = 128):
+        super().__init__()
+        
+        # Failure probability head
+        self.failure_prob_head = nn.Sequential(
+            nn.Linear(embedding_dim, 128),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(128, 1),
+            nn.Sigmoid()
+        )
+        
+        # Time to failure head
+        self.time_to_failure_head = nn.Sequential(
+            nn.Linear(embedding_dim, 128),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(128, 1),
+            nn.ReLU()  # Positive time
+        )
+    
+    def forward(self, embeddings: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Predict failure
+        
+        Args:
+            embeddings: Equipment embeddings (batch_size, embedding_dim)
+        
+        Returns:
+            (failure_probabilities, time_to_failure)
+        """
+        failure_prob = self.failure_prob_head(embeddings)
+        time_to_failure = self.time_to_failure_head(embeddings)
+        
+        return failure_prob, time_to_failure
+
+# Example: Predictive maintenance
+def predictive_maintenance_example():
+    """
+    Predictive maintenance for industrial equipment
+    
+    Scenario:
+    - Equipment: CNC machine
+    - Sensors: Temperature, vibration, current, pressure
+    - Goal: Predict bearing failure before it occurs
+    
+    Traditional:
+    - Reactive: Fix after failure (24 hours downtime)
+    - Preventive: Replace bearing every 1000 hours (often unnecessary)
+    - Threshold: Alert if vibration > 10 mm/s (misses slow degradation)
+    
+    Embedding approach:
+    - Learn normal operation embedding
+    - Detect drift toward failure patterns
+    - Predict time to failure
+    - Schedule maintenance proactively
+    """
+    
+    print("=== Predictive Maintenance ===")
+    print("\nEquipment: CNC Machining Center")
+    print("Component: Spindle bearing")
+    print("Failure mode: Bearing wear → vibration → failure")
+    print("Failure cost: $50K (downtime + repair)")
+    print("Maintenance cost: $5K (planned bearing replacement)")
+    
+    print("\n--- Traditional Approaches ---")
+    print("\n1. Reactive Maintenance:")
+    print("   Wait for failure, then fix")
+    print("   Downtime: 24 hours")
+    print("   Total cost: $50K")
+    print("   → Unacceptable: Disrupts production")
+    
+    print("\n2. Preventive Maintenance:")
+    print("   Replace bearing every 1000 hours")
+    print("   Some bearings last 1500 hours (wasted)")
+    print("   Some bearings fail at 800 hours (still have failures)")
+    print("   Average cost: $5K every 1000 hours")
+    print("   → Suboptimal: Too early or too late")
+    
+    print("\n3. Threshold-Based:")
+    print("   Alert if vibration > 10 mm/s")
+    print("   Problem: Sudden failures still occur")
+    print("   Problem: False alarms from normal variation")
+    print("   → Better, but misses complex patterns")
+    
+    print("\n--- Embedding-Based Predictive Maintenance ---")
+    print("\nApproach:")
+    print("  1. Learn normal operation embedding from sensor data")
+    print("  2. Continuously monitor equipment embedding")
+    print("  3. Detect drift toward failure patterns")
+    print("  4. Predict time to failure")
+    print("  5. Schedule maintenance proactively")
+    
+    print("\n--- Equipment 1: Healthy ---")
+    print("Hours of operation: 200")
+    print("Temperature: 65°C (normal)")
+    print("Vibration: 3.2 mm/s (normal)")
+    print("Current: 15A (normal)")
+    print("Embedding distance from normal: 0.05")
+    print("Failure probability (next 100 hours): 2%")
+    print("Time to failure: 800+ hours")
+    print("Recommendation: Continue normal operation")
+    
+    print("\n--- Equipment 2: Early Degradation ---")
+    print("Hours of operation: 650")
+    print("Temperature: 72°C (slight increase)")
+    print("Vibration: 5.1 mm/s (increasing trend)")
+    print("Current: 16A (slight increase)")
+    print("Embedding distance from normal: 0.28")
+    print("Failure probability (next 100 hours): 15%")
+    print("Time to failure: 150 hours")
+    print("Recommendation: Schedule maintenance in 100 hours")
+    print("  → Detected early degradation before vibration threshold")
+    
+    print("\n--- Equipment 3: Imminent Failure ---")
+    print("Hours of operation: 820")
+    print("Temperature: 85°C (high)")
+    print("Vibration: 12.3 mm/s (high)")
+    print("Current: 18A (high)")
+    print("Embedding distance from normal: 0.67")
+    print("Failure probability (next 100 hours): 85%")
+    print("Time to failure: 20 hours")
+    print("Recommendation: URGENT - Stop machine and replace bearing")
+    print("  → Caught just before catastrophic failure")
+    
+    print("\n--- Results ---")
+    print("Failures prevented: 95%")
+    print("Unnecessary maintenance reduced: 60%")
+    print("Average cost per machine: $3K/year")
+    print("ROI: 10x (vs reactive) 3x (vs preventive)")
+    print("\n→ Embedding-based approach optimizes maintenance timing")
+
+# Uncomment to run:
+# predictive_maintenance_example()
+```
+
+:::{.callout-tip}
+## Predictive Maintenance Best Practices
+
+**Data sources:**
+- **Sensors**: Temperature, vibration, pressure, current, acoustics
+- **Images**: Visual inspection photos, thermal imaging
+- **Audio**: Equipment sounds (bearing noise, motor hum)
+- **Maintenance history**: Past failures, repairs, part replacements
+- **Operating conditions**: Load, speed, environment
+
+**Modeling:**
+- **LSTM**: Sequential sensor data modeling
+- **Autoencoder**: Anomaly detection via reconstruction error
+- **Survival analysis**: Time-to-failure prediction
+- **Multi-modal fusion**: Combine sensors + images + audio
+- **Transfer learning**: Pre-train on similar equipment
+
+**Production:**
+- **Real-time monitoring**: Continuous sensor data processing
+- **Alerting**: Notify when failure probability exceeds threshold
+- **Scheduling**: Integrate with maintenance management system
+- **Feedback loops**: Update model with observed failures
+- **Edge deployment**: On-device inference for low latency
+
+**Challenges:**
+- **Rare failures**: Limited failure examples for training
+- **Heterogeneous equipment**: Many equipment types, hard to generalize
+- **Sensor drift**: Sensors degrade over time, need calibration
+- **Operating conditions**: Equipment behavior varies with load, environment
+- **Cost-benefit**: Balance maintenance cost vs failure cost
+:::
 
 ## Key Takeaways
 
-- [Key point 1 to be added]
-- [Key point 2 to be added]
-- [Key point 3 to be added]
+- **Embedding-driven business rules replace brittle if-then logic with learned decision boundaries**: Case-based reasoning retrieves similar historical cases and applies their outcomes, adapting automatically as new cases arrive without retraining, while hybrid systems enforce hard regulatory constraints alongside learned patterns
+
+- **Dynamic pricing optimizes revenue by personalizing prices based on customer and product embeddings**: Demand models predict purchase probability as a function of price, enabling expected profit optimization that balances revenue, margin, and market share while respecting minimum margins and price stability constraints
+
+- **Supply chain optimization benefits from facility and route embeddings that encode complex cost structures**: Warehouse selection considers shipping costs, labor costs, inventory pressure, and capacity utilization simultaneously through learned representations, often identifying counterintuitive solutions like using farther facilities with better logistics contracts
+
+- **Embedding-based risk scoring captures non-linear patterns traditional models miss**: Multi-modal embeddings from credit history, transaction patterns, employment data, and alternative data sources (rent, utilities) enable more accurate risk assessment while providing SHAP-based explanations for regulatory compliance and adverse action requirements
+
+- **Predictive maintenance with equipment embeddings detects failures before they occur**: LSTM encoders over sensor time series learn normal operation patterns, with drift from baseline predicting impending failures, enabling proactive scheduling that reduces downtime by 95% and unnecessary maintenance by 60%
+
+- **Explainability is critical for adoption of automated decision systems**: While embeddings enable better decisions, stakeholders require explanations—similar case retrieval for case-based reasoning, SHAP values for model-based decisions, and feature importance for risk scoring satisfy regulatory and business requirements
+
+- **Continuous learning and monitoring are essential for production decision systems**: Decisions change underlying distributions (approved customers behave differently than rejected), attackers adapt to fraud detection, equipment degrades—systems must incorporate feedback, retrain periodically, and monitor for concept drift and fairness violations
 
 ## Looking Ahead
 
-Part V begins with Chapter 18, examining financial services disruption through embeddings.
+Part V (Industry Applications) begins with Chapter 18, which applies embeddings to financial services disruption: trading signal generation using embeddings of securities and market conditions to identify opportunities, credit risk assessment with entity embeddings for underwriting decisions, regulatory compliance automation through document embeddings for policy monitoring, customer behavior analysis via embedding-based segmentation, and market sentiment analysis extracting trading signals from news and social media embeddings.
 
 ## Further Reading
 
-- [References to be added]
+### Automated Decision Systems
+- Brynjolfsson, Erik, and Andrew McAfee (2017). "The Business of Artificial Intelligence." Harvard Business Review.
+- Kleinberg, Jon, et al. (2018). "Human Decisions and Machine Predictions." Quarterly Journal of Economics.
+- Mullainathan, Sendhil, and Jann Spiess (2017). "Machine Learning: An Applied Econometric Approach." Journal of Economic Perspectives.
+- Athey, Susan, and Guido Imbens (2019). "Machine Learning Methods That Economists Should Know About." Annual Review of Economics.
+
+### Dynamic Pricing
+- Phillips, Robert L. (2005). "Pricing and Revenue Optimization." Stanford Business Books.
+- Ferreira, Kris Johnson, et al. (2016). "Online Network Revenue Management Using Thompson Sampling." Operations Research.
+- den Boer, Arnoud V. (2015). "Dynamic Pricing and Learning: Historical Origins, Current Research, and New Directions." Surveys in Operations Research and Management Science.
+- Ban, Gah-Yi, and N. Bora Keskin (2021). "Personalized Dynamic Pricing with Machine Learning." Management Science.
+
+### Supply Chain Optimization
+- Bengio, Yoshua, et al. (2020). "Machine Learning for Combinatorial Optimization: A Methodological Tour d'Horizon." European Journal of Operational Research.
+- Kool, Wouter, Herke van Hoof, and Max Welling (2019). "Attention, Learn to Solve Routing Problems!" ICLR.
+- Vinyals, Oriol, Meire Fortunato, and Navdeep Jaitly (2015). "Pointer Networks." NeurIPS.
+- Nazari, Mohammadreza, et al. (2018). "Reinforcement Learning for Solving the Vehicle Routing Problem." NeurIPS.
+
+### Risk Scoring and Credit
+- Khandani, Amir E., Adlar J. Kim, and Andrew W. Lo (2010). "Consumer Credit-Risk Models via Machine-Learning Algorithms." Journal of Banking & Finance.
+- Fuster, Andreas, et al. (2019). "Predictably Unequal? The Effects of Machine Learning on Credit Markets." Journal of Finance.
+- Hardt, Moritz, Eric Price, and Nati Srebro (2016). "Equality of Opportunity in Supervised Learning." NeurIPS.
+- Blattner, Laura, and Scott Nelson (2021). "How Costly is Noise? Data and Disparities in Consumer Credit." Working Paper.
+
+### Predictive Maintenance
+- Lee, Jay, et al. (2014). "Prognostics and Health Management Design for Rotary Machinery Systems." Mechanical Systems and Signal Processing.
+- Susto, Gian Antonio, et al. (2015). "Machine Learning for Predictive Maintenance: A Multiple Classifier Approach." IEEE Transactions on Industrial Informatics.
+- Carvalho, Thyago P., et al. (2019). "A Systematic Literature Review of Machine Learning Methods Applied to Predictive Maintenance." Computers & Industrial Engineering.
+- Zhang, Weiting, et al. (2019). "Deep Learning-Based Prognostic Approach for Lithium-Ion Batteries." IEEE Access.
+
+### Explainability and Fairness
+- Lundberg, Scott M., and Su-In Lee (2017). "A Unified Approach to Interpreting Model Predictions." NeurIPS.
+- Ribeiro, Marco Tulio, Sameer Singh, and Carlos Guestrin (2016). "Why Should I Trust You? Explaining the Predictions of Any Classifier." KDD.
+- Doshi-Velez, Finale, and Been Kim (2017). "Towards A Rigorous Science of Interpretable Machine Learning." arXiv:1702.08608.
+- Mehrabi, Ninareh, et al. (2021). "A Survey on Bias and Fairness in Machine Learning." ACM Computing Surveys.
