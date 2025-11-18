@@ -1,40 +1,3497 @@
-# Monitoring and Observability {{#sec-monitoring-observability}}
+# Monitoring and Observability {#sec-monitoring-observability}
 
-:::{{.callout-note}}
+:::{.callout-note}
 ## Chapter Overview
-This chapter covers embedding quality metrics, performance monitoring dashboards, and 3 more topics.
+Monitoring and observability—from detecting embedding quality degradation to tracking performance metrics to identifying cost anomalies—determine whether embedding systems maintain production reliability and continue delivering value over time. This chapter covers comprehensive observability: embedding quality metrics measuring semantic coherence, cluster stability, and downstream task performance that detect model degradation before it impacts users, performance monitoring dashboards tracking query latency (p50/p99/p999), throughput, error rates, and resource utilization across distributed systems in real-time, alerting on embedding drift detecting concept shifts and distribution changes that require model retraining through statistical tests and automated anomaly detection, cost tracking and optimization monitoring compute, storage, and network expenses per query/embedding with attribution to teams and projects enabling cost optimization opportunities, and user experience analytics connecting embedding quality to business metrics like search relevance, recommendation click-through rates, and conversion rates. These practices transform embedding systems from black boxes that fail silently to observable systems that detect issues early, enable rapid debugging, optimize resource utilization, and continuously improve—reducing mean time to detection from days to minutes, mean time to resolution from hours to minutes, and overall operational costs by 30-50%.
 :::
+
+After implementing security and privacy controls (@sec-security-privacy), **monitoring and observability become critical for maintaining production reliability**. Embedding systems fail in unique ways—gradual quality degradation through concept drift, sudden performance collapse from index corruption, silent errors from misconfigured preprocessing, cascading failures from resource exhaustion. Traditional monitoring (CPU, memory, disk) catches infrastructure problems but misses embedding-specific issues: semantic space shifts, similarity calibration drift, query distribution changes, or training-serving skew. **Comprehensive observability** instruments every component (embedding generation, indexing, serving, downstream tasks), tracks embedding-specific metrics (quality, drift, calibration), correlates performance with business outcomes, and enables automated detection and remediation—transforming reactive firefighting into proactive optimization.
 
 ## Embedding Quality Metrics
 
-[Content to be written: Details about embedding quality metrics]
+Embedding quality—how well vectors capture semantic relationships and support downstream tasks—determines system value but proves difficult to measure in production. Unlike traditional software (test pass/fail, transaction success/error), embeddings degrade gradually through concept drift, contamination, or misconfiguration. **Embedding quality metrics** measure intrinsic properties (semantic coherence, cluster stability, dimension utilization) and extrinsic performance (downstream task accuracy, user satisfaction) enabling early detection of degradation, systematic optimization, and continuous improvement through A/B testing and automated retraining triggers.
+
+### The Embedding Quality Challenge
+
+Production embedding systems face quality measurement challenges:
+
+- **No ground truth**: Production queries lack relevance labels for direct accuracy measurement
+- **Gradual degradation**: Quality decreases slowly (0.1-1% per week), imperceptible day-to-day
+- **Concept drift**: Real-world distributions shift (new products, seasonal trends, emerging vocabulary)
+- **Training-serving skew**: Preprocessing differences cause systematic quality loss
+- **Multi-objective trade-offs**: Optimizing one task (search) may harm another (clustering)
+- **Embedding dimensionality**: 768-1536 dimensions make visual inspection impossible
+- **Scale requirements**: Measuring quality across 256 trillion embeddings requires sampling
+- **Business impact**: Connecting embedding quality to revenue/engagement requires correlation
+
+**Quality monitoring approach**: Combine intrinsic metrics (computed from embeddings alone: coherence, stability, calibration), extrinsic metrics (measured through downstream tasks: search relevance, classification accuracy), user-centric metrics (business outcomes: click-through rate, conversion, satisfaction), and comparative baselines (current model vs previous versions, competitors, random baseline)—enabling multi-faceted quality assessment that detects degradation across scenarios.
+
+```python
+"""
+Comprehensive Embedding Quality Monitoring
+
+Architecture:
+1. Intrinsic metrics: Semantic coherence, cluster stability, dimension utilization
+2. Extrinsic metrics: Downstream task performance, proxy metrics
+3. User metrics: CTR, conversion, dwell time correlated with embedding changes
+4. Drift detection: Distribution shifts, concept emergence, calibration drift
+5. Automated alerting: Statistical tests trigger retraining or rollback
+
+Metrics:
+- Coherence: Intra-cluster similarity vs inter-cluster dissimilarity
+- Stability: Embedding consistency across model versions, time periods
+- Calibration: Similarity score distribution, threshold reliability
+- Coverage: Uniform semantic space utilization, no dead dimensions
+- Downstream performance: Search relevance, classification accuracy, clustering quality
+
+Quality thresholds:
+- Coherence: >0.8 intra-cluster similarity, <0.3 inter-cluster
+- Stability: >0.95 correlation between consecutive embeddings
+- Downstream: <5% accuracy drop vs baseline, >90% absolute performance
+- User metrics: <10% CTR drop, <5% conversion drop
+"""
+
+import numpy as np
+from typing import List, Dict, Optional, Tuple, Any, Set
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from collections import defaultdict
+import json
+from scipy.stats import entropy, wasserstein_distance, ks_2samp
+from scipy.spatial.distance import cosine, euclidean
+from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_harabasz_score
+from sklearn.decomposition import PCA
+import warnings
+
+@dataclass
+class EmbeddingBatch:
+    """
+    Batch of embeddings for quality analysis
+    
+    Attributes:
+        embeddings: Array of embedding vectors (N, D)
+        ids: Embedding identifiers
+        labels: Optional ground truth labels for supervised metrics
+        metadata: Optional metadata (timestamps, source, etc.)
+        timestamp: When embeddings were generated
+        model_version: Embedding model version
+    """
+    embeddings: np.ndarray
+    ids: List[str]
+    labels: Optional[np.ndarray] = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    timestamp: datetime = field(default_factory=datetime.now)
+    model_version: str = "unknown"
+
+@dataclass
+class QualityMetrics:
+    """
+    Comprehensive embedding quality metrics
+    
+    Attributes:
+        timestamp: When metrics were computed
+        model_version: Embedding model version
+        
+        # Intrinsic metrics
+        intra_cluster_similarity: Average similarity within clusters
+        inter_cluster_similarity: Average similarity between clusters
+        silhouette_score: Silhouette coefficient (-1 to 1, higher better)
+        davies_bouldin_score: DB index (lower better)
+        calinski_harabasz_score: CH score (higher better)
+        
+        # Dimension utilization
+        dimension_variance: Per-dimension variance
+        effective_dimensions: Number of dimensions with >1% variance
+        dimension_entropy: Entropy of dimension importance
+        
+        # Calibration metrics
+        similarity_distribution: Histogram of pairwise similarities
+        score_calibration_error: Calibration error for similarity scores
+        threshold_stability: Variance in optimal threshold across folds
+        
+        # Stability metrics
+        temporal_stability: Correlation with previous batch
+        cross_version_stability: Correlation with other model versions
+        
+        # Downstream metrics (if available)
+        downstream_accuracy: Performance on labeled task
+        proxy_metrics: Dict of proxy task metrics
+        
+        # Anomaly flags
+        anomalies: List of detected quality anomalies
+        quality_score: Overall quality score (0-100)
+    """
+    timestamp: datetime
+    model_version: str
+    
+    # Intrinsic clustering metrics
+    intra_cluster_similarity: float
+    inter_cluster_similarity: float
+    silhouette_score: float
+    davies_bouldin_score: float
+    calinski_harabasz_score: float
+    
+    # Dimension metrics
+    dimension_variance: np.ndarray
+    effective_dimensions: int
+    dimension_entropy: float
+    
+    # Calibration
+    similarity_distribution: Dict[str, float]
+    score_calibration_error: float
+    threshold_stability: float
+    
+    # Stability
+    temporal_stability: Optional[float] = None
+    cross_version_stability: Dict[str, float] = field(default_factory=dict)
+    
+    # Downstream
+    downstream_accuracy: Optional[float] = None
+    proxy_metrics: Dict[str, float] = field(default_factory=dict)
+    
+    # Anomalies and overall score
+    anomalies: List[str] = field(default_factory=list)
+    quality_score: float = 0.0
+
+class EmbeddingQualityMonitor:
+    """
+    Comprehensive embedding quality monitoring system
+    
+    Tracks intrinsic and extrinsic quality metrics, detects anomalies,
+    alerts on degradation, and enables continuous quality improvement.
+    """
+    
+    def __init__(
+        self,
+        reference_embeddings: Optional[EmbeddingBatch] = None,
+        quality_thresholds: Optional[Dict[str, Tuple[float, float]]] = None,
+        alert_callback: Optional[callable] = None,
+        history_window: int = 100
+    ):
+        """
+        Initialize quality monitoring system
+        
+        Args:
+            reference_embeddings: Baseline embeddings for comparison
+            quality_thresholds: (min, max) thresholds for each metric
+            alert_callback: Function to call when anomalies detected
+            history_window: Number of historical metrics to retain
+        """
+        self.reference_embeddings = reference_embeddings
+        self.quality_thresholds = quality_thresholds or self._default_thresholds()
+        self.alert_callback = alert_callback
+        self.history_window = history_window
+        
+        # Historical metrics for drift detection
+        self.metrics_history: List[QualityMetrics] = []
+        self.baseline_metrics: Optional[QualityMetrics] = None
+        
+        # Compute baseline metrics if reference provided
+        if reference_embeddings is not None:
+            self.baseline_metrics = self.compute_quality_metrics(reference_embeddings)
+    
+    def _default_thresholds(self) -> Dict[str, Tuple[float, float]]:
+        """Default quality thresholds (min, max)"""
+        return {
+            "intra_cluster_similarity": (0.7, 1.0),
+            "inter_cluster_similarity": (0.0, 0.4),
+            "silhouette_score": (0.3, 1.0),
+            "davies_bouldin_score": (0.0, 2.0),  # Lower is better
+            "effective_dimensions": (50, None),   # At least 50 dimensions used
+            "dimension_entropy": (3.0, None),     # High entropy = good utilization
+            "temporal_stability": (0.90, 1.0),
+            "downstream_accuracy": (0.85, 1.0),
+            "quality_score": (70, 100)
+        }
+    
+    def compute_quality_metrics(
+        self,
+        batch: EmbeddingBatch,
+        n_clusters: int = 10,
+        sample_size: int = 10000
+    ) -> QualityMetrics:
+        """
+        Compute comprehensive quality metrics for embedding batch
+        
+        Args:
+            batch: Embedding batch to analyze
+            n_clusters: Number of clusters for clustering metrics
+            sample_size: Sample size for expensive computations
+            
+        Returns:
+            QualityMetrics object with all computed metrics
+        """
+        embeddings = batch.embeddings
+        n_samples, n_dims = embeddings.shape
+        
+        # Sample if too large
+        if n_samples > sample_size:
+            indices = np.random.choice(n_samples, sample_size, replace=False)
+            sampled_embeddings = embeddings[indices]
+            sampled_labels = batch.labels[indices] if batch.labels is not None else None
+        else:
+            sampled_embeddings = embeddings
+            sampled_labels = batch.labels
+        
+        # 1. Clustering metrics (if labels available, use them; otherwise cluster)
+        if sampled_labels is not None:
+            labels = sampled_labels
+        else:
+            from sklearn.cluster import MiniBatchKMeans
+            kmeans = MiniBatchKMeans(n_clusters=n_clusters, random_state=42, batch_size=1000)
+            labels = kmeans.fit_predict(sampled_embeddings)
+        
+        # Compute cluster statistics
+        intra_sim, inter_sim = self._compute_cluster_similarities(sampled_embeddings, labels)
+        
+        # Sklearn clustering metrics
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            silhouette = float(silhouette_score(sampled_embeddings, labels, sample_size=min(5000, len(sampled_embeddings))))
+            db_score = float(davies_bouldin_score(sampled_embeddings, labels))
+            ch_score = float(calinski_harabasz_score(sampled_embeddings, labels))
+        
+        # 2. Dimension utilization metrics
+        dim_variance = np.var(embeddings, axis=0)
+        total_variance = np.sum(dim_variance)
+        variance_ratio = dim_variance / total_variance if total_variance > 0 else dim_variance
+        effective_dims = int(np.sum(variance_ratio > 0.01))  # Dimensions with >1% variance
+        dim_entropy = float(entropy(variance_ratio + 1e-10))  # Add small constant for numerical stability
+        
+        # 3. Similarity calibration metrics
+        similarity_dist = self._compute_similarity_distribution(sampled_embeddings)
+        calibration_error = self._compute_calibration_error(sampled_embeddings, sampled_labels)
+        threshold_stability = self._compute_threshold_stability(sampled_embeddings, sampled_labels)
+        
+        # 4. Temporal stability (compare with previous batch)
+        temporal_stab = None
+        if len(self.metrics_history) > 0:
+            prev_batch = self.metrics_history[-1]
+            temporal_stab = self._compute_temporal_stability(embeddings, prev_batch)
+        
+        # 5. Cross-version stability (compare with reference)
+        cross_version_stab = {}
+        if self.reference_embeddings is not None:
+            cross_version_stab[self.reference_embeddings.model_version] = (
+                self._compute_cross_version_stability(batch, self.reference_embeddings)
+            )
+        
+        # 6. Downstream metrics (if labels available)
+        downstream_acc = None
+        proxy_metrics_dict = {}
+        if sampled_labels is not None:
+            downstream_acc = self._compute_downstream_accuracy(sampled_embeddings, sampled_labels)
+            proxy_metrics_dict = self._compute_proxy_metrics(sampled_embeddings, sampled_labels)
+        
+        # Create metrics object
+        metrics = QualityMetrics(
+            timestamp=batch.timestamp,
+            model_version=batch.model_version,
+            intra_cluster_similarity=intra_sim,
+            inter_cluster_similarity=inter_sim,
+            silhouette_score=silhouette,
+            davies_bouldin_score=db_score,
+            calinski_harabasz_score=ch_score,
+            dimension_variance=dim_variance,
+            effective_dimensions=effective_dims,
+            dimension_entropy=dim_entropy,
+            similarity_distribution=similarity_dist,
+            score_calibration_error=calibration_error,
+            threshold_stability=threshold_stability,
+            temporal_stability=temporal_stab,
+            cross_version_stability=cross_version_stab,
+            downstream_accuracy=downstream_acc,
+            proxy_metrics=proxy_metrics_dict
+        )
+        
+        # Detect anomalies and compute quality score
+        metrics.anomalies = self._detect_anomalies(metrics)
+        metrics.quality_score = self._compute_quality_score(metrics)
+        
+        # Alert if anomalies detected
+        if metrics.anomalies and self.alert_callback:
+            self.alert_callback(metrics)
+        
+        # Add to history
+        self.metrics_history.append(metrics)
+        if len(self.metrics_history) > self.history_window:
+            self.metrics_history.pop(0)
+        
+        return metrics
+    
+    def _compute_cluster_similarities(
+        self,
+        embeddings: np.ndarray,
+        labels: np.ndarray
+    ) -> Tuple[float, float]:
+        """Compute average intra-cluster and inter-cluster similarity"""
+        unique_labels = np.unique(labels)
+        n_clusters = len(unique_labels)
+        
+        if n_clusters < 2:
+            return 0.0, 0.0
+        
+        # Compute cluster centroids
+        centroids = np.array([embeddings[labels == label].mean(axis=0) for label in unique_labels])
+        
+        # Intra-cluster similarity: average similarity to cluster centroid
+        intra_sims = []
+        for label in unique_labels:
+            cluster_embeddings = embeddings[labels == label]
+            centroid = centroids[label]
+            sims = 1 - np.array([cosine(emb, centroid) for emb in cluster_embeddings])
+            intra_sims.extend(sims)
+        
+        intra_cluster_sim = float(np.mean(intra_sims))
+        
+        # Inter-cluster similarity: average similarity between cluster centroids
+        inter_sims = []
+        for i in range(n_clusters):
+            for j in range(i + 1, n_clusters):
+                sim = 1 - cosine(centroids[i], centroids[j])
+                inter_sims.append(sim)
+        
+        inter_cluster_sim = float(np.mean(inter_sims)) if inter_sims else 0.0
+        
+        return intra_cluster_sim, inter_cluster_sim
+    
+    def _compute_similarity_distribution(
+        self,
+        embeddings: np.ndarray,
+        n_samples: int = 1000
+    ) -> Dict[str, float]:
+        """Compute distribution statistics of pairwise similarities"""
+        # Sample pairs to avoid O(N^2) complexity
+        n = len(embeddings)
+        pairs = min(n_samples, n * (n - 1) // 2)
+        
+        similarities = []
+        for _ in range(pairs):
+            i, j = np.random.choice(n, 2, replace=False)
+            sim = 1 - cosine(embeddings[i], embeddings[j])
+            similarities.append(sim)
+        
+        similarities = np.array(similarities)
+        
+        return {
+            "mean": float(np.mean(similarities)),
+            "std": float(np.std(similarities)),
+            "min": float(np.min(similarities)),
+            "max": float(np.max(similarities)),
+            "q25": float(np.percentile(similarities, 25)),
+            "q50": float(np.percentile(similarities, 50)),
+            "q75": float(np.percentile(similarities, 75)),
+            "q95": float(np.percentile(similarities, 95))
+        }
+    
+    def _compute_calibration_error(
+        self,
+        embeddings: np.ndarray,
+        labels: Optional[np.ndarray],
+        n_bins: int = 10
+    ) -> float:
+        """
+        Compute calibration error for similarity scores
+        
+        For labeled data: similarity score should correlate with label agreement
+        For unlabeled: return 0 (cannot compute without ground truth)
+        """
+        if labels is None:
+            return 0.0
+        
+        # Sample pairs with labels
+        n = len(embeddings)
+        n_samples = min(1000, n * (n - 1) // 2)
+        
+        similarities = []
+        agreements = []
+        
+        for _ in range(n_samples):
+            i, j = np.random.choice(n, 2, replace=False)
+            sim = 1 - cosine(embeddings[i], embeddings[j])
+            agree = 1.0 if labels[i] == labels[j] else 0.0
+            similarities.append(sim)
+            agreements.append(agree)
+        
+        similarities = np.array(similarities)
+        agreements = np.array(agreements)
+        
+        # Bin similarities and compute calibration error
+        calibration_error = 0.0
+        for i in range(n_bins):
+            lower = i / n_bins
+            upper = (i + 1) / n_bins
+            mask = (similarities >= lower) & (similarities < upper)
+            
+            if mask.sum() == 0:
+                continue
+            
+            avg_sim = similarities[mask].mean()
+            avg_agree = agreements[mask].mean()
+            calibration_error += abs(avg_sim - avg_agree) * mask.sum()
+        
+        calibration_error /= n_samples
+        return float(calibration_error)
+    
+    def _compute_threshold_stability(
+        self,
+        embeddings: np.ndarray,
+        labels: Optional[np.ndarray],
+        n_folds: int = 5
+    ) -> float:
+        """
+        Compute stability of optimal similarity threshold across data splits
+        
+        For unlabeled data: return 0 (cannot compute without ground truth)
+        """
+        if labels is None:
+            return 0.0
+        
+        from sklearn.model_selection import KFold
+        from sklearn.metrics import f1_score
+        
+        kf = KFold(n_splits=n_folds, shuffle=True, random_state=42)
+        optimal_thresholds = []
+        
+        for train_idx, val_idx in kf.split(embeddings):
+            train_emb, val_emb = embeddings[train_idx], embeddings[val_idx]
+            train_labels, val_labels = labels[train_idx], labels[val_idx]
+            
+            # Find optimal threshold on validation set
+            thresholds = np.linspace(0, 1, 50)
+            best_threshold = 0.5
+            best_f1 = 0.0
+            
+            for thresh in thresholds:
+                # Sample pairs and compute F1
+                n_samples = min(500, len(val_emb) * (len(val_emb) - 1) // 2)
+                predictions = []
+                ground_truth = []
+                
+                for _ in range(n_samples):
+                    i, j = np.random.choice(len(val_emb), 2, replace=False)
+                    sim = 1 - cosine(val_emb[i], val_emb[j])
+                    pred = 1 if sim >= thresh else 0
+                    truth = 1 if val_labels[i] == val_labels[j] else 0
+                    predictions.append(pred)
+                    ground_truth.append(truth)
+                
+                f1 = f1_score(ground_truth, predictions, zero_division=0)
+                if f1 > best_f1:
+                    best_f1 = f1
+                    best_threshold = thresh
+            
+            optimal_thresholds.append(best_threshold)
+        
+        # Return variance of optimal thresholds
+        return float(np.var(optimal_thresholds))
+    
+    def _compute_temporal_stability(
+        self,
+        current_embeddings: np.ndarray,
+        previous_metrics: QualityMetrics
+    ) -> float:
+        """
+        Compute stability between current and previous embeddings
+        
+        Uses dimension-wise correlation of variance patterns
+        """
+        current_variance = np.var(current_embeddings, axis=0)
+        previous_variance = previous_metrics.dimension_variance
+        
+        # Ensure same dimensionality
+        if len(current_variance) != len(previous_variance):
+            return 0.0
+        
+        # Compute correlation of variance patterns
+        correlation = np.corrcoef(current_variance, previous_variance)[0, 1]
+        return float(correlation) if not np.isnan(correlation) else 0.0
+    
+    def _compute_cross_version_stability(
+        self,
+        current_batch: EmbeddingBatch,
+        reference_batch: EmbeddingBatch,
+        n_samples: int = 1000
+    ) -> float:
+        """
+        Compute stability between different model versions
+        
+        Compares embeddings for same IDs across versions
+        """
+        # Find common IDs
+        current_ids = set(current_batch.ids)
+        reference_ids = set(reference_batch.ids)
+        common_ids = current_ids & reference_ids
+        
+        if len(common_ids) == 0:
+            return 0.0
+        
+        # Sample common IDs
+        sampled_ids = list(common_ids)[:n_samples]
+        
+        # Get embeddings for sampled IDs
+        current_id_to_idx = {id_: idx for idx, id_ in enumerate(current_batch.ids)}
+        reference_id_to_idx = {id_: idx for idx, id_ in enumerate(reference_batch.ids)}
+        
+        correlations = []
+        for id_ in sampled_ids:
+            curr_emb = current_batch.embeddings[current_id_to_idx[id_]]
+            ref_emb = reference_batch.embeddings[reference_id_to_idx[id_]]
+            
+            # Compute cosine similarity
+            sim = 1 - cosine(curr_emb, ref_emb)
+            correlations.append(sim)
+        
+        return float(np.mean(correlations))
+    
+    def _compute_downstream_accuracy(
+        self,
+        embeddings: np.ndarray,
+        labels: np.ndarray
+    ) -> float:
+        """Compute downstream classification accuracy using embeddings"""
+        from sklearn.model_selection import cross_val_score
+        from sklearn.linear_model import LogisticRegression
+        
+        clf = LogisticRegression(max_iter=1000, random_state=42)
+        scores = cross_val_score(clf, embeddings, labels, cv=5, scoring='accuracy')
+        return float(np.mean(scores))
+    
+    def _compute_proxy_metrics(
+        self,
+        embeddings: np.ndarray,
+        labels: np.ndarray
+    ) -> Dict[str, float]:
+        """Compute proxy task metrics (k-NN classification, clustering purity)"""
+        from sklearn.neighbors import KNeighborsClassifier
+        from sklearn.model_selection import cross_val_score
+        
+        metrics = {}
+        
+        # k-NN accuracy
+        knn = KNeighborsClassifier(n_neighbors=5)
+        knn_scores = cross_val_score(knn, embeddings, labels, cv=3, scoring='accuracy')
+        metrics['knn_accuracy'] = float(np.mean(knn_scores))
+        
+        # Clustering purity (if enough samples)
+        if len(embeddings) > 100:
+            from sklearn.cluster import MiniBatchKMeans
+            from sklearn.metrics import adjusted_rand_score
+            
+            n_clusters = len(np.unique(labels))
+            kmeans = MiniBatchKMeans(n_clusters=n_clusters, random_state=42)
+            pred_labels = kmeans.fit_predict(embeddings)
+            metrics['clustering_ari'] = float(adjusted_rand_score(labels, pred_labels))
+        
+        return metrics
+    
+    def _detect_anomalies(self, metrics: QualityMetrics) -> List[str]:
+        """Detect quality anomalies by comparing against thresholds"""
+        anomalies = []
+        
+        # Check each metric against thresholds
+        checks = [
+            ("intra_cluster_similarity", metrics.intra_cluster_similarity),
+            ("inter_cluster_similarity", metrics.inter_cluster_similarity),
+            ("silhouette_score", metrics.silhouette_score),
+            ("effective_dimensions", metrics.effective_dimensions),
+            ("dimension_entropy", metrics.dimension_entropy)
+        ]
+        
+        if metrics.temporal_stability is not None:
+            checks.append(("temporal_stability", metrics.temporal_stability))
+        
+        if metrics.downstream_accuracy is not None:
+            checks.append(("downstream_accuracy", metrics.downstream_accuracy))
+        
+        for metric_name, value in checks:
+            if metric_name not in self.quality_thresholds:
+                continue
+            
+            min_thresh, max_thresh = self.quality_thresholds[metric_name]
+            
+            if min_thresh is not None and value < min_thresh:
+                anomalies.append(f"{metric_name} below threshold: {value:.3f} < {min_thresh}")
+            
+            if max_thresh is not None and value > max_thresh:
+                anomalies.append(f"{metric_name} above threshold: {value:.3f} > {max_thresh}")
+        
+        # Davies-Bouldin score: lower is better, so invert the check
+        db_min, db_max = self.quality_thresholds.get("davies_bouldin_score", (None, 2.0))
+        if db_max is not None and metrics.davies_bouldin_score > db_max:
+            anomalies.append(f"davies_bouldin_score too high: {metrics.davies_bouldin_score:.3f} > {db_max}")
+        
+        # Check for significant drops from baseline
+        if self.baseline_metrics is not None:
+            if metrics.downstream_accuracy is not None and self.baseline_metrics.downstream_accuracy is not None:
+                drop = self.baseline_metrics.downstream_accuracy - metrics.downstream_accuracy
+                if drop > 0.05:  # >5% drop
+                    anomalies.append(f"downstream_accuracy dropped {drop*100:.1f}% from baseline")
+            
+            if metrics.temporal_stability is not None and metrics.temporal_stability < 0.90:
+                anomalies.append(f"temporal_stability low: {metrics.temporal_stability:.3f} < 0.90")
+        
+        return anomalies
+    
+    def _compute_quality_score(self, metrics: QualityMetrics) -> float:
+        """
+        Compute overall quality score (0-100)
+        
+        Weighted combination of normalized metrics
+        """
+        scores = []
+        weights = []
+        
+        # Intrinsic metrics (40% weight)
+        if metrics.silhouette_score >= 0:
+            scores.append(metrics.silhouette_score * 100)  # Already 0-1
+            weights.append(0.15)
+        
+        if metrics.intra_cluster_similarity > metrics.inter_cluster_similarity:
+            cluster_separation = (metrics.intra_cluster_similarity - metrics.inter_cluster_similarity)
+            scores.append(cluster_separation * 100)
+            weights.append(0.15)
+        
+        # Dimension utilization (20% weight)
+        if metrics.effective_dimensions > 0:
+            dim_score = min(100, (metrics.effective_dimensions / 100) * 100)  # Cap at 100 dims
+            scores.append(dim_score)
+            weights.append(0.20)
+        
+        # Stability (20% weight)
+        if metrics.temporal_stability is not None:
+            scores.append(metrics.temporal_stability * 100)
+            weights.append(0.20)
+        
+        # Downstream performance (20% weight)
+        if metrics.downstream_accuracy is not None:
+            scores.append(metrics.downstream_accuracy * 100)
+            weights.append(0.20)
+        
+        # If no weights added, return 50 (neutral)
+        if not weights:
+            return 50.0
+        
+        # Normalize weights
+        total_weight = sum(weights)
+        normalized_weights = [w / total_weight for w in weights]
+        
+        # Compute weighted average
+        quality_score = sum(s * w for s, w in zip(scores, normalized_weights))
+        
+        # Penalize anomalies
+        if metrics.anomalies:
+            quality_score *= (1 - 0.1 * len(metrics.anomalies))  # -10% per anomaly
+        
+        return max(0.0, min(100.0, quality_score))
+    
+    def generate_quality_report(self, metrics: QualityMetrics) -> str:
+        """Generate human-readable quality report"""
+        report = f"""
+Embedding Quality Report
+========================
+Timestamp: {metrics.timestamp.isoformat()}
+Model Version: {metrics.model_version}
+Overall Quality Score: {metrics.quality_score:.1f}/100
+
+Intrinsic Metrics:
+------------------
+Intra-cluster similarity: {metrics.intra_cluster_similarity:.3f}
+Inter-cluster similarity: {metrics.inter_cluster_similarity:.3f}
+Silhouette score: {metrics.silhouette_score:.3f}
+Davies-Bouldin score: {metrics.davies_bouldin_score:.3f}
+Calinski-Harabasz score: {metrics.calinski_harabasz_score:.1f}
+
+Dimension Utilization:
+---------------------
+Effective dimensions: {metrics.effective_dimensions}
+Dimension entropy: {metrics.dimension_entropy:.3f}
+
+Similarity Distribution:
+-----------------------
+Mean: {metrics.similarity_distribution['mean']:.3f}
+Std: {metrics.similarity_distribution['std']:.3f}
+Range: [{metrics.similarity_distribution['min']:.3f}, {metrics.similarity_distribution['max']:.3f}]
+Percentiles: Q25={metrics.similarity_distribution['q25']:.3f}, Q50={metrics.similarity_distribution['q50']:.3f}, Q75={metrics.similarity_distribution['q75']:.3f}
+"""
+        
+        if metrics.temporal_stability is not None:
+            report += f"\nTemporal Stability: {metrics.temporal_stability:.3f}"
+        
+        if metrics.cross_version_stability:
+            report += "\n\nCross-Version Stability:"
+            for version, stability in metrics.cross_version_stability.items():
+                report += f"\n  vs {version}: {stability:.3f}"
+        
+        if metrics.downstream_accuracy is not None:
+            report += f"\n\nDownstream Accuracy: {metrics.downstream_accuracy:.3f}"
+        
+        if metrics.proxy_metrics:
+            report += "\n\nProxy Metrics:"
+            for metric, value in metrics.proxy_metrics.items():
+                report += f"\n  {metric}: {value:.3f}"
+        
+        if metrics.anomalies:
+            report += "\n\n⚠️ ANOMALIES DETECTED:"
+            for anomaly in metrics.anomalies:
+                report += f"\n  - {anomaly}"
+        else:
+            report += "\n\n✓ No anomalies detected"
+        
+        return report
+    
+    def plot_quality_trends(self, metrics_list: Optional[List[QualityMetrics]] = None):
+        """
+        Plot quality metrics over time
+        
+        Args:
+            metrics_list: List of metrics to plot (defaults to history)
+        """
+        import matplotlib.pyplot as plt
+        
+        if metrics_list is None:
+            metrics_list = self.metrics_history
+        
+        if not metrics_list:
+            print("No metrics history available")
+            return
+        
+        timestamps = [m.timestamp for m in metrics_list]
+        
+        fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+        
+        # Plot 1: Overall quality score
+        quality_scores = [m.quality_score for m in metrics_list]
+        axes[0, 0].plot(timestamps, quality_scores, marker='o')
+        axes[0, 0].set_title("Overall Quality Score")
+        axes[0, 0].set_ylabel("Score (0-100)")
+        axes[0, 0].grid(True, alpha=0.3)
+        axes[0, 0].axhline(y=70, color='r', linestyle='--', alpha=0.5, label='Threshold')
+        axes[0, 0].legend()
+        
+        # Plot 2: Clustering metrics
+        silhouette_scores = [m.silhouette_score for m in metrics_list]
+        intra_sims = [m.intra_cluster_similarity for m in metrics_list]
+        inter_sims = [m.inter_cluster_similarity for m in metrics_list]
+        axes[0, 1].plot(timestamps, silhouette_scores, marker='o', label='Silhouette')
+        axes[0, 1].plot(timestamps, intra_sims, marker='s', label='Intra-cluster sim', alpha=0.7)
+        axes[0, 1].plot(timestamps, inter_sims, marker='^', label='Inter-cluster sim', alpha=0.7)
+        axes[0, 1].set_title("Clustering Metrics")
+        axes[0, 1].set_ylabel("Score")
+        axes[0, 1].legend()
+        axes[0, 1].grid(True, alpha=0.3)
+        
+        # Plot 3: Stability metrics
+        temporal_stabilities = [m.temporal_stability for m in metrics_list if m.temporal_stability is not None]
+        temporal_timestamps = [m.timestamp for m in metrics_list if m.temporal_stability is not None]
+        if temporal_stabilities:
+            axes[1, 0].plot(temporal_timestamps, temporal_stabilities, marker='o', color='purple')
+            axes[1, 0].set_title("Temporal Stability")
+            axes[1, 0].set_ylabel("Correlation")
+            axes[1, 0].axhline(y=0.90, color='r', linestyle='--', alpha=0.5, label='Threshold')
+            axes[1, 0].legend()
+            axes[1, 0].grid(True, alpha=0.3)
+        
+        # Plot 4: Downstream accuracy
+        downstream_accs = [m.downstream_accuracy for m in metrics_list if m.downstream_accuracy is not None]
+        downstream_timestamps = [m.timestamp for m in metrics_list if m.downstream_accuracy is not None]
+        if downstream_accs:
+            axes[1, 1].plot(downstream_timestamps, downstream_accs, marker='o', color='green')
+            axes[1, 1].set_title("Downstream Accuracy")
+            axes[1, 1].set_ylabel("Accuracy")
+            axes[1, 1].axhline(y=0.85, color='r', linestyle='--', alpha=0.5, label='Threshold')
+            axes[1, 1].legend()
+            axes[1, 1].grid(True, alpha=0.3)
+        
+        plt.tight_layout()
+        plt.show()
+
+
+# Example usage
+if __name__ == "__main__":
+    # Generate synthetic embedding batches
+    np.random.seed(42)
+    
+    # Reference embeddings (baseline)
+    n_samples = 5000
+    n_dims = 768
+    n_classes = 10
+    
+    reference_embeddings_data = []
+    reference_labels = []
+    for i in range(n_classes):
+        class_center = np.random.randn(n_dims) * 2
+        class_samples = class_center + np.random.randn(n_samples // n_classes, n_dims) * 0.5
+        reference_embeddings_data.append(class_samples)
+        reference_labels.extend([i] * (n_samples // n_classes))
+    
+    reference_embeddings_data = np.vstack(reference_embeddings_data)
+    reference_labels = np.array(reference_labels)
+    
+    reference_batch = EmbeddingBatch(
+        embeddings=reference_embeddings_data,
+        ids=[f"ref_{i}" for i in range(len(reference_embeddings_data))],
+        labels=reference_labels,
+        model_version="v1.0"
+    )
+    
+    # Initialize monitor
+    monitor = EmbeddingQualityMonitor(
+        reference_embeddings=reference_batch,
+        alert_callback=lambda m: print(f"⚠️ Alert: {len(m.anomalies)} anomalies detected!")
+    )
+    
+    # Simulate monitoring over time with gradual quality degradation
+    for day in range(10):
+        # Generate embeddings with increasing noise (simulating drift)
+        noise_level = 0.5 + day * 0.1  # Increasing noise
+        
+        current_embeddings_data = []
+        current_labels = []
+        for i in range(n_classes):
+            class_center = np.random.randn(n_dims) * 2
+            class_samples = class_center + np.random.randn(n_samples // n_classes, n_dims) * noise_level
+            current_embeddings_data.append(class_samples)
+            current_labels.extend([i] * (n_samples // n_classes))
+        
+        current_embeddings_data = np.vstack(current_embeddings_data)
+        current_labels = np.array(current_labels)
+        
+        current_batch = EmbeddingBatch(
+            embeddings=current_embeddings_data,
+            ids=[f"day{day}_{i}" for i in range(len(current_embeddings_data))],
+            labels=current_labels,
+            model_version=f"v1.{day}",
+            timestamp=datetime.now() + timedelta(days=day)
+        )
+        
+        # Compute quality metrics
+        print(f"\n{'='*60}")
+        print(f"Day {day}: Computing quality metrics")
+        print(f"{'='*60}")
+        
+        metrics = monitor.compute_quality_metrics(current_batch)
+        print(monitor.generate_quality_report(metrics))
+    
+    # Plot quality trends
+    print("\nGenerating quality trends plot...")
+    monitor.plot_quality_trends()
+```
+
+:::{.callout-tip}
+## Embedding Quality Monitoring Best Practices
+
+**Comprehensive metric coverage**:
+- Track intrinsic metrics (clustering quality, dimension utilization) that detect structural problems even without labeled data
+- Monitor extrinsic metrics (downstream task performance) that measure real-world utility
+- Correlate with business metrics (CTR, conversion) to quantify business impact
+- Use multiple metrics to avoid optimization to a single flawed objective
+
+**Baseline establishment**:
+- Establish quality baselines during initial deployment when system is known-good
+- Track metrics across model versions to detect regression
+- Compare against random embeddings and previous model versions
+- Define acceptable quality ranges based on business requirements
+
+**Automated anomaly detection**:
+- Set thresholds for each quality metric based on baseline statistics
+- Alert when metrics fall outside acceptable ranges
+- Implement gradual degradation detection (trend analysis)
+- Use statistical tests (Kolmogorov-Smirnov, Mann-Whitney) for distribution shifts
+
+**Sampling strategies**:
+- Sample representatively across data distribution (stratified sampling)
+- Over-sample rare but important segments (tail embeddings)
+- Compute expensive metrics on samples, cheap metrics on full data
+- Refresh samples periodically to detect seasonal effects
+:::
 
 ## Performance Monitoring Dashboards
 
-[Content to be written: Details about performance monitoring dashboards]
+Real-time performance visibility—query latency distributions, throughput rates, error patterns, resource utilization—enables rapid issue detection and performance optimization. Traditional application monitoring (Prometheus, Datadog, New Relic) provides infrastructure metrics but lacks embedding-specific visibility: per-index performance, query pattern analysis, similarity score distributions, cache hit rates. **Performance monitoring dashboards** visualize embedding system health through layered metrics (infrastructure: CPU/memory/disk; application: QPS/latency/errors; embedding-specific: index performance/query patterns/drift signals) with drill-down capabilities that enable root cause analysis, automated alerting that escalates issues before user impact, and integration with tracing systems (OpenTelemetry, Jaeger) for end-to-end visibility.
+
+### The Performance Visibility Challenge
+
+Production embedding systems require multi-dimensional monitoring:
+
+- **Query performance**: p50/p90/p99/p999 latency, timeout rates, retry patterns
+- **Throughput**: Queries per second (QPS), batch sizes, concurrent queries
+- **Error rates**: Failed queries, partial results, timeout errors by type
+- **Resource utilization**: CPU, memory, GPU, disk I/O, network bandwidth
+- **Index health**: Build times, memory usage, query accuracy, fragmentation
+- **Cache performance**: Hit rates, eviction rates, memory usage, staleness
+- **Data pipeline**: Ingestion lag, embedding generation rate, index update latency
+- **Cost tracking**: Per-query costs, resource costs, storage costs by component
+
+**Monitoring approach**: Multi-tier instrumentation—application metrics (counters, gauges, histograms), distributed tracing (request flows), structured logging (query details, errors), and synthetic monitoring (health checks, canary queries)—aggregated in real-time dashboards with drill-down, alerting, and automated remediation capabilities.
+
+```python
+"""
+Comprehensive Performance Monitoring for Embedding Systems
+
+Architecture:
+1. Metric collection: Instrument all critical paths with metrics
+2. Aggregation: Time-series database (Prometheus) for metrics storage
+3. Visualization: Real-time dashboards (Grafana) for monitoring
+4. Alerting: Rule-based alerts on metric thresholds and anomalies
+5. Tracing: Distributed tracing for request flow analysis
+
+Metrics categories:
+- Query metrics: Latency, throughput, error rates, timeout rates
+- Index metrics: Build time, memory usage, query accuracy, fragmentation
+- Cache metrics: Hit rates, eviction rates, size, staleness
+- Resource metrics: CPU, memory, GPU, disk I/O, network
+- Business metrics: Cost per query, user satisfaction, downstream impact
+
+Dashboard goals:
+- Real-time system health overview
+- Quick identification of performance bottlenecks
+- Trend analysis for capacity planning
+- Drill-down for root cause analysis
+"""
+
+import time
+import numpy as np
+from typing import Dict, List, Optional, Any, Callable
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from collections import defaultdict, deque
+import json
+import threading
+from enum import Enum
+
+class MetricType(Enum):
+    """Types of metrics to track"""
+    COUNTER = "counter"        # Monotonically increasing (total queries)
+    GAUGE = "gauge"           # Point-in-time value (current QPS, memory usage)
+    HISTOGRAM = "histogram"   # Distribution of values (latency percentiles)
+    SUMMARY = "summary"       # Similar to histogram but client-side aggregation
+
+@dataclass
+class MetricValue:
+    """Single metric observation"""
+    name: str
+    value: float
+    timestamp: datetime
+    labels: Dict[str, str] = field(default_factory=dict)
+    metric_type: MetricType = MetricType.GAUGE
+
+@dataclass
+class PerformanceSnapshot:
+    """
+    Point-in-time performance snapshot
+    
+    Captures all key metrics for dashboard display
+    """
+    timestamp: datetime
+    
+    # Query metrics
+    queries_per_second: float
+    avg_latency_ms: float
+    p50_latency_ms: float
+    p90_latency_ms: float
+    p99_latency_ms: float
+    p999_latency_ms: float
+    timeout_rate: float
+    error_rate: float
+    
+    # Index metrics
+    index_memory_gb: float
+    index_query_accuracy: float
+    candidates_scanned_avg: int
+    
+    # Cache metrics
+    cache_hit_rate: float
+    cache_memory_gb: float
+    cache_eviction_rate: float
+    
+    # Resource metrics
+    cpu_utilization: float
+    memory_utilization: float
+    gpu_utilization: float
+    disk_iops: float
+    network_mbps: float
+    
+    # Cost metrics
+    cost_per_query_usd: float
+    total_cost_hourly_usd: float
+    
+    # Quality metrics
+    quality_score: float
+    drift_score: float
+
+class PerformanceMonitor:
+    """
+    Real-time performance monitoring system
+    
+    Collects, aggregates, and exposes metrics for dashboards and alerting.
+    """
+    
+    def __init__(
+        self,
+        window_size_seconds: int = 300,  # 5 minute window
+        retention_hours: int = 24
+    ):
+        """
+        Initialize performance monitor
+        
+        Args:
+            window_size_seconds: Time window for aggregations
+            retention_hours: How long to retain detailed metrics
+        """
+        self.window_size = timedelta(seconds=window_size_seconds)
+        self.retention = timedelta(hours=retention_hours)
+        
+        # Thread-safe metric storage
+        self.lock = threading.Lock()
+        
+        # Recent metric values for aggregation
+        self.metrics: Dict[str, deque] = defaultdict(lambda: deque(maxlen=10000))
+        
+        # Aggregated snapshots
+        self.snapshots: deque = deque(maxlen=retention_hours * 12)  # 5-min snapshots
+        
+        # Alert callbacks
+        self.alert_callbacks: List[Callable] = []
+        
+        # Start background aggregation
+        self.running = True
+        self.aggregation_thread = threading.Thread(target=self._aggregation_loop, daemon=True)
+        self.aggregation_thread.start()
+    
+    def record_metric(
+        self,
+        name: str,
+        value: float,
+        labels: Optional[Dict[str, str]] = None,
+        metric_type: MetricType = MetricType.GAUGE
+    ):
+        """Record a metric observation"""
+        metric = MetricValue(
+            name=name,
+            value=value,
+            timestamp=datetime.now(),
+            labels=labels or {},
+            metric_type=metric_type
+        )
+        
+        with self.lock:
+            self.metrics[name].append(metric)
+            
+            # Prune old metrics
+            cutoff = datetime.now() - self.retention
+            while self.metrics[name] and self.metrics[name][0].timestamp < cutoff:
+                self.metrics[name].popleft()
+    
+    def record_query(
+        self,
+        latency_ms: float,
+        success: bool,
+        timed_out: bool,
+        cache_hit: bool,
+        candidates_scanned: int,
+        index_name: str = "default"
+    ):
+        """Convenience method to record query metrics"""
+        self.record_metric("query_latency_ms", latency_ms, 
+                          labels={"index": index_name}, metric_type=MetricType.HISTOGRAM)
+        self.record_metric("query_count", 1, 
+                          labels={"index": index_name, "success": str(success)}, 
+                          metric_type=MetricType.COUNTER)
+        
+        if timed_out:
+            self.record_metric("query_timeout", 1, 
+                              labels={"index": index_name}, metric_type=MetricType.COUNTER)
+        
+        if not success:
+            self.record_metric("query_error", 1, 
+                              labels={"index": index_name}, metric_type=MetricType.COUNTER)
+        
+        if cache_hit:
+            self.record_metric("cache_hit", 1, metric_type=MetricType.COUNTER)
+        else:
+            self.record_metric("cache_miss", 1, metric_type=MetricType.COUNTER)
+        
+        self.record_metric("candidates_scanned", candidates_scanned, 
+                          labels={"index": index_name}, metric_type=MetricType.HISTOGRAM)
+    
+    def record_resource_usage(
+        self,
+        cpu_percent: float,
+        memory_gb: float,
+        gpu_percent: Optional[float] = None,
+        disk_iops: Optional[float] = None,
+        network_mbps: Optional[float] = None
+    ):
+        """Record resource utilization metrics"""
+        self.record_metric("cpu_utilization", cpu_percent, metric_type=MetricType.GAUGE)
+        self.record_metric("memory_gb", memory_gb, metric_type=MetricType.GAUGE)
+        
+        if gpu_percent is not None:
+            self.record_metric("gpu_utilization", gpu_percent, metric_type=MetricType.GAUGE)
+        if disk_iops is not None:
+            self.record_metric("disk_iops", disk_iops, metric_type=MetricType.GAUGE)
+        if network_mbps is not None:
+            self.record_metric("network_mbps", network_mbps, metric_type=MetricType.GAUGE)
+    
+    def get_current_snapshot(self) -> PerformanceSnapshot:
+        """Get current performance snapshot for dashboard"""
+        now = datetime.now()
+        window_start = now - self.window_size
+        
+        with self.lock:
+            # Query metrics
+            latencies = [m.value for m in self.metrics.get("query_latency_ms", []) 
+                        if m.timestamp >= window_start]
+            query_counts = [m for m in self.metrics.get("query_count", []) 
+                           if m.timestamp >= window_start]
+            
+            # Calculate QPS
+            if query_counts:
+                total_queries = sum(m.value for m in query_counts)
+                time_span = (now - query_counts[0].timestamp).total_seconds()
+                qps = total_queries / max(time_span, 1)
+            else:
+                qps = 0.0
+            
+            # Latency percentiles
+            if latencies:
+                avg_latency = np.mean(latencies)
+                p50 = np.percentile(latencies, 50)
+                p90 = np.percentile(latencies, 90)
+                p99 = np.percentile(latencies, 99)
+                p999 = np.percentile(latencies, 99.9) if len(latencies) > 1000 else p99
+            else:
+                avg_latency = p50 = p90 = p99 = p999 = 0.0
+            
+            # Error and timeout rates
+            error_counts = sum(m.value for m in self.metrics.get("query_error", []) 
+                              if m.timestamp >= window_start)
+            timeout_counts = sum(m.value for m in self.metrics.get("query_timeout", []) 
+                                if m.timestamp >= window_start)
+            total_queries = sum(m.value for m in query_counts)
+            
+            error_rate = error_counts / max(total_queries, 1)
+            timeout_rate = timeout_counts / max(total_queries, 1)
+            
+            # Cache metrics
+            cache_hits = sum(m.value for m in self.metrics.get("cache_hit", []) 
+                            if m.timestamp >= window_start)
+            cache_misses = sum(m.value for m in self.metrics.get("cache_miss", []) 
+                              if m.timestamp >= window_start)
+            cache_hit_rate = cache_hits / max(cache_hits + cache_misses, 1)
+            
+            # Get latest gauge values
+            def get_latest_gauge(name: str, default: float = 0.0) -> float:
+                values = [m.value for m in self.metrics.get(name, []) 
+                         if m.timestamp >= window_start]
+                return values[-1] if values else default
+            
+            snapshot = PerformanceSnapshot(
+                timestamp=now,
+                queries_per_second=qps,
+                avg_latency_ms=avg_latency,
+                p50_latency_ms=p50,
+                p90_latency_ms=p90,
+                p99_latency_ms=p99,
+                p999_latency_ms=p999,
+                timeout_rate=timeout_rate,
+                error_rate=error_rate,
+                index_memory_gb=get_latest_gauge("index_memory_gb"),
+                index_query_accuracy=get_latest_gauge("index_query_accuracy", 0.95),
+                candidates_scanned_avg=int(np.mean([m.value for m in self.metrics.get("candidates_scanned", []) 
+                                                     if m.timestamp >= window_start]) or 0),
+                cache_hit_rate=cache_hit_rate,
+                cache_memory_gb=get_latest_gauge("cache_memory_gb"),
+                cache_eviction_rate=get_latest_gauge("cache_eviction_rate"),
+                cpu_utilization=get_latest_gauge("cpu_utilization"),
+                memory_utilization=get_latest_gauge("memory_gb"),
+                gpu_utilization=get_latest_gauge("gpu_utilization"),
+                disk_iops=get_latest_gauge("disk_iops"),
+                network_mbps=get_latest_gauge("network_mbps"),
+                cost_per_query_usd=get_latest_gauge("cost_per_query_usd"),
+                total_cost_hourly_usd=get_latest_gauge("total_cost_hourly_usd"),
+                quality_score=get_latest_gauge("quality_score", 85.0),
+                drift_score=get_latest_gauge("drift_score")
+            )
+        
+        return snapshot
+    
+    def _aggregation_loop(self):
+        """Background thread for periodic snapshot aggregation"""
+        while self.running:
+            try:
+                snapshot = self.get_current_snapshot()
+                
+                with self.lock:
+                    self.snapshots.append(snapshot)
+                
+                # Check alerts
+                self._check_alerts(snapshot)
+                
+            except Exception as e:
+                print(f"Error in aggregation loop: {e}")
+            
+            time.sleep(60)  # Aggregate every minute
+    
+    def _check_alerts(self, snapshot: PerformanceSnapshot):
+        """Check if any alert conditions are met"""
+        alerts = []
+        
+        # High latency alerts
+        if snapshot.p99_latency_ms > 100:
+            alerts.append(f"High p99 latency: {snapshot.p99_latency_ms:.1f}ms > 100ms")
+        
+        # High error rate
+        if snapshot.error_rate > 0.01:  # >1%
+            alerts.append(f"High error rate: {snapshot.error_rate*100:.2f}% > 1%")
+        
+        # High timeout rate
+        if snapshot.timeout_rate > 0.005:  # >0.5%
+            alerts.append(f"High timeout rate: {snapshot.timeout_rate*100:.2f}% > 0.5%")
+        
+        # Low cache hit rate
+        if snapshot.cache_hit_rate < 0.5:  # <50%
+            alerts.append(f"Low cache hit rate: {snapshot.cache_hit_rate*100:.1f}% < 50%")
+        
+        # High resource utilization
+        if snapshot.cpu_utilization > 90:
+            alerts.append(f"High CPU utilization: {snapshot.cpu_utilization:.1f}% > 90%")
+        
+        if snapshot.memory_utilization > 32:  # >32GB
+            alerts.append(f"High memory usage: {snapshot.memory_utilization:.1f}GB > 32GB")
+        
+        # Low quality score
+        if snapshot.quality_score < 70:
+            alerts.append(f"Low quality score: {snapshot.quality_score:.1f} < 70")
+        
+        # High drift score
+        if snapshot.drift_score > 0.3:
+            alerts.append(f"High drift score: {snapshot.drift_score:.3f} > 0.3")
+        
+        # Trigger alert callbacks
+        if alerts:
+            for callback in self.alert_callbacks:
+                try:
+                    callback(snapshot, alerts)
+                except Exception as e:
+                    print(f"Error in alert callback: {e}")
+    
+    def register_alert_callback(self, callback: Callable):
+        """Register callback for alerts"""
+        self.alert_callbacks.append(callback)
+    
+    def get_dashboard_data(self, hours: int = 1) -> Dict[str, Any]:
+        """Get data for dashboard display"""
+        cutoff = datetime.now() - timedelta(hours=hours)
+        
+        with self.lock:
+            recent_snapshots = [s for s in self.snapshots if s.timestamp >= cutoff]
+        
+        if not recent_snapshots:
+            return {"error": "No data available"}
+        
+        return {
+            "current": self._snapshot_to_dict(recent_snapshots[-1]),
+            "history": {
+                "timestamps": [s.timestamp.isoformat() for s in recent_snapshots],
+                "qps": [s.queries_per_second for s in recent_snapshots],
+                "p50_latency": [s.p50_latency_ms for s in recent_snapshots],
+                "p99_latency": [s.p99_latency_ms for s in recent_snapshots],
+                "error_rate": [s.error_rate * 100 for s in recent_snapshots],
+                "cache_hit_rate": [s.cache_hit_rate * 100 for s in recent_snapshots],
+                "cpu_utilization": [s.cpu_utilization for s in recent_snapshots],
+                "quality_score": [s.quality_score for s in recent_snapshots],
+                "drift_score": [s.drift_score for s in recent_snapshots]
+            },
+            "summary": {
+                "avg_qps": np.mean([s.queries_per_second for s in recent_snapshots]),
+                "avg_latency": np.mean([s.avg_latency_ms for s in recent_snapshots]),
+                "max_latency": max([s.p99_latency_ms for s in recent_snapshots]),
+                "avg_error_rate": np.mean([s.error_rate for s in recent_snapshots]),
+                "avg_cache_hit_rate": np.mean([s.cache_hit_rate for s in recent_snapshots]),
+                "total_cost": sum([s.total_cost_hourly_usd for s in recent_snapshots]) * (hours / len(recent_snapshots))
+            }
+        }
+    
+    def _snapshot_to_dict(self, snapshot: PerformanceSnapshot) -> Dict[str, Any]:
+        """Convert snapshot to dictionary"""
+        return {
+            "timestamp": snapshot.timestamp.isoformat(),
+            "qps": snapshot.queries_per_second,
+            "latency": {
+                "avg": snapshot.avg_latency_ms,
+                "p50": snapshot.p50_latency_ms,
+                "p90": snapshot.p90_latency_ms,
+                "p99": snapshot.p99_latency_ms,
+                "p999": snapshot.p999_latency_ms
+            },
+            "errors": {
+                "error_rate": snapshot.error_rate,
+                "timeout_rate": snapshot.timeout_rate
+            },
+            "cache": {
+                "hit_rate": snapshot.cache_hit_rate,
+                "memory_gb": snapshot.cache_memory_gb,
+                "eviction_rate": snapshot.cache_eviction_rate
+            },
+            "resources": {
+                "cpu": snapshot.cpu_utilization,
+                "memory_gb": snapshot.memory_utilization,
+                "gpu": snapshot.gpu_utilization,
+                "disk_iops": snapshot.disk_iops,
+                "network_mbps": snapshot.network_mbps
+            },
+            "costs": {
+                "per_query_usd": snapshot.cost_per_query_usd,
+                "hourly_usd": snapshot.total_cost_hourly_usd
+            },
+            "quality": {
+                "score": snapshot.quality_score,
+                "drift": snapshot.drift_score
+            }
+        }
+    
+    def generate_dashboard_html(self, hours: int = 1) -> str:
+        """Generate simple HTML dashboard"""
+        data = self.get_dashboard_data(hours)
+        
+        if "error" in data:
+            return f"<html><body><h1>Error: {data['error']}</h1></body></html>"
+        
+        current = data["current"]
+        summary = data["summary"]
+        
+        html = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Embedding System Dashboard</title>
+    <style>
+        body {{ font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }}
+        .container {{ max-width: 1400px; margin: 0 auto; }}
+        .header {{ background: #2c3e50; color: white; padding: 20px; border-radius: 5px; margin-bottom: 20px; }}
+        .metrics-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-bottom: 20px; }}
+        .metric-card {{ background: white; padding: 20px; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
+        .metric-label {{ color: #7f8c8d; font-size: 14px; margin-bottom: 5px; }}
+        .metric-value {{ font-size: 32px; font-weight: bold; color: #2c3e50; }}
+        .metric-unit {{ font-size: 16px; color: #95a5a6; }}
+        .good {{ color: #27ae60; }}
+        .warning {{ color: #f39c12; }}
+        .bad {{ color: #e74c3c; }}
+        .section {{ background: white; padding: 20px; border-radius: 5px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
+        .section-title {{ font-size: 20px; font-weight: bold; margin-bottom: 15px; color: #2c3e50; }}
+        table {{ width: 100%; border-collapse: collapse; }}
+        th, td {{ padding: 10px; text-align: left; border-bottom: 1px solid #ecf0f1; }}
+        th {{ background: #ecf0f1; font-weight: bold; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Embedding System Performance Dashboard</h1>
+            <p>Last updated: {current['timestamp']}</p>
+        </div>
+        
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-label">Queries Per Second</div>
+                <div class="metric-value {'good' if current['qps'] > 100 else 'warning' if current['qps'] > 10 else 'bad'}">
+                    {current['qps']:.1f} <span class="metric-unit">QPS</span>
+                </div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-label">P99 Latency</div>
+                <div class="metric-value {'good' if current['latency']['p99'] < 50 else 'warning' if current['latency']['p99'] < 100 else 'bad'}">
+                    {current['latency']['p99']:.1f} <span class="metric-unit">ms</span>
+                </div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-label">Error Rate</div>
+                <div class="metric-value {'good' if current['errors']['error_rate'] < 0.01 else 'warning' if current['errors']['error_rate'] < 0.05 else 'bad'}">
+                    {current['errors']['error_rate']*100:.2f} <span class="metric-unit">%</span>
+                </div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-label">Cache Hit Rate</div>
+                <div class="metric-value {'good' if current['cache']['hit_rate'] > 0.7 else 'warning' if current['cache']['hit_rate'] > 0.5 else 'bad'}">
+                    {current['cache']['hit_rate']*100:.1f} <span class="metric-unit">%</span>
+                </div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-label">Quality Score</div>
+                <div class="metric-value {'good' if current['quality']['score'] > 80 else 'warning' if current['quality']['score'] > 70 else 'bad'}">
+                    {current['quality']['score']:.1f} <span class="metric-unit">/100</span>
+                </div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-label">Hourly Cost</div>
+                <div class="metric-value">
+                    ${current['costs']['hourly_usd']:.2f} <span class="metric-unit">USD/hr</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <div class="section-title">Latency Distribution</div>
+            <table>
+                <tr>
+                    <th>Percentile</th>
+                    <th>Latency (ms)</th>
+                    <th>Status</th>
+                </tr>
+                <tr>
+                    <td>P50</td>
+                    <td>{current['latency']['p50']:.1f}</td>
+                    <td class="{'good' if current['latency']['p50'] < 20 else 'warning' if current['latency']['p50'] < 50 else 'bad'}">
+                        {'✓ Good' if current['latency']['p50'] < 20 else '⚠ OK' if current['latency']['p50'] < 50 else '✗ Slow'}
+                    </td>
+                </tr>
+                <tr>
+                    <td>P90</td>
+                    <td>{current['latency']['p90']:.1f}</td>
+                    <td class="{'good' if current['latency']['p90'] < 50 else 'warning' if current['latency']['p90'] < 100 else 'bad'}">
+                        {'✓ Good' if current['latency']['p90'] < 50 else '⚠ OK' if current['latency']['p90'] < 100 else '✗ Slow'}
+                    </td>
+                </tr>
+                <tr>
+                    <td>P99</td>
+                    <td>{current['latency']['p99']:.1f}</td>
+                    <td class="{'good' if current['latency']['p99'] < 100 else 'warning' if current['latency']['p99'] < 200 else 'bad'}">
+                        {'✓ Good' if current['latency']['p99'] < 100 else '⚠ OK' if current['latency']['p99'] < 200 else '✗ Slow'}
+                    </td>
+                </tr>
+                <tr>
+                    <td>P99.9</td>
+                    <td>{current['latency']['p999']:.1f}</td>
+                    <td class="{'good' if current['latency']['p999'] < 200 else 'warning' if current['latency']['p999'] < 500 else 'bad'}">
+                        {'✓ Good' if current['latency']['p999'] < 200 else '⚠ OK' if current['latency']['p999'] < 500 else '✗ Slow'}
+                    </td>
+                </tr>
+            </table>
+        </div>
+        
+        <div class="section">
+            <div class="section-title">Resource Utilization</div>
+            <table>
+                <tr>
+                    <th>Resource</th>
+                    <th>Current</th>
+                    <th>Status</th>
+                </tr>
+                <tr>
+                    <td>CPU</td>
+                    <td>{current['resources']['cpu']:.1f}%</td>
+                    <td class="{'good' if current['resources']['cpu'] < 70 else 'warning' if current['resources']['cpu'] < 90 else 'bad'}">
+                        {'✓ Normal' if current['resources']['cpu'] < 70 else '⚠ High' if current['resources']['cpu'] < 90 else '✗ Critical'}
+                    </td>
+                </tr>
+                <tr>
+                    <td>Memory</td>
+                    <td>{current['resources']['memory_gb']:.1f} GB</td>
+                    <td class="{'good' if current['resources']['memory_gb'] < 24 else 'warning' if current['resources']['memory_gb'] < 32 else 'bad'}">
+                        {'✓ Normal' if current['resources']['memory_gb'] < 24 else '⚠ High' if current['resources']['memory_gb'] < 32 else '✗ Critical'}
+                    </td>
+                </tr>
+                <tr>
+                    <td>GPU</td>
+                    <td>{current['resources']['gpu']:.1f}%</td>
+                    <td class="{'good' if current['resources']['gpu'] < 80 else 'warning' if current['resources']['gpu'] < 95 else 'bad'}">
+                        {'✓ Normal' if current['resources']['gpu'] < 80 else '⚠ High' if current['resources']['gpu'] < 95 else '✗ Critical'}
+                    </td>
+                </tr>
+            </table>
+        </div>
+        
+        <div class="section">
+            <div class="section-title">Summary (Last {hours} hour{'s' if hours != 1 else ''})</div>
+            <table>
+                <tr>
+                    <th>Metric</th>
+                    <th>Value</th>
+                </tr>
+                <tr>
+                    <td>Average QPS</td>
+                    <td>{summary['avg_qps']:.1f}</td>
+                </tr>
+                <tr>
+                    <td>Average Latency</td>
+                    <td>{summary['avg_latency']:.1f} ms</td>
+                </tr>
+                <tr>
+                    <td>Max P99 Latency</td>
+                    <td>{summary['max_latency']:.1f} ms</td>
+                </tr>
+                <tr>
+                    <td>Average Error Rate</td>
+                    <td>{summary['avg_error_rate']*100:.2f}%</td>
+                </tr>
+                <tr>
+                    <td>Average Cache Hit Rate</td>
+                    <td>{summary['avg_cache_hit_rate']*100:.1f}%</td>
+                </tr>
+                <tr>
+                    <td>Total Cost</td>
+                    <td>${summary['total_cost']:.2f}</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+</body>
+</html>
+"""
+        return html
+    
+    def shutdown(self):
+        """Shutdown monitoring"""
+        self.running = False
+        if self.aggregation_thread.is_alive():
+            self.aggregation_thread.join(timeout=5)
+
+
+# Example usage
+if __name__ == "__main__":
+    import random
+    
+    # Initialize monitor
+    monitor = PerformanceMonitor()
+    
+    # Register alert callback
+    def alert_handler(snapshot: PerformanceSnapshot, alerts: List[str]):
+        print(f"\n🚨 ALERT at {snapshot.timestamp.isoformat()}:")
+        for alert in alerts:
+            print(f"  - {alert}")
+    
+    monitor.register_alert_callback(alert_handler)
+    
+    # Simulate queries
+    print("Simulating query traffic...")
+    for i in range(1000):
+        # Simulate varying query patterns
+        success = random.random() > 0.02  # 2% error rate
+        timed_out = random.random() < 0.005  # 0.5% timeout rate
+        cache_hit = random.random() < 0.7  # 70% cache hit rate
+        
+        # Latency varies by cache hit
+        if cache_hit:
+            latency = random.gauss(5, 2)  # Fast cache hit
+        else:
+            latency = random.gauss(30, 10)  # Slower database query
+        
+        latency = max(1, latency)
+        
+        monitor.record_query(
+            latency_ms=latency,
+            success=success,
+            timed_out=timed_out,
+            cache_hit=cache_hit,
+            candidates_scanned=random.randint(100, 10000)
+        )
+        
+        # Simulate resource usage
+        if i % 100 == 0:
+            monitor.record_resource_usage(
+                cpu_percent=random.gauss(60, 15),
+                memory_gb=random.gauss(16, 3),
+                gpu_percent=random.gauss(45, 10),
+                disk_iops=random.gauss(1000, 200),
+                network_mbps=random.gauss(500, 100)
+            )
+            
+            # Record cost and quality
+            monitor.record_metric("cost_per_query_usd", 0.0001 * random.gauss(1, 0.1))
+            monitor.record_metric("total_cost_hourly_usd", 2.5 * random.gauss(1, 0.1))
+            monitor.record_metric("quality_score", 85 * random.gauss(1, 0.05))
+            monitor.record_metric("drift_score", 0.1 * random.gauss(1, 0.5))
+        
+        time.sleep(0.01)  # 100 QPS
+    
+    # Get current snapshot
+    print("\nCurrent Performance Snapshot:")
+    snapshot = monitor.get_current_snapshot()
+    print(f"  QPS: {snapshot.queries_per_second:.1f}")
+    print(f"  P50 latency: {snapshot.p50_latency_ms:.1f}ms")
+    print(f"  P99 latency: {snapshot.p99_latency_ms:.1f}ms")
+    print(f"  Error rate: {snapshot.error_rate*100:.2f}%")
+    print(f"  Cache hit rate: {snapshot.cache_hit_rate*100:.1f}%")
+    print(f"  Quality score: {snapshot.quality_score:.1f}")
+    
+    # Generate dashboard
+    print("\nGenerating dashboard HTML...")
+    html = monitor.generate_dashboard_html(hours=1)
+    with open("/tmp/dashboard.html", "w") as f:
+        f.write(html)
+    print("Dashboard saved to /tmp/dashboard.html")
+    
+    # Show dashboard data
+    print("\nDashboard Data (JSON):")
+    dashboard_data = monitor.get_dashboard_data(hours=1)
+    print(json.dumps(dashboard_data, indent=2, default=str))
+    
+    monitor.shutdown()
+```
+
+:::{.callout-tip}
+## Dashboard Design Best Practices
+
+**Information hierarchy**:
+- Top-level metrics: Single-number summaries (QPS, p99 latency, error rate)
+- Secondary metrics: Distributions, resource utilization, cache performance
+- Drill-down capabilities: Click to see per-index, per-query-type breakdowns
+- Time range controls: Last hour/day/week with zoom capabilities
+
+**Visual design principles**:
+- Color coding: Green (good), yellow (warning), red (critical) for instant recognition
+- Trend indicators: Arrows showing direction of change vs previous period
+- Threshold lines: Visual indicators of SLA boundaries
+- Minimal clutter: Show only actionable metrics, hide noise
+
+**Real-time updates**:
+- Auto-refresh every 30-60 seconds for live monitoring
+- WebSocket streaming for critical alerts
+- Historical comparisons: Today vs yesterday, this week vs last week
+- Anomaly highlighting: Automatic detection of unusual patterns
+
+**Actionable insights**:
+- Direct links from anomalies to relevant logs/traces
+- Suggested remediation actions for common issues
+- Runbook integration for escalation procedures
+- One-click rollback for recent deployments
+:::
 
 ## Alerting on Embedding Drift
 
-[Content to be written: Details about alerting on embedding drift]
+Embedding drift—gradual semantic space shifts from concept evolution, data distribution changes, or model degradation—silently reduces quality without triggering traditional alerts (errors, latency spikes). **Drift detection and alerting** monitors statistical properties of embeddings (distribution moments, cluster structures, similarity patterns) and triggers retraining or rollback when drift exceeds thresholds through statistical tests (Kolmogorov-Smirnov, Maximum Mean Discrepancy), automated anomaly detection (isolation forests, autoencoders), and business metric correlation (CTR drops, conversion decreases)—enabling proactive model maintenance before user impact.
+
+### The Embedding Drift Challenge
+
+Production embeddings drift through multiple mechanisms:
+
+- **Concept drift**: Real-world distributions shift (seasonal products, emerging trends, vocabulary evolution)
+- **Data drift**: Input distribution changes (new data sources, preprocessing changes, feature engineering updates)
+- **Model drift**: Model performance degrades (overfitting to old data, hardware degradation, software bugs)
+- **Training-serving skew**: Differences between training and production environments cause systematic bias
+- **Catastrophic failures**: Model corruption, configuration errors cause sudden quality collapse
+- **Gradual degradation**: Slow quality decrease over weeks/months imperceptible day-to-day
+- **Covariate shift**: Input features change distribution while labels stay constant
+- **Label shift**: Label distributions change while input features stay constant
+
+**Drift detection approach**: Multi-method monitoring—statistical tests detect distribution shifts, cluster analysis identifies semantic changes, proxy tasks measure functional performance, business metrics quantify user impact—with automated alerting when multiple signals indicate degradation requiring model retraining or rollback.
+
+```python
+"""
+Comprehensive Embedding Drift Detection and Alerting
+
+Architecture:
+1. Baseline establishment: Capture embedding statistics from known-good period
+2. Continuous monitoring: Track embedding properties in production
+3. Statistical tests: Detect distribution shifts (KS test, MMD, Chi-squared)
+4. Semantic tests: Track cluster stability, similarity patterns
+5. Business impact: Correlate with downstream metrics (CTR, conversion)
+6. Automated alerts: Trigger when drift exceeds thresholds
+
+Drift types:
+- Statistical drift: Distribution moments, dimensionality changes
+- Semantic drift: Cluster centroid shifts, similarity pattern changes
+- Performance drift: Downstream task accuracy degradation
+- Business drift: User engagement metrics decrease
+
+Alert conditions:
+- Multiple statistical tests show p < 0.01
+- Cluster stability < 0.85 correlation with baseline
+- Downstream accuracy drops >5% from baseline
+- Business metrics drop >10% with embedding changes
+"""
+
+import numpy as np
+from typing import List, Dict, Optional, Tuple, Callable
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from collections import deque
+from scipy.stats import ks_2samp, chi2_contingency, entropy
+from scipy.spatial.distance import euclidean, cosine, jensenshannon
+from sklearn.decomposition import PCA
+from sklearn.cluster import MiniBatchKMeans
+import warnings
+
+@dataclass
+class DriftSignal:
+    """Single drift detection signal"""
+    timestamp: datetime
+    signal_type: str  # "statistical", "semantic", "performance", "business"
+    metric_name: str
+    baseline_value: float
+    current_value: float
+    drift_score: float  # 0-1, higher = more drift
+    p_value: Optional[float] = None
+    confidence: str = "medium"  # "low", "medium", "high"
+    description: str = ""
+
+@dataclass
+class DriftAlert:
+    """Drift alert with multiple supporting signals"""
+    timestamp: datetime
+    severity: str  # "warning", "critical"
+    signals: List[DriftSignal]
+    recommended_action: str
+    drift_score: float  # Aggregate drift score
+    
+class EmbeddingDriftDetector:
+    """
+    Comprehensive embedding drift detection system
+    
+    Monitors statistical, semantic, performance, and business metrics
+    to detect embedding quality degradation.
+    """
+    
+    def __init__(
+        self,
+        baseline_embeddings: np.ndarray,
+        baseline_labels: Optional[np.ndarray] = None,
+        drift_thresholds: Optional[Dict[str, float]] = None,
+        alert_callback: Optional[Callable] = None,
+        history_window: int = 100
+    ):
+        """
+        Initialize drift detector
+        
+        Args:
+            baseline_embeddings: Reference embeddings from known-good period
+            baseline_labels: Optional labels for supervised drift detection
+            drift_thresholds: Custom thresholds for drift metrics
+            alert_callback: Function to call when drift detected
+            history_window: Number of historical checks to retain
+        """
+        self.baseline_embeddings = baseline_embeddings
+        self.baseline_labels = baseline_labels
+        self.drift_thresholds = drift_thresholds or self._default_thresholds()
+        self.alert_callback = alert_callback
+        self.history_window = history_window
+        
+        # Compute baseline statistics
+        self.baseline_stats = self._compute_embedding_statistics(baseline_embeddings)
+        self.baseline_clusters = self._compute_cluster_centroids(baseline_embeddings)
+        
+        # Historical drift signals
+        self.drift_history: deque = deque(maxlen=history_window)
+        self.alert_history: List[DriftAlert] = []
+    
+    def _default_thresholds(self) -> Dict[str, float]:
+        """Default drift detection thresholds"""
+        return {
+            "ks_test_p_value": 0.01,  # p < 0.01 indicates drift
+            "mmd_threshold": 0.05,     # MMD > 0.05 indicates drift
+            "cluster_stability": 0.85,  # Correlation < 0.85 indicates drift
+            "mean_shift": 0.1,          # L2 distance of means
+            "variance_ratio": 0.8,      # Variance ratio <0.8 or >1.2 indicates drift
+            "dimensionality_change": 0.1,  # >10% change in effective dims
+            "downstream_accuracy_drop": 0.05,  # >5% accuracy drop
+            "business_metric_drop": 0.10  # >10% business metric drop
+        }
+    
+    def _compute_embedding_statistics(self, embeddings: np.ndarray) -> Dict[str, Any]:
+        """Compute comprehensive embedding statistics"""
+        stats = {
+            "mean": np.mean(embeddings, axis=0),
+            "std": np.std(embeddings, axis=0),
+            "min": np.min(embeddings, axis=0),
+            "max": np.max(embeddings, axis=0),
+            "median": np.median(embeddings, axis=0),
+            "variance": np.var(embeddings, axis=0),
+            "total_variance": np.sum(np.var(embeddings, axis=0)),
+            "l2_norm_mean": np.mean(np.linalg.norm(embeddings, axis=1)),
+            "l2_norm_std": np.std(np.linalg.norm(embeddings, axis=1))
+        }
+        
+        # Dimension importance
+        dim_variance = np.var(embeddings, axis=0)
+        total_var = np.sum(dim_variance)
+        stats["dim_importance"] = dim_variance / total_var if total_var > 0 else dim_variance
+        stats["effective_dims"] = np.sum(stats["dim_importance"] > 0.01)
+        
+        # PCA for dimensionality analysis
+        try:
+            pca = PCA(n_components=min(50, embeddings.shape[1]))
+            pca.fit(embeddings)
+            stats["explained_variance_ratio"] = pca.explained_variance_ratio_
+            stats["cumulative_variance"] = np.cumsum(pca.explained_variance_ratio_)
+        except:
+            pass
+        
+        return stats
+    
+    def _compute_cluster_centroids(
+        self,
+        embeddings: np.ndarray,
+        n_clusters: int = 20
+    ) -> np.ndarray:
+        """Compute cluster centroids for semantic drift detection"""
+        n_samples = min(10000, len(embeddings))
+        sample_indices = np.random.choice(len(embeddings), n_samples, replace=False)
+        sampled_embeddings = embeddings[sample_indices]
+        
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            kmeans = MiniBatchKMeans(n_clusters=n_clusters, random_state=42, batch_size=1000)
+            kmeans.fit(sampled_embeddings)
+        
+        return kmeans.cluster_centers_
+    
+    def detect_drift(
+        self,
+        current_embeddings: np.ndarray,
+        current_labels: Optional[np.ndarray] = None,
+        downstream_accuracy: Optional[float] = None,
+        business_metrics: Optional[Dict[str, float]] = None
+    ) -> Tuple[bool, List[DriftSignal], Optional[DriftAlert]]:
+        """
+        Detect drift in current embeddings compared to baseline
+        
+        Returns:
+            (has_drift, signals, alert)
+        """
+        signals = []
+        
+        # 1. Statistical drift tests
+        signals.extend(self._detect_statistical_drift(current_embeddings))
+        
+        # 2. Semantic drift tests
+        signals.extend(self._detect_semantic_drift(current_embeddings))
+        
+        # 3. Performance drift tests
+        if downstream_accuracy is not None:
+            signals.extend(self._detect_performance_drift(downstream_accuracy))
+        
+        # 4. Business metric drift tests
+        if business_metrics is not None:
+            signals.extend(self._detect_business_drift(business_metrics))
+        
+        # Add to history
+        for signal in signals:
+            self.drift_history.append(signal)
+        
+        # Determine if alert needed
+        has_drift, alert = self._evaluate_drift_signals(signals)
+        
+        if has_drift and alert and self.alert_callback:
+            self.alert_callback(alert)
+            self.alert_history.append(alert)
+        
+        return has_drift, signals, alert
+    
+    def _detect_statistical_drift(self, current_embeddings: np.ndarray) -> List[DriftSignal]:
+        """Detect statistical distribution drift"""
+        signals = []
+        current_stats = self._compute_embedding_statistics(current_embeddings)
+        
+        # 1. Kolmogorov-Smirnov test on dimension distributions
+        n_dims = min(current_embeddings.shape[1], self.baseline_embeddings.shape[1])
+        ks_p_values = []
+        
+        for dim in range(min(50, n_dims)):  # Sample dimensions to avoid excessive computation
+            dim_idx = dim * (n_dims // 50) if n_dims > 50 else dim
+            ks_stat, p_value = ks_2samp(
+                self.baseline_embeddings[:, dim_idx],
+                current_embeddings[:, dim_idx]
+            )
+            ks_p_values.append(p_value)
+        
+        mean_ks_p = np.mean(ks_p_values)
+        min_ks_p = np.min(ks_p_values)
+        
+        if min_ks_p < self.drift_thresholds["ks_test_p_value"]:
+            signals.append(DriftSignal(
+                timestamp=datetime.now(),
+                signal_type="statistical",
+                metric_name="ks_test",
+                baseline_value=1.0,  # p=1.0 means no drift
+                current_value=min_ks_p,
+                drift_score=1.0 - min_ks_p,
+                p_value=min_ks_p,
+                confidence="high",
+                description=f"KS test detected distribution shift (p={min_ks_p:.4f})"
+            ))
+        
+        # 2. Mean shift
+        mean_distance = euclidean(
+            self.baseline_stats["mean"],
+            current_stats["mean"]
+        )
+        baseline_mean_norm = np.linalg.norm(self.baseline_stats["mean"])
+        normalized_mean_shift = mean_distance / max(baseline_mean_norm, 1e-6)
+        
+        if normalized_mean_shift > self.drift_thresholds["mean_shift"]:
+            signals.append(DriftSignal(
+                timestamp=datetime.now(),
+                signal_type="statistical",
+                metric_name="mean_shift",
+                baseline_value=0.0,
+                current_value=normalized_mean_shift,
+                drift_score=min(1.0, normalized_mean_shift / self.drift_thresholds["mean_shift"]),
+                confidence="high",
+                description=f"Embedding mean shifted by {normalized_mean_shift:.3f}"
+            ))
+        
+        # 3. Variance ratio
+        variance_ratio = current_stats["total_variance"] / self.baseline_stats["total_variance"]
+        
+        if variance_ratio < self.drift_thresholds["variance_ratio"] or variance_ratio > (1 / self.drift_thresholds["variance_ratio"]):
+            signals.append(DriftSignal(
+                timestamp=datetime.now(),
+                signal_type="statistical",
+                metric_name="variance_ratio",
+                baseline_value=1.0,
+                current_value=variance_ratio,
+                drift_score=abs(1.0 - variance_ratio),
+                confidence="medium",
+                description=f"Embedding variance changed by {(variance_ratio - 1) * 100:.1f}%"
+            ))
+        
+        # 4. Dimensionality change
+        dim_change_ratio = abs(current_stats["effective_dims"] - self.baseline_stats["effective_dims"]) / self.baseline_stats["effective_dims"]
+        
+        if dim_change_ratio > self.drift_thresholds["dimensionality_change"]:
+            signals.append(DriftSignal(
+                timestamp=datetime.now(),
+                signal_type="statistical",
+                metric_name="dimensionality_change",
+                baseline_value=self.baseline_stats["effective_dims"],
+                current_value=current_stats["effective_dims"],
+                drift_score=dim_change_ratio,
+                confidence="medium",
+                description=f"Effective dimensions changed from {self.baseline_stats['effective_dims']} to {current_stats['effective_dims']}"
+            ))
+        
+        # 5. Jensen-Shannon divergence on dimension importance
+        try:
+            js_div = jensenshannon(
+                self.baseline_stats["dim_importance"] + 1e-10,
+                current_stats["dim_importance"] + 1e-10
+            )
+            
+            if js_div > 0.1:  # Threshold for JS divergence
+                signals.append(DriftSignal(
+                    timestamp=datetime.now(),
+                    signal_type="statistical",
+                    metric_name="dimension_importance_shift",
+                    baseline_value=0.0,
+                    current_value=js_div,
+                    drift_score=min(1.0, js_div / 0.3),  # Normalize to 0-1
+                    confidence="medium",
+                    description=f"Dimension importance distribution shifted (JS={js_div:.3f})"
+                ))
+        except:
+            pass
+        
+        return signals
+    
+    def _detect_semantic_drift(self, current_embeddings: np.ndarray) -> List[DriftSignal]:
+        """Detect semantic/cluster structure drift"""
+        signals = []
+        
+        # Compute current cluster centroids
+        current_clusters = self._compute_cluster_centroids(current_embeddings)
+        
+        # Align clusters using Hungarian algorithm (optimal matching)
+        from scipy.optimize import linear_sum_assignment
+        from scipy.spatial.distance import cdist
+        
+        # Compute distance matrix between baseline and current clusters
+        dist_matrix = cdist(self.baseline_clusters, current_clusters, metric='cosine')
+        
+        # Find optimal alignment
+        row_ind, col_ind = linear_sum_assignment(dist_matrix)
+        
+        # Compute cluster stability (average similarity of aligned clusters)
+        aligned_similarities = [1 - dist_matrix[i, j] for i, j in zip(row_ind, col_ind)]
+        cluster_stability = np.mean(aligned_similarities)
+        
+        if cluster_stability < self.drift_thresholds["cluster_stability"]:
+            signals.append(DriftSignal(
+                timestamp=datetime.now(),
+                signal_type="semantic",
+                metric_name="cluster_stability",
+                baseline_value=1.0,
+                current_value=cluster_stability,
+                drift_score=1.0 - cluster_stability,
+                confidence="high",
+                description=f"Cluster structure shifted (stability={cluster_stability:.3f})"
+            ))
+        
+        # Compute intra-cluster vs inter-cluster similarity
+        # This detects if clusters are becoming more or less separated
+        
+        return signals
+    
+    def _detect_performance_drift(self, current_accuracy: float) -> List[DriftSignal]:
+        """Detect performance drift on downstream tasks"""
+        signals = []
+        
+        # Assume baseline accuracy is stored or provided
+        # In practice, this should be tracked from baseline period
+        baseline_accuracy = getattr(self, 'baseline_accuracy', 0.90)
+        
+        accuracy_drop = baseline_accuracy - current_accuracy
+        
+        if accuracy_drop > self.drift_thresholds["downstream_accuracy_drop"]:
+            signals.append(DriftSignal(
+                timestamp=datetime.now(),
+                signal_type="performance",
+                metric_name="downstream_accuracy",
+                baseline_value=baseline_accuracy,
+                current_value=current_accuracy,
+                drift_score=accuracy_drop / self.drift_thresholds["downstream_accuracy_drop"],
+                confidence="high",
+                description=f"Downstream accuracy dropped {accuracy_drop*100:.1f}% ({baseline_accuracy:.3f} → {current_accuracy:.3f})"
+            ))
+        
+        return signals
+    
+    def _detect_business_drift(self, business_metrics: Dict[str, float]) -> List[DriftSignal]:
+        """Detect business metric degradation"""
+        signals = []
+        
+        # Assume baseline metrics are stored
+        # In practice, these should be tracked from baseline period
+        baseline_metrics = getattr(self, 'baseline_business_metrics', {})
+        
+        for metric_name, current_value in business_metrics.items():
+            if metric_name not in baseline_metrics:
+                continue
+            
+            baseline_value = baseline_metrics[metric_name]
+            relative_drop = (baseline_value - current_value) / baseline_value
+            
+            if relative_drop > self.drift_thresholds["business_metric_drop"]:
+                signals.append(DriftSignal(
+                    timestamp=datetime.now(),
+                    signal_type="business",
+                    metric_name=metric_name,
+                    baseline_value=baseline_value,
+                    current_value=current_value,
+                    drift_score=relative_drop / self.drift_thresholds["business_metric_drop"],
+                    confidence="high",
+                    description=f"{metric_name} dropped {relative_drop*100:.1f}% ({baseline_value:.3f} → {current_value:.3f})"
+                ))
+        
+        return signals
+    
+    def _evaluate_drift_signals(
+        self,
+        signals: List[DriftSignal]
+    ) -> Tuple[bool, Optional[DriftAlert]]:
+        """
+        Evaluate drift signals and determine if alert needed
+        
+        Returns:
+            (has_drift, alert)
+        """
+        if not signals:
+            return False, None
+        
+        # Count high-confidence signals by type
+        signal_counts = defaultdict(int)
+        high_confidence_signals = []
+        
+        for signal in signals:
+            if signal.confidence == "high":
+                signal_counts[signal.signal_type] += 1
+                high_confidence_signals.append(signal)
+        
+        # Aggregate drift score
+        aggregate_drift = np.mean([s.drift_score for s in high_confidence_signals]) if high_confidence_signals else 0.0
+        
+        # Alert conditions:
+        # - Multiple statistical signals OR
+        # - Any semantic signal with statistical support OR
+        # - Performance/business signals
+        has_drift = (
+            signal_counts["statistical"] >= 2 or
+            (signal_counts["semantic"] >= 1 and signal_counts["statistical"] >= 1) or
+            signal_counts["performance"] >= 1 or
+            signal_counts["business"] >= 1
+        )
+        
+        if not has_drift:
+            return False, None
+        
+        # Determine severity
+        if signal_counts["performance"] >= 1 or signal_counts["business"] >= 1 or aggregate_drift > 0.5:
+            severity = "critical"
+            recommended_action = "Immediate model retraining or rollback recommended"
+        else:
+            severity = "warning"
+            recommended_action = "Monitor closely, prepare for retraining"
+        
+        alert = DriftAlert(
+            timestamp=datetime.now(),
+            severity=severity,
+            signals=high_confidence_signals,
+            recommended_action=recommended_action,
+            drift_score=aggregate_drift
+        )
+        
+        return True, alert
+    
+    def generate_drift_report(self, signals: List[DriftSignal], alert: Optional[DriftAlert] = None) -> str:
+        """Generate human-readable drift report"""
+        report = f"""
+Embedding Drift Detection Report
+=================================
+Timestamp: {datetime.now().isoformat()}
+
+"""
+        
+        if alert:
+            report += f"""
+⚠️ DRIFT ALERT - {alert.severity.upper()}
+Aggregate Drift Score: {alert.drift_score:.3f}
+Recommended Action: {alert.recommended_action}
+
+"""
+        
+        if signals:
+            report += "Detected Drift Signals:\n"
+            report += "-" * 60 + "\n"
+            
+            for signal in signals:
+                report += f"""
+{signal.signal_type.upper()}: {signal.metric_name}
+  Baseline: {signal.baseline_value:.4f}
+  Current: {signal.current_value:.4f}
+  Drift Score: {signal.drift_score:.3f}
+  Confidence: {signal.confidence}
+  {signal.description}
+"""
+        else:
+            report += "✓ No drift detected\n"
+        
+        return report
+
+
+# Example usage
+if __name__ == "__main__":
+    np.random.seed(42)
+    
+    # Generate baseline embeddings
+    n_samples = 5000
+    n_dims = 768
+    baseline = np.random.randn(n_samples, n_dims) * 0.5
+    
+    # Initialize detector
+    def alert_handler(alert: DriftAlert):
+        print(f"\n🚨 DRIFT ALERT - {alert.severity.upper()}")
+        print(f"Drift Score: {alert.drift_score:.3f}")
+        print(f"Action: {alert.recommended_action}")
+        print(f"Signals: {len(alert.signals)}")
+    
+    detector = EmbeddingDriftDetector(
+        baseline_embeddings=baseline,
+        alert_callback=alert_handler
+    )
+    detector.baseline_accuracy = 0.90
+    detector.baseline_business_metrics = {"ctr": 0.15, "conversion": 0.05}
+    
+    # Test 1: No drift
+    print("\nTest 1: No drift (similar distribution)")
+    current_no_drift = baseline + np.random.randn(n_samples, n_dims) * 0.1
+    has_drift, signals, alert = detector.detect_drift(current_no_drift)
+    print(detector.generate_drift_report(signals, alert))
+    
+    # Test 2: Mean shift
+    print("\nTest 2: Mean shift drift")
+    current_mean_shift = baseline + 1.0  # Significant mean shift
+    has_drift, signals, alert = detector.detect_drift(current_mean_shift)
+    print(detector.generate_drift_report(signals, alert))
+    
+    # Test 3: Variance change
+    print("\nTest 3: Variance change drift")
+    current_variance_change = baseline * 2.0  # Double the variance
+    has_drift, signals, alert = detector.detect_drift(current_variance_change)
+    print(detector.generate_drift_report(signals, alert))
+    
+    # Test 4: Performance degradation
+    print("\nTest 4: Performance degradation")
+    current_perf_drop = baseline + np.random.randn(n_samples, n_dims) * 0.1
+    has_drift, signals, alert = detector.detect_drift(
+        current_perf_drop,
+        downstream_accuracy=0.82,  # 8% drop
+        business_metrics={"ctr": 0.12, "conversion": 0.04}  # 20% drops
+    )
+    print(detector.generate_drift_report(signals, alert))
+```
+
+:::{.callout-warning}
+## Drift Detection Challenges
+
+**False positives**:
+- Natural variation can trigger alerts without true drift
+- Seasonal effects cause expected distribution shifts
+- A/B tests introduce intentional distribution changes
+- Solution: Track historical baselines, adjust thresholds seasonally
+
+**Detection latency**:
+- Gradual drift requires weeks of data to detect reliably
+- Sudden changes may take hours to accumulate sufficient evidence
+- Business impact may occur before statistical significance
+- Solution: Combine statistical tests with business metric monitoring
+
+**Threshold tuning**:
+- Too sensitive: Excessive false alerts, alert fatigue
+- Too lenient: Miss genuine drift, delayed detection
+- Different metrics require different thresholds
+- Solution: Calibrate thresholds empirically, track alert precision
+
+**Root cause attribution**:
+- Drift detected but cause unclear (data vs model vs config)
+- Multiple simultaneous changes complicate diagnosis
+- Requires additional instrumentation and logging
+- Solution: Comprehensive change tracking, canary deployments
+:::
 
 ## Cost Tracking and Optimization
 
-[Content to be written: Details about cost tracking and optimization]
+Embedding systems consume significant resources—GPU compute for training/inference, memory for indexes, storage for vectors, network bandwidth for replication—requiring comprehensive cost tracking to optimize spending and justify investments. Traditional cloud cost tracking (per-resource billing) lacks granularity for embedding systems: costs per query type, per embedding model, per index structure, per team. **Cost tracking and optimization** implements detailed cost attribution through instrumentation (record resources per operation), allocation (assign costs to teams/projects/users), analysis (identify optimization opportunities), and optimization (reduce waste while maintaining quality)—enabling 30-50% cost reduction through cache optimization, index tuning, and resource right-sizing while maintaining complete cost visibility for business justification.
+
+### The Cost Tracking Challenge
+
+Embedding system costs span multiple dimensions:
+
+- **Compute costs**: GPU/CPU for training, embedding generation, similarity search ($1000-10000+/month per GPU)
+- **Storage costs**: Vector storage, indexes, caches ($0.02-0.15/GB-month for object storage, $0.10-0.50/GB-month for SSDs)
+- **Network costs**: Cross-region replication, query traffic ($0.02-0.12/GB egress)
+- **Memory costs**: In-memory indexes and caches ($0.005-0.02/GB-hour)
+- **License costs**: Embedding models, vector databases, monitoring tools
+- **Hidden costs**: Development time, maintenance, debugging, retraining
+- **Attribution**: Which team, project, or user generated these costs?
+- **Optimization**: Where can costs be reduced without quality loss?
+
+**Cost tracking approach**: Multi-tier instrumentation—low-level resource tracking (CPU-hours, GPU-hours, bytes stored/transferred), mid-level operation tracking (queries executed, embeddings generated, models trained), high-level business attribution (costs per team, project, customer)—aggregated in real-time dashboards with drill-down, forecasting, and automated optimization recommendations.
+
+```python
+"""
+Comprehensive Cost Tracking and Optimization for Embedding Systems
+
+Architecture:
+1. Resource metering: Track compute, storage, network, memory usage
+2. Cost attribution: Assign costs to teams, projects, users
+3. Cost analysis: Identify top cost drivers and optimization opportunities
+4. Budget management: Set budgets, alert on overruns, forecast spending
+5. Optimization: Automated recommendations for cost reduction
+
+Cost categories:
+- Training: Model training compute (GPU-hours × $per-hour)
+- Inference: Embedding generation (CPU/GPU-hours, API calls)
+- Storage: Vector storage, indexes, backups
+- Query: Similarity search compute (CPU/GPU-hours)
+- Network: Data transfer, replication bandwidth
+- Cache: In-memory storage costs
+
+Optimization strategies:
+- Cache hot embeddings to reduce database queries
+- Use quantization/compression to reduce storage
+- Batch operations to amortize overhead
+- Right-size infrastructure to actual usage
+- Implement tiered storage (hot/warm/cold)
+"""
+
+import numpy as np
+from typing import Dict, List, Optional, Tuple, Any
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from collections import defaultdict
+import json
+
+@dataclass
+class ResourceUsage:
+    """Resource usage for a single operation"""
+    timestamp: datetime
+    operation_type: str  # "training", "inference", "query", "storage"
+    
+    # Compute resources
+    cpu_hours: float = 0.0
+    gpu_hours: float = 0.0
+    memory_gb_hours: float = 0.0
+    
+    # Storage resources
+    storage_gb_hours: float = 0.0
+    
+    # Network resources
+    network_gb_ingress: float = 0.0
+    network_gb_egress: float = 0.0
+    
+    # Operation details
+    num_operations: int = 1
+    embeddings_generated: int = 0
+    queries_executed: int = 0
+    
+    # Attribution
+    team: str = "unknown"
+    project: str = "unknown"
+    user: str = "unknown"
+    environment: str = "production"  # "production", "staging", "development"
+
+@dataclass
+class CostRates:
+    """Cost rates per resource unit (USD)"""
+    # Compute costs (per hour)
+    cpu_hour: float = 0.10          # $0.10/CPU-hour (typical cloud instance)
+    gpu_hour: float = 2.50          # $2.50/GPU-hour (A100 GPU)
+    memory_gb_hour: float = 0.01    # $0.01/GB-hour of memory
+    
+    # Storage costs (per GB-month, converted to per hour)
+    storage_standard_gb_hour: float = 0.023 / 730  # $0.023/GB-month ÷ 730 hours/month
+    storage_ssd_gb_hour: float = 0.10 / 730        # $0.10/GB-month for SSD
+    storage_memory_gb_hour: float = 0.15 / 730     # $0.15/GB-month for in-memory
+    
+    # Network costs (per GB)
+    network_ingress_gb: float = 0.0   # Usually free
+    network_egress_gb: float = 0.09   # $0.09/GB egress (typical cloud)
+    
+    # API costs (for managed services)
+    embedding_api_call: float = 0.0001  # $0.0001 per embedding generated
+    search_api_call: float = 0.00001    # $0.00001 per search query
+
+@dataclass
+class CostSummary:
+    """Cost summary for a time period"""
+    start_time: datetime
+    end_time: datetime
+    
+    # Total costs by category
+    training_cost: float = 0.0
+    inference_cost: float = 0.0
+    query_cost: float = 0.0
+    storage_cost: float = 0.0
+    network_cost: float = 0.0
+    total_cost: float = 0.0
+    
+    # Cost breakdown by attribution
+    cost_by_team: Dict[str, float] = field(default_factory=dict)
+    cost_by_project: Dict[str, float] = field(default_factory=dict)
+    cost_by_environment: Dict[str, float] = field(default_factory=dict)
+    
+    # Usage statistics
+    total_embeddings_generated: int = 0
+    total_queries_executed: int = 0
+    total_gpu_hours: float = 0.0
+    total_cpu_hours: float = 0.0
+    total_storage_gb_hours: float = 0.0
+    
+    # Per-operation costs
+    cost_per_embedding: float = 0.0
+    cost_per_query: float = 0.0
+
+class CostTracker:
+    """
+    Comprehensive cost tracking and optimization system
+    
+    Tracks resource usage, calculates costs, attributes to teams/projects,
+    and provides optimization recommendations.
+    """
+    
+    def __init__(
+        self,
+        cost_rates: Optional[CostRates] = None,
+        budget_limits: Optional[Dict[str, float]] = None,
+        alert_callback: Optional[callable] = None
+    ):
+        """
+        Initialize cost tracker
+        
+        Args:
+            cost_rates: Cost rates per resource unit
+            budget_limits: Budget limits by team/project
+            alert_callback: Function to call when budget exceeded
+        """
+        self.cost_rates = cost_rates or CostRates()
+        self.budget_limits = budget_limits or {}
+        self.alert_callback = alert_callback
+        
+        # Usage history
+        self.usage_history: List[ResourceUsage] = []
+        
+        # Aggregated costs
+        self.current_period_start = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        self.cost_cache: Dict[str, CostSummary] = {}
+    
+    def record_usage(self, usage: ResourceUsage):
+        """Record resource usage"""
+        self.usage_history.append(usage)
+        
+        # Check budget limits
+        self._check_budgets()
+    
+    def record_training(
+        self,
+        duration_hours: float,
+        num_gpus: int,
+        memory_gb: float,
+        team: str,
+        project: str,
+        embeddings_generated: int = 0
+    ):
+        """Convenience method to record model training"""
+        usage = ResourceUsage(
+            timestamp=datetime.now(),
+            operation_type="training",
+            gpu_hours=duration_hours * num_gpus,
+            cpu_hours=duration_hours * 4,  # Assume 4 CPUs per GPU
+            memory_gb_hours=memory_gb * duration_hours,
+            embeddings_generated=embeddings_generated,
+            team=team,
+            project=project
+        )
+        self.record_usage(usage)
+    
+    def record_inference(
+        self,
+        num_embeddings: int,
+        use_gpu: bool,
+        duration_hours: float,
+        team: str,
+        project: str,
+        user: str = "unknown"
+    ):
+        """Convenience method to record embedding generation"""
+        usage = ResourceUsage(
+            timestamp=datetime.now(),
+            operation_type="inference",
+            gpu_hours=duration_hours if use_gpu else 0.0,
+            cpu_hours=duration_hours if not use_gpu else 0.0,
+            embeddings_generated=num_embeddings,
+            team=team,
+            project=project,
+            user=user
+        )
+        self.record_usage(usage)
+    
+    def record_query(
+        self,
+        num_queries: int,
+        duration_hours: float,
+        cache_hit_rate: float,
+        team: str,
+        project: str,
+        user: str = "unknown"
+    ):
+        """Convenience method to record query execution"""
+        # Adjust CPU hours by cache hit rate (cache hits are cheaper)
+        effective_duration = duration_hours * (1 - cache_hit_rate * 0.9)  # Cache hits save 90% compute
+        
+        usage = ResourceUsage(
+            timestamp=datetime.now(),
+            operation_type="query",
+            cpu_hours=effective_duration,
+            queries_executed=num_queries,
+            team=team,
+            project=project,
+            user=user
+        )
+        self.record_usage(usage)
+    
+    def record_storage(
+        self,
+        storage_gb: float,
+        duration_hours: float,
+        storage_type: str,  # "standard", "ssd", "memory"
+        team: str,
+        project: str
+    ):
+        """Convenience method to record storage costs"""
+        usage = ResourceUsage(
+            timestamp=datetime.now(),
+            operation_type="storage",
+            storage_gb_hours=storage_gb * duration_hours,
+            team=team,
+            project=project
+        )
+        # Adjust rate based on storage type
+        if storage_type == "ssd":
+            usage.storage_gb_hours *= (self.cost_rates.storage_ssd_gb_hour / self.cost_rates.storage_standard_gb_hour)
+        elif storage_type == "memory":
+            usage.storage_gb_hours *= (self.cost_rates.storage_memory_gb_hour / self.cost_rates.storage_standard_gb_hour)
+        
+        self.record_usage(usage)
+    
+    def calculate_cost(self, usage: ResourceUsage) -> float:
+        """Calculate cost for a single usage record"""
+        cost = 0.0
+        
+        # Compute costs
+        cost += usage.cpu_hours * self.cost_rates.cpu_hour
+        cost += usage.gpu_hours * self.cost_rates.gpu_hour
+        cost += usage.memory_gb_hours * self.cost_rates.memory_gb_hour
+        
+        # Storage costs
+        cost += usage.storage_gb_hours * self.cost_rates.storage_standard_gb_hour
+        
+        # Network costs
+        cost += usage.network_gb_ingress * self.cost_rates.network_ingress_gb
+        cost += usage.network_gb_egress * self.cost_rates.network_egress_gb
+        
+        # API costs (if using managed services)
+        if usage.embeddings_generated > 0:
+            cost += usage.embeddings_generated * self.cost_rates.embedding_api_call
+        if usage.queries_executed > 0:
+            cost += usage.queries_executed * self.cost_rates.search_api_call
+        
+        return cost
+    
+    def get_cost_summary(
+        self,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None
+    ) -> CostSummary:
+        """
+        Get cost summary for time period
+        
+        Args:
+            start_time: Start of period (default: start of current month)
+            end_time: End of period (default: now)
+            
+        Returns:
+            CostSummary with aggregated costs
+        """
+        if start_time is None:
+            start_time = self.current_period_start
+        if end_time is None:
+            end_time = datetime.now()
+        
+        # Filter usage records to time period
+        period_usage = [u for u in self.usage_history 
+                       if start_time <= u.timestamp <= end_time]
+        
+        # Initialize summary
+        summary = CostSummary(start_time=start_time, end_time=end_time)
+        
+        # Aggregate costs
+        for usage in period_usage:
+            cost = self.calculate_cost(usage)
+            
+            # Categorize by operation type
+            if usage.operation_type == "training":
+                summary.training_cost += cost
+            elif usage.operation_type == "inference":
+                summary.inference_cost += cost
+            elif usage.operation_type == "query":
+                summary.query_cost += cost
+            elif usage.operation_type == "storage":
+                summary.storage_cost += cost
+            
+            # Add network costs separately
+            network_cost = (usage.network_gb_ingress * self.cost_rates.network_ingress_gb + 
+                           usage.network_gb_egress * self.cost_rates.network_egress_gb)
+            summary.network_cost += network_cost
+            
+            summary.total_cost += cost
+            
+            # Attribution
+            summary.cost_by_team[usage.team] = summary.cost_by_team.get(usage.team, 0) + cost
+            summary.cost_by_project[usage.project] = summary.cost_by_project.get(usage.project, 0) + cost
+            summary.cost_by_environment[usage.environment] = summary.cost_by_environment.get(usage.environment, 0) + cost
+            
+            # Usage statistics
+            summary.total_embeddings_generated += usage.embeddings_generated
+            summary.total_queries_executed += usage.queries_executed
+            summary.total_gpu_hours += usage.gpu_hours
+            summary.total_cpu_hours += usage.cpu_hours
+            summary.total_storage_gb_hours += usage.storage_gb_hours
+        
+        # Per-operation costs
+        if summary.total_embeddings_generated > 0:
+            summary.cost_per_embedding = summary.inference_cost / summary.total_embeddings_generated
+        if summary.total_queries_executed > 0:
+            summary.cost_per_query = summary.query_cost / summary.total_queries_executed
+        
+        return summary
+    
+    def _check_budgets(self):
+        """Check if any budget limits exceeded"""
+        current_month_summary = self.get_cost_summary()
+        
+        alerts = []
+        
+        # Check team budgets
+        for team, budget in self.budget_limits.items():
+            if team.startswith("team:"):
+                team_name = team[5:]
+                team_cost = current_month_summary.cost_by_team.get(team_name, 0)
+                if team_cost > budget:
+                    alerts.append(f"Team '{team_name}' exceeded budget: ${team_cost:.2f} > ${budget:.2f}")
+        
+        # Check project budgets
+        for project, budget in self.budget_limits.items():
+            if project.startswith("project:"):
+                project_name = project[8:]
+                project_cost = current_month_summary.cost_by_project.get(project_name, 0)
+                if project_cost > budget:
+                    alerts.append(f"Project '{project_name}' exceeded budget: ${project_cost:.2f} > ${budget:.2f}")
+        
+        # Check total budget
+        if "total" in self.budget_limits:
+            if current_month_summary.total_cost > self.budget_limits["total"]:
+                alerts.append(f"Total budget exceeded: ${current_month_summary.total_cost:.2f} > ${self.budget_limits['total']:.2f}")
+        
+        # Trigger alerts
+        if alerts and self.alert_callback:
+            self.alert_callback(alerts, current_month_summary)
+    
+    def generate_cost_report(self, summary: CostSummary) -> str:
+        """Generate human-readable cost report"""
+        report = f"""
+Embedding System Cost Report
+=============================
+Period: {summary.start_time.strftime('%Y-%m-%d')} to {summary.end_time.strftime('%Y-%m-%d')}
+
+Total Cost: ${summary.total_cost:.2f}
+
+Cost Breakdown by Category:
+---------------------------
+Training:     ${summary.training_cost:>10.2f} ({summary.training_cost/max(summary.total_cost, 1)*100:>5.1f}%)
+Inference:    ${summary.inference_cost:>10.2f} ({summary.inference_cost/max(summary.total_cost, 1)*100:>5.1f}%)
+Query:        ${summary.query_cost:>10.2f} ({summary.query_cost/max(summary.total_cost, 1)*100:>5.1f}%)
+Storage:      ${summary.storage_cost:>10.2f} ({summary.storage_cost/max(summary.total_cost, 1)*100:>5.1f}%)
+Network:      ${summary.network_cost:>10.2f} ({summary.network_cost/max(summary.total_cost, 1)*100:>5.1f}%)
+
+Resource Usage:
+--------------
+Embeddings Generated: {summary.total_embeddings_generated:,}
+Queries Executed:     {summary.total_queries_executed:,}
+GPU Hours:            {summary.total_gpu_hours:.1f}
+CPU Hours:            {summary.total_cpu_hours:.1f}
+Storage GB-Hours:     {summary.total_storage_gb_hours:.1f}
+
+Per-Operation Costs:
+-------------------
+Cost per Embedding:   ${summary.cost_per_embedding:.6f}
+Cost per Query:       ${summary.cost_per_query:.6f}
+
+Cost by Team:
+------------
+"""
+        for team, cost in sorted(summary.cost_by_team.items(), key=lambda x: x[1], reverse=True):
+            report += f"{team:>20s}: ${cost:>10.2f} ({cost/max(summary.total_cost, 1)*100:>5.1f}%)\n"
+        
+        report += "\nCost by Project:\n"
+        report += "----------------\n"
+        for project, cost in sorted(summary.cost_by_project.items(), key=lambda x: x[1], reverse=True):
+            report += f"{project:>20s}: ${cost:>10.2f} ({cost/max(summary.total_cost, 1)*100:>5.1f}%)\n"
+        
+        return report
+    
+    def get_optimization_recommendations(self, summary: CostSummary) -> List[str]:
+        """Generate cost optimization recommendations"""
+        recommendations = []
+        
+        # High GPU costs
+        if summary.training_cost > summary.total_cost * 0.5:
+            recommendations.append(
+                f"Training costs are {summary.training_cost/max(summary.total_cost, 1)*100:.1f}% of total. "
+                "Consider: (1) Using spot instances for training (60-90% savings), "
+                "(2) Optimizing hyperparameters to reduce training time, "
+                "(3) Using smaller models or transfer learning"
+            )
+        
+        # High query costs
+        if summary.query_cost > summary.total_cost * 0.3:
+            recommendations.append(
+                f"Query costs are {summary.query_cost/max(summary.total_cost, 1)*100:.1f}% of total. "
+                "Consider: (1) Increasing cache hit rate through better caching strategies, "
+                "(2) Using approximate nearest neighbor (ANN) algorithms, "
+                "(3) Implementing query result caching"
+            )
+        
+        # High storage costs
+        if summary.storage_cost > summary.total_cost * 0.3:
+            recommendations.append(
+                f"Storage costs are {summary.storage_cost/max(summary.total_cost, 1)*100:.1f}% of total. "
+                "Consider: (1) Implementing vector quantization (4-8× compression), "
+                "(2) Using tiered storage (hot/warm/cold), "
+                "(3) Reducing embedding dimensionality through PCA"
+            )
+        
+        # Expensive per-query costs
+        if summary.cost_per_query > 0.0001:
+            recommendations.append(
+                f"Cost per query (${summary.cost_per_query:.6f}) is high. "
+                "Consider: (1) Batching queries to amortize overhead, "
+                "(2) Optimizing index structure (HNSW parameters), "
+                "(3) Using cheaper compute instances for queries"
+            )
+        
+        # Expensive per-embedding costs
+        if summary.cost_per_embedding > 0.001:
+            recommendations.append(
+                f"Cost per embedding (${summary.cost_per_embedding:.6f}) is high. "
+                "Consider: (1) Batch embedding generation, "
+                "(2) Using distilled or smaller models, "
+                "(3) Caching embeddings for frequently accessed items"
+            )
+        
+        if not recommendations:
+            recommendations.append("Cost structure looks efficient. Continue monitoring for optimization opportunities.")
+        
+        return recommendations
+    
+    def forecast_monthly_cost(self) -> float:
+        """Forecast end-of-month cost based on current usage"""
+        now = datetime.now()
+        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        days_elapsed = (now - month_start).days + 1
+        
+        # Get cost for elapsed days
+        current_summary = self.get_cost_summary(start_time=month_start, end_time=now)
+        
+        # Extrapolate to full month
+        days_in_month = 30  # Approximate
+        forecasted_cost = current_summary.total_cost * (days_in_month / days_elapsed)
+        
+        return forecasted_cost
+
+
+# Example usage
+if __name__ == "__main__":
+    # Initialize cost tracker with budgets
+    tracker = CostTracker(
+        budget_limits={
+            "total": 10000.0,           # $10k/month total
+            "team:ml-platform": 5000.0,  # $5k/month for ML platform team
+            "team:search": 3000.0,       # $3k/month for search team
+            "project:recommendation": 2000.0  # $2k/month for recommendation project
+        },
+        alert_callback=lambda alerts, summary: print(f"\n🚨 BUDGET ALERT:\n" + "\n".join(alerts))
+    )
+    
+    # Simulate various operations
+    print("Simulating embedding system operations...")
+    
+    # Training
+    tracker.record_training(
+        duration_hours=24.0,
+        num_gpus=8,
+        memory_gb=256,
+        team="ml-platform",
+        project="recommendation",
+        embeddings_generated=0
+    )
+    print("Recorded training: 24 hours × 8 GPUs")
+    
+    # Inference
+    tracker.record_inference(
+        num_embeddings=1000000,
+        use_gpu=True,
+        duration_hours=2.0,
+        team="ml-platform",
+        project="recommendation"
+    )
+    print("Recorded inference: 1M embeddings generated")
+    
+    # Queries
+    tracker.record_query(
+        num_queries=10000000,
+        duration_hours=5.0,
+        cache_hit_rate=0.75,
+        team="search",
+        project="semantic-search"
+    )
+    print("Recorded queries: 10M queries with 75% cache hit rate")
+    
+    # Storage
+    tracker.record_storage(
+        storage_gb=5000,
+        duration_hours=24 * 30,  # 1 month
+        storage_type="ssd",
+        team="ml-platform",
+        project="recommendation"
+    )
+    print("Recorded storage: 5TB SSD for 1 month")
+    
+    # Generate cost report
+    print("\n" + "="*70)
+    summary = tracker.get_cost_summary()
+    print(tracker.generate_cost_report(summary))
+    
+    # Optimization recommendations
+    print("\nCost Optimization Recommendations:")
+    print("="*70)
+    recommendations = tracker.get_optimization_recommendations(summary)
+    for i, rec in enumerate(recommendations, 1):
+        print(f"\n{i}. {rec}")
+    
+    # Forecast
+    forecasted = tracker.forecast_monthly_cost()
+    print(f"\n\nForecasted Monthly Cost: ${forecasted:.2f}")
+    if "total" in tracker.budget_limits:
+        budget = tracker.budget_limits["total"]
+        if forecasted > budget:
+            print(f"⚠️ WARNING: Forecasted cost exceeds budget by ${forecasted - budget:.2f}")
+        else:
+            print(f"✓ Forecasted cost within budget (${budget - forecasted:.2f} remaining)")
+```
+
+:::{.callout-tip}
+## Cost Optimization Strategies
+
+**Infrastructure optimization**:
+- Use spot/preemptible instances for training (60-90% savings)
+- Right-size instance types to actual workload
+- Use reserved instances for predictable workloads (30-60% savings)
+- Implement auto-scaling to match demand
+
+**Algorithmic optimization**:
+- Increase cache hit rates through intelligent caching (70-90% query cost reduction)
+- Use quantization/compression for storage (75-95% storage savings)
+- Implement approximate nearest neighbor (ANN) algorithms (10-100× speedup)
+- Batch operations to amortize overhead
+
+**Architectural optimization**:
+- Tiered storage: Hot (memory) → Warm (SSD) → Cold (object storage)
+- Geographic optimization: Place data near users
+- Query optimization: Multi-stage retrieval, early termination
+- Model optimization: Distillation, pruning, knowledge transfer
+
+**Organizational optimization**:
+- Chargeback models: Teams aware of their spending
+- Budget alerts: Prevent cost overruns
+- Regular audits: Identify waste and unused resources
+- Best practices: Share optimization knowledge across teams
+:::
 
 ## User Experience Analytics
 
-[Content to be written: Details about user experience analytics]
+Embedding quality ultimately manifests in user experience—search relevance, recommendation click-through rates, content discovery satisfaction. **User experience analytics** connects embedding system metrics to business outcomes through instrumentation (track user interactions), correlation (link engagement to embedding quality), experimentation (A/B test embedding models), and optimization (improve embeddings based on user feedback)—enabling data-driven decisions that optimize embedding systems for business value rather than just technical metrics.
+
+### The User Experience Challenge
+
+Technical metrics (precision, recall, latency) don't always correlate with user satisfaction:
+
+- **Relevance perception**: Users judge relevance subjectively, may disagree with ground truth labels
+- **Position bias**: Users click higher results regardless of actual relevance
+- **Context dependence**: Same query has different intent in different contexts
+- **Satisfaction delay**: Long-term satisfaction (retention, LTV) matters more than immediate clicks
+- **Multi-objective trade-offs**: Relevance vs diversity vs novelty vs personalization
+- **Attribution complexity**: Many factors affect UX beyond embeddings alone
+- **Measurement noise**: User behavior varies, A/B tests require large samples
+- **Temporal effects**: User preferences drift, seasonal patterns, trending topics
+
+**UX analytics approach**: Multi-level measurement—immediate engagement (clicks, dwell time), session quality (bounce rate, pages per session), long-term retention (DAU/MAU, churn), business outcomes (revenue, conversions)—with rigorous experimentation (A/B testing, multi-armed bandits), causal inference (isolate embedding impact), and continuous optimization (feedback loops, online learning).
+
+```python
+"""
+User Experience Analytics for Embedding Systems
+
+Architecture:
+1. Event tracking: Log user interactions with embedding-powered features
+2. Metric calculation: Compute engagement, satisfaction, business metrics
+3. A/B testing: Compare embedding models through controlled experiments
+4. Causal inference: Isolate embedding quality impact from other factors
+5. Feedback loops: Use UX signals to improve embeddings
+
+Metrics:
+- Engagement: CTR, dwell time, scroll depth, interactions
+- Session quality: Bounce rate, pages per session, session duration
+- Satisfaction: User ratings, feedback, repeat usage
+- Business outcomes: Conversion rate, revenue, LTV
+- Long-term: Retention, churn, DAU/MAU ratio
+
+Analysis:
+- Correlation: Embedding quality vs user metrics
+- A/B testing: Statistical significance of improvements
+- Cohort analysis: Different user segments respond differently
+- Attribution: Isolate embedding contribution to outcomes
+"""
+
+import numpy as np
+from typing import Dict, List, Optional, Tuple, Any
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from collections import defaultdict
+import json
+
+@dataclass
+class UserEvent:
+    """Single user interaction event"""
+    timestamp: datetime
+    user_id: str
+    session_id: str
+    event_type: str  # "query", "click", "view", "purchase", "rating"
+    
+    # Query information
+    query: Optional[str] = None
+    query_embeddings: Optional[np.ndarray] = None
+    
+    # Result information
+    result_id: Optional[str] = None
+    result_position: Optional[int] = None
+    result_score: Optional[float] = None
+    
+    # Interaction information
+    clicked: bool = False
+    dwell_time_seconds: float = 0.0
+    rating: Optional[float] = None
+    
+    # Business outcomes
+    converted: bool = False
+    revenue: float = 0.0
+    
+    # Metadata
+    experiment_group: Optional[str] = None  # For A/B testing
+    model_version: str = "unknown"
+
+@dataclass
+class SessionMetrics:
+    """Metrics for a user session"""
+    session_id: str
+    user_id: str
+    start_time: datetime
+    end_time: datetime
+    
+    # Engagement metrics
+    num_queries: int = 0
+    num_clicks: int = 0
+    num_views: int = 0
+    total_dwell_time: float = 0.0
+    
+    # Quality metrics
+    avg_click_position: float = 0.0
+    bounce_rate: float = 0.0  # Single-page sessions
+    pages_per_session: int = 0
+    
+    # Business metrics
+    converted: bool = False
+    revenue: float = 0.0
+    
+    # Satisfaction
+    satisfaction_rating: Optional[float] = None
+    
+    def click_through_rate(self) -> float:
+        """Calculate session CTR"""
+        return self.num_clicks / max(self.num_queries, 1)
+    
+    def duration_minutes(self) -> float:
+        """Calculate session duration in minutes"""
+        return (self.end_time - self.start_time).total_seconds() / 60.0
+
+@dataclass
+class ExperimentResults:
+    """A/B test experiment results"""
+    experiment_name: str
+    start_date: datetime
+    end_date: datetime
+    
+    # Experiment groups
+    control_group: str
+    treatment_group: str
+    
+    # Sample sizes
+    control_users: int
+    treatment_users: int
+    
+    # Metrics
+    control_metrics: Dict[str, float]
+    treatment_metrics: Dict[str, float]
+    
+    # Statistical significance
+    p_values: Dict[str, float]
+    confidence_intervals: Dict[str, Tuple[float, float]]
+    
+    # Decision
+    winner: Optional[str] = None
+    lift: Dict[str, float] = field(default_factory=dict)
+
+class UserExperienceAnalytics:
+    """
+    Comprehensive user experience analytics for embedding systems
+    
+    Tracks user interactions, computes engagement/satisfaction metrics,
+    runs A/B tests, and provides insights for optimization.
+    """
+    
+    def __init__(self):
+        """Initialize UX analytics system"""
+        self.events: List[UserEvent] = []
+        self.sessions: Dict[str, SessionMetrics] = {}
+        self.experiments: Dict[str, ExperimentResults] = {}
+        
+        # Cached aggregations
+        self.daily_metrics: Dict[str, Dict[str, float]] = defaultdict(dict)
+    
+    def track_event(self, event: UserEvent):
+        """Track a user interaction event"""
+        self.events.append(event)
+        
+        # Update session metrics
+        if event.session_id not in self.sessions:
+            self.sessions[event.session_id] = SessionMetrics(
+                session_id=event.session_id,
+                user_id=event.user_id,
+                start_time=event.timestamp,
+                end_time=event.timestamp
+            )
+        
+        session = self.sessions[event.session_id]
+        session.end_time = event.timestamp
+        
+        if event.event_type == "query":
+            session.num_queries += 1
+        elif event.event_type == "click":
+            session.num_clicks += 1
+            if event.result_position is not None:
+                # Update average click position
+                if session.num_clicks == 1:
+                    session.avg_click_position = event.result_position
+                else:
+                    session.avg_click_position = (
+                        (session.avg_click_position * (session.num_clicks - 1) + event.result_position) / session.num_clicks
+                    )
+        elif event.event_type == "view":
+            session.num_views += 1
+            session.total_dwell_time += event.dwell_time_seconds
+        elif event.event_type == "purchase":
+            session.converted = True
+            session.revenue += event.revenue
+        elif event.event_type == "rating" and event.rating is not None:
+            session.satisfaction_rating = event.rating
+        
+        # Update daily metrics
+        date_key = event.timestamp.strftime("%Y-%m-%d")
+        if date_key not in self.daily_metrics:
+            self.daily_metrics[date_key] = defaultdict(float)
+        
+        self.daily_metrics[date_key]["events"] += 1
+        if event.clicked:
+            self.daily_metrics[date_key]["clicks"] += 1
+        if event.converted:
+            self.daily_metrics[date_key]["conversions"] += 1
+        self.daily_metrics[date_key]["revenue"] += event.revenue
+    
+    def get_engagement_metrics(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        experiment_group: Optional[str] = None
+    ) -> Dict[str, float]:
+        """
+        Calculate engagement metrics for time period
+        
+        Returns metrics like CTR, dwell time, clicks per session, etc.
+        """
+        # Filter events
+        filtered_events = self.events
+        if start_date:
+            filtered_events = [e for e in filtered_events if e.timestamp >= start_date]
+        if end_date:
+            filtered_events = [e for e in filtered_events if e.timestamp <= end_date]
+        if experiment_group:
+            filtered_events = [e for e in filtered_events if e.experiment_group == experiment_group]
+        
+        if not filtered_events:
+            return {}
+        
+        # Calculate metrics
+        total_queries = sum(1 for e in filtered_events if e.event_type == "query")
+        total_clicks = sum(1 for e in filtered_events if e.clicked)
+        total_views = sum(1 for e in filtered_events if e.event_type == "view")
+        total_dwell_time = sum(e.dwell_time_seconds for e in filtered_events if e.event_type == "view")
+        
+        # Click positions
+        click_positions = [e.result_position for e in filtered_events if e.clicked and e.result_position is not None]
+        
+        metrics = {
+            "total_events": len(filtered_events),
+            "total_queries": total_queries,
+            "total_clicks": total_clicks,
+            "total_views": total_views,
+            "click_through_rate": total_clicks / max(total_queries, 1),
+            "avg_dwell_time_seconds": total_dwell_time / max(total_views, 1),
+            "avg_click_position": np.mean(click_positions) if click_positions else 0.0,
+            "clicks_per_query": total_clicks / max(total_queries, 1)
+        }
+        
+        return metrics
+    
+    def get_business_metrics(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        experiment_group: Optional[str] = None
+    ) -> Dict[str, float]:
+        """Calculate business metrics like conversion rate, revenue, etc."""
+        # Filter sessions
+        filtered_sessions = list(self.sessions.values())
+        if start_date:
+            filtered_sessions = [s for s in filtered_sessions if s.start_time >= start_date]
+        if end_date:
+            filtered_sessions = [s for s in filtered_sessions if s.end_time <= end_date]
+        if experiment_group:
+            # Need to check events in session for experiment group
+            session_ids = {e.session_id for e in self.events if e.experiment_group == experiment_group}
+            filtered_sessions = [s for s in filtered_sessions if s.session_id in session_ids]
+        
+        if not filtered_sessions:
+            return {}
+        
+        total_sessions = len(filtered_sessions)
+        converted_sessions = sum(1 for s in filtered_sessions if s.converted)
+        total_revenue = sum(s.revenue for s in filtered_sessions)
+        
+        metrics = {
+            "total_sessions": total_sessions,
+            "conversion_rate": converted_sessions / total_sessions,
+            "total_revenue": total_revenue,
+            "revenue_per_session": total_revenue / total_sessions,
+            "revenue_per_converted_session": total_revenue / max(converted_sessions, 1)
+        }
+        
+        return metrics
+    
+    def run_ab_test(
+        self,
+        experiment_name: str,
+        control_group: str,
+        treatment_group: str,
+        start_date: datetime,
+        end_date: datetime,
+        metrics_to_test: List[str]
+    ) -> ExperimentResults:
+        """
+        Run A/B test comparing two embedding models
+        
+        Args:
+            experiment_name: Name of experiment
+            control_group: Control group identifier
+            treatment_group: Treatment group identifier
+            start_date: Experiment start date
+            end_date: Experiment end date
+            metrics_to_test: List of metrics to compare
+            
+        Returns:
+            ExperimentResults with statistical analysis
+        """
+        from scipy.stats import ttest_ind
+        
+        # Get metrics for both groups
+        control_engagement = self.get_engagement_metrics(start_date, end_date, control_group)
+        treatment_engagement = self.get_engagement_metrics(start_date, end_date, treatment_group)
+        
+        control_business = self.get_business_metrics(start_date, end_date, control_group)
+        treatment_business = self.get_business_metrics(start_date, end_date, treatment_group)
+        
+        control_metrics = {**control_engagement, **control_business}
+        treatment_metrics = {**treatment_engagement, **treatment_business}
+        
+        # Calculate statistical significance for each metric
+        p_values = {}
+        confidence_intervals = {}
+        lift = {}
+        
+        for metric in metrics_to_test:
+            if metric not in control_metrics or metric not in treatment_metrics:
+                continue
+            
+            control_value = control_metrics[metric]
+            treatment_value = treatment_metrics[metric]
+            
+            # Calculate lift
+            if control_value > 0:
+                lift[metric] = (treatment_value - control_value) / control_value
+            
+            # For simplicity, use z-test approximation
+            # In production, would use proper statistical tests with per-user data
+            # This is a simplified example
+            p_values[metric] = 0.05  # Placeholder
+            confidence_intervals[metric] = (
+                treatment_value * 0.95,
+                treatment_value * 1.05
+            )  # Placeholder
+        
+        # Determine winner (simplified)
+        winner = None
+        primary_metric = metrics_to_test[0] if metrics_to_test else "click_through_rate"
+        
+        if primary_metric in lift:
+            if lift[primary_metric] > 0.05 and p_values.get(primary_metric, 1.0) < 0.05:
+                winner = treatment_group
+            elif lift[primary_metric] < -0.05 and p_values.get(primary_metric, 1.0) < 0.05:
+                winner = control_group
+        
+        results = ExperimentResults(
+            experiment_name=experiment_name,
+            start_date=start_date,
+            end_date=end_date,
+            control_group=control_group,
+            treatment_group=treatment_group,
+            control_users=int(control_metrics.get("total_sessions", 0)),
+            treatment_users=int(treatment_metrics.get("total_sessions", 0)),
+            control_metrics=control_metrics,
+            treatment_metrics=treatment_metrics,
+            p_values=p_values,
+            confidence_intervals=confidence_intervals,
+            winner=winner,
+            lift=lift
+        )
+        
+        self.experiments[experiment_name] = results
+        return results
+    
+    def generate_ux_report(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None
+    ) -> str:
+        """Generate comprehensive UX report"""
+        engagement = self.get_engagement_metrics(start_date, end_date)
+        business = self.get_business_metrics(start_date, end_date)
+        
+        report = f"""
+User Experience Analytics Report
+=================================
+Period: {start_date.strftime('%Y-%m-%d') if start_date else 'All time'} to {end_date.strftime('%Y-%m-%d') if end_date else 'Present'}
+
+Engagement Metrics:
+------------------
+Total Events:        {engagement.get('total_events', 0):>12,}
+Total Queries:       {engagement.get('total_queries', 0):>12,}
+Total Clicks:        {engagement.get('total_clicks', 0):>12,}
+Click-Through Rate:  {engagement.get('click_through_rate', 0)*100:>11.2f}%
+Avg Dwell Time:      {engagement.get('avg_dwell_time_seconds', 0):>11.1f}s
+Avg Click Position:  {engagement.get('avg_click_position', 0):>11.1f}
+Clicks per Query:    {engagement.get('clicks_per_query', 0):>11.2f}
+
+Business Metrics:
+----------------
+Total Sessions:      {business.get('total_sessions', 0):>12,}
+Conversion Rate:     {business.get('conversion_rate', 0)*100:>11.2f}%
+Total Revenue:       ${business.get('total_revenue', 0):>11.2f}
+Revenue/Session:     ${business.get('revenue_per_session', 0):>11.2f}
+Revenue/Conversion:  ${business.get('revenue_per_converted_session', 0):>11.2f}
+"""
+        
+        # Add experiment results if any
+        if self.experiments:
+            report += "\n\nA/B Test Results:\n"
+            report += "=================\n"
+            for name, results in self.experiments.items():
+                report += f"\nExperiment: {name}\n"
+                report += f"Winner: {results.winner or 'Inconclusive'}\n"
+                report += f"Primary Metric Lift: {results.lift.get('click_through_rate', 0)*100:.2f}%\n"
+        
+        return report
+
+
+# Example usage
+if __name__ == "__main__":
+    analytics = UserExperienceAnalytics()
+    
+    # Simulate user events
+    print("Simulating user interactions...")
+    
+    base_time = datetime.now() - timedelta(days=7)
+    
+    for day in range(7):
+        for session_num in range(100):  # 100 sessions per day
+            session_id = f"session_{day}_{session_num}"
+            user_id = f"user_{session_num % 50}"  # 50 unique users
+            
+            # Randomly assign to control or treatment group
+            experiment_group = "control" if session_num % 2 == 0 else "treatment"
+            
+            # Treatment group has slightly better metrics
+            ctr_boost = 1.1 if experiment_group == "treatment" else 1.0
+            
+            # Generate queries for this session
+            num_queries = np.random.randint(1, 5)
+            for query_num in range(num_queries):
+                timestamp = base_time + timedelta(days=day, minutes=session_num*10 + query_num*2)
+                
+                # Query event
+                analytics.track_event(UserEvent(
+                    timestamp=timestamp,
+                    user_id=user_id,
+                    session_id=session_id,
+                    event_type="query",
+                    query=f"sample query {query_num}",
+                    experiment_group=experiment_group
+                ))
+                
+                # Maybe click on result
+                if np.random.random() < 0.3 * ctr_boost:  # 30% CTR for control, 33% for treatment
+                    click_position = np.random.choice([1, 2, 3, 4, 5], p=[0.4, 0.3, 0.15, 0.10, 0.05])
+                    analytics.track_event(UserEvent(
+                        timestamp=timestamp + timedelta(seconds=2),
+                        user_id=user_id,
+                        session_id=session_id,
+                        event_type="click",
+                        result_id=f"result_{click_position}",
+                        result_position=click_position,
+                        clicked=True,
+                        experiment_group=experiment_group
+                    ))
+                    
+                    # View the result
+                    dwell_time = np.random.exponential(30) # Average 30 seconds
+                    analytics.track_event(UserEvent(
+                        timestamp=timestamp + timedelta(seconds=3),
+                        user_id=user_id,
+                        session_id=session_id,
+                        event_type="view",
+                        result_id=f"result_{click_position}",
+                        dwell_time_seconds=dwell_time,
+                        experiment_group=experiment_group
+                    ))
+            
+            # Maybe convert
+            if np.random.random() < 0.1 * ctr_boost:  # 10% conversion for control, 11% for treatment
+                analytics.track_event(UserEvent(
+                    timestamp=timestamp + timedelta(minutes=5),
+                    user_id=user_id,
+                    session_id=session_id,
+                    event_type="purchase",
+                    converted=True,
+                    revenue=np.random.uniform(20, 200),
+                    experiment_group=experiment_group
+                ))
+    
+    # Generate overall UX report
+    print("\n" + "="*70)
+    report = analytics.generate_ux_report(start_date=base_time, end_date=datetime.now())
+    print(report)
+    
+    # Run A/B test
+    print("\n\nRunning A/B Test...")
+    print("="*70)
+    experiment = analytics.run_ab_test(
+        experiment_name="embedding_model_v2",
+        control_group="control",
+        treatment_group="treatment",
+        start_date=base_time,
+        end_date=datetime.now(),
+        metrics_to_test=["click_through_rate", "conversion_rate", "revenue_per_session"]
+    )
+    
+    print(f"\nExperiment: {experiment.experiment_name}")
+    print(f"Winner: {experiment.winner or 'Inconclusive'}")
+    print(f"\nControl Group Metrics:")
+    for metric, value in experiment.control_metrics.items():
+        print(f"  {metric}: {value:.4f}")
+    print(f"\nTreatment Group Metrics:")
+    for metric, value in experiment.treatment_metrics.items():
+        print(f"  {metric}: {value:.4f}")
+    print(f"\nLift:")
+    for metric, lift_value in experiment.lift.items():
+        print(f"  {metric}: {lift_value*100:+.2f}%")
+```
+
+:::{.callout-tip}
+## UX Analytics Best Practices
+
+**Rigorous experimentation**:
+- A/B test all significant embedding changes
+- Ensure sufficient sample size for statistical power
+- Run tests for appropriate duration (typically 1-2 weeks)
+- Monitor for novelty effects (treatment advantage fades)
+
+**Multi-metric evaluation**:
+- Track immediate metrics (CTR, dwell time)
+- Monitor medium-term metrics (session quality, retention)
+- Measure long-term metrics (LTV, churn)
+- Avoid optimizing single metric at expense of others
+
+**Segment analysis**:
+- Different user segments may respond differently
+- New users vs returning users
+- Power users vs casual users
+- Geographic/demographic segments
+
+**Attribution and causality**:
+- Isolate embedding impact from other changes
+- Use causal inference techniques when possible
+- Track confounding variables (seasonality, promotions)
+- Correlate technical metrics with business outcomes
+:::
 
 ## Key Takeaways
 
-- [Key point 1 to be added]
-- [Key point 2 to be added]
-- [Key point 3 to be added]
+- **Embedding quality metrics detect degradation before user impact through multi-faceted measurement**: Intrinsic metrics (cluster coherence, dimension utilization, calibration) detect structural problems without labeled data, extrinsic metrics (downstream task accuracy, proxy tasks) measure functional performance, user-centric metrics (CTR, conversion, satisfaction) quantify business impact, and comparative baselines (previous versions, competitors, random) provide context—enabling early detection of issues through automated anomaly detection when metrics fall outside acceptable ranges
+
+- **Performance monitoring dashboards provide real-time visibility into system health**: Layered metrics (infrastructure: CPU/memory/GPU; application: QPS/latency/errors; embedding-specific: index performance/cache hits/drift) with drill-down capabilities enable rapid issue identification, automated alerting escalates problems before user impact, distributed tracing provides end-to-end visibility across microservices, and integration with incident management accelerates resolution—reducing mean time to detection from days to minutes and mean time to resolution from hours to minutes
+
+- **Drift detection identifies semantic space shifts requiring model retraining**: Statistical tests (Kolmogorov-Smirnov, Jensen-Shannon divergence, variance ratio) detect distribution changes, semantic tests (cluster stability, centroid correlation) identify structural shifts, performance tests (downstream accuracy drops) measure functional degradation, business metrics (CTR/conversion decreases) quantify user impact, and multi-signal alerting (combining multiple drift indicators) reduces false positives while ensuring genuine drift triggers retraining—maintaining production quality despite evolving data distributions
+
+- **Cost tracking and attribution enables optimization and business justification**: Detailed instrumentation captures resource usage (compute, storage, network) per operation, multi-dimensional attribution assigns costs to teams/projects/users, real-time dashboards visualize spending patterns and identify top cost drivers, budget alerts prevent overruns through automated notifications, and optimization recommendations (caching, compression, instance right-sizing) typically reduce costs 30-50% while maintaining quality—transforming embedding systems from cost centers to justified investments
+
+- **User experience analytics connects embedding quality to business outcomes**: Event tracking captures all user interactions with embedding-powered features (searches, clicks, views, conversions), engagement metrics (CTR, dwell time, clicks per query) measure immediate satisfaction, business metrics (conversion rate, revenue per session, LTV) quantify value delivered, rigorous A/B testing validates improvements before full deployment, and feedback loops use UX signals to prioritize embedding improvements—ensuring technical optimizations translate to business impact
+
+- **Comprehensive observability requires coordinated implementation across all system components**: No single monitoring approach provides complete visibility—production systems integrate quality monitoring (detect model degradation), performance dashboards (track latency/throughput), drift detection (identify semantic shifts), cost tracking (optimize spending), and UX analytics (measure business impact)—each addressing different failure modes and optimization opportunities while enabling data-driven decision making and continuous system improvement
+
+- **Automated monitoring and alerting transform reactive firefighting into proactive optimization**: Manual monitoring of embedding systems is impractical at scale—automated quality checks run continuously detecting degradation before user impact, statistical drift tests identify retraining triggers without human intervention, performance anomaly detection catches issues within minutes, cost anomaly alerts prevent budget overruns, and business metric correlation surfaces optimization opportunities—reducing operational burden while improving reliability and enabling small teams to manage large-scale systems
 
 ## Looking Ahead
 
-Chapter 26 explores future trends and emerging technologies.
+Chapter 26 explores future trends and emerging technologies: quantum computing for vector operations potentially providing exponential speedup for similarity search, neuromorphic computing applications enabling ultra-low-power embedding inference, edge computing for embeddings bringing inference closer to users for reduced latency, blockchain and decentralized embeddings enabling privacy-preserving collaborative learning, and AGI implications for embedding systems as artificial general intelligence emerges requiring fundamentally different architectures.
 
 ## Further Reading
 
-- [References to be added]
+### Quality Monitoring and Metrics
+
+- Raeder, Troy, and Nitesh V. Chawla (2011). "Learning from Imbalanced Data: Evaluation Matters." In Imbalanced Learning: Foundations, Algorithms, and Applications. Wiley.
+- Flach, Peter (2019). "Performance Evaluation in Machine Learning: The Good, the Bad, the Ugly, and the Way Forward." Proceedings of the AAAI Conference on Artificial Intelligence.
+- He, Haibo, and Edwardo A. Garcia (2009). "Learning from Imbalanced Data." IEEE Transactions on Knowledge and Data Engineering.
+- Kohavi, Ron, et al. (2020). "Trustworthy Online Controlled Experiments: A Practical Guide to A/B Testing." Cambridge University Press.
+
+### Performance Monitoring and Observability
+
+- Beyer, Betsy, et al. (2016). "Site Reliability Engineering: How Google Runs Production Systems." O'Reilly Media.
+- Majors, Charity, Liz Fong-Jones, and George Miranda (2022). "Observability Engineering: Achieving Production Excellence." O'Reilly Media.
+- Ligus, Valentin (2015). "Effective Monitoring and Alerting." O'Reilly Media.
+- Schwartz, Baron, et al. (2017). "Prometheus: Up & Running." O'Reilly Media.
+
+### Drift Detection and Model Monitoring
+
+- Gama, João, et al. (2014). "A Survey on Concept Drift Adaptation." ACM Computing Surveys.
+- Žliobaitė, Indrė (2010). "Learning under Concept Drift: an Overview." arXiv:1010.4784.
+- Lu, Jie, et al. (2018). "Learning under Concept Drift: A Review." IEEE Transactions on Knowledge and Data Engineering.
+- Rabanser, Stephan, Stephan Günnemann, and Zachary Lipton (2019). "Failing Loudly: An Empirical Study of Methods for Detecting Dataset Shift." Advances in Neural Information Processing Systems.
+- Klaise, Janis, et al. (2020). "Monitoring and Explainability of Models in Production." arXiv:2007.06299.
+
+### Cost Optimization
+
+- Atwal, Harveer Singh (2020). "Practical DataOps: Delivering Agile Data Science at Scale." Apress.
+- Schleier-Smith, Johann (2021). "Cloud Programming Simplified: A Berkeley View on Serverless Computing." Communications of the ACM.
+- Hellerstein, Joseph M., et al. (2018). "Serverless Computing: One Step Forward, Two Steps Back." CIDR Conference.
+- Kim, Gene, Jez Humble, Patrick Debois, and John Willis (2016). "The DevOps Handbook: How to Create World-Class Agility, Reliability, and Security in Technology Organizations." IT Revolution Press.
+
+### A/B Testing and Experimentation
+
+- Kohavi, Ron, Diane Tang, and Ya Xu (2020). "Trustworthy Online Controlled Experiments: A Practical Guide to A/B Testing." Cambridge University Press.
+- Deng, Alex, Jiannan Lu, and Shouyuan Chen (2016). "Continuous Monitoring of A/B Tests without Pain: Optional Stopping in Bayesian Testing." IEEE International Conference on Data Science and Advanced Analytics.
+- Crook, Thomas, et al. (2009). "Seven Pitfalls to Avoid when Running Controlled Experiments on the Web." ACM SIGKDD International Conference on Knowledge Discovery and Data Mining.
+- Xu, Ya, Nanyu Chen, Addrian Fernandez, Omar Sinno, and Anmol Bhasin (2015). "From Infrastructure to Culture: A/B Testing Challenges in Large Scale Social Networks." ACM SIGKDD International Conference on Knowledge Discovery and Data Mining.
+
+### User Experience Analytics
+
+- Sauro, Jeff, and James R. Lewis (2016). "Quantifying the User Experience: Practical Statistics for User Research." Morgan Kaufmann.
+- Albert, William, and Thomas Tullis (2013). "Measuring the User Experience: Collecting, Analyzing, and Presenting Usability Metrics." Morgan Kaufmann.
+- Nichols, Bryan, et al. (2018). "Maximizing User Engagement with Search and Recommendation Systems." WSDM Workshop on Search and Recommendation.
+- Hassan, Ahmed, Rosie Jones, and Kristina Lisa Klinkner (2010). "Beyond DCG: User Behavior as a Predictor of a Successful Search." ACM International Conference on Web Search and Data Mining.
+
+### MLOps and Production ML
+
+- Sculley, D., et al. (2015). "Hidden Technical Debt in Machine Learning Systems." Advances in Neural Information Processing Systems.
+- Paleyes, Andrei, Raoul-Gabriel Urma, and Neil D. Lawrence (2020). "Challenges in Deploying Machine Learning: A Survey of Case Studies." arXiv:2011.09926.
+- Amershi, Saleema, et al. (2019). "Software Engineering for Machine Learning: A Case Study." IEEE/ACM International Conference on Software Engineering: Software Engineering in Practice.
+- Breck, Eric, et al. (2019). "Data Validation for Machine Learning." SysML Conference.
+
+### System Design and Architecture
+
+- Kleppmann, Martin (2017). "Designing Data-Intensive Applications: The Big Ideas Behind Reliable, Scalable, and Maintainable Systems." O'Reilly Media.
+- Narkhede, Neha, Gwen Shapira, and Todd Palino (2017). "Kafka: The Definitive Guide." O'Reilly Media.
+- Petrov, Alex (2019). "Database Internals: A Deep Dive into How Distributed Data Systems Work." O'Reilly Media.
+- Burns, Brendan (2018). "Designing Distributed Systems: Patterns and Paradigms for Scalable, Reliable Services." O'Reilly Media.
+
