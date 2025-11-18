@@ -175,6 +175,14 @@ class VibrationEncoder(nn.Module):
         x = F.relu(self.conv3(x))
         x = self.pool(x)
         
+```
+
+:::{.callout-note}
+## Code Continuation
+Continuing from previous code block...
+:::
+
+```python
         # Transpose back: [batch, time_steps, features]
         x = x.transpose(1, 2)
         
@@ -325,6 +333,14 @@ class VisualInspectionEncoder(nn.Module):
     - Multi-scale processing: Detect defects at different scales
     - Output: 256-dim visual embedding
     
+```
+
+:::{.callout-note}
+## Code Continuation
+Continuing from previous code block...
+:::
+
+```python
     Visual inspection reveals:
     - Surface defects: Scratches, dents, discoloration
     - Dimensional issues: Shape deviations from spec
@@ -474,6 +490,14 @@ class MultiSensorFusionEncoder(nn.Module):
         # Encode each modality
         modality_embeddings = []
         
+```
+
+:::{.callout-note}
+## Code Continuation
+Continuing from previous code block...
+:::
+
+```python
         if vibration is not None:
             vib_emb = self.vibration_encoder(vibration)
             modality_embeddings.append(vib_emb)
@@ -624,6 +648,14 @@ class QualityControlSystem:
             min_distance_normal = 0.0
             avg_distance_normal = 0.0
         
+```
+
+:::{.callout-note}
+## Code Continuation
+Continuing from previous code block...
+:::
+
+```python
         # Compute anomaly score
         anomaly_score = min_distance_normal
         is_anomalous = anomaly_score > self.anomaly_threshold
@@ -772,6 +804,14 @@ class QualityControlDeployment:
         self.false_negatives = 0
         self.true_positives = 0
         
+```
+
+:::{.callout-note}
+## Code Continuation
+Continuing from previous code block...
+:::
+
+```python
     def process_sensor_stream(self, reading: SensorReading) -> QualityPrediction:
         """
         Process real-time sensor data and generate prediction
@@ -915,6 +955,14 @@ def demonstrate_quality_control():
     
     print()
     
+```
+
+:::{.callout-note}
+## Code Continuation
+Continuing from previous code block...
+:::
+
+```python
     # Testing: Tool wear anomaly
     print("Phase 3: Simulating tool wear defect...")
     for i in range(5):
@@ -1013,6 +1061,7 @@ Traditional supply chain management faces limitations:
 - **Black swan events**: Pandemics, natural disasters, geopolitical disruptions
 
 **Embedding approach**: Learn embeddings of suppliers (reliability, lead time, quality), materials (substitutability, specifications), routes (cost, time, risk), and demand patterns (seasonality, trends). Similar suppliers cluster together enabling quick substitution; demand embeddings predict stockouts weeks ahead; route embeddings optimize logistics in real-time.
+
 
 ```python
 """
@@ -2311,6 +2360,14 @@ class EquipmentStateEncoder(nn.Module):
         return F.normalize(embedding, p=2, dim=1)
 
 class TemporalDegradationModel(nn.Module):
+```
+
+:::{.callout-note}
+## Code Continuation
+Continuing from previous code block...
+:::
+
+```python
     """
     Model equipment degradation over time
     
@@ -2460,6 +2517,14 @@ class PredictiveMaintenanceSystem:
                 dtype=torch.float32
             ).unsqueeze(0)
             
+```
+
+:::{.callout-note}
+## Code Continuation
+Continuing from previous code block...
+:::
+
+```python
             acou = torch.tensor(
                 reading.sensor_data.get('acoustic', np.zeros(10000)),
                 dtype=torch.float32
@@ -2608,6 +2673,14 @@ class PredictiveMaintenanceSystem:
                 if prediction.optimal_timing:
                     days_until = (prediction.optimal_timing - prediction.timestamp).days
                     
+```
+
+:::{.callout-note}
+## Code Continuation
+Continuing from previous code block...
+:::
+
+```python
                     if days_until <= planning_horizon_days:
                         schedule.append({
                             'equipment_id': eq_id,
@@ -2758,6 +2831,14 @@ Traditional process control faces limitations:
 - **Recipe management**: Thousands of product-specific parameter sets
 - **Quality feedback lag**: Defects discovered hours after production
 
+```
+
+:::{.callout-note}
+## Code Continuation
+Continuing from previous code block...
+:::
+
+```python
 **Embedding approach**: Learn embeddings of manufacturing states (sensor readings, quality outcomes, process parameters). Reinforcement learning agents navigate embedding space to find optimal parameter combinations. Adapt in real-time as conditions change, materials vary, or new products are introduced.
 
 ## Digital Twin Implementations
@@ -2777,6 +2858,7 @@ Traditional manufacturing simulation faces limitations:
 - **Change validation**: Risky to test process changes in production
 
 **Embedding approach**: Learn embeddings of manufacturing states, transitions, and outcomes from operational data. Build generative models in embedding space that predict future states given actions. Enable rapid simulation of process changes, equipment configurations, and production schedules in virtual environment before physical deployment.
+
 
 ```python
 """
