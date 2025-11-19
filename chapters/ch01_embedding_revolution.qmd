@@ -97,7 +97,7 @@ $$\text{cosine\_similarity}(\mathbf{A}, \mathbf{B}) = \frac{\mathbf{A} \cdot \ma
 
 - **Magnitude-independent**: Only considers direction, not length
   - `[1, 2, 3]` and `[2, 4, 6]` have similarity of 1.0 (same direction)
-  - This is why we don't need to normalize our embeddings beforehand
+  - This means we don't need to normalize our embeddings beforehand
 
 **Concrete Example from our code:**
 
