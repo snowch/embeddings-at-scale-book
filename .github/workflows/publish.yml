@@ -44,10 +44,12 @@ jobs:
 
       - name: Get commit hash
         id: git_commit
-        run: echo "GIT_COMMIT_HASH=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+        run: |
+          echo "GIT_COMMIT_HASH=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+          echo "COMMIT_HASH=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
       - name: Render Book (all formats)
-        run: quarto render
+        run: quarto render -M git-commit:${{ steps.git_commit.outputs.COMMIT_HASH }}
 
       # --- NEW STEP STARTS HERE ---
       - name: Upload Render Log on Failure

@@ -82,7 +82,7 @@ format:
     code-copy: true
     code-overflow: wrap
     page-footer:
-      left: "Built from commit: {{< env GIT_COMMIT_HASH >}}"
+      left: "Built from commit: $git-commit$"
       right: "© 2024 Chris Snow"
 
   pdf:
@@ -103,7 +103,7 @@ format:
         \usepackage{fancyhdr}
         \pagestyle{fancy}
         \usepackage{float}
-        \fancyfoot[L]{Built from commit: {{< env GIT_COMMIT_HASH >}}}
+        \fancyfoot[L]{Built from commit: $git-commit$}
         \fancyfoot[R]{\thepage}
 
   epub:
