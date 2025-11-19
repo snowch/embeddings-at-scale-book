@@ -26,11 +26,10 @@ Success criteria:
 - Scalability assessment: Clear path to production scale
 """
 
-import json
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Tuple
 
 
 class TechnologyCategory(Enum):
@@ -130,9 +129,7 @@ class RequirementProfile:
         """Set default weights if not provided"""
         if not self.criterion_weights:
             # Default equal weights
-            self.criterion_weights = {
-                criterion: 1.0 for criterion in EvaluationCriteria
-            }
+            self.criterion_weights = dict.fromkeys(EvaluationCriteria, 1.0)
 
 class TechnologyEvaluator:
     """
@@ -147,9 +144,7 @@ class TechnologyEvaluator:
         self.options: Dict[TechnologyCategory, List[TechnologyOption]] = {
             category: [] for category in TechnologyCategory
         }
-        self.selected: Dict[TechnologyCategory, Optional[TechnologyOption]] = {
-            category: None for category in TechnologyCategory
-        }
+        self.selected: Dict[TechnologyCategory, Optional[TechnologyOption]] = dict.fromkeys(TechnologyCategory)
 
     def add_option(self, option: TechnologyOption) -> None:
         """Add technology option for evaluation"""

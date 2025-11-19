@@ -20,8 +20,6 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
-import numpy as np
-
 
 @dataclass
 class Claim:

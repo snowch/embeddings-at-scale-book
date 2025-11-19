@@ -30,9 +30,8 @@ For embedding training, typically combine:
 - Pipeline Parallelism: For deep transformer stacks
 """
 
-from typing import Dict, List, Optional, Tuple
+from typing import Dict
 
-import numpy as np
 import torch
 import torch.distributed as dist
 import torch.nn as nn

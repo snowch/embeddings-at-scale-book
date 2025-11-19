@@ -27,15 +27,12 @@ Performance targets:
 - Cost: <$0.10 per million queries
 """
 
-import heapq
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
-import torch
 
 
 @dataclass
@@ -415,10 +412,7 @@ class MultiStageRetrieval:
         if strategy == 'exact':
             return ['exact_reranking']
 
-        elif strategy == 'hnsw':
-            return ['hnsw_graph', 'exact_reranking']
-
-        elif strategy == 'hnsw_postfilter':
+        elif strategy == 'hnsw' or strategy == 'hnsw_postfilter':
             return ['hnsw_graph', 'exact_reranking']
 
         elif strategy == 'ivf_pq':

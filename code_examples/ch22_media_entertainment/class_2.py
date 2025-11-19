@@ -29,10 +29,9 @@ Production considerations:
 - Legal compliance: Fair use exceptions, counter-notification handling
 """
 
-import json
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import torch

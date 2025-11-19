@@ -3,7 +3,7 @@
 
 import hashlib
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Dict, List, Optional
 
 import numpy as np
@@ -138,7 +138,7 @@ class EmbeddingExperimentFramework:
         If hash < treatment_allocation: treatment
         Else: control
         """
-        hash_input = f"{user_id}:{experiment_id}".encode('utf-8')
+        hash_input = f"{user_id}:{experiment_id}".encode()
         hash_output = hashlib.md5(hash_input).hexdigest()
 
         # Convert hex to float in [0, 1]

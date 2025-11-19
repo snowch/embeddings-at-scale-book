@@ -34,7 +34,6 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 
 class MachineStatus(Enum):

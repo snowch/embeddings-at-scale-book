@@ -26,11 +26,10 @@ Key components:
 - Self-service platform for applications
 """
 
-import json
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Set
 
 
 class Region(Enum):

@@ -31,7 +31,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Callable, Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set
 
 
 class InnovationStage(Enum):

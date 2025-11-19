@@ -22,9 +22,8 @@ Production considerations:
 - Handle missing modalities gracefully
 """
 
-import io
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import torch

@@ -15,7 +15,6 @@ class ProgressiveDimensionReduction:
         Learn projection from high-dim to low-dim
         """
         from sklearn.decomposition import PCA
-        from sklearn.random_projection import GaussianRandomProjection
 
         # Option 1: PCA (preserves variance)
         pca = PCA(n_components=target_dim)

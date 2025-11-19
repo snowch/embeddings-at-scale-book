@@ -26,16 +26,14 @@ Production considerations:
 - Human-in-loop: Operators can override recommendations
 """
 
-from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 
 class ProcessStatus(Enum):

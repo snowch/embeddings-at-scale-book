@@ -29,15 +29,12 @@ Production considerations:
 - Rights management: Respect music, footage licensing
 """
 
-import json
 from dataclasses import dataclass, field
-from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 
 @dataclass

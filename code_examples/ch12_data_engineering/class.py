@@ -18,14 +18,12 @@ Latency budget:
 - Total: 100-400ms (< 1 second)
 """
 
-import asyncio
 import queue
 import threading
 import time
-from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Callable, Dict, List, Optional
+from typing import Dict, List, Optional
 
 import numpy as np
 

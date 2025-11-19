@@ -22,9 +22,8 @@ Benefits:
 - Reduced training cost (transfer instead of train from scratch)
 """
 
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F

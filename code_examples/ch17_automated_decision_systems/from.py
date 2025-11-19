@@ -24,9 +24,7 @@ Production considerations:
 - Fairness: Monitor for demographic disparities
 """
 
-import random
 from dataclasses import dataclass
-from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np

@@ -26,16 +26,14 @@ Production considerations:
 - A/B testing: Validate merchandising decisions
 """
 
-import json
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Set, Tuple
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 
 class ProductRelationType(Enum):

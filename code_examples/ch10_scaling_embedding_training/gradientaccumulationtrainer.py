@@ -1,11 +1,9 @@
 # Code from Chapter 10
 # Book: Embeddings at Scale
 
-from typing import Optional
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 
 class GradientAccumulationTrainer:

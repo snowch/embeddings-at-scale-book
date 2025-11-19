@@ -33,7 +33,6 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 
 @dataclass
@@ -330,7 +329,7 @@ class DigitalTwinSystem:
         # Calculate prediction error
         prediction_error = np.mean([
             abs(sensor_values[k] - predicted_sensors[k]) / (abs(sensor_values[k]) + 1e-6)
-            for k in sensor_values.keys()
+            for k in sensor_values
         ])
 
         # Create state object

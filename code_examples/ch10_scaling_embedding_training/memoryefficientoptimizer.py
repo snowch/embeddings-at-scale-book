@@ -1,7 +1,6 @@
 # Code from Chapter 10
 # Book: Embeddings at Scale
 
-from typing import List
 
 import torch.optim as optim
 

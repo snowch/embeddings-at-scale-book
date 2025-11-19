@@ -31,7 +31,7 @@ class EmbeddingStrategyValidator:
 
         overall_score = sum(
             validation[dim]['score'] * weights[dim]
-            for dim in weights.keys()
+            for dim in weights
         )
 
         validation['overall_score'] = overall_score

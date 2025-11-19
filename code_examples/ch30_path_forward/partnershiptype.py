@@ -31,7 +31,7 @@ Strategic principles:
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Set
 
 
 class PartnershipType(Enum):

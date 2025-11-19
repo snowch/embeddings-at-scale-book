@@ -1,9 +1,7 @@
 # Code from Chapter 10
 # Book: Embeddings at Scale
 
-import math
 from dataclasses import dataclass
-from typing import Dict, List
 
 
 @dataclass

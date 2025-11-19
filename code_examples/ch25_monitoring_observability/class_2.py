@@ -27,13 +27,9 @@ Optimization strategies:
 - Implement tiered storage (hot/warm/cold)
 """
 
-import json
-from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple
-
-import numpy as np
+from datetime import datetime
+from typing import Dict, List, Optional
 
 
 @dataclass

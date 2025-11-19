@@ -1,7 +1,6 @@
 # Code from Chapter 04
 # Book: Embeddings at Scale
 
-import torch
 from sentence_transformers import InputExample, SentenceTransformer, losses
 from torch.utils.data import DataLoader
 

@@ -1,9 +1,8 @@
 # Code from Chapter 09
 # Book: Embeddings at Scale
 
-from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 import numpy as np
 import torch

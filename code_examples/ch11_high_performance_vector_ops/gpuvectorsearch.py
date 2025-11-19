@@ -13,7 +13,7 @@ Techniques:
 """
 
 import time
-from typing import Optional, Tuple
+from typing import Optional
 
 import numpy as np
 import torch

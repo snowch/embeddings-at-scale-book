@@ -27,13 +27,13 @@ Alert conditions:
 
 import warnings
 from collections import deque
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from dataclasses import dataclass
+from datetime import datetime
 from typing import Callable, Dict, List, Optional, Tuple
 
 import numpy as np
-from scipy.spatial.distance import cosine, euclidean, jensenshannon
-from scipy.stats import chi2_contingency, entropy, ks_2samp
+from scipy.spatial.distance import euclidean, jensenshannon
+from scipy.stats import ks_2samp
 from sklearn.cluster import MiniBatchKMeans
 from sklearn.decomposition import PCA
 

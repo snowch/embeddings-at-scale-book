@@ -25,11 +25,10 @@ Success metrics:
 - ROI: 3-5× value from innovation investment
 """
 
-import json
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 
 class InnovationType(Enum):

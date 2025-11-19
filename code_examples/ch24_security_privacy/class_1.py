@@ -31,7 +31,6 @@ Performance targets:
 - Privacy budget: ε ≤ 1.0 for typical applications
 """
 
-import hashlib
 import math
 from collections import defaultdict
 from dataclasses import dataclass, field

@@ -17,7 +17,7 @@ import json
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -245,9 +245,7 @@ class EmbeddingETLPipeline:
         # Structured features: Extract numerical/categorical
         structured_features = {}
         for key, value in record.data.items():
-            if isinstance(value, (int, float)):
-                structured_features[key] = float(value)
-            elif isinstance(value, bool):
+            if isinstance(value, (int, float)) or isinstance(value, bool):
                 structured_features[key] = float(value)
 
         # Context features: Metadata that provides additional signal
@@ -491,7 +489,7 @@ class EmbeddingETLPipeline:
         if not checkpoint_file.exists():
             return
 
-        with open(checkpoint_file, 'r') as f:
+        with open(checkpoint_file) as f:
             checkpoint = json.load(f)
 
         self.last_checkpoint_id = checkpoint.get('last_record_id')

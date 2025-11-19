@@ -26,13 +26,10 @@ Typical results:
 - Sparse: 5-20× compression (data-dependent)
 """
 
-import struct
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from dataclasses import dataclass
+from typing import List, Optional
 
 import numpy as np
-import torch
-import torch.nn as nn
 from sklearn.cluster import MiniBatchKMeans
 
 

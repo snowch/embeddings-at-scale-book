@@ -25,17 +25,14 @@ Quality thresholds:
 - User metrics: <10% CTR drop, <5% conversion drop
 """
 
-import json
 import warnings
-from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
-from scipy.spatial.distance import cosine, euclidean
-from scipy.stats import entropy, ks_2samp, wasserstein_distance
-from sklearn.decomposition import PCA
+from scipy.spatial.distance import cosine
+from scipy.stats import entropy
 from sklearn.metrics import calinski_harabasz_score, davies_bouldin_score, silhouette_score
 
 

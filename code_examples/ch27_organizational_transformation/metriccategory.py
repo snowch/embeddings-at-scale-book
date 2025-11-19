@@ -27,11 +27,10 @@ Success criteria:
 - Business: Positive ROI within target timeframe
 """
 
-import json
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional
 
 
 class MetricCategory(Enum):

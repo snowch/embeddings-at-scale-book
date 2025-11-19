@@ -160,7 +160,6 @@ class TextAugmentation:
         """
         import random
 
-        from nltk.corpus import wordnet
 
         words = text.split()
 

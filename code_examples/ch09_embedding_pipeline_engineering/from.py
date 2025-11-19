@@ -21,9 +21,8 @@ Real-time Data → Feature Engineering → Online Inference → Vector Store →
 import json
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional
 
-import numpy as np
 import torch
 import torch.nn as nn
 

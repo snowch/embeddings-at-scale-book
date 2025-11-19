@@ -12,7 +12,6 @@ Strategies:
 5. Transformers: Convert between schema versions
 """
 
-import json
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum

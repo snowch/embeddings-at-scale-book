@@ -33,7 +33,6 @@ Competency levels:
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
 from enum import Enum
 from typing import Dict, List, Optional, Set
 

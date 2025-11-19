@@ -25,11 +25,10 @@ Analysis:
 - Attribution: Isolate embedding contribution to outcomes
 """
 
-import json
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -294,7 +293,6 @@ class UserExperienceAnalytics:
         Returns:
             ExperimentResults with statistical analysis
         """
-        from scipy.stats import ttest_ind
 
         # Get metrics for both groups
         control_engagement = self.get_engagement_metrics(start_date, end_date, control_group)

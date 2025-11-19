@@ -24,11 +24,9 @@ Performance targets (smartphone):
 - Accuracy: >95% of full model
 """
 
-from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
-from datetime import datetime
+from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Tuple
 
 import numpy as np
 
@@ -266,7 +264,6 @@ class EdgeEmbeddingInference:
            c. If latency too high and offload allowed: cloud offload
         """
         import hashlib
-        import time
 
         # Create cache key
         cache_key = hashlib.sha256(input_data.tobytes()).hexdigest()

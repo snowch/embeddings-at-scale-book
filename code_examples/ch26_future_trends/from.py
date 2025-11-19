@@ -374,7 +374,7 @@ class AGIEmbeddingSystem:
         attributions = {}
 
         # Modality contributions
-        for modality in content.keys():
+        for modality in content:
             attributions[f"modality_{modality}"] = 1.0 / len(content)
 
         # Context contribution
