@@ -704,6 +704,7 @@ if __name__ == "__main__":
 ## Production Considerations
 
 **Homomorphic Encryption**:
+
 - Use established libraries: TenSEAL, Microsoft SEAL, OpenFHE
 - CKKS provides approximate arithmetic, suitable for embeddings
 - Performance: 10-100× slower than plaintext operations
@@ -711,6 +712,7 @@ if __name__ == "__main__":
 - Noise management: Track noise budget, refresh when needed
 
 **Intel SGX**:
+
 - Limited enclave memory: 128MB (SGX1) to 256GB (SGX2+)
 - Page faults expensive: Load data in batches
 - Side channels: Use constant-time operations, ORAM
@@ -718,12 +720,14 @@ if __name__ == "__main__":
 - Cloud availability: Azure DCv2/DCv3, GCP N2D
 
 **Key Management**:
+
 - Separate key hierarchy: Master → encryption → sealing keys
 - Rotation: Support key rotation without re-encrypting all data
 - Multi-tenant: Per-tenant keys for isolation
 - Recovery: Secure key backup and recovery procedures
 
 **Performance Optimization**:
+
 - Batching: Encrypt/process multiple vectors at once
 - Caching: Cache decrypted vectors (if security model allows)
 - Hybrid: Use SGX for hot paths, CKKS for cold storage
@@ -1465,6 +1469,7 @@ if __name__ == "__main__":
 ## Privacy-Utility Trade-offs
 
 **Differential Privacy Parameter Selection**:
+
 - **ε = 0.1**: Very strong privacy, 30-50% utility loss
   - Use: Healthcare records, sensitive personal data
 - **ε = 1.0**: Balanced, 10-20% utility loss
@@ -1473,12 +1478,14 @@ if __name__ == "__main__":
   - Use: Public datasets, aggregate statistics
 
 **LSH Privacy Enhancement**:
+
 - Standard LSH: No privacy, reveals bucket membership
 - DP-LSH: ε-differential privacy per query
 - Overhead: 2-3× latency, 10-20% recall loss
 - Composition: Privacy budget degrades with queries
 
 **MPC Performance**:
+
 - 2-party: 5-10× overhead vs plaintext
 - 3+ parties: 10-50× overhead
 - Communication: O(n) per similarity computation
@@ -1495,18 +1502,21 @@ if __name__ == "__main__":
 4. External federation: Secure MPC
 
 **Privacy Budget Management**:
+
 - Set daily/monthly privacy budget per user
 - Track cumulative ε across queries
 - Throttle or reject when budget exhausted
 - Use privacy accounting (e.g., Rényi DP, zCDP)
 
 **Optimize for Common Case**:
+
 - Cache popular queries (public results)
 - Use coarser privacy for exploratory queries
 - Apply stronger privacy for sensitive final queries
 - Batch similar queries for composition benefits
 
 **Monitor Privacy-Utility**:
+
 - Track recall at different ε levels
 - A/B test privacy parameters
 - Measure user satisfaction vs privacy cost
@@ -2156,6 +2166,7 @@ if __name__ == "__main__":
 ## Differential Privacy Trade-offs
 
 **Privacy-Utility Frontier**:
+
 - **ε = 0.1**: Very strong privacy, 40-60% utility loss
   - Use: Extremely sensitive data (genetic, health)
 - **ε = 1.0**: Strong privacy, 10-20% utility loss
@@ -2164,12 +2175,14 @@ if __name__ == "__main__":
   - Use: Aggregate statistics, exploratory analysis
 
 **DP-SGD Challenges**:
+
 - **Training time**: 2-5× longer due to per-example gradients
 - **Memory**: 1.5-2× higher for gradient storage
 - **Hyperparameters**: Requires careful tuning (clipping, noise)
 - **Convergence**: May require more epochs
 
 **Production Recommendations**:
+
 - Start with ε=3.0, tune down based on requirements
 - Use adaptive clipping (percentile-based)
 - Implement privacy accounting with Opacus or TF Privacy
@@ -2181,6 +2194,7 @@ if __name__ == "__main__":
 ## Practical DP Implementation
 
 **Use Established Libraries**:
+
 - **Opacus** (PyTorch): Production-ready DP-SGD
   - `pip install opacus`
   - Handles per-example gradients automatically
@@ -2192,18 +2206,21 @@ if __name__ == "__main__":
   - Supports Keras models
 
 **Privacy Accounting**:
+
 - Use Rényi DP (RDP) for tighter bounds
 - Track privacy loss per epoch
 - Set privacy budget alarm (warn at 80%)
 - Report final (ε,δ) with model release
 
 **Hyperparameter Tuning**:
+
 - Grid search over clipping threshold (0.1-5.0)
 - Adjust noise multiplier based on target ε
 - Use learning rate warm-up
 - Increase batch size (helps privacy)
 
 **Validation**:
+
 - Measure utility on holdout set
 - Compare with non-private baseline
 - Check for privacy leakage via membership inference
@@ -3068,6 +3085,7 @@ if __name__ == "__main__":
 ## Production Access Control
 
 **Authentication Methods**:
+
 - **API Keys**: Simple, suitable for service-to-service
   - Generate cryptographically random keys (32+ bytes)
   - Store hashed, never plaintext
@@ -3085,6 +3103,7 @@ if __name__ == "__main__":
   - Automatic rotation
 
 **Authorization Best Practices**:
+
 - Start with least privilege
 - Use role hierarchy (inherit permissions)
 - Implement deny policies (override allows)
@@ -3092,6 +3111,7 @@ if __name__ == "__main__":
 - Audit failed authorization attempts
 
 **Audit Log Requirements**:
+
 - Immutable storage (append-only)
 - Tamper-proof (cryptographic hashes, blockchain)
 - Long retention (7 years for HIPAA)
@@ -3103,6 +3123,7 @@ if __name__ == "__main__":
 ## Compliance Considerations
 
 **SOC 2 Requirements**:
+
 - Logical access controls
 - Authentication and authorization
 - Audit logging and monitoring
@@ -3110,6 +3131,7 @@ if __name__ == "__main__":
 - Annual penetration testing
 
 **HIPAA Requirements**:
+
 - Unique user identification
 - Automatic logoff (session timeout)
 - Encryption of ePHI
@@ -3117,6 +3139,7 @@ if __name__ == "__main__":
 - Integrity controls (tamper detection)
 
 **PCI-DSS Requirements**:
+
 - Two-factor authentication for admin
 - Unique ID per user
 - Audit trail for all access to cardholder data
@@ -3124,6 +3147,7 @@ if __name__ == "__main__":
 - Quarterly log review
 
 **GDPR Considerations**:
+
 - Log personal data access
 - Support data subject access requests
 - Implement right to be forgotten
@@ -3882,6 +3906,7 @@ if __name__ == "__main__":
 ## GDPR Compliance Requirements
 
 **Must-Have Technical Measures**:
+
 - **Data residency**: EU data must stay in EU
 - **Consent management**: Track legal basis, allow withdrawal
 - **Deletion workflows**: Complete removal within reasonable time
@@ -3890,6 +3915,7 @@ if __name__ == "__main__":
 - **Audit trails**: Complete processing history
 
 **Common Compliance Pitfalls**:
+
 - Forgetting backups: Deletion must include backups
 - Training data: Removing from training sets is hard
 - Third parties: Ensure processors are GDPR-compliant
@@ -3898,6 +3924,7 @@ if __name__ == "__main__":
 - Incomplete deletion: Check logs, analytics, caches
 
 **Penalties**:
+
 - Up to €20M or 4% of global annual revenue
 - Fines for: No legal basis, inadequate security, no breach notification
 - Reputation damage, loss of customer trust
@@ -3907,6 +3934,7 @@ if __name__ == "__main__":
 ## Practical GDPR Implementation
 
 **Data Residency**:
+
 - Use cloud providers with regional guarantees
   - AWS: Specific regions (eu-west-1, eu-central-1)
   - GCP: Regional resources
@@ -3915,12 +3943,14 @@ if __name__ == "__main__":
 - Regular audits of data location
 
 **Deletion Implementation**:
+
 - Asynchronous processing (don't block user)
 - Multi-stage: Active data → Archives → Backups
 - Track deletion status, notify user on completion
 - Consider "soft delete" with delayed hard delete
 
 **Consent Management**:
+
 - Granular consent (separate purposes)
 - Easy withdrawal (one-click)
 - Consent refresh (annual reminder)
@@ -3935,6 +3965,7 @@ if __name__ == "__main__":
 6. Documentation: Complete incident report
 
 **Documentation**:
+
 - Privacy policy (user-facing)
 - Data processing activities (Article 30)
 - Privacy impact assessment (high-risk processing)

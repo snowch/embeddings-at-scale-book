@@ -26,6 +26,7 @@ Quantum computing provides theoretical advantages for embedding operations:
 **However**: Quantum advantage requires careful analysis—most speedups apply to specific problem structures, quantum coherence limits computation time (milliseconds currently), quantum I/O costs dominate for large datasets, error correction overhead significant, and current quantum computers have 100-1000 qubits limiting practical applications.
 
 **Practical quantum roadmap**:
+
 - **2025-2027**: Hybrid classical-quantum algorithms (quantum subroutines for bottlenecks)
 - **2028-2030**: Quantum-accelerated similarity search for 10^9-10^12 embeddings
 - **2031-2035**: Full quantum embedding systems with error correction
@@ -942,6 +943,7 @@ Neuromorphic systems provide unique benefits for embedding applications:
 - **Temporal dynamics**: Natural handling of sequential and time-series data
 
 **Neuromorphic embedding applications**:
+
 - Real-time semantic search on smartphones (<10mW power)
 - Always-on voice/vision embeddings for wearables
 - IoT sensor embeddings (temperature, vibration, audio) for predictive maintenance
@@ -1604,6 +1606,7 @@ class AdaptiveNeuromorphicEmbedding:
 Practical deployment on neuromorphic chips:
 
 **Intel Loihi 2 (2024+)**:
+
 - 1M neurons, 128 cores
 - 15 pJ/spike energy efficiency
 - On-chip learning (STDP, reward-modulated)
@@ -1611,12 +1614,14 @@ Practical deployment on neuromorphic chips:
 - Best for: Continuous learning, temporal data
 
 **IBM TrueNorth**:
+
 - 1M neurons, 256M synapses
 - 70mW total power consumption
 - Fixed architecture (pre-trained models)
 - Best for: Inference-only, ultra-low power
 
 **BrainChip Akida**:
+
 - Event-based convolutional layers
 - 1-2W power consumption
 - Incremental learning
@@ -2402,6 +2407,7 @@ def demonstrate_federated_edge_embedding():
 ## Edge Deployment Considerations
 
 **Device constraints**:
+
 - Storage: Models must fit in available storage (<10MB for IoT, <100MB for smartphones)
 - Memory: Runtime memory limited (MB to few GB)
 - Compute: CPUs 10-100× slower than cloud GPUs
@@ -2416,6 +2422,7 @@ def demonstrate_federated_edge_embedding():
 5. Federated learning (improve without centralizing data)
 
 **Success metrics**:
+
 - Inference latency: <10ms for interactive applications
 - Model size: <10MB for constrained devices
 - Energy per inference: <1mJ for always-on operation
@@ -2966,6 +2973,7 @@ def demonstrate_decentralized_marketplace():
 ## Blockchain Trade-offs
 
 **Advantages**:
+
 - Decentralization (no single point of failure or control)
 - Transparency (all transactions auditable)
 - Immutability (cannot alter history)
@@ -2973,6 +2981,7 @@ def demonstrate_decentralized_marketplace():
 - Incentive alignment (token economics)
 
 **Disadvantages**:
+
 - Transaction costs ($0.01-$10 per operation)
 - Latency (seconds to minutes for finality)
 - Scalability (10-10000 TPS vs millions for centralized)
@@ -2981,6 +2990,7 @@ def demonstrate_decentralized_marketplace():
 - Regulatory uncertainty (legal status evolving)
 
 **When to use blockchain for embeddings**:
+
 - Cross-organizational collaboration without trust
 - Censorship resistance required
 - Transparent provenance and auditing needed
@@ -2988,6 +2998,7 @@ def demonstrate_decentralized_marketplace():
 - Privacy-preserving computation essential
 
 **When NOT to use blockchain**:
+
 - Single organization deployment
 - High throughput required (>1000 TPS)
 - Low latency critical (<100ms)
@@ -3531,6 +3542,7 @@ def demonstrate_agi_embedding():
 ## Preparing for AGI-Era Embeddings
 
 **Near-term actions (2025-2027)**:
+
 - Experiment with multi-modal models (CLIP, ImageBind, etc.)
 - Implement context-aware embedding generation
 - Add uncertainty quantification to production systems
@@ -3538,6 +3550,7 @@ def demonstrate_agi_embedding():
 - Develop explanation generation capabilities
 
 **Medium-term preparation (2028-2032)**:
+
 - Continual learning infrastructure
 - Causal reasoning integration
 - Meta-learning for rapid adaptation
@@ -3545,6 +3558,7 @@ def demonstrate_agi_embedding():
 - Compositional and hierarchical representations
 
 **Long-term readiness (2033+)**:
+
 - AGI-native architectures
 - Unified world models
 - Autonomous learning and reasoning
@@ -3564,11 +3578,13 @@ def demonstrate_agi_embedding():
 AGI-era embedding systems enable natural collaboration between humans and AI through shared semantic representations:
 
 **Shared semantic space**:
+
 - Human thoughts/intentions → embeddings (via BCI or natural language)
 - AI reasoning/knowledge → embeddings (internal representations)
 - Collaborative workspace → shared embedding space
 
 **Applications**:
+
 - **Creative collaboration**: AI assists human creativity through semantic suggestions
 - **Scientific discovery**: Joint exploration of hypothesis space
 - **Decision support**: AI provides context-aware recommendations based on human values
@@ -3724,6 +3740,7 @@ Organizations should prepare embedding systems for AGI transition:
 5. **Transparency**: Explainable representations and reasoning
 
 **Technical preparation**:
+
 - Multi-modal fusion architectures
 - Memory-augmented systems
 - Meta-learning frameworks
@@ -3732,6 +3749,7 @@ Organizations should prepare embedding systems for AGI transition:
 - Online learning infrastructure
 
 **Organizational readiness**:
+
 - Cross-functional AI teams (research + engineering + domain experts)
 - Ethical frameworks for AGI deployment
 - Safety and alignment protocols

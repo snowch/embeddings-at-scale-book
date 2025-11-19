@@ -26,6 +26,7 @@ Production embedding systems require diverse expertise rarely found in single in
 **Traditional ML teams** typically have strong ML expertise but limited infrastructure knowledge, operate at smaller scale (GB-TB vs PB-EB), optimize for offline metrics (accuracy) rather than user experience, work in batch rather than real-time systems, and lack deep domain expertise in the specific application areas where embeddings provide value.
 
 **Required team structure**:
+
 - **Embedding ML engineers** (40% of team): Model training, fine-tuning, evaluation, research
 - **Infrastructure engineers** (30%): Vector database, serving infrastructure, scalability
 - **Data engineers** (15%): Pipelines, data quality, streaming updates, integration
@@ -545,6 +546,7 @@ if __name__ == "__main__":
 - **Alternative**: Partner with vector database vendors for initial architecture and optimization
 
 **When to hire vs train**:
+
 - **Hire**: Critical capabilities absent, urgent timeline (<3 months), strategic expertise requiring years to develop
 - **Train**: Existing team has related expertise, longer timeline (6+ months), capability needed at scale (5+ people)
 - **Contract**: Short-term need, highly specialized expertise, uncertain long-term requirement
@@ -1267,6 +1269,7 @@ if __name__ == "__main__":
 Executive sponsorship—visible, sustained commitment from senior leadership—proves essential for embedding adoption success:
 
 **Securing initial sponsorship**:
+
 - **Business case**: ROI projections with conservative assumptions, competitive analysis showing adoption necessity, risk assessment with mitigation strategies
 - **Strategic framing**: Position embeddings as enabler for strategic initiatives (customer experience, operational efficiency, innovation) not just technical improvement
 - **Demos**: Show working prototypes demonstrating concrete value on real company data, avoid vaporware and excessive future promises
@@ -1274,6 +1277,7 @@ Executive sponsorship—visible, sustained commitment from senior leadership—p
 - **Resource ask**: Clear 12-18 month plan with phased investment allowing staged commitment
 
 **Maintaining engagement**:
+
 - **Regular updates**: Monthly emails with progress, metrics, wins, and challenges—keep embeddings top-of-mind
 - **Business metrics**: Connect technical metrics (latency, accuracy) to business outcomes (revenue, costs, satisfaction)
 - **Course corrections**: Proactively communicate problems and pivots building trust through transparency
@@ -1281,6 +1285,7 @@ Executive sponsorship—visible, sustained commitment from senior leadership—p
 - **Strategic decisions**: Involve sponsors in key decisions (build vs buy, resource allocation) maintaining ownership
 
 **Leveraging sponsorship**:
+
 - **Organizational signaling**: Sponsor communication to organization about embedding importance
 - **Resource allocation**: Sponsor approval for headcount, budget, priority shifts
 - **Barrier removal**: Sponsor escalation for blockers (security reviews, legal approval, cross-team dependencies)
@@ -2065,6 +2070,7 @@ Vendor evaluation and partnership—deciding what to build internally vs buy ext
 Organizations must evaluate build-vs-buy systematically across embedding system components:
 
 **Build internally when**:
+
 - **Strategic differentiation**: Component provides competitive advantage (custom embeddings capturing proprietary domain knowledge, unique application logic, specialized integration with existing systems)
 - **Unique requirements**: No vendor meets specific needs (extreme scale, custom privacy requirements, specialized domain, integration with legacy systems)
 - **Cost advantage**: Internal development cheaper long-term than vendor pricing (high volume driving per-query costs above internal amortized costs)
@@ -2072,6 +2078,7 @@ Organizations must evaluate build-vs-buy systematically across embedding system 
 - **Control requirements**: Need full control over roadmap, deployment, data handling (regulatory requirements, security policies, business dependencies)
 
 **Buy/partner when**:
+
 - **Commodity capability**: Component standardized across industry (vector databases, pre-trained embeddings, monitoring tools)
 - **Rapid evolution**: Technology changing too quickly for internal development to keep pace (new models monthly, algorithm improvements)
 - **Insufficient expertise**: Building requires specialized skills absent from team (quantum computing, neuromorphic hardware, advanced research)
@@ -2811,6 +2818,7 @@ if __name__ == "__main__":
 - **Exit strategy**: Data portability (standard formats), transition assistance (vendor helps migration), no punitive terms (reasonable termination costs), contract length (avoid excessive lock-in)
 
 **Negotiation leverage**:
+
 - **Scale**: Large deployments command better pricing and terms
 - **Reference**: Agree to be reference customer in exchange for concessions
 - **Competition**: Multiple viable vendors increases bargaining power
@@ -2832,6 +2840,7 @@ if __name__ == "__main__":
 **Relationship health**: Regular business reviews (quarterly), maintain multiple contacts (avoid key person dependency), escalation paths for critical issues, mutual success metrics, honest feedback loop.
 
 **Red flags requiring action**:
+
 - **Declining service quality**: Increased outages, slower support response, feature velocity decrease
 - **Financial instability**: Layoffs, executive departures, funding difficulties
 - **Strategic misalignment**: Vendor pivoting away from your use case
@@ -3542,6 +3551,7 @@ if __name__ == "__main__":
 - **External benchmarks**: Peer company results suggest expected impact
 
 **Continuous measurement**:
+
 - **Automated dashboards**: Real-time tracking of key metrics
 - **Regular reviews**: Weekly technical, monthly product, quarterly business
 - **Anomaly detection**: Statistical tests identify unexpected changes

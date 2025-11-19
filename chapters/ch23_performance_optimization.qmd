@@ -37,37 +37,44 @@ Production vector queries face limitations:
 ## Query Planning Heuristics
 
 **Small k (< 10)**:
+
 - Use HNSW for best precision
 - ef_search = max(k × 2, 50)
 - Single-stage retrieval sufficient
 
 **Medium k (10-100)**:
+
 - Use IVF-PQ for efficiency
 - n_probe = 10-50 clusters
 - Two-stage: coarse → refine
 
 **Large k (> 100)**:
+
 - Hybrid approach
 - IVF coarse → HNSW refine → exact rerank
 - Consider distributed execution
 
 **High-selectivity filters (> 90% filtered)**:
+
 - Filter first, search filtered subset
 - Traditional database index + vector scan
 - May be faster than ANN with post-filtering
 
 **Low-selectivity filters (< 50% filtered)**:
+
 - Search first, filter results
 - Standard ANN + post-filter
 - Less overhead than pre-filtering
 
 **Time-sensitive queries (< 10ms budget)**:
+
 - Use fastest index (HNSW)
 - Accept slightly lower recall
 - Enable aggressive caching
 - Consider approximate distances (PQ, LSH)
 
 **Batch queries**:
+
 - Group by similarity (same filters, similar k)
 - Share index structure reads
 - Amortize query planning overhead
@@ -111,29 +118,34 @@ Vector indexes face diverse workload characteristics:
 ## HNSW Tuning Guidelines
 
 **For high recall (>98%)**:
+
 - M = 48-64 (more connections)
 - ef_construction = 400-500
 - ef_search = k × 4 to k × 8
 - Expect: 20-40ms p50, 98-99% recall
 
 **For balanced performance (95-98% recall)**:
+
 - M = 24-32
 - ef_construction = 200-300
 - ef_search = k × 2 to k × 4
 - Expect: 10-20ms p50, 95-97% recall
 
 **For speed (<10ms p50)**:
+
 - M = 16-24
 - ef_construction = 100-200
 - ef_search = k × 1.5 to k × 2
 - Expect: 5-10ms p50, 90-95% recall
 
 **Memory optimization**:
+
 - Lower M reduces graph size (proportional savings)
 - Store vectors on SSD, keep graph in RAM
 - Use memory-mapped files for large datasets
 
 **Build-time optimization**:
+
 - Lower ef_construction speeds build (linear)
 - Parallel construction with graph merging
 - Incremental updates for streaming data
@@ -143,27 +155,32 @@ Vector indexes face diverse workload characteristics:
 ## IVF Tuning Guidelines
 
 **For high recall (>98%)**:
+
 - n_clusters = sqrt(N)
 - n_probe = 5-10% of clusters
 - Expect: 15-30ms p50, 97-99% recall
 
 **For balanced performance (95-98% recall)**:
+
 - n_clusters = 2× sqrt(N)
 - n_probe = 2-5% of clusters
 - Expect: 8-15ms p50, 95-97% recall
 
 **For speed (<10ms p50)**:
+
 - n_clusters = 4× sqrt(N)
 - n_probe = 1-2% of clusters
 - Expect: 3-8ms p50, 90-95% recall
 
 **With Product Quantization**:
+
 - Combine IVF with PQ for 10-20× compression
 - n_subvectors = 8-16 for 768-dim vectors
 - n_bits = 8 for good accuracy, 4 for compression
 - Expect: 50-75% accuracy loss, 5-10× speedup
 
 **GPU acceleration**:
+
 - Batch queries (32-256 per batch)
 - Use GPU IVF-PQ for 10-100× throughput
 - Expect: 0.5-2ms per query on V100 GPU
@@ -197,24 +214,28 @@ Production vector workloads exhibit skewed access patterns:
 ## Cache Tier Selection
 
 **L1 cache (1-10GB, <0.1ms)**:
+
 - Most frequently accessed embeddings (top 0.1%)
 - Active query results
 - User session data
 - Real-time recommendations
 
 **L2 cache (10-100GB, <1ms)**:
+
 - Frequently accessed embeddings (top 1-10%)
 - Recent query results
 - Popular content
 - Warm data for active users
 
 **L3 cache (100GB-1TB, <5ms)**:
+
 - Occasionally accessed embeddings (top 10-50%)
 - Historical query results
 - Compressed older data
 - Prefetched candidates
 
 **Storage (PB scale, 10-100ms)**:
+
 - Full dataset
 - Cold embeddings (accessed <1/day)
 - Historical archives
@@ -247,27 +268,32 @@ Storage costs dominate at scale:
 ## Choosing Compression Method
 
 **For maximum compression (10-32×)**:
+
 - Binary quantization: 32× but 15-25% accuracy loss
 - Product quantization: 8-32× with 3-10% accuracy loss
 - Use when: Storage cost critical, accuracy tolerance high
 
 **For balanced compression (4-8×)**:
+
 - Scalar quantization (int8): 4× with <2% accuracy loss
 - PQ with 8 subvectors: 8× with 3-5% accuracy loss
 - Use when: Need both compression and accuracy
 
 **For minimal accuracy loss (<2%)**:
+
 - Scalar quantization (int8): 4× compression
 - Dimensionality reduction (768→384): 2× compression
 - PQ with 4 subvectors: 4× with <2% loss
 - Use when: Accuracy is critical
 
 **For searchable compression**:
+
 - Product quantization: Can search without decompression
 - Binary quantization: Very fast Hamming distance
 - Use when: Query speed matters more than storage
 
 **Combined approaches**:
+
 - PCA (768→384) + PQ (8 subvectors) = 16× compression
 - PCA + int8 quantization = 8× compression
 - Achieves better compression/accuracy trade-off
@@ -302,21 +328,25 @@ Global embedding systems face network constraints:
 ## Sharding Strategies
 
 **Hash-based sharding**:
+
 - Use: Uniform access patterns
 - Pros: Even distribution, simple
 - Cons: Can't colocate related embeddings
 
 **Geographic sharding**:
+
 - Use: Regional user bases (e.g., GDPR compliance)
 - Pros: Low latency, regulatory compliance
 - Cons: Uneven load distribution
 
 **Semantic sharding**:
+
 - Use: Queries access related embeddings
 - Pros: Locality, fewer cross-shard queries
 - Cons: Complex, requires clustering
 
 **Hybrid sharding**:
+
 - Hot data: Replicate globally
 - Warm data: Geographic sharding
 - Cold data: Hash-based sharding
@@ -327,18 +357,21 @@ Global embedding systems face network constraints:
 ## Replication Policies
 
 **Full replication**:
+
 - Replicate all data to all datacenters
 - Use: <10TB datasets, low update rate
 - Pros: Lowest latency, simple
 - Cons: High storage/bandwidth cost
 
 **Hot data replication**:
+
 - Replicate top 1-10% globally
 - Shard remaining data
 - Use: Skewed access patterns (typical)
 - Pros: 80%+ queries local, 90%+ cost savings
 
 **On-demand replication**:
+
 - Replicate when access rate exceeds threshold
 - Gradually evict cold data
 - Use: Changing access patterns

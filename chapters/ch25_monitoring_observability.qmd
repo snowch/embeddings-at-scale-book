@@ -882,24 +882,28 @@ if __name__ == "__main__":
 ## Embedding Quality Monitoring Best Practices
 
 **Comprehensive metric coverage**:
+
 - Track intrinsic metrics (clustering quality, dimension utilization) that detect structural problems even without labeled data
 - Monitor extrinsic metrics (downstream task performance) that measure real-world utility
 - Correlate with business metrics (CTR, conversion) to quantify business impact
 - Use multiple metrics to avoid optimization to a single flawed objective
 
 **Baseline establishment**:
+
 - Establish quality baselines during initial deployment when system is known-good
 - Track metrics across model versions to detect regression
 - Compare against random embeddings and previous model versions
 - Define acceptable quality ranges based on business requirements
 
 **Automated anomaly detection**:
+
 - Set thresholds for each quality metric based on baseline statistics
 - Alert when metrics fall outside acceptable ranges
 - Implement gradual degradation detection (trend analysis)
 - Use statistical tests (Kolmogorov-Smirnov, Mann-Whitney) for distribution shifts
 
 **Sampling strategies**:
+
 - Sample representatively across data distribution (stratified sampling)
 - Over-sample rare but important segments (tail embeddings)
 - Compute expensive metrics on samples, cheap metrics on full data
@@ -1640,24 +1644,28 @@ if __name__ == "__main__":
 ## Dashboard Design Best Practices
 
 **Information hierarchy**:
+
 - Top-level metrics: Single-number summaries (QPS, p99 latency, error rate)
 - Secondary metrics: Distributions, resource utilization, cache performance
 - Drill-down capabilities: Click to see per-index, per-query-type breakdowns
 - Time range controls: Last hour/day/week with zoom capabilities
 
 **Visual design principles**:
+
 - Color coding: Green (good), yellow (warning), red (critical) for instant recognition
 - Trend indicators: Arrows showing direction of change vs previous period
 - Threshold lines: Visual indicators of SLA boundaries
 - Minimal clutter: Show only actionable metrics, hide noise
 
 **Real-time updates**:
+
 - Auto-refresh every 30-60 seconds for live monitoring
 - WebSocket streaming for critical alerts
 - Historical comparisons: Today vs yesterday, this week vs last week
 - Anomaly highlighting: Automatic detection of unusual patterns
 
 **Actionable insights**:
+
 - Direct links from anomalies to relevant logs/traces
 - Suggested remediation actions for common issues
 - Runbook integration for escalation procedures
@@ -2230,24 +2238,28 @@ if __name__ == "__main__":
 ## Drift Detection Challenges
 
 **False positives**:
+
 - Natural variation can trigger alerts without true drift
 - Seasonal effects cause expected distribution shifts
 - A/B tests introduce intentional distribution changes
 - Solution: Track historical baselines, adjust thresholds seasonally
 
 **Detection latency**:
+
 - Gradual drift requires weeks of data to detect reliably
 - Sudden changes may take hours to accumulate sufficient evidence
 - Business impact may occur before statistical significance
 - Solution: Combine statistical tests with business metric monitoring
 
 **Threshold tuning**:
+
 - Too sensitive: Excessive false alerts, alert fatigue
 - Too lenient: Miss genuine drift, delayed detection
 - Different metrics require different thresholds
 - Solution: Calibrate thresholds empirically, track alert precision
 
 **Root cause attribution**:
+
 - Drift detected but cause unclear (data vs model vs config)
 - Multiple simultaneous changes complicate diagnosis
 - Requires additional instrumentation and logging
@@ -2839,24 +2851,28 @@ if __name__ == "__main__":
 ## Cost Optimization Strategies
 
 **Infrastructure optimization**:
+
 - Use spot/preemptible instances for training (60-90% savings)
 - Right-size instance types to actual workload
 - Use reserved instances for predictable workloads (30-60% savings)
 - Implement auto-scaling to match demand
 
 **Algorithmic optimization**:
+
 - Increase cache hit rates through intelligent caching (70-90% query cost reduction)
 - Use quantization/compression for storage (75-95% storage savings)
 - Implement approximate nearest neighbor (ANN) algorithms (10-100× speedup)
 - Batch operations to amortize overhead
 
 **Architectural optimization**:
+
 - Tiered storage: Hot (memory) → Warm (SSD) → Cold (object storage)
 - Geographic optimization: Place data near users
 - Query optimization: Multi-stage retrieval, early termination
 - Model optimization: Distillation, pruning, knowledge transfer
 
 **Organizational optimization**:
+
 - Chargeback models: Teams aware of their spending
 - Budget alerts: Prevent cost overruns
 - Regular audits: Identify waste and unused resources
@@ -3392,24 +3408,28 @@ if __name__ == "__main__":
 ## UX Analytics Best Practices
 
 **Rigorous experimentation**:
+
 - A/B test all significant embedding changes
 - Ensure sufficient sample size for statistical power
 - Run tests for appropriate duration (typically 1-2 weeks)
 - Monitor for novelty effects (treatment advantage fades)
 
 **Multi-metric evaluation**:
+
 - Track immediate metrics (CTR, dwell time)
 - Monitor medium-term metrics (session quality, retention)
 - Measure long-term metrics (LTV, churn)
 - Avoid optimizing single metric at expense of others
 
 **Segment analysis**:
+
 - Different user segments may respond differently
 - New users vs returning users
 - Power users vs casual users
 - Geographic/demographic segments
 
 **Attribution and causality**:
+
 - Isolate embedding impact from other changes
 - Use causal inference techniques when possible
 - Track confounding variables (seasonality, promotions)
