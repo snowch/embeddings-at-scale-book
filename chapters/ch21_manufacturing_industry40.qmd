@@ -3846,7 +3846,11 @@ def digital_twin_example():
 
 ## Key Takeaways
 
-- **Predictive quality control with sensor embeddings prevents defects before occurrence**: Time-series transformers encode multi-sensor streams (vibration, temperature, acoustic, power) into state embeddings that capture degradation patterns, predicting defects 15-30 seconds before manifestation with 87% true positive rate and 8% false positives, enabling real-time interventions that reduce scrap by 65% (-$4.2M) and rework by 72% (-$2.8M) through early detection and parameter adjustment
+:::{.callout-note}
+The specific performance metrics, cost savings, and dollar figures in the takeaways below are illustrative examples from the hypothetical scenarios and code demonstrations presented in this chapter. They are not verified real-world results from specific manufacturing organizations.
+:::
+
+- **Predictive quality control with sensor embeddings prevents defects before occurrence**: Time-series transformers encode multi-sensor streams (vibration, temperature, acoustic, power) into state embeddings that capture degradation patterns, predicting defects 15-30 seconds before manifestation with 87% true positive rate and 8% false positives, enabling real-time interventions that could reduce scrap by 65% (-$4.2M) and rework by 72% (-$2.8M) through early detection and parameter adjustment
 
 - **Supply chain intelligence using entity embeddings optimizes sourcing and predicts disruptions**: Graph neural networks model supplier-manufacturer relationships while temporal models forecast delays, enabling disruption prediction 14-21 days in advance with 81% accuracy, reducing stockouts by 67% (-$28M), expedited freight costs by 42% (-$8.5M), and production line downtime by 51% (-$15M) through proactive alternative sourcing and inventory management
 

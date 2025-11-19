@@ -2285,7 +2285,11 @@ def epidemic_modeling_example():
 
 ## Key Takeaways
 
-- **Drug discovery acceleration with molecular embeddings enables virtual screening at scale**: Graph neural networks encode molecular structure and protein binding sites, predicting binding affinity and ADMET properties computationally, reducing candidate identification from 6-12 months to 1-2 weeks and costs from $500K-$2M to $10K-$50K while achieving 10x higher hit rates through enriched computational filtering
+:::{.callout-note}
+The specific performance metrics and cost figures in the takeaways below are illustrative examples based on the code demonstrations and hypothetical scenarios presented in this chapter. They are not verified real-world results from specific healthcare organizations.
+:::
+
+- **Drug discovery acceleration with molecular embeddings enables virtual screening at scale**: Graph neural networks encode molecular structure and protein binding sites, predicting binding affinity and ADMET properties computationally, potentially reducing candidate identification from 6-12 months to 1-2 weeks and costs from $500K-$2M to $10K-$50K while achieving 10x higher hit rates through enriched computational filtering
 
 - **Medical image analysis benefits from multi-modal embedding fusion**: Vision transformers encode radiology images while clinical encoders capture lab results, vitals, and medical history, with attention-based fusion enabling diagnosis patterns invisible to human perception, achieving 94%+ accuracy while reducing radiologist reading time by 65% and flagging urgent cases for prioritization
 

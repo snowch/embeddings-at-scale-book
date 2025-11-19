@@ -2830,7 +2830,11 @@ def creative_generation_example():
 
 ## Key Takeaways
 
-- **Multi-modal content recommendation enables semantic discovery beyond genre tags**: Video, audio, and text encoders learn complementary representations of content, two-tower architectures enable efficient retrieval at 100M+ content scale, and sequential viewer modeling captures temporal preferences, increasing engagement by 30-60% and diversity by 45% compared to collaborative filtering
+:::{.callout-note}
+The specific performance metrics, cost figures, and business impact percentages in the takeaways below are illustrative examples from the hypothetical scenarios and code demonstrations presented in this chapter. They are not verified real-world results from specific media organizations.
+:::
+
+- **Multi-modal content recommendation enables semantic discovery beyond genre tags**: Video, audio, and text encoders learn complementary representations of content, two-tower architectures enable efficient retrieval at 100M+ content scale, and sequential viewer modeling captures temporal preferences, potentially increasing engagement by 30-60% and diversity by 45% compared to collaborative filtering
 
 - **Automated content tagging scales metadata generation 10,000×**: Computer vision models extract visual concepts, audio models detect sound events, NLP models analyze dialogue and metadata, hierarchical classifiers respect taxonomy relationships, and zero-shot classification enables tagging with arbitrary concepts, reducing tagging cost from $200/hour to $0.02/hour while achieving 85-92% precision
 
