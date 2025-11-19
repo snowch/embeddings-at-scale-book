@@ -219,34 +219,34 @@ Organizations progress through five embedding maturity stages:
 **Level 0 - No Embeddings**: Traditional keyword search, rule-based systems
 
 **Level 1 - Experimental**: Single pilot project, off-the-shelf models, limited integration
-- Team size: 1-3 people
-- Data scale: <1M embeddings
-- Use cases: 1 pilot
-- Infrastructure: Laptop-scale
+- Small team (individual contributors or small group)
+- Data scale: Relatively small embedding collections
+- Use cases: Initial pilot projects
+- Infrastructure: Development-scale systems
 
 **Level 2 - Tactical**: Multiple independent embedding projects, beginning custom development
-- Team size: 5-10 people
-- Data scale: 1M-100M embeddings
-- Use cases: 2-5 production use cases
-- Infrastructure: Single server/small cluster
+- Growing team with dedicated ML engineers
+- Data scale: Production-scale embedding collections
+- Use cases: Multiple independent production use cases
+- Infrastructure: Production servers or small clusters
 
 **Level 3 - Strategic**: Coordinated embedding strategy, shared infrastructure, custom models
-- Team size: 15-30 people
-- Data scale: 100M-10B embeddings
-- Use cases: 10+ production use cases
-- Infrastructure: Distributed cluster, dedicated vector DB
+- Cross-functional teams spanning ML, engineering, product
+- Data scale: Large-scale coordinated embedding infrastructure
+- Use cases: Coordinated use cases across organization
+- Infrastructure: Distributed clusters with dedicated vector databases
 
-**Level 4 - Transformative**: Embeddings as core platform, organization-wide adoption, trillion-scale
-- Team size: 50+ people across multiple teams
-- Data scale: 10B-1T+ embeddings
-- Use cases: 50+ use cases, embedded in core products
-- Infrastructure: Multi-region, petabyte-scale vector infrastructure
+**Level 4 - Transformative**: Embeddings as core platform, organization-wide adoption, massive scale
+- Multiple specialized teams across organization
+- Data scale: Very large scale (billions to trillions of embeddings)
+- Use cases: Embeddings embedded throughout core products
+- Infrastructure: Multi-region, globally distributed vector infrastructure
 
 **Level 5 - Industry-Leading**: Embedding-native organization, proprietary methods, ecosystem effects
-- Team size: 100+ dedicated professionals
-- Data scale: Trillion+ embeddings
-- Use cases: Embeddings power entire business model
-- Infrastructure: Custom hardware/software, global scale
+- Large dedicated embedding platform organization
+- Data scale: Trillion-scale embedding infrastructure
+- Use cases: Embeddings power entire business model and ecosystem
+- Infrastructure: Custom hardware/software optimized for embedding workloads
 
 Most organizations are at Level 0-1. Competitive advantages emerge at Level 3+.
 
@@ -276,74 +276,71 @@ class EmbeddingStrategyRoadmap:
                 'objectives': [
                     'Establish embedding infrastructure (vector DB, training pipeline)',
                     'Deploy first production use case',
-                    'Build embedding team (hire 3-5 ML engineers)',
-                    'Create data pipelines for 10M+ embeddings'
+                    'Build initial embedding team',
+                    'Create data pipelines for embedding generation'
                 ],
                 'success_criteria': {
                     'technical': [
-                        'Vector DB serving 10M embeddings with <100ms p99 latency',
-                        'Training pipeline producing embeddings for 1M new items/week',
+                        'Vector DB serving embeddings with acceptable latency',
+                        'Training pipeline producing embeddings for new items',
                         'Monitoring and observability in place'
                     ],
                     'business': [
-                        'First use case showing 20%+ improvement over baseline',
+                        'First use case showing measurable improvement over baseline',
                         'Executive stakeholder buy-in secured',
                         'Budget approved for Phase 2'
                     ]
                 },
-                'investment': '$500K-$2M',
-                'team_size': '3-5 people'
+                'team_size': 'Small team of ML engineers and infrastructure specialists'
             },
 
             'phase_2_expansion': {
                 'duration_months': 12,
                 'objectives': [
-                    'Scale to 100M+ embeddings across 5+ use cases',
+                    'Scale to larger embedding collections across multiple use cases',
                     'Develop first custom embedding model',
                     'Establish MLOps practices (versioning, AB testing, monitoring)',
                     'Build multi-modal capabilities (text + images)'
                 ],
                 'success_criteria': {
                     'technical': [
-                        'Serving 100M embeddings across 5 production use cases',
-                        'Custom model outperforms off-the-shelf by 15%+',
+                        'Serving embeddings across multiple production use cases',
+                        'Custom model outperforms off-the-shelf baseline',
                         'AB testing infrastructure validates improvements',
                         'Zero-downtime deployment process'
                     ],
                     'business': [
-                        '5 use cases in production with documented ROI',
-                        'Aggregate business impact $10M+ annually',
-                        'Embedding platform adopted by 3+ internal teams'
+                        'Multiple use cases in production with documented ROI',
+                        'Measurable aggregate business impact',
+                        'Embedding platform adopted by multiple internal teams'
                     ]
                 },
-                'investment': '$2M-$5M',
-                'team_size': '10-15 people'
+                'team_size': 'Expanded team with specialized roles'
             },
 
             'phase_3_transformation': {
                 'duration_months': 18,
                 'objectives': [
-                    'Scale to 10B+ embeddings',
+                    'Scale to very large embedding collections',
                     'Embedding platform becomes core infrastructure',
                     'Advanced multi-modal (text, images, audio, structured data)',
                     'Real-time embedding updates and retraining'
                 ],
                 'success_criteria': {
                     'technical': [
-                        '10B+ embeddings served globally',
-                        'Multi-region deployment with <50ms p99 latency',
-                        'Real-time incremental updates (new embeddings live in <1 hour)',
+                        'Large-scale embeddings served globally',
+                        'Multi-region deployment with low latency',
+                        'Real-time incremental updates',
                         'Advanced capabilities (semantic search, RAG, anomaly detection)'
                     ],
                     'business': [
-                        '20+ production use cases',
-                        'Aggregate business impact $50M+ annually',
+                        'Widespread production deployment across organization',
+                        'Significant aggregate business impact',
                         'Documented competitive advantage in core product',
                         'Customer-facing features powered by embeddings'
                     ]
                 },
-                'investment': '$5M-$15M',
-                'team_size': '30-50 people'
+                'team_size': 'Large cross-functional organization'
             },
 
             'phase_4_leadership': {
@@ -356,20 +353,19 @@ class EmbeddingStrategyRoadmap:
                 ],
                 'success_criteria': {
                     'technical': [
-                        'Trillion+ embeddings served globally',
+                        'Trillion-scale embeddings served globally',
                         'Proprietary methods published/patented',
                         'Industry-leading performance benchmarks',
                         'Open-source contributions establish thought leadership'
                     ],
                     'business': [
-                        '50+ production use cases',
-                        'Aggregate business impact $200M+ annually',
+                        'Widespread production use cases throughout organization',
+                        'Substantial aggregate business impact',
                         'Embeddings are core competitive moat',
                         'New business models enabled by embedding capabilities'
                     ]
                 },
-                'investment': '$15M-$50M',
-                'team_size': '100+ people'
+                'team_size': 'Dedicated embedding platform organization'
             }
         }
 
@@ -404,8 +400,8 @@ Organizations pursue one of three embedding strategies:
   - Retailer adds semantic search to existing catalog
   - Bank improves fraud detection with behavioral embeddings
   - Hospital enhances clinical decision support
-- **Investment profile**: Moderate ($2M-$10M over 2 years)
-- **Expected returns**: 20-50% improvement in targeted metrics
+- **Investment profile**: Moderate, focused on incremental improvements
+- **Expected returns**: Measurable improvements in targeted metrics
 - **Risk level**: Low (proven use cases, clear ROI)
 - **Maturity progression**: Level 1 → Level 3 over 2-3 years
 
@@ -417,8 +413,8 @@ Organizations pursue one of three embedding strategies:
   - AI-first search engine competing with Google
   - Personalization platform for e-commerce
   - Clinical AI assistant for healthcare
-- **Investment profile**: Aggressive ($10M-$50M over 3-4 years)
-- **Expected returns**: 10x+ improvement or entirely new capabilities
+- **Investment profile**: Aggressive, building embedding-native products
+- **Expected returns**: Transformative improvements or entirely new capabilities
 - **Risk level**: Medium-High (novel applications, uncertain adoption)
 - **Maturity progression**: Level 1 → Level 4-5 over 3-5 years
 
@@ -430,7 +426,7 @@ Organizations pursue one of three embedding strategies:
   - Cloud provider offering managed vector DB + embedding models
   - Enterprise software providing embedding platform for customers
   - Data platform with built-in embedding capabilities
-- **Investment profile**: Very aggressive ($50M+ over 5+ years)
+- **Investment profile**: Very aggressive, building platform-scale infrastructure
 - **Expected returns**: New revenue streams, ecosystem lock-in
 - **Risk level**: High (requires scale, network effects)
 - **Maturity progression**: Level 2 → Level 5 over 5+ years
@@ -1149,7 +1145,7 @@ Embeddings encode information—sometimes sensitive information. At scale, gover
 - **Auditability gaps**: When an embedding-based decision goes wrong, organizations must explain why
 - **Model drift**: Embedding quality degrades over time without monitoring
 
-**Real Example**: A healthcare provider's patient embedding system was found to have learned correlations between ZIP codes and treatment outcomes—effectively encoding socioeconomic and racial biases. The system recommended different treatments based on where patients lived, not just their medical needs. The issue went undetected for 8 months because there was no governance framework monitoring embedding behavior.
+**Illustrative Scenario**: Consider a hypothetical healthcare embedding system that learns correlations between ZIP codes and treatment outcomes—effectively encoding socioeconomic and racial biases. Such a system could recommend different treatments based on where patients live, not just their medical needs. Without proper governance frameworks monitoring embedding behavior, these issues can persist undetected.
 
 ### The Embedding Governance Framework
 
@@ -1874,7 +1870,7 @@ class EmbeddingCompression:
     def product_quantization(self, embeddings, num_subvectors=8, bits_per_subvector=8):
         """
         Product Quantization: decompose embeddings into subvectors
-        Compression: 768-dim float32 → 8 bytes = 96x compression
+        Example: 768-dim float32 (3,072 bytes) → 8 bytes = 384x compression
         """
         import faiss
 
@@ -1888,7 +1884,11 @@ class EmbeddingCompression:
         # Encode
         codes = pq.sa_encode(embeddings)
 
-        compression_ratio = (dim * 4) / num_subvectors  # float32 to bytes
+        # Calculate compression ratio
+        # Original: dim * 4 bytes (float32)
+        # Compressed: num_subvectors * (bits_per_subvector / 8) bytes
+        bytes_per_code = (num_subvectors * bits_per_subvector) / 8
+        compression_ratio = (dim * 4) / bytes_per_code
 
         return {
             'codes': codes,
@@ -1932,15 +1932,12 @@ Combining strategies for maximum savings:
 |----------|----------------|----------------|---------------------------|
 | Dimension reduction (768→256) | 67% | 5-10% quality loss | Low |
 | Quantization (float32→int8) | 75% | 2-5% quality loss | Low |
-| Product quantization | 96% | 10-15% quality loss | Medium |
+| Product quantization | 99%+ | 10-15% quality loss | Medium |
 | Tiered storage | 40-60% | No quality loss | Medium |
 | Sparse embeddings (top-k) | 50-90% | 15-25% quality loss | Low |
 | **Combined (dimension + quant + tier)** | **90%+** | **<10% quality loss** | **Medium** |
 
-For 100B embeddings at 768-dim:
-- **Before optimization**: $47M/year
-- **After optimization** (90% savings): $4.7M/year
-- **Annual savings**: $42.3M
+The combination of dimension reduction, quantization, and tiered storage can achieve 90%+ storage cost savings while maintaining acceptable quality for most applications. The actual dollar savings depend on your specific scale, but the percentage improvements are consistent across deployments.
 
 ## Building vs. Buying: The Make-or-Break Decision
 

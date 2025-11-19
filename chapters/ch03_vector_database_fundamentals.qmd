@@ -212,7 +212,7 @@ class IndexStructureComparison:
                 'structure': 'Multi-layer proximity graph',
                 'build_time': 'O(N * log(N) * M) where M = connections',
                 'query_time': 'O(log(N) * M)',
-                'memory': 'O(N * M * D) - higher than IVF',
+                'memory': 'O(N * (D + M)) - vectors plus graph edges',
                 'accuracy': '95-99%',
                 'max_scale': '100B+ vectors',
                 'use_case': 'High-performance production systems',
@@ -483,13 +483,13 @@ print(f"  Storage/shard: {config['storage_per_shard_gb']:.1f} GB")
 print(f"  Total storage: {config['total_storage_tb']:.1f} TB")
 ```
 
-### Real-World Architecture Example
+### Example Production Architecture
 
-Here's how a major e-commerce platform architected their vector database for 50 billion product embeddings:
+Here's how a vector database might be architected for 50 billion product embeddings:
 
 ```python
 class EcommerceVectorDBArchitecture:
-    """Real production architecture for 50B products"""
+    """Example production architecture for 50B products"""
 
     def __init__(self):
         self.scale = {
@@ -561,14 +561,13 @@ class EcommerceVectorDBArchitecture:
             }
         }
 
-    def sla_achievement(self):
-        """How architecture achieves SLA targets"""
+    def sla_design_example(self):
+        """How architecture design meets SLA targets"""
 
         return {
             'p50_latency': {
                 'target': '<20ms',
-                'achieved': '12ms',
-                'how': [
+                'design_approach': [
                     'In-region routing (no cross-region latency)',
                     'HNSW with tuned ef_search=100',
                     'Hot index pages cached in memory',
@@ -578,8 +577,7 @@ class EcommerceVectorDBArchitecture:
 
             'p99_latency': {
                 'target': '<100ms',
-                'achieved': '78ms',
-                'how': [
+                'design_approach': [
                     'Adaptive ef_search (increase on cache miss)',
                     'Circuit breaker (fail fast on overload)',
                     'Dedicated query serving machines (no interference from writes)',
@@ -589,8 +587,7 @@ class EcommerceVectorDBArchitecture:
 
             'availability': {
                 'target': '99.99%',
-                'achieved': '99.993%',
-                'how': [
+                'design_approach': [
                     '3x replication within region',
                     'Multi-region failover',
                     'Health checks with automatic traffic routing',
@@ -600,11 +597,10 @@ class EcommerceVectorDBArchitecture:
 
             'throughput': {
                 'target': '500K QPS',
-                'achieved': '650K QPS',
-                'how': [
+                'design_approach': [
                     'Horizontal scaling (200 shards)',
                     'Query parallelization across replicas',
-                    'Caching (85% cache hit rate)',
+                    'Caching (target 85% cache hit rate)',
                     'Batching (process multiple queries together)'
                 ]
             }
