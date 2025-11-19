@@ -81,6 +81,9 @@ format:
     theme: cosmo
     code-copy: true
     code-overflow: wrap
+    page-footer:
+      left: "Built from commit: {{< env GIT_COMMIT_HASH >}}"
+      right: "© 2024 Chris Snow"
 
   pdf:
     documentclass: book
@@ -100,6 +103,8 @@ format:
         \usepackage{fancyhdr}
         \pagestyle{fancy}
         \usepackage{float}
+        \fancyfoot[L]{Built from commit: {{< env GIT_COMMIT_HASH >}}}
+        \fancyfoot[R]{\thepage}
 
   epub:
     toc: true
