@@ -691,6 +691,7 @@ def multimodal_search_example():
 ## Cross-Modal Alignment Challenges
 
 Multi-modal embeddings require **aligned training data**:
+
 - Image-text pairs must be semantically related
 - Noisy pairs degrade alignment (web data often mismatched)
 - Rare concepts harder to align (less training data)

@@ -273,6 +273,7 @@ Consider a medical research platform that might initially consider training cust
 **Potential Decision**: Fine-tune BioBERT (domain-specific BERT variant already pre-trained on PubMed)
 
 **Potential Outcome**:
+
 - Could achieve ~91% of custom model performance at ~10% of cost
 - Could launch in ~2 months vs. 12+ months for custom
 - Fine-tuning cost: ~$40K one-time
@@ -290,6 +291,7 @@ Consider a genomics company that might need embeddings for DNA/protein sequences
 **Potential Decision**: Build custom transformer architecture designed specifically for sequences
 
 **Potential Outcome**:
+
 - Custom architecture could outperform adapted text models by ~34%
 - Could enable novel capabilities (structure prediction, functional annotation)
 - Development cost: ~$1.8M over ~16 months
@@ -678,6 +680,7 @@ class MultiFacetedEmbeddings:
 ```
 
 **Multi-Faceted Use Cases**:
+
 - **E-commerce**: Visual similarity (looks like), functional similarity (used for same purpose), price similarity
 - **Movies**: Genre similarity, cast similarity, theme similarity, visual style similarity
 - **Scientific papers**: Topic similarity, methodology similarity, citation network similarity

@@ -1723,6 +1723,7 @@ Users exhibit consistent patterns:
 - Actions (emails, file access)
 
 **Account compromise changes behavior**:
+
 - Login from new location/device
 - Unusual actions (access sensitive files, bulk downloads)
 - Velocity changes (sudden spike in activity)

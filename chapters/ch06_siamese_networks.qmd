@@ -816,6 +816,7 @@ def create_triplet_dataloader(dataset, batch_size=50, num_workers=4):
 **Memory constraints**: P × K = batch_size. Larger batches provide more triplets but require more memory.
 
 **Recommended configurations**:
+
 - Small models (< 100M params): P=16, K=8, batch_size=128
 - Medium models (100M-1B params): P=10, K=5, batch_size=50
 - Large models (> 1B params): P=8, K=4, batch_size=32
@@ -1108,12 +1109,14 @@ def example_fraud_detection():
 ## When One-Shot Learning Works Best
 
 **Ideal scenarios**:
+
 - High-quality training data (even if small)
 - Well-defined similarity metric
 - Rare event detection (fraud, anomalies, defects)
 - Rapidly evolving categories (new threats, trends)
 
 **Challenging scenarios**:
+
 - Noisy data (single example may be unrepresentative)
 - Complex decision boundaries
 - Classes that require multiple features to distinguish

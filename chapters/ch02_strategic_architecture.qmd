@@ -397,6 +397,7 @@ Organizations pursue one of three embedding strategies:
 - **Profile**: Mature organization with established products/services seeking incremental improvements
 - **Embedding strategy**: Deploy embeddings to optimize existing processes
 - **Examples**:
+
   - Retailer adds semantic search to existing catalog
   - Bank improves fraud detection with behavioral embeddings
   - Hospital enhances clinical decision support
@@ -410,6 +411,7 @@ Organizations pursue one of three embedding strategies:
 - **Profile**: Organization building new products/services where embeddings enable novel capabilities
 - **Embedding strategy**: Embeddings as core product differentiator
 - **Examples**:
+
   - AI-first search engine competing with Google
   - Personalization platform for e-commerce
   - Clinical AI assistant for healthcare
@@ -423,6 +425,7 @@ Organizations pursue one of three embedding strategies:
 - **Profile**: Organization building embedding infrastructure as a platform for internal/external use
 - **Embedding strategy**: Embeddings-as-a-service enabling ecosystem
 - **Examples**:
+
   - Cloud provider offering managed vector DB + embedding models
   - Enterprise software providing embedding platform for customers
   - Data platform with built-in embedding capabilities
