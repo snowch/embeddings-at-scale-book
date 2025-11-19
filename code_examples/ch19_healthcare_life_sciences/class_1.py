@@ -38,7 +38,7 @@ class TrialPatient:
     medical_history: Optional[List[str]] = None
     baseline_measurements: Optional[Dict[str, float]] = None
     embedding: Optional[np.ndarray] = None
-    
+
     def __post_init__(self):
         if self.biomarkers is None:
             self.biomarkers = {}
@@ -74,36 +74,36 @@ class TrialDesign:
 
 class TrialPatientEncoder(nn.Module):
     """Encode trial patients to embeddings"""
-    
+
     def __init__(self, embedding_dim: int = 256):
         super().__init__()
         self.embedding_dim = embedding_dim
-        
+
         self.demo_encoder = nn.Sequential(
             nn.Linear(10, 64),
             nn.ReLU(),
             nn.Linear(64, 64)
         )
-        
+
         self.clinical_encoder = nn.Sequential(
             nn.Linear(50, 128),
             nn.ReLU(),
             nn.Linear(128, 128)
         )
-        
+
         self.biomarker_encoder = nn.Sequential(
             nn.Linear(1000, 256),
             nn.ReLU(),
             nn.Linear(256, 128)
         )
-        
+
         self.fusion = nn.Sequential(
             nn.Linear(64 + 128 + 128, 512),
             nn.ReLU(),
             nn.Dropout(0.2),
             nn.Linear(512, embedding_dim)
         )
-    
+
     def forward(
         self,
         demographics: torch.Tensor,
@@ -114,21 +114,21 @@ class TrialPatientEncoder(nn.Module):
         demo_emb = self.demo_encoder(demographics)
         clin_emb = self.clinical_encoder(clinical)
         bio_emb = self.biomarker_encoder(biomarkers)
-        
+
         combined = torch.cat([demo_emb, clin_emb, bio_emb], dim=-1)
         patient_emb = self.fusion(combined)
-        
+
         return F.normalize(patient_emb, p=2, dim=-1)
 
 class ClinicalTrialOptimizer:
     """Complete clinical trial optimization system"""
-    
+
     def __init__(self, embedding_dim: int = 256, device: str = 'cpu'):
         self.embedding_dim = embedding_dim
         self.device = device
-        
+
         self.patient_encoder = TrialPatientEncoder(embedding_dim).to(device)
-        
+
         self.response_predictor = nn.Sequential(
             nn.Linear(embedding_dim + embedding_dim, 256),
             nn.ReLU(),
@@ -138,20 +138,20 @@ class ClinicalTrialOptimizer:
             nn.Linear(128, 1),
             nn.Sigmoid()
         ).to(device)
-        
+
         self.survival_predictor = nn.Sequential(
             nn.Linear(embedding_dim + embedding_dim, 256),
             nn.ReLU(),
             nn.Linear(256, 1)
         ).to(device)
-        
+
         self.dropout_predictor = nn.Sequential(
             nn.Linear(embedding_dim, 128),
             nn.ReLU(),
             nn.Linear(128, 1),
             nn.Sigmoid()
         ).to(device)
-    
+
     def predict_response(
         self,
         patient_embedding: np.ndarray,
@@ -160,15 +160,15 @@ class ClinicalTrialOptimizer:
         """Predict probability of treatment response"""
         pat_emb = torch.tensor(patient_embedding, dtype=torch.float32).to(self.device)
         treat_emb = torch.tensor(treatment_embedding, dtype=torch.float32).to(self.device)
-        
+
         combined = torch.cat([pat_emb, treat_emb], dim=-1).unsqueeze(0)
-        
+
         self.response_predictor.eval()
         with torch.no_grad():
             response_prob = self.response_predictor(combined)
-        
+
         return float(response_prob.cpu().item())
-    
+
     def screen_patients(
         self,
         candidates: List[TrialPatient],
@@ -177,32 +177,32 @@ class ClinicalTrialOptimizer:
     ) -> List[TrialPatient]:
         """Screen patients for trial enrollment"""
         print(f"Screening {len(candidates)} patients for {trial.trial_id}...")
-        
+
         scored_patients = []
-        
+
         for patient in candidates:
             patient_emb = np.random.randn(self.embedding_dim).astype(np.float32)
             patient_emb = patient_emb / np.linalg.norm(patient_emb)
-            
+
             arm_responses = {}
             for arm in trial.arms:
                 arm_emb = np.random.randn(self.embedding_dim).astype(np.float32)
                 arm_emb = arm_emb / np.linalg.norm(arm_emb)
-                
+
                 response_prob = self.predict_response(patient_emb, arm_emb)
                 arm_responses[arm.arm_id] = response_prob
-            
+
             dropout_risk = random.uniform(0.1, 0.4)
-            
+
             max_response = max(arm_responses.values())
             score = max_response * (1 - dropout_risk)
-            
+
             scored_patients.append((patient, score, arm_responses, dropout_risk))
-        
+
         scored_patients.sort(key=lambda x: x[1], reverse=True)
-        
+
         return [p[0] for p in scored_patients[:target_enrollment]]
-    
+
     def adaptive_randomization(
         self,
         patient: TrialPatient,
@@ -211,25 +211,25 @@ class ClinicalTrialOptimizer:
     ) -> str:
         """Adaptive randomization: allocate patient to arm"""
         allocation_probs = {}
-        
+
         for arm in arms:
             efficacy = current_results.get(arm.arm_id, 0.5)
             allocation_probs[arm.arm_id] = efficacy ** 2
-        
+
         total = sum(allocation_probs.values())
         allocation_probs = {k: v/total for k, v in allocation_probs.items()}
-        
+
         arms_list = list(allocation_probs.keys())
         probs_list = [allocation_probs[a] for a in arms_list]
-        
+
         selected = np.random.choice(arms_list, p=probs_list)
-        
+
         return selected
 
 def clinical_trial_example():
     """Example: Phase II cancer trial with adaptive design"""
     print("=== Clinical Trial Optimization with Patient Embeddings ===\n")
-    
+
     trial = TrialDesign(
         trial_id="NCT_CANCER_2025",
         disease="Non-small cell lung cancer (NSCLC)",
@@ -255,15 +255,15 @@ def clinical_trial_example():
         ],
         adaptive=True
     )
-    
+
     print(f"Trial: {trial.trial_id}")
     print(f"Disease: {trial.disease}")
     print(f"Phase: {trial.phase}")
     print(f"Target enrollment: {trial.sample_size} patients")
-    print(f"\nTreatment arms:")
+    print("\nTreatment arms:")
     for arm in trial.arms:
         print(f"  Arm {arm.arm_id}: {arm.name}")
-    
+
     candidates = []
     for i in range(500):
         candidates.append(TrialPatient(
@@ -277,30 +277,30 @@ def clinical_trial_example():
                 'TMB': random.uniform(5, 25)
             }
         ))
-    
+
     print(f"\nPatient screening pool: {len(candidates)} potential participants")
-    
+
     optimizer = ClinicalTrialOptimizer(embedding_dim=256)
-    
+
     selected = optimizer.screen_patients(
         candidates=candidates,
         trial=trial,
         target_enrollment=trial.sample_size
     )
-    
-    print(f"\n--- Patient Selection Results ---")
+
+    print("\n--- Patient Selection Results ---")
     print(f"Enrolled: {len(selected)} patients")
     print(f"Screening ratio: {len(candidates)/len(selected):.1f}:1")
-    
+
     print("\nSample enrolled patients:\n")
     for i, patient in enumerate(selected[:3], 1):
         print(f"Patient {i}: {patient.patient_id}")
         print(f"  Age: {patient.age}, Sex: {patient.sex}")
         print(f"  PD-L1: {patient.biomarkers['PD-L1']:.0f}%")
         print(f"  TMB: {patient.biomarkers['TMB']:.1f} mutations/Mb")
-        print(f"  Predicted response: High")
-        print(f"  Dropout risk: Low\n")
-    
+        print("  Predicted response: High")
+        print("  Dropout risk: Low\n")
+
     print("--- Adaptive Randomization (Interim Analysis) ---\n")
     print("After 100 patients enrolled (50% of target):")
     print("\nInterim efficacy results:")
@@ -310,14 +310,14 @@ def clinical_trial_example():
         'C': 0.51,
         'D': 0.61
     }
-    
+
     for arm in trial.arms:
         efficacy = current_results[arm.arm_id]
         print(f"  Arm {arm.arm_id} ({arm.name}): {efficacy:.0%} PFS")
-    
+
     print("\nAdaptive allocation for next 100 patients:")
     allocation_counts = {'A': 0, 'B': 0, 'C': 0, 'D': 0}
-    
+
     for patient in selected[100:]:
         assigned_arm = optimizer.adaptive_randomization(
             patient=patient,
@@ -325,13 +325,13 @@ def clinical_trial_example():
             current_results=current_results
         )
         allocation_counts[assigned_arm] += 1
-    
+
     for arm_id, count in allocation_counts.items():
         pct = count / sum(allocation_counts.values()) * 100
         print(f"  Arm {arm_id}: {count} patients ({pct:.0f}%)")
-    
+
     print("\n→ More patients allocated to better-performing arms")
-    
+
     print("\n--- Expected Impact ---")
     print("\nTraditional trial design:")
     print("  • Fixed randomization: 1:1:1:1 across arms")

@@ -23,12 +23,14 @@ Threats detected:
 - Insider threats (access to sensitive files outside normal behavior)
 """
 
+from collections import deque
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple
+
 import numpy as np
 import torch
 import torch.nn as nn
-from typing import List, Dict, Optional, Tuple
-from dataclasses import dataclass
-from collections import deque
+
 
 @dataclass
 class SecurityEvent:
@@ -188,7 +190,7 @@ class ThreatHuntingSystem:
             'process_terminate': 7
         }
 
-        print(f"Initialized Threat Hunting System")
+        print("Initialized Threat Hunting System")
         print(f"  Event dimension: {event_dim}")
         print(f"  Anomaly threshold: {anomaly_threshold}")
 

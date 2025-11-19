@@ -27,13 +27,15 @@ Performance targets:
 - Invalidation latency: <100ms for critical updates
 """
 
-import numpy as np
-from typing import List, Dict, Optional, Tuple, Any, Set
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from collections import OrderedDict, defaultdict
 import hashlib
 import time
+from collections import OrderedDict, defaultdict
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional, Set, Tuple
+
+import numpy as np
+
 
 @dataclass
 class CacheEntry:
@@ -83,7 +85,7 @@ class CacheStats:
     total_size_bytes: int = 0
     avg_lookup_ms: float = 0.0
     entries: int = 0
-    
+
     @property
     def hit_rate(self) -> float:
         """Calculate cache hit rate"""
@@ -100,7 +102,7 @@ class MultiTierCache:
     
     Each tier has different size/latency trade-offs
     """
-    
+
     def __init__(
         self,
         l1_capacity_mb: float = 1024,      # 1GB L1
@@ -112,19 +114,19 @@ class MultiTierCache:
         self.l2_capacity_bytes = int(l2_capacity_mb * 1024 * 1024)
         self.l3_capacity_bytes = int(l3_capacity_mb * 1024 * 1024)
         self.enable_compression = enable_compression
-        
+
         # L1 cache: OrderedDict for LRU behavior
         self.l1_cache: OrderedDict[str, CacheEntry] = OrderedDict()
         self.l1_size_bytes = 0
-        
+
         # L2 cache: Larger, for warm entries
         self.l2_cache: OrderedDict[str, CacheEntry] = OrderedDict()
         self.l2_size_bytes = 0
-        
+
         # L3 cache: Even larger, may use compression
         self.l3_cache: OrderedDict[str, CacheEntry] = OrderedDict()
         self.l3_size_bytes = 0
-        
+
         # Statistics
         self.stats = {
             'l1': CacheStats(),
@@ -132,10 +134,10 @@ class MultiTierCache:
             'l3': CacheStats(),
             'total': CacheStats()
         }
-        
+
         # Access frequency tracking for promotion/demotion
         self.access_freq: Dict[str, int] = defaultdict(int)
-    
+
     def get(self, key: str) -> Optional[Any]:
         """
         Get value from cache, checking all tiers
@@ -147,74 +149,74 @@ class MultiTierCache:
             value: Cached value or None if not found
         """
         start_time = time.time()
-        
+
         # Check L1 cache
         if key in self.l1_cache:
             entry = self.l1_cache[key]
             entry.access_count += 1
             entry.last_access = datetime.now()
             self.access_freq[key] += 1
-            
+
             # Move to end (most recently used)
             self.l1_cache.move_to_end(key)
-            
+
             self.stats['l1'].hits += 1
             self.stats['total'].hits += 1
             self._update_latency(start_time, 'l1')
-            
+
             return entry.value
-        
+
         # Check L2 cache
         if key in self.l2_cache:
             entry = self.l2_cache[key]
             entry.access_count += 1
             entry.last_access = datetime.now()
             self.access_freq[key] += 1
-            
+
             self.l2_cache.move_to_end(key)
-            
+
             self.stats['l2'].hits += 1
             self.stats['total'].hits += 1
-            
+
             # Promote to L1 if accessed frequently
             if entry.access_count >= 10:
                 self._promote_to_l1(key, entry)
-            
+
             self._update_latency(start_time, 'l2')
             return entry.value
-        
+
         # Check L3 cache
         if key in self.l3_cache:
             entry = self.l3_cache[key]
             entry.access_count += 1
             entry.last_access = datetime.now()
             self.access_freq[key] += 1
-            
+
             self.l3_cache.move_to_end(key)
-            
+
             self.stats['l3'].hits += 1
             self.stats['total'].hits += 1
-            
+
             # Decompress if needed
             value = entry.value
             if entry.compressed:
                 value = self._decompress(value)
-            
+
             # Promote to L2 if accessed frequently
             if entry.access_count >= 5:
                 self._promote_to_l2(key, entry)
-            
+
             self._update_latency(start_time, 'l3')
             return value
-        
+
         # Cache miss
         self.stats['l1'].misses += 1
         self.stats['l2'].misses += 1
         self.stats['l3'].misses += 1
         self.stats['total'].misses += 1
-        
+
         return None
-    
+
     def put(
         self,
         key: str,
@@ -231,14 +233,14 @@ class MultiTierCache:
         """
         # Calculate size
         size_bytes = self._estimate_size(value)
-        
+
         # Create entry
         entry = CacheEntry(
             key=key,
             value=value,
             size_bytes=size_bytes
         )
-        
+
         # Put into appropriate tier
         if tier == 'l1':
             self._put_l1(key, entry)
@@ -251,7 +253,7 @@ class MultiTierCache:
                 entry.compressed = True
                 entry.size_bytes = self._estimate_size(entry.value)
             self._put_l3(key, entry)
-    
+
     def _put_l1(self, key: str, entry: CacheEntry) -> None:
         """Put entry into L1 cache"""
         # Evict if needed
@@ -259,64 +261,64 @@ class MultiTierCache:
             if not self.l1_cache:
                 break
             self._evict_l1()
-        
+
         # Add entry
         self.l1_cache[key] = entry
         self.l1_size_bytes += entry.size_bytes
         self.stats['l1'].entries += 1
         self.stats['l1'].total_size_bytes = self.l1_size_bytes
-    
+
     def _put_l2(self, key: str, entry: CacheEntry) -> None:
         """Put entry into L2 cache"""
         while self.l2_size_bytes + entry.size_bytes > self.l2_capacity_bytes:
             if not self.l2_cache:
                 break
             self._evict_l2()
-        
+
         self.l2_cache[key] = entry
         self.l2_size_bytes += entry.size_bytes
         self.stats['l2'].entries += 1
         self.stats['l2'].total_size_bytes = self.l2_size_bytes
-    
+
     def _put_l3(self, key: str, entry: CacheEntry) -> None:
         """Put entry into L3 cache"""
         while self.l3_size_bytes + entry.size_bytes > self.l3_capacity_bytes:
             if not self.l3_cache:
                 break
             self._evict_l3()
-        
+
         self.l3_cache[key] = entry
         self.l3_size_bytes += entry.size_bytes
         self.stats['l3'].entries += 1
         self.stats['l3'].total_size_bytes = self.l3_size_bytes
-    
+
     def _evict_l1(self) -> None:
         """Evict LRU entry from L1, demote to L2"""
         key, entry = self.l1_cache.popitem(last=False)
         self.l1_size_bytes -= entry.size_bytes
         self.stats['l1'].evictions += 1
         self.stats['l1'].entries -= 1
-        
+
         # Demote to L2
         self._put_l2(key, entry)
-    
+
     def _evict_l2(self) -> None:
         """Evict LRU entry from L2, demote to L3"""
         key, entry = self.l2_cache.popitem(last=False)
         self.l2_size_bytes -= entry.size_bytes
         self.stats['l2'].evictions += 1
         self.stats['l2'].entries -= 1
-        
+
         # Demote to L3
         self._put_l3(key, entry)
-    
+
     def _evict_l3(self) -> None:
         """Evict LRU entry from L3"""
         key, entry = self.l3_cache.popitem(last=False)
         self.l3_size_bytes -= entry.size_bytes
         self.stats['l3'].evictions += 1
         self.stats['l3'].entries -= 1
-    
+
     def _promote_to_l1(self, key: str, entry: CacheEntry) -> None:
         """Promote entry from L2 to L1"""
         # Remove from L2
@@ -324,10 +326,10 @@ class MultiTierCache:
             del self.l2_cache[key]
             self.l2_size_bytes -= entry.size_bytes
             self.stats['l2'].entries -= 1
-            
+
             # Add to L1
             self._put_l1(key, entry)
-    
+
     def _promote_to_l2(self, key: str, entry: CacheEntry) -> None:
         """Promote entry from L3 to L2"""
         # Decompress if needed
@@ -335,16 +337,16 @@ class MultiTierCache:
             entry.value = self._decompress(entry.value)
             entry.compressed = False
             entry.size_bytes = self._estimate_size(entry.value)
-        
+
         # Remove from L3
         if key in self.l3_cache:
             del self.l3_cache[key]
             self.l3_size_bytes -= entry.size_bytes
             self.stats['l3'].entries -= 1
-            
+
             # Add to L2
             self._put_l2(key, entry)
-    
+
     def invalidate(self, key: str) -> None:
         """
         Invalidate cache entry across all tiers
@@ -358,25 +360,25 @@ class MultiTierCache:
             self.l1_size_bytes -= entry.size_bytes
             self.stats['l1'].invalidations += 1
             self.stats['l1'].entries -= 1
-        
+
         # Remove from L2
         if key in self.l2_cache:
             entry = self.l2_cache.pop(key)
             self.l2_size_bytes -= entry.size_bytes
             self.stats['l2'].invalidations += 1
             self.stats['l2'].entries -= 1
-        
+
         # Remove from L3
         if key in self.l3_cache:
             entry = self.l3_cache.pop(key)
             self.l3_size_bytes -= entry.size_bytes
             self.stats['l3'].invalidations += 1
             self.stats['l3'].entries -= 1
-        
+
         # Remove from frequency tracking
         if key in self.access_freq:
             del self.access_freq[key]
-    
+
     def _estimate_size(self, value: Any) -> int:
         """Estimate memory size of value"""
         if isinstance(value, np.ndarray):
@@ -387,7 +389,7 @@ class MultiTierCache:
             return len(value)
         else:
             return 1024  # Default estimate
-    
+
     def _compress(self, vector: np.ndarray) -> bytes:
         """
         Compress vector for storage
@@ -398,51 +400,51 @@ class MultiTierCache:
         # Map [min, max] → [0, 255]
         vmin, vmax = vector.min(), vector.max()
         quantized = ((vector - vmin) / (vmax - vmin) * 255).astype(np.uint8)
-        
+
         # Store min/max for decompression
         metadata = np.array([vmin, vmax], dtype=np.float32)
-        
+
         return metadata.tobytes() + quantized.tobytes()
-    
+
     def _decompress(self, compressed: bytes) -> np.ndarray:
         """Decompress vector"""
         # Extract metadata
         metadata = np.frombuffer(compressed[:8], dtype=np.float32)
         vmin, vmax = metadata[0], metadata[1]
-        
+
         # Extract quantized values
         quantized = np.frombuffer(compressed[8:], dtype=np.uint8)
-        
+
         # Dequantize
         vector = quantized.astype(np.float32) / 255.0 * (vmax - vmin) + vmin
-        
+
         return vector
-    
+
     def _update_latency(self, start_time: float, tier: str) -> None:
         """Update average latency statistics"""
         latency_ms = (time.time() - start_time) * 1000
-        
+
         # Exponential moving average
         alpha = 0.1
         current_avg = self.stats[tier].avg_lookup_ms
         self.stats[tier].avg_lookup_ms = (
             alpha * latency_ms + (1 - alpha) * current_avg
         )
-    
+
     def get_stats(self) -> Dict[str, CacheStats]:
         """Get cache statistics"""
         # Update total stats
         self.stats['total'].entries = (
-            self.stats['l1'].entries + 
-            self.stats['l2'].entries + 
+            self.stats['l1'].entries +
+            self.stats['l2'].entries +
             self.stats['l3'].entries
         )
         self.stats['total'].total_size_bytes = (
-            self.l1_size_bytes + 
-            self.l2_size_bytes + 
+            self.l1_size_bytes +
+            self.l2_size_bytes +
             self.l3_size_bytes
         )
-        
+
         return self.stats
 
 class QueryResultCache:
@@ -451,13 +453,13 @@ class QueryResultCache:
     
     Caches (query_vector, k, filters) → [(id, score), ...]
     """
-    
+
     def __init__(self, capacity_mb: float = 1024):
         self.capacity_bytes = int(capacity_mb * 1024 * 1024)
         self.cache: OrderedDict[str, CacheEntry] = OrderedDict()
         self.size_bytes = 0
         self.stats = CacheStats()
-    
+
     def get(
         self,
         query_vector: np.ndarray,
@@ -476,21 +478,21 @@ class QueryResultCache:
             results: Cached results or None if not found
         """
         key = self._make_key(query_vector, k, filters)
-        
+
         if key in self.cache:
             entry = self.cache[key]
             entry.access_count += 1
             entry.last_access = datetime.now()
-            
+
             # Move to end (most recently used)
             self.cache.move_to_end(key)
-            
+
             self.stats.hits += 1
             return entry.value
-        
+
         self.stats.misses += 1
         return None
-    
+
     def put(
         self,
         query_vector: np.ndarray,
@@ -508,27 +510,27 @@ class QueryResultCache:
             results: Query results to cache
         """
         key = self._make_key(query_vector, k, filters)
-        
+
         # Estimate size (results + metadata)
         size_bytes = len(results) * (64 + 8)  # ID + score
-        
+
         # Evict if needed
         while self.size_bytes + size_bytes > self.capacity_bytes:
             if not self.cache:
                 break
             self._evict()
-        
+
         # Create entry
         entry = CacheEntry(
             key=key,
             value=results,
             size_bytes=size_bytes
         )
-        
+
         self.cache[key] = entry
         self.size_bytes += size_bytes
         self.stats.entries += 1
-    
+
     def _make_key(
         self,
         query_vector: np.ndarray,
@@ -542,16 +544,16 @@ class QueryResultCache:
         """
         # Hash query vector
         vector_hash = hashlib.sha256(query_vector.tobytes()).hexdigest()[:16]
-        
+
         # Hash filters
         if filters:
             filter_str = json.dumps(filters, sort_keys=True)
             filter_hash = hashlib.sha256(filter_str.encode()).hexdigest()[:8]
         else:
             filter_hash = "nofilter"
-        
+
         return f"{vector_hash}_{k}_{filter_hash}"
-    
+
     def _evict(self) -> None:
         """Evict LRU entry"""
         key, entry = self.cache.popitem(last=False)
@@ -565,7 +567,7 @@ class AdaptivePrefetcher:
     
     Learns which embeddings likely to be accessed next
     """
-    
+
     def __init__(self, cache: MultiTierCache):
         self.cache = cache
         self.query_history: List[str] = []
@@ -573,7 +575,7 @@ class AdaptivePrefetcher:
             lambda: defaultdict(float)
         )
         self.history_size = 1000
-    
+
     def record_access(self, key: str) -> None:
         """
         Record access pattern for learning
@@ -585,14 +587,14 @@ class AdaptivePrefetcher:
             # Update transition probabilities
             prev_key = self.query_history[-1]
             self.transition_probs[prev_key][key] += 1
-        
+
         # Add to history
         self.query_history.append(key)
-        
+
         # Trim history
         if len(self.query_history) > self.history_size:
             self.query_history = self.query_history[-self.history_size:]
-    
+
     def prefetch(self, current_key: str, n: int = 10) -> List[str]:
         """
         Predict likely next accesses and prefetch
@@ -606,26 +608,26 @@ class AdaptivePrefetcher:
         """
         if current_key not in self.transition_probs:
             return []
-        
+
         # Get transition probabilities
         transitions = self.transition_probs[current_key]
-        
+
         # Normalize
         total = sum(transitions.values())
         if total == 0:
             return []
-        
+
         normalized = {
-            k: v / total 
+            k: v / total
             for k, v in transitions.items()
         }
-        
+
         # Sort by probability
         sorted_keys = sorted(
             normalized.items(),
             key=lambda x: x[1],
             reverse=True
         )
-        
+
         # Return top-n
         return [k for k, _ in sorted_keys[:n]]

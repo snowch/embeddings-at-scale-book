@@ -31,13 +31,15 @@ Performance targets:
 - Privacy budget: ε ≤ 1.0 for typical applications
 """
 
-import numpy as np
-from typing import List, Dict, Optional, Tuple, Set, Any
+import hashlib
+import math
+from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
-import hashlib
-from collections import defaultdict
-import math
+from typing import Any, Dict, List, Optional, Set, Tuple
+
+import numpy as np
+
 
 @dataclass
 class PrivacyConfig:
@@ -120,7 +122,7 @@ class DifferentiallyPrivateLSH:
     - Privacy budget tracks cumulative usage
     - Composition theorems bound total leakage
     """
-    
+
     def __init__(
         self,
         dimension: int,
@@ -132,23 +134,23 @@ class DifferentiallyPrivateLSH:
         self.num_hashes = num_hashes
         self.num_tables = num_tables
         self.privacy_config = privacy_config
-        
+
         # Generate LSH hash functions
         self.hash_functions = self._generate_hash_functions()
-        
+
         # Hash tables: table_id -> bucket_hash -> [embedding_ids]
         self.hash_tables: Dict[int, Dict[int, Set[str]]] = defaultdict(
             lambda: defaultdict(set)
         )
-        
+
         # Privacy budget tracking
         self.privacy_budget_used = 0.0
         self.query_count = 0
-        
-        print(f"Differentially Private LSH initialized:")
+
+        print("Differentially Private LSH initialized:")
         print(f"  Hash functions: {num_hashes} × {num_tables} tables")
         print(f"  Privacy: ε={privacy_config.epsilon}, δ={privacy_config.delta}")
-    
+
     def _generate_hash_functions(self) -> List[List[np.ndarray]]:
         """
         Generate random projection hash functions
@@ -158,7 +160,7 @@ class DifferentiallyPrivateLSH:
         """
         np.random.seed(42)
         hash_functions = []
-        
+
         for _ in range(self.num_tables):
             table_hashes = []
             for _ in range(self.num_hashes):
@@ -167,9 +169,9 @@ class DifferentiallyPrivateLSH:
                 projection /= np.linalg.norm(projection)
                 table_hashes.append(projection)
             hash_functions.append(table_hashes)
-        
+
         return hash_functions
-    
+
     def _hash_vector(
         self,
         vector: np.ndarray,
@@ -195,25 +197,25 @@ class DifferentiallyPrivateLSH:
         """
         hash_bits = []
         hash_functions = self.hash_functions[table_id]
-        
+
         for projection in hash_functions:
             # Compute projection
             proj_value = np.dot(vector, projection)
-            
+
             # Add Laplace noise for differential privacy
             if add_noise:
                 noise_scale = self.privacy_config.sensitivity / self.privacy_config.epsilon
                 noise = np.random.laplace(0, noise_scale)
                 proj_value += noise
-            
+
             # Quantize to bit
             bit = 1 if proj_value >= 0 else 0
             hash_bits.append(bit)
-        
+
         # Convert bits to integer hash
         hash_value = int(''.join(map(str, hash_bits)), 2)
         return hash_value
-    
+
     def index_embedding(
         self,
         embedding: np.ndarray,
@@ -230,7 +232,7 @@ class DifferentiallyPrivateLSH:
         for table_id in range(self.num_tables):
             hash_value = self._hash_vector(embedding, table_id, add_noise=False)
             self.hash_tables[table_id][hash_value].add(embedding_id)
-    
+
     def private_query(
         self,
         query: np.ndarray,
@@ -255,7 +257,7 @@ class DifferentiallyPrivateLSH:
         """
         if epsilon_per_query is None:
             epsilon_per_query = self.privacy_config.epsilon
-        
+
         # Add noise to query vector
         if self.privacy_config.noise_mechanism == "laplace":
             noise_scale = self.privacy_config.sensitivity / epsilon_per_query
@@ -268,21 +270,21 @@ class DifferentiallyPrivateLSH:
             noise = np.random.normal(0, sigma, size=query.shape)
         else:
             noise = np.zeros_like(query)
-        
+
         obfuscated = query + noise
-        
+
         # Track privacy budget
         if self.privacy_config.privacy_budget_tracking:
             self.privacy_budget_used += epsilon_per_query
             self.query_count += 1
-        
+
         return PrivateQuery(
             query_id=f"query_{self.query_count}",
             obfuscated_vector=obfuscated,
             original_norm=np.linalg.norm(query),
             privacy_budget_used=epsilon_per_query
         )
-    
+
     def search(
         self,
         private_query: PrivateQuery,
@@ -315,23 +317,23 @@ class DifferentiallyPrivateLSH:
                 table_id,
                 add_noise=True
             )
-            
+
             # Get candidates from this bucket
             bucket_candidates = self.hash_tables[table_id].get(hash_value, set())
             candidates.update(bucket_candidates)
-        
+
         if not candidates or embeddings is None:
             return PrivateResult(
                 query_id=private_query.query_id,
                 results=[],
                 privacy_guarantee=private_query.privacy_budget_used
             )
-        
+
         # Compute noisy similarities
         similarities = []
         for emb_id in candidates:
             embedding = embeddings[emb_id]
-            
+
             # True similarity
             true_sim = np.dot(
                 private_query.obfuscated_vector, embedding
@@ -339,17 +341,17 @@ class DifferentiallyPrivateLSH:
                 np.linalg.norm(private_query.obfuscated_vector) *
                 np.linalg.norm(embedding)
             )
-            
+
             # Add noise for privacy
             noise_scale = 1.0 / private_query.privacy_budget_used
             noisy_sim = true_sim + np.random.laplace(0, noise_scale)
-            
+
             similarities.append((emb_id, noisy_sim))
-        
+
         # Sort and get top-k
         similarities.sort(key=lambda x: x[1], reverse=True)
         top_k_results = similarities[:k]
-        
+
         # Add dummy results for obfuscation
         dummy_results = []
         if self.privacy_config.enable_result_obfuscation:
@@ -364,7 +366,7 @@ class DifferentiallyPrivateLSH:
                 # Random similarity scores
                 dummy_score = np.random.uniform(-1, 1)
                 dummy_results.append((str(dummy_id), dummy_score))
-        
+
         return PrivateResult(
             query_id=private_query.query_id,
             results=top_k_results,
@@ -392,18 +394,18 @@ class SecureMultiPartyKNN:
     
     Security: Honest-but-curious adversary model, collusion resistance
     """
-    
+
     def __init__(self, num_parties: int, privacy_config: PrivacyConfig):
         self.num_parties = num_parties
         self.privacy_config = privacy_config
-        
+
         # Party databases: party_id -> {emb_id: embedding}
         self.party_databases: Dict[int, Dict[str, np.ndarray]] = {
             i: {} for i in range(num_parties)
         }
-        
+
         print(f"Secure MPC k-NN initialized for {num_parties} parties")
-    
+
     def _secret_share(
         self,
         value: float,
@@ -426,7 +428,7 @@ class SecureMultiPartyKNN:
         final_share = value - sum(shares)
         shares.append(final_share)
         return shares
-    
+
     def add_party_embedding(
         self,
         party_id: int,
@@ -435,7 +437,7 @@ class SecureMultiPartyKNN:
     ):
         """Add embedding to party's database"""
         self.party_databases[party_id][embedding_id] = embedding
-    
+
     def secure_similarity(
         self,
         query: np.ndarray,
@@ -461,31 +463,31 @@ class SecureMultiPartyKNN:
         partial_sims = [
             np.dot(query, emb) for emb in party_embeddings
         ]
-        
+
         # Secret share partial results
         shares_matrix = [
             self._secret_share(sim, self.num_parties)
             for sim in partial_sims
         ]
-        
+
         # Each party aggregates their shares
         party_aggregates = [
             sum(shares_matrix[i][j] for i in range(len(partial_sims)))
             for j in range(self.num_parties)
         ]
-        
+
         # Final aggregation (reveals only total)
         total_similarity = sum(party_aggregates)
-        
+
         # Normalize by query norm and average embedding norm
         query_norm = np.linalg.norm(query)
         avg_emb_norm = np.mean([
             np.linalg.norm(emb) for emb in party_embeddings
         ])
-        
+
         normalized_sim = total_similarity / (query_norm * avg_emb_norm)
         return normalized_sim
-    
+
     def federated_search(
         self,
         query: np.ndarray,
@@ -508,20 +510,20 @@ class SecureMultiPartyKNN:
         """
         # Each party computes local similarities
         local_results = []
-        
+
         for party_id in range(self.num_parties):
             party_db = self.party_databases[party_id]
-            
+
             for emb_id, embedding in party_db.items():
                 similarity = np.dot(query, embedding) / (
                     np.linalg.norm(query) * np.linalg.norm(embedding)
                 )
                 local_results.append((party_id, emb_id, similarity))
-        
+
         # Sort and get global top-k
         local_results.sort(key=lambda x: x[2], reverse=True)
         global_top_k = local_results[:k]
-        
+
         return global_top_k
 
 class PrivateInformationRetrieval:
@@ -540,7 +542,7 @@ class PrivateInformationRetrieval:
     - Perfect privacy but higher communication cost
     - Used in privacy-critical applications
     """
-    
+
     def __init__(
         self,
         database_size: int,
@@ -550,9 +552,9 @@ class PrivateInformationRetrieval:
         self.database_size = database_size
         self.dimension = dimension
         self.privacy_config = privacy_config
-        
+
         print(f"PIR initialized for database of {database_size} embeddings")
-    
+
     def private_retrieve(
         self,
         query_index: int,
@@ -575,20 +577,20 @@ class PrivateInformationRetrieval:
         """
         # In production: use homomorphic PIR (e.g., SealPIR, XPIR)
         # This is a simplified demonstration
-        
+
         db_items = list(database.items())
         if query_index >= len(db_items):
             return None
-        
+
         # Generate oblivious query (one-hot encoded with noise)
         query = np.random.randn(len(db_items)) * 0.1
         query[query_index] = 1.0
-        
+
         # Server computes linear combination (doesn't know index)
         result = np.zeros(self.dimension)
         for i, (_, embedding) in enumerate(db_items):
             result += query[i] * embedding
-        
+
         return result
 
 # Example usage
@@ -598,7 +600,7 @@ def privacy_preserving_search_example():
     """
     print("=== Privacy-Preserving Similarity Search ===")
     print()
-    
+
     # Configuration
     privacy_config = PrivacyConfig(
         epsilon=1.0,
@@ -607,22 +609,22 @@ def privacy_preserving_search_example():
         enable_query_obfuscation=True,
         enable_result_obfuscation=True
     )
-    
+
     # Generate sample embeddings
     print("Generating sample embeddings...")
     np.random.seed(42)
     dimension = 768
     num_embeddings = 1000
-    
+
     embeddings = {}
     for i in range(num_embeddings):
         emb = np.random.randn(dimension).astype(np.float32)
         emb /= np.linalg.norm(emb)
         embeddings[f"emb_{i}"] = emb
-    
+
     print(f"Generated {num_embeddings} embeddings")
     print()
-    
+
     # 1. Differentially Private LSH
     print("1. Differentially Private LSH")
     dp_lsh = DifferentiallyPrivateLSH(
@@ -631,51 +633,51 @@ def privacy_preserving_search_example():
         num_tables=8,
         privacy_config=privacy_config
     )
-    
+
     # Index embeddings
     for emb_id, emb in embeddings.items():
         dp_lsh.index_embedding(emb, emb_id)
-    
+
     # Private query
     query = np.random.randn(dimension).astype(np.float32)
     query /= np.linalg.norm(query)
-    
+
     private_q = dp_lsh.private_query(query, k=10)
     result = dp_lsh.search(private_q, k=10, embeddings=embeddings)
-    
+
     print(f"  Query ID: {result.query_id}")
     print(f"  Privacy guarantee: ε={result.privacy_guarantee:.2f}")
     print(f"  Candidates found: {result.utility_metric['num_candidates']}")
-    print(f"  Top 5 results:")
+    print("  Top 5 results:")
     for emb_id, score in result.results[:5]:
         print(f"    {emb_id}: {score:.4f}")
     print(f"  Dummy results added: {len(result.dummy_results)}")
     print()
-    
+
     # 2. Secure Multi-Party k-NN
     print("2. Secure Multi-Party k-NN")
     num_parties = 3
     mpc_knn = SecureMultiPartyKNN(num_parties, privacy_config)
-    
+
     # Distribute embeddings across parties
     for i, (emb_id, emb) in enumerate(embeddings.items()):
         party_id = i % num_parties
         mpc_knn.add_party_embedding(party_id, emb, emb_id)
-    
+
     # Federated search
     results = mpc_knn.federated_search(query, k=10)
-    
+
     print(f"  Federated top 5 results across {num_parties} parties:")
     for party_id, emb_id, score in results[:5]:
         print(f"    Party {party_id}, {emb_id}: {score:.4f}")
     print()
-    
+
     # 3. Privacy budget tracking
     print("3. Privacy Budget Tracking")
     print(f"  Total privacy budget used: ε={dp_lsh.privacy_budget_used:.2f}")
     print(f"  Number of queries: {dp_lsh.query_count}")
     print(f"  Average ε per query: {dp_lsh.privacy_budget_used/dp_lsh.query_count:.2f}")
-    
+
     # Demonstrate privacy budget exhaustion
     budget_limit = 10.0
     remaining = budget_limit - dp_lsh.privacy_budget_used

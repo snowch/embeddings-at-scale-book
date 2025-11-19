@@ -23,14 +23,16 @@ Production optimizations:
 - A/B testing framework for evaluation
 """
 
+import random
+from collections import defaultdict
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Set, Tuple
+
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import List, Dict, Optional, Tuple, Set
-from dataclasses import dataclass
-from collections import defaultdict
-import random
+
 
 @dataclass
 class User:
@@ -314,7 +316,7 @@ class RecommendationEngine:
         self.item_embeddings: Optional[np.ndarray] = None
         self.item_ids_list: List[str] = []
 
-        print(f"Initialized Recommendation Engine")
+        print("Initialized Recommendation Engine")
         print(f"  Embedding dimension: {embedding_dim}")
         print(f"  Device: {self.device}")
 
@@ -343,7 +345,7 @@ class RecommendationEngine:
         self.user_id_to_idx = {uid: idx for idx, uid in enumerate(self.users.keys())}
         self.item_id_to_idx = {iid: idx for idx, iid in enumerate(self.items.keys())}
 
-        print(f"Built mappings:")
+        print("Built mappings:")
         print(f"  Users: {len(self.user_id_to_idx)}")
         print(f"  Items: {len(self.item_id_to_idx)}")
 
@@ -576,7 +578,7 @@ def collaborative_filtering_example():
             )
             engine.add_interaction(interaction)
 
-    print(f"\n=== Dataset Statistics ===")
+    print("\n=== Dataset Statistics ===")
     print(f"Users: {len(engine.users)}")
     print(f"Movies: {len(engine.items)}")
     print(f"Interactions: {len(engine.interactions)}")
@@ -587,13 +589,13 @@ def collaborative_filtering_example():
     # Generate recommendations
     test_user = 'user_0'
     print(f"\n=== Recommendations for {test_user} ===")
-    print(f"User's watch history:")
+    print("User's watch history:")
     for item_id in engine.users[test_user].interactions[:5]:
         item = engine.items[item_id]
         print(f"  {item_id}: {item.features['genre']}")
 
     recommendations = engine.recommend(test_user, top_k=5)
-    print(f"\nTop 5 recommendations:")
+    print("\nTop 5 recommendations:")
     for item_id, score in recommendations:
         item = engine.items[item_id]
         print(f"  {item_id}: {item.features['genre']} (score: {score:.3f})")

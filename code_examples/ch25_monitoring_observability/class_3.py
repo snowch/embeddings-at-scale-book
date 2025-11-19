@@ -25,12 +25,14 @@ Analysis:
 - Attribution: Isolate embedding contribution to outcomes
 """
 
-import numpy as np
-from typing import Dict, List, Optional, Tuple, Any
+import json
+from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from collections import defaultdict
-import json
+from typing import Any, Dict, List, Optional, Tuple
+
+import numpy as np
+
 
 @dataclass
 class UserEvent:
@@ -39,25 +41,25 @@ class UserEvent:
     user_id: str
     session_id: str
     event_type: str  # "query", "click", "view", "purchase", "rating"
-    
+
     # Query information
     query: Optional[str] = None
     query_embeddings: Optional[np.ndarray] = None
-    
+
     # Result information
     result_id: Optional[str] = None
     result_position: Optional[int] = None
     result_score: Optional[float] = None
-    
+
     # Interaction information
     clicked: bool = False
     dwell_time_seconds: float = 0.0
     rating: Optional[float] = None
-    
+
     # Business outcomes
     converted: bool = False
     revenue: float = 0.0
-    
+
     # Metadata
     experiment_group: Optional[str] = None  # For A/B testing
     model_version: str = "unknown"
@@ -69,29 +71,29 @@ class SessionMetrics:
     user_id: str
     start_time: datetime
     end_time: datetime
-    
+
     # Engagement metrics
     num_queries: int = 0
     num_clicks: int = 0
     num_views: int = 0
     total_dwell_time: float = 0.0
-    
+
     # Quality metrics
     avg_click_position: float = 0.0
     bounce_rate: float = 0.0  # Single-page sessions
     pages_per_session: int = 0
-    
+
     # Business metrics
     converted: bool = False
     revenue: float = 0.0
-    
+
     # Satisfaction
     satisfaction_rating: Optional[float] = None
-    
+
     def click_through_rate(self) -> float:
         """Calculate session CTR"""
         return self.num_clicks / max(self.num_queries, 1)
-    
+
     def duration_minutes(self) -> float:
         """Calculate session duration in minutes"""
         return (self.end_time - self.start_time).total_seconds() / 60.0
@@ -102,23 +104,23 @@ class ExperimentResults:
     experiment_name: str
     start_date: datetime
     end_date: datetime
-    
+
     # Experiment groups
     control_group: str
     treatment_group: str
-    
+
     # Sample sizes
     control_users: int
     treatment_users: int
-    
+
     # Metrics
     control_metrics: Dict[str, float]
     treatment_metrics: Dict[str, float]
-    
+
     # Statistical significance
     p_values: Dict[str, float]
     confidence_intervals: Dict[str, Tuple[float, float]]
-    
+
     # Decision
     winner: Optional[str] = None
     lift: Dict[str, float] = field(default_factory=dict)
@@ -130,20 +132,20 @@ class UserExperienceAnalytics:
     Tracks user interactions, computes engagement/satisfaction metrics,
     runs A/B tests, and provides insights for optimization.
     """
-    
+
     def __init__(self):
         """Initialize UX analytics system"""
         self.events: List[UserEvent] = []
         self.sessions: Dict[str, SessionMetrics] = {}
         self.experiments: Dict[str, ExperimentResults] = {}
-        
+
         # Cached aggregations
         self.daily_metrics: Dict[str, Dict[str, float]] = defaultdict(dict)
-    
+
     def track_event(self, event: UserEvent):
         """Track a user interaction event"""
         self.events.append(event)
-        
+
         # Update session metrics
         if event.session_id not in self.sessions:
             self.sessions[event.session_id] = SessionMetrics(
@@ -152,10 +154,10 @@ class UserExperienceAnalytics:
                 start_time=event.timestamp,
                 end_time=event.timestamp
             )
-        
+
         session = self.sessions[event.session_id]
         session.end_time = event.timestamp
-        
+
         if event.event_type == "query":
             session.num_queries += 1
         elif event.event_type == "click":
@@ -176,19 +178,19 @@ class UserExperienceAnalytics:
             session.revenue += event.revenue
         elif event.event_type == "rating" and event.rating is not None:
             session.satisfaction_rating = event.rating
-        
+
         # Update daily metrics
         date_key = event.timestamp.strftime("%Y-%m-%d")
         if date_key not in self.daily_metrics:
             self.daily_metrics[date_key] = defaultdict(float)
-        
+
         self.daily_metrics[date_key]["events"] += 1
         if event.clicked:
             self.daily_metrics[date_key]["clicks"] += 1
         if event.converted:
             self.daily_metrics[date_key]["conversions"] += 1
         self.daily_metrics[date_key]["revenue"] += event.revenue
-    
+
     def get_engagement_metrics(
         self,
         start_date: Optional[datetime] = None,
@@ -208,19 +210,19 @@ class UserExperienceAnalytics:
             filtered_events = [e for e in filtered_events if e.timestamp <= end_date]
         if experiment_group:
             filtered_events = [e for e in filtered_events if e.experiment_group == experiment_group]
-        
+
         if not filtered_events:
             return {}
-        
+
         # Calculate metrics
         total_queries = sum(1 for e in filtered_events if e.event_type == "query")
         total_clicks = sum(1 for e in filtered_events if e.clicked)
         total_views = sum(1 for e in filtered_events if e.event_type == "view")
         total_dwell_time = sum(e.dwell_time_seconds for e in filtered_events if e.event_type == "view")
-        
+
         # Click positions
         click_positions = [e.result_position for e in filtered_events if e.clicked and e.result_position is not None]
-        
+
         metrics = {
             "total_events": len(filtered_events),
             "total_queries": total_queries,
@@ -231,9 +233,9 @@ class UserExperienceAnalytics:
             "avg_click_position": np.mean(click_positions) if click_positions else 0.0,
             "clicks_per_query": total_clicks / max(total_queries, 1)
         }
-        
+
         return metrics
-    
+
     def get_business_metrics(
         self,
         start_date: Optional[datetime] = None,
@@ -251,14 +253,14 @@ class UserExperienceAnalytics:
             # Need to check events in session for experiment group
             session_ids = {e.session_id for e in self.events if e.experiment_group == experiment_group}
             filtered_sessions = [s for s in filtered_sessions if s.session_id in session_ids]
-        
+
         if not filtered_sessions:
             return {}
-        
+
         total_sessions = len(filtered_sessions)
         converted_sessions = sum(1 for s in filtered_sessions if s.converted)
         total_revenue = sum(s.revenue for s in filtered_sessions)
-        
+
         metrics = {
             "total_sessions": total_sessions,
             "conversion_rate": converted_sessions / total_sessions,
@@ -266,9 +268,9 @@ class UserExperienceAnalytics:
             "revenue_per_session": total_revenue / total_sessions,
             "revenue_per_converted_session": total_revenue / max(converted_sessions, 1)
         }
-        
+
         return metrics
-    
+
     def run_ab_test(
         self,
         experiment_name: str,
@@ -293,33 +295,33 @@ class UserExperienceAnalytics:
             ExperimentResults with statistical analysis
         """
         from scipy.stats import ttest_ind
-        
+
         # Get metrics for both groups
         control_engagement = self.get_engagement_metrics(start_date, end_date, control_group)
         treatment_engagement = self.get_engagement_metrics(start_date, end_date, treatment_group)
-        
+
         control_business = self.get_business_metrics(start_date, end_date, control_group)
         treatment_business = self.get_business_metrics(start_date, end_date, treatment_group)
-        
+
         control_metrics = {**control_engagement, **control_business}
         treatment_metrics = {**treatment_engagement, **treatment_business}
-        
+
         # Calculate statistical significance for each metric
         p_values = {}
         confidence_intervals = {}
         lift = {}
-        
+
         for metric in metrics_to_test:
             if metric not in control_metrics or metric not in treatment_metrics:
                 continue
-            
+
             control_value = control_metrics[metric]
             treatment_value = treatment_metrics[metric]
-            
+
             # Calculate lift
             if control_value > 0:
                 lift[metric] = (treatment_value - control_value) / control_value
-            
+
             # For simplicity, use z-test approximation
             # In production, would use proper statistical tests with per-user data
             # This is a simplified example
@@ -328,17 +330,17 @@ class UserExperienceAnalytics:
                 treatment_value * 0.95,
                 treatment_value * 1.05
             )  # Placeholder
-        
+
         # Determine winner (simplified)
         winner = None
         primary_metric = metrics_to_test[0] if metrics_to_test else "click_through_rate"
-        
+
         if primary_metric in lift:
             if lift[primary_metric] > 0.05 and p_values.get(primary_metric, 1.0) < 0.05:
                 winner = treatment_group
             elif lift[primary_metric] < -0.05 and p_values.get(primary_metric, 1.0) < 0.05:
                 winner = control_group
-        
+
         results = ExperimentResults(
             experiment_name=experiment_name,
             start_date=start_date,
@@ -354,10 +356,10 @@ class UserExperienceAnalytics:
             winner=winner,
             lift=lift
         )
-        
+
         self.experiments[experiment_name] = results
         return results
-    
+
     def generate_ux_report(
         self,
         start_date: Optional[datetime] = None,
@@ -366,7 +368,7 @@ class UserExperienceAnalytics:
         """Generate comprehensive UX report"""
         engagement = self.get_engagement_metrics(start_date, end_date)
         business = self.get_business_metrics(start_date, end_date)
-        
+
         report = f"""
 User Experience Analytics Report
 =================================
@@ -390,7 +392,7 @@ Total Revenue:       ${business.get('total_revenue', 0):>11.2f}
 Revenue/Session:     ${business.get('revenue_per_session', 0):>11.2f}
 Revenue/Conversion:  ${business.get('revenue_per_converted_session', 0):>11.2f}
 """
-        
+
         # Add experiment results if any
         if self.experiments:
             report += "\n\nA/B Test Results:\n"
@@ -399,35 +401,35 @@ Revenue/Conversion:  ${business.get('revenue_per_converted_session', 0):>11.2f}
                 report += f"\nExperiment: {name}\n"
                 report += f"Winner: {results.winner or 'Inconclusive'}\n"
                 report += f"Primary Metric Lift: {results.lift.get('click_through_rate', 0)*100:.2f}%\n"
-        
+
         return report
 
 
 # Example usage
 if __name__ == "__main__":
     analytics = UserExperienceAnalytics()
-    
+
     # Simulate user events
     print("Simulating user interactions...")
-    
+
     base_time = datetime.now() - timedelta(days=7)
-    
+
     for day in range(7):
         for session_num in range(100):  # 100 sessions per day
             session_id = f"session_{day}_{session_num}"
             user_id = f"user_{session_num % 50}"  # 50 unique users
-            
+
             # Randomly assign to control or treatment group
             experiment_group = "control" if session_num % 2 == 0 else "treatment"
-            
+
             # Treatment group has slightly better metrics
             ctr_boost = 1.1 if experiment_group == "treatment" else 1.0
-            
+
             # Generate queries for this session
             num_queries = np.random.randint(1, 5)
             for query_num in range(num_queries):
                 timestamp = base_time + timedelta(days=day, minutes=session_num*10 + query_num*2)
-                
+
                 # Query event
                 analytics.track_event(UserEvent(
                     timestamp=timestamp,
@@ -437,7 +439,7 @@ if __name__ == "__main__":
                     query=f"sample query {query_num}",
                     experiment_group=experiment_group
                 ))
-                
+
                 # Maybe click on result
                 if np.random.random() < 0.3 * ctr_boost:  # 30% CTR for control, 33% for treatment
                     click_position = np.random.choice([1, 2, 3, 4, 5], p=[0.4, 0.3, 0.15, 0.10, 0.05])
@@ -451,7 +453,7 @@ if __name__ == "__main__":
                         clicked=True,
                         experiment_group=experiment_group
                     ))
-                    
+
                     # View the result
                     dwell_time = np.random.exponential(30) # Average 30 seconds
                     analytics.track_event(UserEvent(
@@ -463,7 +465,7 @@ if __name__ == "__main__":
                         dwell_time_seconds=dwell_time,
                         experiment_group=experiment_group
                     ))
-            
+
             # Maybe convert
             if np.random.random() < 0.1 * ctr_boost:  # 10% conversion for control, 11% for treatment
                 analytics.track_event(UserEvent(
@@ -475,12 +477,12 @@ if __name__ == "__main__":
                     revenue=np.random.uniform(20, 200),
                     experiment_group=experiment_group
                 ))
-    
+
     # Generate overall UX report
     print("\n" + "="*70)
     report = analytics.generate_ux_report(start_date=base_time, end_date=datetime.now())
     print(report)
-    
+
     # Run A/B test
     print("\n\nRunning A/B Test...")
     print("="*70)
@@ -492,15 +494,15 @@ if __name__ == "__main__":
         end_date=datetime.now(),
         metrics_to_test=["click_through_rate", "conversion_rate", "revenue_per_session"]
     )
-    
+
     print(f"\nExperiment: {experiment.experiment_name}")
     print(f"Winner: {experiment.winner or 'Inconclusive'}")
-    print(f"\nControl Group Metrics:")
+    print("\nControl Group Metrics:")
     for metric, value in experiment.control_metrics.items():
         print(f"  {metric}: {value:.4f}")
-    print(f"\nTreatment Group Metrics:")
+    print("\nTreatment Group Metrics:")
     for metric, value in experiment.treatment_metrics.items():
         print(f"  {metric}: {value:.4f}")
-    print(f"\nLift:")
+    print("\nLift:")
     for metric, lift_value in experiment.lift.items():
         print(f"  {metric}: {lift_value*100:+.2f}%")

@@ -29,14 +29,16 @@ Production considerations:
 - Version control: Tag schema evolution
 """
 
+import json
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Dict, List, Optional, Set, Tuple
+
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import List, Dict, Optional, Tuple, Set
-from dataclasses import dataclass, field
-from datetime import datetime
-import json
+
 
 @dataclass
 class ContentSegment:
@@ -123,17 +125,17 @@ class VideoAnalysisModel(nn.Module):
         embedding_dim: int = 512
     ):
         super().__init__()
-        
+
         # Pretrained 3D CNN backbone
         self.backbone = torch.hub.load(
             'facebookresearch/pytorchvideo',
             video_backbone,
             pretrained=True
         )
-        
+
         # Remove classification head
         self.backbone.blocks[-1] = nn.Identity()
-        
+
         # Concept prediction head
         self.concept_head = nn.Sequential(
             nn.Linear(512, 512),
@@ -141,13 +143,13 @@ class VideoAnalysisModel(nn.Module):
             nn.Dropout(0.3),
             nn.Linear(512, num_concepts)
         )
-        
+
         # Embedding projection
         self.embedding_proj = nn.Sequential(
             nn.Linear(512, embedding_dim),
             nn.LayerNorm(embedding_dim)
         )
-    
+
     def forward(self, video_clips: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Analyze video clips
@@ -161,14 +163,14 @@ class VideoAnalysisModel(nn.Module):
         """
         # Extract features
         features = self.backbone(video_clips)  # [batch, 512]
-        
+
         # Predict concepts
         concept_logits = self.concept_head(features)
-        
+
         # Generate embeddings
         embeddings = self.embedding_proj(features)
         embeddings = F.normalize(embeddings, p=2, dim=1)
-        
+
         return concept_logits, embeddings
 
 class AudioAnalysisModel(nn.Module):
@@ -182,25 +184,25 @@ class AudioAnalysisModel(nn.Module):
         embedding_dim: int = 256
     ):
         super().__init__()
-        
+
         # CNN for spectrogram analysis
         self.conv_blocks = nn.Sequential(
             nn.Conv2d(1, 64, kernel_size=3, padding=1),
             nn.BatchNorm2d(64),
             nn.ReLU(),
             nn.MaxPool2d(2),
-            
+
             nn.Conv2d(64, 128, kernel_size=3, padding=1),
             nn.BatchNorm2d(128),
             nn.ReLU(),
             nn.MaxPool2d(2),
-            
+
             nn.Conv2d(128, 256, kernel_size=3, padding=1),
             nn.BatchNorm2d(256),
             nn.ReLU(),
             nn.AdaptiveAvgPool2d((1, 1))
         )
-        
+
         # Audio event classification
         self.event_head = nn.Sequential(
             nn.Linear(256, 256),
@@ -208,13 +210,13 @@ class AudioAnalysisModel(nn.Module):
             nn.Dropout(0.3),
             nn.Linear(256, num_audio_events)
         )
-        
+
         # Embedding projection
         self.embedding_proj = nn.Sequential(
             nn.Linear(256, embedding_dim),
             nn.LayerNorm(embedding_dim)
         )
-    
+
     def forward(self, spectrograms: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Analyze audio spectrograms
@@ -229,14 +231,14 @@ class AudioAnalysisModel(nn.Module):
         # Extract features
         features = self.conv_blocks(spectrograms)
         features = features.squeeze(-1).squeeze(-1)  # [batch, 256]
-        
+
         # Predict audio events
         event_logits = self.event_head(features)
-        
+
         # Generate embeddings
         embeddings = self.embedding_proj(features)
         embeddings = F.normalize(embeddings, p=2, dim=1)
-        
+
         return event_logits, embeddings
 
 class MultiModalTagger(nn.Module):
@@ -254,7 +256,7 @@ class MultiModalTagger(nn.Module):
         super().__init__()
         self.video_model = video_model
         self.audio_model = audio_model
-        
+
         # Text encoder (BERT features)
         self.text_encoder = nn.Sequential(
             nn.Linear(text_dim, 512),
@@ -262,7 +264,7 @@ class MultiModalTagger(nn.Module):
             nn.Dropout(0.2),
             nn.Linear(512, 256)
         )
-        
+
         # Fusion layer
         self.fusion = nn.Sequential(
             nn.Linear(512 + 256 + 256, 1024),  # video + audio + text
@@ -270,7 +272,7 @@ class MultiModalTagger(nn.Module):
             nn.Dropout(0.3),
             nn.Linear(1024, 512)
         )
-        
+
         # Multi-label tag prediction
         self.tag_classifier = nn.Sequential(
             nn.Linear(512, 512),
@@ -278,13 +280,13 @@ class MultiModalTagger(nn.Module):
             nn.Dropout(0.3),
             nn.Linear(512, num_tags)
         )
-        
+
         # Embedding projection
         self.embedding_proj = nn.Sequential(
             nn.Linear(512, embedding_dim),
             nn.LayerNorm(embedding_dim)
         )
-    
+
     def forward(
         self,
         video_clips: torch.Tensor,
@@ -307,20 +309,20 @@ class MultiModalTagger(nn.Module):
         _, video_emb = self.video_model(video_clips)  # [batch, 512]
         _, audio_emb = self.audio_model(audio_spectrograms)  # [batch, 256]
         text_emb = self.text_encoder(text_features)  # [batch, 256]
-        
+
         # Concatenate features
         combined = torch.cat([video_emb, audio_emb, text_emb], dim=1)  # [batch, 1024]
-        
+
         # Fusion
         fused = self.fusion(combined)  # [batch, 512]
-        
+
         # Predict tags
         tag_logits = self.tag_classifier(fused)
-        
+
         # Generate content embedding
         embeddings = self.embedding_proj(fused)
         embeddings = F.normalize(embeddings, p=2, dim=1)
-        
+
         return tag_logits, embeddings
 
 class HierarchicalTagPredictor:
@@ -331,7 +333,7 @@ class HierarchicalTagPredictor:
         self.taxonomy = taxonomy
         self.tag_to_idx = {tag: idx for idx, tag in enumerate(taxonomy.keys())}
         self.idx_to_tag = {idx: tag for tag, idx in self.tag_to_idx.items()}
-        
+
         # Build parent-child relationships
         self.children_map = {}
         self.parent_map = {}
@@ -341,7 +343,7 @@ class HierarchicalTagPredictor:
                 if info.parent not in self.children_map:
                     self.children_map[info.parent] = []
                 self.children_map[info.parent].append(tag)
-    
+
     def predict_tags(
         self,
         logits: np.ndarray,
@@ -361,7 +363,7 @@ class HierarchicalTagPredictor:
         """
         # Convert to probabilities
         probs = 1 / (1 + np.exp(-logits))  # Sigmoid
-        
+
         # Get candidates above threshold
         candidates = []
         for idx, prob in enumerate(probs):
@@ -373,14 +375,14 @@ class HierarchicalTagPredictor:
                     confidence=float(prob),
                     hierarchy_level=level
                 ))
-        
+
         # Sort by confidence
         candidates.sort(key=lambda x: x.confidence, reverse=True)
-        
+
         # Apply hierarchy constraints
         filtered = []
         selected_tags = set()
-        
+
         for pred in candidates:
             # Check if parent is selected (if parent exists)
             if pred.tag in self.parent_map:
@@ -396,14 +398,14 @@ class HierarchicalTagPredictor:
                             hierarchy_level=parent_level
                         ))
                         selected_tags.add(parent)
-            
+
             # Add this tag
             filtered.append(pred)
             selected_tags.add(pred.tag)
-            
+
             if top_k and len(filtered) >= top_k:
                 break
-        
+
         return filtered[:top_k] if top_k else filtered
 
 # Example usage
@@ -413,20 +415,20 @@ def automated_tagging_example():
     """
     print("=== Automated Content Tagging with Multi-Modal Embeddings ===")
     print()
-    
+
     # Initialize models
     video_model = VideoAnalysisModel(
         video_backbone="r3d_18",
         num_concepts=1000,
         embedding_dim=512
     )
-    
+
     audio_model = AudioAnalysisModel(
         audio_dim=128,
         num_audio_events=500,
         embedding_dim=256
     )
-    
+
     tagger = MultiModalTagger(
         video_model=video_model,
         audio_model=audio_model,
@@ -434,7 +436,7 @@ def automated_tagging_example():
         num_tags=2000,
         embedding_dim=512
     )
-    
+
     # Define tag taxonomy
     taxonomy = {
         "action": TagTaxonomy(tag="action", level=0),
@@ -444,41 +446,41 @@ def automated_tagging_example():
         "romance": TagTaxonomy(tag="romance", parent="drama", level=1),
         "emotional": TagTaxonomy(tag="emotional", parent="romance", level=2),
     }
-    
+
     hierarchy_predictor = HierarchicalTagPredictor(taxonomy)
-    
+
     # Simulate content
     batch_size = 8
     video_clips = torch.randn(batch_size, 3, 16, 224, 224)  # 16 frames
     audio_specs = torch.randn(batch_size, 1, 128, 128)  # Mel spectrogram
     text_features = torch.randn(batch_size, 768)  # BERT features
-    
+
     # Generate tags
     tagger.eval()
     with torch.no_grad():
         tag_logits, content_embeddings = tagger(
             video_clips, audio_specs, text_features
         )
-    
-    print(f"Tagging batch:")
+
+    print("Tagging batch:")
     print(f"  - Batch size: {batch_size}")
-    print(f"  - Tag vocabulary: 2000 tags")
+    print("  - Tag vocabulary: 2000 tags")
     print(f"  - Tag logits shape: {tag_logits.shape}")
     print(f"  - Content embeddings: {content_embeddings.shape}")
     print()
-    
+
     # Predict tags for first content
     predictions = hierarchy_predictor.predict_tags(
         tag_logits[0].numpy(),
         threshold=0.5,
         top_k=10
     )
-    
-    print(f"Example predictions:")
+
+    print("Example predictions:")
     for i, pred in enumerate(predictions, 1):
         print(f"  {i}. {pred.tag} (confidence: {pred.confidence:.3f}, level: {pred.hierarchy_level})")
     print()
-    
+
     print("Performance characteristics:")
     print("  - Processing time: ~5 seconds per minute of content")
     print("  - Throughput: 12 hours of content per GPU-hour")
@@ -486,7 +488,7 @@ def automated_tagging_example():
     print("  - Tag vocabulary: 2,000+ tags across taxonomy")
     print("  - Multi-lingual: 50+ languages")
     print()
-    
+
     print("Business impact:")
     print("  - Tagging cost: $0.02/hour (vs $200/hour manual)")
     print("  - Coverage: 100% of content tagged (vs 10-30% manual)")

@@ -26,11 +26,12 @@ Key components:
 - Self-service platform for applications
 """
 
-from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Set, Tuple
-from enum import Enum
-from datetime import datetime
 import json
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
+from typing import Dict, List, Optional, Set, Tuple
+
 
 class Region(Enum):
     """Deployment regions"""
@@ -53,13 +54,13 @@ class ResourceQuota:
     max_qps: int
     max_storage_gb: int
     max_monthly_cost: float
-    
+
     # Current usage
     current_vectors: int = 0
     current_qps: float = 0.0
     current_storage_gb: float = 0.0
     current_monthly_cost: float = 0.0
-    
+
     def is_within_quota(self) -> bool:
         """Check if usage within quota"""
         return (
@@ -68,7 +69,7 @@ class ResourceQuota:
             self.current_storage_gb <= self.max_storage_gb and
             self.current_monthly_cost <= self.max_monthly_cost
         )
-    
+
     def utilization_percentage(self) -> Dict[str, float]:
         """Calculate resource utilization percentages"""
         return {
@@ -84,21 +85,21 @@ class Tenant:
     tenant_id: str
     tenant_name: str
     tenant_type: TenantType
-    
+
     # Ownership
     owner_email: str
     team_name: str
     cost_center: str
-    
+
     # Configuration
     regions: List[Region]
     isolation_level: str  # shared, dedicated_shard, dedicated_cluster
     quotas: ResourceQuota
-    
+
     # Access control
     allowed_users: Set[str] = field(default_factory=set)
     allowed_applications: Set[str] = field(default_factory=set)
-    
+
     # Metadata
     created_at: datetime = field(default_factory=datetime.now)
     status: str = "active"  # active, suspended, archived
@@ -109,17 +110,17 @@ class ScalingPolicy:
     name: str
     metric_name: str  # cpu_utilization, qps, queue_depth
     target_value: float
-    
+
     # Scaling parameters
     min_instances: int
     max_instances: int
     scale_up_cooldown_seconds: int = 300
     scale_down_cooldown_seconds: int = 600
-    
+
     # Thresholds
     scale_up_threshold: float = 0.0  # Above target
     scale_down_threshold: float = 0.0  # Below target
-    
+
     def __post_init__(self):
         """Set default thresholds"""
         if self.scale_up_threshold == 0.0:
@@ -134,30 +135,30 @@ class EnterpriseDeployment:
     Handles multi-region, multi-tenant deployment with
     governance, scaling, and cost management.
     """
-    
+
     def __init__(self, deployment_name: str):
         self.deployment_name = deployment_name
         self.tenants: Dict[str, Tenant] = {}
         self.regions_active: Set[Region] = set()
         self.scaling_policies: List[ScalingPolicy] = []
-        
+
         # Monitoring
         self.total_vectors: int = 0
         self.total_qps: float = 0.0
         self.total_monthly_cost: float = 0.0
-        
+
     def add_tenant(self, tenant: Tenant) -> None:
         """Add new tenant to platform"""
         if tenant.tenant_id in self.tenants:
             raise ValueError(f"Tenant {tenant.tenant_id} already exists")
-        
+
         self.tenants[tenant.tenant_id] = tenant
         self.regions_active.update(tenant.regions)
-        
+
         print(f"Added tenant: {tenant.tenant_name} ({tenant.tenant_id})")
         print(f"  Regions: {[r.value for r in tenant.regions]}")
         print(f"  Quotas: {tenant.quotas.max_vectors:,} vectors, {tenant.quotas.max_qps} QPS")
-    
+
     def update_tenant_usage(
         self,
         tenant_id: str,
@@ -169,9 +170,9 @@ class EnterpriseDeployment:
         """Update tenant resource usage"""
         if tenant_id not in self.tenants:
             raise ValueError(f"Tenant {tenant_id} not found")
-        
+
         tenant = self.tenants[tenant_id]
-        
+
         if vectors is not None:
             tenant.quotas.current_vectors = vectors
         if qps is not None:
@@ -180,32 +181,32 @@ class EnterpriseDeployment:
             tenant.quotas.current_storage_gb = storage_gb
         if cost is not None:
             tenant.quotas.current_monthly_cost = cost
-        
+
         # Check quota violations
         if not tenant.quotas.is_within_quota():
             self._handle_quota_violation(tenant)
-    
+
     def _handle_quota_violation(self, tenant: Tenant) -> None:
         """Handle tenant exceeding quota"""
         utilization = tenant.quotas.utilization_percentage()
-        
+
         violations = [
             resource for resource, pct in utilization.items()
             if pct > 100
         ]
-        
+
         print(f"QUOTA VIOLATION: Tenant {tenant.tenant_name}")
         print(f"  Exceeded: {violations}")
         print(f"  Utilization: {utilization}")
         # In production: Alert, throttle, or auto-scale
-    
+
     def add_scaling_policy(self, policy: ScalingPolicy) -> None:
         """Add auto-scaling policy"""
         self.scaling_policies.append(policy)
         print(f"Added scaling policy: {policy.name}")
         print(f"  Metric: {policy.metric_name}, Target: {policy.target_value}")
         print(f"  Instances: {policy.min_instances}-{policy.max_instances}")
-    
+
     def calculate_total_cost(self) -> Dict[str, float]:
         """Calculate total platform cost breakdown"""
         cost_breakdown = {
@@ -214,39 +215,39 @@ class EnterpriseDeployment:
             "network": 0.0,
             "api_calls": 0.0
         }
-        
+
         for tenant in self.tenants.values():
             # Simplified cost model
             # In production: Get from actual billing APIs
             compute_cost = tenant.quotas.current_qps * 0.01  # $0.01 per QPS/month
             storage_cost = tenant.quotas.current_storage_gb * 0.10  # $0.10/GB/month
-            
+
             cost_breakdown["compute"] += compute_cost
             cost_breakdown["storage"] += storage_cost
-            
+
         cost_breakdown["total"] = sum(cost_breakdown.values())
         return cost_breakdown
-    
+
     def generate_governance_report(self) -> str:
         """Generate governance and compliance report"""
         report = []
         report.append(f"# Enterprise Deployment Report: {self.deployment_name}\n\n")
         report.append(f"Generated: {datetime.now().isoformat()}\n\n")
-        
+
         # Overview
         report.append("## Platform Overview\n\n")
         report.append(f"- Active tenants: {len(self.tenants)}\n")
         report.append(f"- Active regions: {[r.value for r in self.regions_active]}\n")
         report.append(f"- Total vectors: {self.total_vectors:,}\n")
         report.append(f"- Total QPS: {self.total_qps:,.0f}\n\n")
-        
+
         # Cost analysis
         cost_breakdown = self.calculate_total_cost()
         report.append("## Cost Analysis\n\n")
         for component, cost in cost_breakdown.items():
             report.append(f"- {component.title()}: ${cost:,.2f}/month\n")
         report.append("\n")
-        
+
         # Tenant summary
         report.append("## Tenant Summary\n\n")
         for tenant in sorted(self.tenants.values(), key=lambda t: t.tenant_name):
@@ -255,28 +256,28 @@ class EnterpriseDeployment:
             report.append(f"- Owner: {tenant.owner_email} ({tenant.team_name})\n")
             report.append(f"- Status: {tenant.status}\n")
             report.append(f"- Regions: {[r.value for r in tenant.regions]}\n")
-            report.append(f"- Utilization:\n")
+            report.append("- Utilization:\n")
             for resource, pct in utilization.items():
                 status = "⚠️" if pct > 80 else "✓"
                 report.append(f"  - {status} {resource}: {pct:.1f}%\n")
             report.append("\n")
-        
+
         # Compliance
         report.append("## Compliance Status\n\n")
         report.append("- Data sovereignty: All data stored in appropriate regions ✓\n")
         report.append("- Access control: All tenants have defined access policies ✓\n")
         report.append("- Audit logging: All operations logged for 90 days ✓\n")
         report.append("- Encryption: All data encrypted at rest and in transit ✓\n\n")
-        
+
         return "".join(report)
 
 
 # Example: Enterprise deployment
 def example_enterprise_deployment():
     """Example enterprise deployment setup"""
-    
+
     deployment = EnterpriseDeployment("Global Embedding Platform")
-    
+
     # Add enterprise tenant (Search team)
     search_tenant = Tenant(
         tenant_id="search-prod",
@@ -295,7 +296,7 @@ def example_enterprise_deployment():
         )
     )
     deployment.add_tenant(search_tenant)
-    
+
     # Add department tenant (Recommendations)
     recs_tenant = Tenant(
         tenant_id="recs-prod",
@@ -314,7 +315,7 @@ def example_enterprise_deployment():
         )
     )
     deployment.add_tenant(recs_tenant)
-    
+
     # Add development tenant
     dev_tenant = Tenant(
         tenant_id="dev-sandbox",
@@ -333,7 +334,7 @@ def example_enterprise_deployment():
         )
     )
     deployment.add_tenant(dev_tenant)
-    
+
     # Configure auto-scaling
     deployment.add_scaling_policy(ScalingPolicy(
         name="Vector DB Auto-scaling",
@@ -342,7 +343,7 @@ def example_enterprise_deployment():
         min_instances=3,
         max_instances=20
     ))
-    
+
     deployment.add_scaling_policy(ScalingPolicy(
         name="QPS-based Scaling",
         metric_name="qps",
@@ -350,7 +351,7 @@ def example_enterprise_deployment():
         min_instances=3,
         max_instances=20
     ))
-    
+
     # Simulate usage
     deployment.update_tenant_usage(
         tenant_id="search-prod",
@@ -359,7 +360,7 @@ def example_enterprise_deployment():
         storage_gb=4200,  # 84% of quota
         cost=42000  # 84% of budget
     )
-    
+
     deployment.update_tenant_usage(
         tenant_id="recs-prod",
         vectors=75_000_000,  # 75% of quota
@@ -367,7 +368,7 @@ def example_enterprise_deployment():
         storage_gb=400,  # 80% of quota
         cost=8000  # 80% of budget
     )
-    
+
     # Generate report
     print(deployment.generate_governance_report())
 

@@ -19,12 +19,14 @@ Performance targets:
 - Availability: 99.9%
 """
 
-import numpy as np
-from typing import List, Dict, Optional, Tuple, Any
-from dataclasses import dataclass
-from datetime import datetime
 import time
 from collections import defaultdict
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple
+
+import numpy as np
+
 
 @dataclass
 class Document:
@@ -292,7 +294,7 @@ class RetrievalEngine:
         self.embedding_model = embedding_model
         self.default_k = default_k
 
-        print(f"Initialized Retrieval Engine")
+        print("Initialized Retrieval Engine")
         print(f"  Default k: {default_k}")
 
     def retrieve(
@@ -545,7 +547,7 @@ class ContextManager:
         self.max_context_tokens = max_context_tokens
         self.max_tokens_per_doc = max_tokens_per_doc
 
-        print(f"Initialized Context Manager")
+        print("Initialized Context Manager")
         print(f"  Max context tokens: {max_context_tokens:,}")
         print(f"  Max tokens per doc: {max_tokens_per_doc}")
 
@@ -638,7 +640,7 @@ class RAGSystem:
         self.llm = llm
         self.rerank_k = rerank_k
 
-        print(f"Initialized RAG System")
+        print("Initialized RAG System")
         print(f"  Retrieval k: {retrieval_k}")
         print(f"  Rerank k: {rerank_k}")
 
@@ -796,10 +798,10 @@ def rag_system_example():
     print(f"\nAnswer: {response.answer}")
     print(f"\nConfidence: {response.confidence:.2f}")
     print(f"Latency: {response.latency_ms:.1f}ms")
-    print(f"\nSources:")
+    print("\nSources:")
     for i, doc in enumerate(response.sources[:3]):
         print(f"  [{i+1}] {doc.metadata.get('title', doc.doc_id)} (score: {doc.score:.3f})")
-    print(f"\nMetadata:")
+    print("\nMetadata:")
     for key, value in response.metadata.items():
         print(f"  {key}: {value}")
 

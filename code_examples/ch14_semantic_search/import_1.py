@@ -24,9 +24,11 @@ Applications:
 - Knowledge discovery (predict new relationships)
 """
 
-from typing import List, Dict, Optional, Tuple, Set
 from dataclasses import dataclass
+from typing import Dict, List, Optional, Set, Tuple
+
 import numpy as np
+
 
 @dataclass
 class Entity:
@@ -102,7 +104,7 @@ class KnowledgeGraphEmbedding:
         self.outgoing_edges: Dict[str, List[Relation]] = {}
         self.incoming_edges: Dict[str, List[Relation]] = {}
 
-        print(f"Initialized Knowledge Graph Embeddings")
+        print("Initialized Knowledge Graph Embeddings")
         print(f"  Embedding dimension: {embedding_dim}")
         print(f"  Margin: {margin}")
 
@@ -373,13 +375,13 @@ def knowledge_graph_example():
     for relation in relations:
         kg.add_relation(relation)
 
-    print(f"\n=== Knowledge Graph Statistics ===")
+    print("\n=== Knowledge Graph Statistics ===")
     print(f"Entities: {len(kg.entities)}")
     print(f"Relations: {len(kg.relations)}")
     print(f"Relation types: {len(kg.relation_embeddings)}")
 
     # Link prediction: What might customer_3 purchase?
-    print(f"\n=== Link Prediction: What might customer_3 purchase? ===")
+    print("\n=== Link Prediction: What might customer_3 purchase? ===")
     predictions = kg.predict_tail('customer_3', 'purchased', top_k=3)
 
     for entity_id, score in predictions:
@@ -388,14 +390,14 @@ def knowledge_graph_example():
             print(f"{entity.attributes.get('name')}: score = {score:.3f}")
 
     # Find similar customers
-    print(f"\n=== Similar Customers to customer_1 ===")
+    print("\n=== Similar Customers to customer_1 ===")
     similar = kg.find_similar_entities('customer_1', top_k=2, entity_type_filter='customer')
 
     for entity, similarity in similar:
         print(f"{entity.attributes.get('name')}: similarity = {similarity:.3f}")
 
     # Get neighbors
-    print(f"\n=== Neighbors of product_1 (Laptop) ===")
+    print("\n=== Neighbors of product_1 (Laptop) ===")
     neighbors = kg.get_neighbors('product_1')
 
     for relation, direction, neighbor_id in neighbors:

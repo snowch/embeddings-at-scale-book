@@ -6,6 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from transformers import AutoModel, AutoTokenizer
 
+
 class SimCLRTextEmbedding(nn.Module):
     """
     SimCLR adapted for text embeddings
@@ -158,6 +159,7 @@ class TextAugmentation:
             augmented text
         """
         import random
+
         from nltk.corpus import wordnet
 
         words = text.split()

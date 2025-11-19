@@ -127,6 +127,7 @@ class VectorDatabaseBenchmark:
         """Execute comprehensive benchmark"""
 
         import time
+
         import numpy as np
 
         results = {}

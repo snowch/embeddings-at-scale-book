@@ -19,10 +19,12 @@ Applications:
 - Duplicate detection (find copyright violations)
 """
 
-from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass
-from PIL import Image
+from typing import Dict, List, Optional, Tuple
+
 import numpy as np
+from PIL import Image
+
 
 @dataclass
 class MediaAsset:
@@ -175,7 +177,7 @@ class MediaSearchEngine:
         self.content_embeddings: Optional[np.ndarray] = None
         self.style_embeddings: Optional[np.ndarray] = None
 
-        print(f"Initialized Media Search Engine")
+        print("Initialized Media Search Engine")
         print(f"  Embedding dimension: {embedding_dim}")
         print(f"  Device: {self.device}")
 

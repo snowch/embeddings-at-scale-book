@@ -23,10 +23,12 @@ Applications:
 - Patent search (prior art search)
 """
 
-from typing import List, Dict, Optional, Tuple, Set
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Dict, List, Optional, Set, Tuple
+
 import numpy as np
+
 
 @dataclass
 class ScientificPaper:
@@ -105,7 +107,7 @@ class ScientificSearchEngine:
         # Author index: author -> {paper_ids}
         self.author_index: Dict[str, Set[str]] = {}
 
-        print(f"Initialized Scientific Search Engine")
+        print("Initialized Scientific Search Engine")
         print(f"  Embedding dimension: {embedding_dim}")
 
     def encode_paper(self, paper: ScientificPaper) -> np.ndarray:

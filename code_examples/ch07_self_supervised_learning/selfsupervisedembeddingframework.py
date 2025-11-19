@@ -1,11 +1,12 @@
 # Code from Chapter 07
 # Book: Embeddings at Scale
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from transformers import AutoModel, AutoTokenizer
-import numpy as np
+
 
 class SelfSupervisedEmbeddingFramework:
     """

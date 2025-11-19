@@ -41,7 +41,7 @@ class RiskEntity:
     risk_score: Optional[float] = None
     risk_factors: Optional[List[str]] = None
     embedding: Optional[np.ndarray] = None
-    
+
     def __post_init__(self):
         if self.features is None:
             self.features = {}
@@ -58,10 +58,10 @@ class RiskEncoder(nn.Module):
     - Behavioral features
     - External data (social, location)
     """
-    
+
     def __init__(self, embedding_dim: int = 128):
         super().__init__()
-        
+
         self.encoder = nn.Sequential(
             nn.Linear(50, 256),
             nn.ReLU(),
@@ -71,7 +71,7 @@ class RiskEncoder(nn.Module):
             nn.Dropout(0.3),
             nn.Linear(128, embedding_dim)
         )
-    
+
     def forward(self, features: torch.Tensor) -> torch.Tensor:
         """
         Encode entities for risk assessment
@@ -97,10 +97,10 @@ class RiskScoringModel(nn.Module):
     - Survival analysis: Time until event
     - Multi-task: Predict multiple risk types
     """
-    
+
     def __init__(self, embedding_dim: int = 128):
         super().__init__()
-        
+
         self.risk_head = nn.Sequential(
             nn.Linear(embedding_dim, 128),
             nn.ReLU(),
@@ -111,7 +111,7 @@ class RiskScoringModel(nn.Module):
             nn.Linear(64, 1),
             nn.Sigmoid()
         )
-    
+
     def forward(self, embeddings: torch.Tensor) -> torch.Tensor:
         """
         Predict risk scores
@@ -140,12 +140,12 @@ def risk_scoring_example():
     - Account for non-linear patterns
     - Continuously improve from outcomes
     """
-    
+
     print("=== Credit Risk Scoring ===")
     print("\nTraditional approach: FICO score + DTI ratio")
     print("  FICO > 700 AND DTI < 40% → Approve")
     print("  Otherwise → Reject")
-    
+
     print("\n--- Applicant 1: Traditional Accept ---")
     print("FICO: 750")
     print("Income: $80,000")
@@ -154,7 +154,7 @@ def risk_scoring_example():
     print("Traditional: APPROVE")
     print("Embedding risk score: 0.03 (3% default probability)")
     print("  → Consistent with traditional model")
-    
+
     print("\n--- Applicant 2: False Negative (Traditional Rejects Good Customer) ---")
     print("FICO: 680 (thin file - recent immigrant)")
     print("Income: $95,000 (software engineer)")
@@ -165,7 +165,7 @@ def risk_scoring_example():
     print("Embedding risk score: 0.04 (4% default probability)")
     print("  → Embedding learns that Google employees + on-time rent = low risk")
     print("  → Would approve, capturing good customer traditional model misses")
-    
+
     print("\n--- Applicant 3: False Positive (Traditional Approves Risky Customer) ---")
     print("FICO: 720")
     print("Income: $60,000")
@@ -177,7 +177,7 @@ def risk_scoring_example():
     print("Embedding risk score: 0.22 (22% default probability)")
     print("  → Embedding detects risky pattern: job instability + gambling + credit seeking")
     print("  → Would reject or price for risk")
-    
+
     print("\n--- Applicant 4: Novel Pattern ---")
     print("FICO: 700")
     print("Income: $45,000 (gig economy - Uber driver)")

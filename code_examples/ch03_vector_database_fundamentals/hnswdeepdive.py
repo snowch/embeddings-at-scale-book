@@ -116,7 +116,7 @@ class HNSWDeepDive:
             'memory_overhead_bytes': memory_per_vector,
             'build_comparisons_per_vector': build_comparisons,
             'query_complexity': f'O(log N) ≈ {total_comparisons} comparisons',
-            'build_complexity': f'O(N log N) for full dataset'
+            'build_complexity': 'O(N log N) for full dataset'
         }
 
     def tune_for_scale(self, target_recall=0.95, target_latency_ms=50):

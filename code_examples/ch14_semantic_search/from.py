@@ -22,14 +22,16 @@ Production considerations:
 - Handle missing modalities gracefully
 """
 
+import io
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple, Union
+
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Dict, List, Optional, Tuple, Union
-from dataclasses import dataclass
 from PIL import Image
-import io
+
 
 @dataclass
 class MultiModalQuery:
@@ -320,7 +322,7 @@ class MultiModalSearchEngine:
             'audio': ([], np.array([]))
         }
 
-        print(f"Initialized Multi-Modal Search Engine")
+        print("Initialized Multi-Modal Search Engine")
         print(f"  Embedding dimension: {embedding_dim}")
         print(f"  Device: {self.device}")
 
@@ -490,7 +492,7 @@ class MultiModalSearchEngine:
         for doc in documents:
             self.documents[doc.doc_id] = doc
 
-        print(f"✓ Indexing complete")
+        print("✓ Indexing complete")
         print(f"  Total documents: {len(self.documents)}")
         print(f"  Text index: {len(self.indices['text'][0])}")
         print(f"  Image index: {len(self.indices['image'][0])}")

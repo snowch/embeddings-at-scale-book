@@ -27,11 +27,12 @@ Success criteria:
 - Business: Positive ROI within target timeframe
 """
 
-from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Set
-from enum import Enum
-from datetime import datetime, timedelta
 import json
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from enum import Enum
+from typing import Dict, List, Optional, Set
+
 
 class MetricCategory(Enum):
     """Metric categories"""
@@ -124,20 +125,20 @@ class MetricsFramework:
     Manages metric definitions, measurements, alerting,
     and role-specific dashboards
     """
-    
+
     def __init__(self, system_name: str):
         self.system_name = system_name
         self.metrics: Dict[str, Metric] = {}
         self.measurements: List[MetricValue] = []
         self.dashboards: Dict[str, Dashboard] = {}
-        
+
     def define_metric(self, metric: Metric):
         """Define a tracked metric"""
         self.metrics[metric.name] = metric
-        
+
     def record_measurement(self, measurement: MetricValue):
         """Record metric measurement"""
-        
+
         # Check thresholds and set alert level
         metric = self.metrics.get(measurement.metric_name)
         if metric:
@@ -145,13 +146,13 @@ class MetricsFramework:
                 measurement.alert_level = AlertSeverity.CRITICAL
             elif metric.threshold_warning and measurement.value >= metric.threshold_warning:
                 measurement.alert_level = AlertSeverity.WARNING
-        
+
         self.measurements.append(measurement)
-        
+
     def create_dashboard(self, dashboard: Dashboard):
         """Create role-specific dashboard"""
         self.dashboards[dashboard.name] = dashboard
-        
+
     def get_metric_summary(
         self,
         metric_name: str,
@@ -172,23 +173,23 @@ class MetricsFramework:
         metric = self.metrics.get(metric_name)
         if not metric:
             return {}
-        
+
         # Filter measurements
         relevant_measurements = [
             m for m in self.measurements
             if m.metric_name == metric_name
             and start_time <= m.timestamp <= end_time
         ]
-        
+
         if not relevant_measurements:
             return {
                 'metric': metric_name,
                 'period': f"{start_time} to {end_time}",
                 'measurements': 0
             }
-        
+
         values = [m.value for m in relevant_measurements]
-        
+
         return {
             'metric': metric_name,
             'category': metric.category.value,
@@ -203,7 +204,7 @@ class MetricsFramework:
             'trend': 'improving' if len(values) > 1 and values[-1] < values[0] else 'degrading',
             'alerts': len([m for m in relevant_measurements if m.alert_level])
         }
-    
+
     def identify_issues(self) -> List[Dict[str, any]]:
         """
         Identify metrics not meeting targets
@@ -212,19 +213,19 @@ class MetricsFramework:
             List of issues requiring attention
         """
         issues = []
-        
+
         # Get latest measurement for each metric
         latest_by_metric = {}
         for measurement in sorted(self.measurements, key=lambda m: m.timestamp):
             latest_by_metric[measurement.metric_name] = measurement
-        
+
         for metric_name, latest in latest_by_metric.items():
             metric = self.metrics[metric_name]
-            
+
             # Check if meeting target
             if metric.target and latest.value > metric.target * 1.1:  # 10% tolerance
                 severity = 'high' if latest.value > metric.target * 1.5 else 'medium'
-                
+
                 issues.append({
                     'metric': metric_name,
                     'category': metric.category.value,
@@ -235,22 +236,22 @@ class MetricsFramework:
                     'gap_percent': ((latest.value - metric.target) / metric.target * 100),
                     'recommendation': self._generate_recommendation(metric, latest)
                 })
-        
+
         # Sort by severity and gap
         issues.sort(key=lambda i: (
             0 if i['severity'] == 'high' else 1,
             -i['gap_percent']
         ))
-        
+
         return issues
-    
+
     def _generate_recommendation(
-        self, 
+        self,
         metric: Metric,
         measurement: MetricValue
     ) -> str:
         """Generate recommendation for metric issue"""
-        
+
         if metric.category == MetricCategory.TECHNICAL:
             if 'latency' in metric.name.lower():
                 return "Investigate query performance, check index efficiency, consider caching"
@@ -258,24 +259,24 @@ class MetricsFramework:
                 return "Review model quality, check for concept drift, consider retraining"
             elif 'error' in metric.name.lower():
                 return "Check logs for error patterns, review recent deployments"
-        
+
         elif metric.category == MetricCategory.OPERATIONAL:
             if 'availability' in metric.name.lower():
                 return "Review incident logs, check infrastructure health, improve monitoring"
             elif 'cost' in metric.name.lower():
                 return "Analyze cost drivers, optimize queries, review pricing tiers"
-        
+
         elif metric.category == MetricCategory.USER:
             if 'ctr' in metric.name.lower():
                 return "Review search relevance, analyze failed queries, improve ranking"
             elif 'satisfaction' in metric.name.lower():
                 return "Collect user feedback, identify pain points, run usability studies"
-        
+
         elif metric.category == MetricCategory.BUSINESS:
             return "Analyze business impact, review attribution model, align with stakeholders"
-        
+
         return "Investigate root cause and develop action plan"
-    
+
     def create_metric_relationships(self) -> Dict[str, List[str]]:
         """
         Map relationships between metrics (leading → lagging)
@@ -284,26 +285,26 @@ class MetricsFramework:
             Metric dependency graph
         """
         relationships = {}
-        
+
         for metric in self.metrics.values():
             if metric.related_metrics:
                 relationships[metric.name] = metric.related_metrics
-        
+
         return relationships
-    
+
     def generate_dashboard_config(self, dashboard_name: str) -> str:
         """Generate dashboard configuration"""
-        
+
         dashboard = self.dashboards.get(dashboard_name)
         if not dashboard:
             return f"Dashboard '{dashboard_name}' not found"
-        
+
         config = f"# {dashboard.name}\n\n"
         config += f"**Audience:** {dashboard.audience}\n"
         config += f"**Refresh Rate:** {dashboard.refresh_rate}\n\n"
-        
+
         config += "## Metrics\n\n"
-        
+
         for metric_name in dashboard.metrics:
             metric = self.metrics.get(metric_name)
             if metric:
@@ -312,51 +313,51 @@ class MetricsFramework:
                 config += f"- **Type:** {metric.metric_type.value}\n"
                 config += f"- **Target:** {metric.target} {metric.unit}\n"
                 config += f"- **Description:** {metric.description}\n\n"
-        
+
         if dashboard.alert_routing:
             config += "## Alert Routing\n\n"
             for route in dashboard.alert_routing:
                 config += f"- {route}\n"
-        
+
         return config
-    
+
     def generate_executive_summary(
         self,
         start_time: datetime,
         end_time: datetime
     ) -> str:
         """Generate executive summary of key metrics"""
-        
-        summary = f"# Embedding System Performance Summary\n"
+
+        summary = "# Embedding System Performance Summary\n"
         summary += f"## Period: {start_time.date()} to {end_time.date()}\n\n"
-        
+
         # Group metrics by category
         by_category = {}
         for metric in self.metrics.values():
             if metric.category not in by_category:
                 by_category[metric.category] = []
             by_category[metric.category].append(metric.name)
-        
+
         # Summarize each category
-        for category in [MetricCategory.BUSINESS, MetricCategory.USER, 
+        for category in [MetricCategory.BUSINESS, MetricCategory.USER,
                         MetricCategory.OPERATIONAL, MetricCategory.TECHNICAL]:
             if category not in by_category:
                 continue
-            
+
             summary += f"### {category.value.title()} Metrics\n\n"
-            
+
             for metric_name in by_category[category]:
                 metric_summary = self.get_metric_summary(metric_name, start_time, end_time)
-                
+
                 if metric_summary.get('measurements', 0) == 0:
                     continue
-                
+
                 status = "✓" if metric_summary.get('meets_target') else "⚠"
                 summary += f"{status} **{metric_name}:** {metric_summary['current']:.2f} {self.metrics[metric_name].unit}"
                 summary += f" (target: {metric_summary['target']:.2f}, trend: {metric_summary['trend']})\n"
-            
+
             summary += "\n"
-        
+
         # Highlight issues
         issues = self.identify_issues()
         if issues:
@@ -365,7 +366,7 @@ class MetricsFramework:
                 summary += f"- **{issue['metric']}** ({issue['severity']} priority): "
                 summary += f"{issue['gap_percent']:.1f}% above target\n"
                 summary += f"  - Recommendation: {issue['recommendation']}\n"
-        
+
         return summary
 
 
@@ -374,9 +375,9 @@ def create_embedding_metrics_framework():
     """
     Example: Create metrics framework for embedding system
     """
-    
+
     framework = MetricsFramework("Production Embedding System")
-    
+
     # Technical metrics
     technical_metrics = [
         Metric(
@@ -419,7 +420,7 @@ def create_embedding_metrics_framework():
             related_metrics=["Embedding Quality Score"]
         )
     ]
-    
+
     # Operational metrics
     operational_metrics = [
         Metric(
@@ -449,7 +450,7 @@ def create_embedding_metrics_framework():
             related_metrics=["ROI"]
         )
     ]
-    
+
     # User metrics
     user_metrics = [
         Metric(
@@ -492,7 +493,7 @@ def create_embedding_metrics_framework():
             related_metrics=["User Engagement"]
         )
     ]
-    
+
     # Business metrics
     business_metrics = [
         Metric(
@@ -533,11 +534,11 @@ def create_embedding_metrics_framework():
             related_metrics=["Revenue Impact", "Cost Savings"]
         )
     ]
-    
+
     # Define all metrics
     for metric in technical_metrics + operational_metrics + user_metrics + business_metrics:
         framework.define_metric(metric)
-    
+
     # Create role-specific dashboards
     dashboards = [
         Dashboard(
@@ -580,13 +581,13 @@ def create_embedding_metrics_framework():
             alert_routing=["exec-reports@company.com"]
         )
     ]
-    
+
     for dashboard in dashboards:
         framework.create_dashboard(dashboard)
-    
+
     # Simulate some measurements
     base_time = datetime.now() - timedelta(days=7)
-    
+
     # Good performance
     framework.record_measurement(MetricValue(
         metric_name="Query Latency p99",
@@ -594,14 +595,14 @@ def create_embedding_metrics_framework():
         timestamp=base_time,
         dimensions={'region': 'us-east-1', 'application': 'search'}
     ))
-    
+
     framework.record_measurement(MetricValue(
         metric_name="Embedding Quality Score",
         value=0.87,
         timestamp=base_time,
         dimensions={'model_version': 'v2.3'}
     ))
-    
+
     # Issue: Cost above target
     framework.record_measurement(MetricValue(
         metric_name="Cost per 1M Queries",
@@ -609,20 +610,20 @@ def create_embedding_metrics_framework():
         timestamp=base_time,
         dimensions={'month': 'November'}
     ))
-    
+
     # Good user metrics
     framework.record_measurement(MetricValue(
         metric_name="Search Success Rate",
         value=87.5,
         timestamp=base_time
     ))
-    
+
     framework.record_measurement(MetricValue(
         metric_name="User Satisfaction Score",
         value=4.3,
         timestamp=base_time
     ))
-    
+
     # Strong business impact
     framework.record_measurement(MetricValue(
         metric_name="Revenue Impact",
@@ -630,30 +631,30 @@ def create_embedding_metrics_framework():
         timestamp=base_time,
         dimensions={'quarter': 'Q4'}
     ))
-    
+
     framework.record_measurement(MetricValue(
         metric_name="ROI",
         value=3.8,
         timestamp=base_time
     ))
-    
+
     # Display executive summary
     print(framework.generate_executive_summary(
         base_time - timedelta(days=7),
         base_time
     ))
-    
+
     # Show issues
     print("\n" + "="*60)
     print("\n=== Issues Requiring Attention ===\n")
-    
+
     issues = framework.identify_issues()
     for issue in issues:
         print(f"**{issue['metric']}** ({issue['severity']} priority)")
         print(f"  Current: {issue['current']:.2f}, Target: {issue['target']:.2f}")
         print(f"  Gap: {issue['gap_percent']:.1f}% above target")
         print(f"  Recommendation: {issue['recommendation']}\n")
-    
+
     # Show dashboard configs
     print("\n" + "="*60)
     print("\n=== Engineering Dashboard Config ===\n")

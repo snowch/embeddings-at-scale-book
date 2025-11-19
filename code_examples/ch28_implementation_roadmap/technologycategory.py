@@ -26,11 +26,12 @@ Success criteria:
 - Scalability assessment: Clear path to production scale
 """
 
-from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Set, Tuple
-from enum import Enum
-from datetime import datetime
 import json
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
+from typing import Dict, List, Optional, Set, Tuple
+
 
 class TechnologyCategory(Enum):
     """Technology categories for evaluation"""
@@ -57,7 +58,7 @@ class TechnologyOption:
     name: str
     category: TechnologyCategory
     description: str
-    
+
     # Evaluation scores (1-10)
     performance_score: float
     scalability_score: float
@@ -66,19 +67,19 @@ class TechnologyOption:
     maturity_score: float
     ecosystem_score: float
     lock_in_score: float  # 10 = no lock-in, 1 = high lock-in
-    
+
     # Details
     strengths: List[str] = field(default_factory=list)
     weaknesses: List[str] = field(default_factory=list)
     use_cases: List[str] = field(default_factory=list)
     pricing_model: str = ""
     deployment_options: List[str] = field(default_factory=list)
-    
+
     # Experience data
     community_size: str = ""  # small, medium, large
     documentation_quality: str = ""  # poor, good, excellent
     support_options: List[str] = field(default_factory=list)
-    
+
     def overall_score(self, weights: Dict[EvaluationCriteria, float]) -> float:
         """Calculate weighted overall score"""
         score_map = {
@@ -90,16 +91,16 @@ class TechnologyOption:
             EvaluationCriteria.ECOSYSTEM: self.ecosystem_score,
             EvaluationCriteria.VENDOR_LOCK_IN: self.lock_in_score
         }
-        
+
         total_weight = sum(weights.values())
         if total_weight == 0:
             return 0.0
-            
+
         weighted_sum = sum(
             score_map[criterion] * weight
             for criterion, weight in weights.items()
         )
-        
+
         return weighted_sum / total_weight
 
 @dataclass
@@ -110,21 +111,21 @@ class RequirementProfile:
     target_qps: int  # Queries per second
     target_latency_ms: float  # Maximum acceptable latency
     budget_monthly: float  # Monthly budget in USD
-    
+
     # Data characteristics
     vector_dimensionality: int
     data_modalities: List[str]  # text, image, audio, etc.
     update_frequency: str  # real-time, hourly, daily
-    
+
     # Constraints
     data_sensitivity: str  # public, internal, confidential
     regulatory_requirements: List[str]  # GDPR, HIPAA, etc.
     existing_infrastructure: List[str]  # AWS, GCP, Azure, on-prem
     team_expertise: List[str]  # Python, Kubernetes, etc.
-    
+
     # Priorities (weights for evaluation)
     criterion_weights: Dict[EvaluationCriteria, float] = field(default_factory=dict)
-    
+
     def __post_init__(self):
         """Set default weights if not provided"""
         if not self.criterion_weights:
@@ -140,7 +141,7 @@ class TechnologyEvaluator:
     Systematic evaluation across categories with configurable
     priorities and constraints.
     """
-    
+
     def __init__(self, requirements: RequirementProfile):
         self.requirements = requirements
         self.options: Dict[TechnologyCategory, List[TechnologyOption]] = {
@@ -149,11 +150,11 @@ class TechnologyEvaluator:
         self.selected: Dict[TechnologyCategory, Optional[TechnologyOption]] = {
             category: None for category in TechnologyCategory
         }
-        
+
     def add_option(self, option: TechnologyOption) -> None:
         """Add technology option for evaluation"""
         self.options[option.category].append(option)
-        
+
     def evaluate_category(
         self,
         category: TechnologyCategory,
@@ -166,7 +167,7 @@ class TechnologyEvaluator:
         """
         if category not in self.options:
             return []
-            
+
         # Score all options
         scored_options = [
             (
@@ -175,12 +176,12 @@ class TechnologyEvaluator:
             )
             for option in self.options[category]
         ]
-        
+
         # Sort by score descending
         scored_options.sort(key=lambda x: x[1], reverse=True)
-        
+
         return scored_options[:top_n]
-    
+
     def select_option(
         self,
         category: TechnologyCategory,
@@ -190,14 +191,14 @@ class TechnologyEvaluator:
         if option not in self.options[category]:
             raise ValueError(f"Option {option.name} not in category {category}")
         self.selected[category] = option
-        
+
     def generate_recommendation_report(self) -> str:
         """Generate technology selection recommendation report"""
         report = []
         report.append("# Technology Selection Recommendations\n")
         report.append(f"Project: {self.requirements.project_name}\n")
         report.append(f"Generated: {datetime.now().isoformat()}\n\n")
-        
+
         report.append("## Requirements Summary\n")
         report.append(f"- Target scale: {self.requirements.target_scale:,} vectors\n")
         report.append(f"- Target QPS: {self.requirements.target_qps:,}\n")
@@ -205,51 +206,51 @@ class TechnologyEvaluator:
         report.append(f"- Monthly budget: ${self.requirements.budget_monthly:,}\n")
         report.append(f"- Vector dimension: {self.requirements.vector_dimensionality}\n")
         report.append(f"- Update frequency: {self.requirements.update_frequency}\n\n")
-        
+
         report.append("## Evaluation Priorities\n")
         for criterion, weight in self.requirements.criterion_weights.items():
             if weight > 0:
                 report.append(f"- {criterion.value}: {weight}\n")
         report.append("\n")
-        
+
         # Recommendations by category
         for category in TechnologyCategory:
             report.append(f"## {category.value.replace('_', ' ').title()}\n\n")
-            
+
             top_options = self.evaluate_category(category, top_n=3)
-            
+
             if not top_options:
                 report.append("No options evaluated for this category.\n\n")
                 continue
-                
+
             for i, (option, score) in enumerate(top_options, 1):
                 report.append(f"### {i}. {option.name} (Score: {score:.2f}/10)\n\n")
                 report.append(f"{option.description}\n\n")
-                
+
                 if option.strengths:
                     report.append("**Strengths:**\n")
                     for strength in option.strengths:
                         report.append(f"- {strength}\n")
                     report.append("\n")
-                    
+
                 if option.weaknesses:
                     report.append("**Weaknesses:**\n")
                     for weakness in option.weaknesses:
                         report.append(f"- {weakness}\n")
                     report.append("\n")
-                
+
                 report.append(f"**Pricing:** {option.pricing_model}\n\n")
-                
+
                 if i == 1:
                     report.append("**RECOMMENDED**\n\n")
-                    
+
         # Selected stack
         report.append("## Recommended Technology Stack\n\n")
         for category, option in self.selected.items():
             if option:
                 report.append(f"- **{category.value.replace('_', ' ').title()}:** {option.name}\n")
         report.append("\n")
-        
+
         return "".join(report)
 
 @dataclass
@@ -258,52 +259,52 @@ class ProofOfConceptPlan:
     project_name: str
     objectives: List[str]
     success_criteria: List[str]
-    
+
     # Timeline
     duration_weeks: int
     milestones: List[Dict[str, str]]  # name, week, deliverable
-    
+
     # Resources
     team_members: List[Dict[str, str]]  # name, role, allocation
     compute_resources: Dict[str, str]
     data_sources: List[Dict[str, str]]
-    
+
     # Scope
     data_volume: int  # Number of records
     user_count: int  # Number of test users
     use_cases: List[str]
     out_of_scope: List[str]
-    
+
     # Risk mitigation
     risks: List[Dict[str, str]]  # risk, impact, mitigation
     dependencies: List[str]
     assumptions: List[str]
-    
+
     def generate_plan_document(self) -> str:
         """Generate POC plan document"""
         doc = []
         doc.append(f"# Proof of Concept Plan: {self.project_name}\n\n")
-        
+
         doc.append("## Objectives\n\n")
         for obj in self.objectives:
             doc.append(f"- {obj}\n")
         doc.append("\n")
-        
+
         doc.append("## Success Criteria\n\n")
         for criterion in self.success_criteria:
             doc.append(f"- {criterion}\n")
         doc.append("\n")
-        
+
         doc.append(f"## Timeline: {self.duration_weeks} weeks\n\n")
         for milestone in self.milestones:
             doc.append(f"### Week {milestone['week']}: {milestone['name']}\n")
             doc.append(f"{milestone['deliverable']}\n\n")
-        
+
         doc.append("## Team\n\n")
         for member in self.team_members:
             doc.append(f"- **{member['name']}** ({member['role']}): {member['allocation']}\n")
         doc.append("\n")
-        
+
         doc.append("## Scope\n\n")
         doc.append(f"- Data volume: {self.data_volume:,} records\n")
         doc.append(f"- Test users: {self.user_count}\n")
@@ -311,26 +312,26 @@ class ProofOfConceptPlan:
         for uc in self.use_cases:
             doc.append(f"  - {uc}\n")
         doc.append("\n")
-        
+
         if self.out_of_scope:
             doc.append("### Out of Scope\n\n")
             for item in self.out_of_scope:
                 doc.append(f"- {item}\n")
             doc.append("\n")
-        
+
         doc.append("## Risks and Mitigation\n\n")
         for risk in self.risks:
             doc.append(f"- **Risk:** {risk['risk']}\n")
             doc.append(f"  - Impact: {risk['impact']}\n")
             doc.append(f"  - Mitigation: {risk['mitigation']}\n\n")
-        
+
         return "".join(doc)
 
 
 # Example: Technology evaluation for e-commerce search
 def example_technology_evaluation():
     """Example technology evaluation workflow"""
-    
+
     # Define requirements
     requirements = RequirementProfile(
         project_name="E-commerce Product Search",
@@ -355,9 +356,9 @@ def example_technology_evaluation():
             EvaluationCriteria.VENDOR_LOCK_IN: 0.5  # Less concerned
         }
     )
-    
+
     evaluator = TechnologyEvaluator(requirements)
-    
+
     # Add vector database options
     evaluator.add_option(TechnologyOption(
         name="Pinecone",
@@ -384,7 +385,7 @@ def example_technology_evaluation():
         pricing_model="Storage + compute, ~$500-1000/month at 10M vectors",
         deployment_options=["Managed cloud (multi-region)"]
     ))
-    
+
     evaluator.add_option(TechnologyOption(
         name="Weaviate (self-hosted)",
         category=TechnologyCategory.VECTOR_DATABASE,
@@ -410,7 +411,7 @@ def example_technology_evaluation():
         pricing_model="Infrastructure cost only, ~$300-500/month on AWS",
         deployment_options=["Self-hosted", "Managed cloud"]
     ))
-    
+
     # Add embedding model options
     evaluator.add_option(TechnologyOption(
         name="OpenAI text-embedding-3-large",
@@ -437,10 +438,10 @@ def example_technology_evaluation():
         pricing_model="$0.13/1M tokens, ~$1000/month for 10M products",
         deployment_options=["API only"]
     ))
-    
+
     # Generate recommendations
     print(evaluator.generate_recommendation_report())
-    
+
     # Create POC plan
     poc_plan = ProofOfConceptPlan(
         project_name="E-commerce Product Search POC",
@@ -532,7 +533,7 @@ def example_technology_evaluation():
             "Budget approved for Phase 2 if POC successful"
         ]
     )
-    
+
     print("\n" + "="*80 + "\n")
     print(poc_plan.generate_plan_document())
 

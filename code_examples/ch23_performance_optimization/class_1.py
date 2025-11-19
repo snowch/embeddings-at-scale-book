@@ -27,12 +27,14 @@ Index selection criteria:
 - Hardware availability
 """
 
-import numpy as np
-from typing import List, Dict, Optional, Tuple, Any
-from dataclasses import dataclass, field
-from datetime import datetime
 import json
 import time
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple
+
+import numpy as np
+
 
 @dataclass
 class WorkloadProfile:
@@ -106,10 +108,10 @@ class HNSWTuner:
     - ef_search: Size of dynamic candidate list during search (k to 1000+)
     - max_layers: Maximum number of layers (automatically computed)
     """
-    
+
     def __init__(self, profile: WorkloadProfile):
         self.profile = profile
-        
+
     def tune(self) -> IndexConfig:
         """
         Tune HNSW parameters for workload
@@ -124,20 +126,20 @@ class HNSWTuner:
             M = 32  # Moderate M for balanced performance
         else:
             M = 16  # Lower M for speed
-        
+
         # Adjust M for high dimensionality
         if self.profile.vector_dim >= 768:
             M = min(M * 1.5, 64)
-        
+
         # Estimate ef_construction based on M and recall
         ef_construction = max(M * 4, 200)
         if self.profile.recall_requirement >= 0.98:
             ef_construction = max(ef_construction * 2, 400)
-        
+
         # Estimate ef_search based on k distribution and latency requirements
         typical_k = self._get_typical_k()
         ef_search = typical_k * 2
-        
+
         # Adjust for recall requirements
         if self.profile.recall_requirement >= 0.98:
             ef_search = typical_k * 4
@@ -145,23 +147,23 @@ class HNSWTuner:
             ef_search = typical_k * 2
         else:
             ef_search = max(typical_k * 1.5, 50)
-        
+
         # Adjust for latency requirements
         if self.profile.latency_p50_requirement < 10:
             # Aggressive latency requirement - reduce ef_search
             ef_search = max(ef_search * 0.7, typical_k)
-        
+
         # Estimate resource requirements
         memory_gb = self._estimate_memory(M, ef_construction)
         storage_gb = self._estimate_storage(M)
         build_time_hours = self._estimate_build_time(M, ef_construction)
-        
+
         # Estimate performance
         expected_latency_p50 = self._estimate_latency(M, ef_search, 50)
         expected_latency_p99 = self._estimate_latency(M, ef_search, 99)
         expected_recall = self._estimate_recall(M, ef_search)
         expected_throughput = 1000 / expected_latency_p50  # Per core
-        
+
         return IndexConfig(
             index_type="hnsw",
             parameters={
@@ -178,20 +180,20 @@ class HNSWTuner:
             expected_recall=expected_recall,
             expected_throughput=expected_throughput,
         )
-    
+
     def _get_typical_k(self) -> int:
         """Get typical k value from distribution"""
         if not self.profile.k_distribution:
             return 10  # Default
-        
+
         # Weighted average
         total = sum(self.profile.k_distribution.values())
         avg_k = sum(
             k * prob for k, prob in self.profile.k_distribution.items()
         ) / total
-        
+
         return int(avg_k)
-    
+
     def _estimate_memory(self, M: float, ef_construction: float) -> float:
         """
         Estimate memory requirements for HNSW index
@@ -200,33 +202,33 @@ class HNSWTuner:
         """
         # Vector storage
         vector_memory = (
-            self.profile.total_vectors * 
-            self.profile.vector_dim * 
+            self.profile.total_vectors *
+            self.profile.vector_dim *
             4 / 1024**3  # float32 in GB
         )
-        
+
         # Graph structure (adjacency lists)
         avg_layers = np.log2(self.profile.total_vectors) / np.log2(1.0 / np.log(2))
         graph_memory = (
-            self.profile.total_vectors * 
-            M * avg_layers * 
+            self.profile.total_vectors *
+            M * avg_layers *
             8 / 1024**3  # Pointers in GB
         )
-        
+
         # Construction buffers
         construction_memory = (
-            ef_construction * 
-            self.profile.vector_dim * 
+            ef_construction *
+            self.profile.vector_dim *
             4 / 1024**3
         )
-        
+
         return vector_memory + graph_memory + construction_memory
-    
+
     def _estimate_storage(self, M: float) -> float:
         """Estimate disk storage requirements"""
         # Similar to memory but can use compression
         return self._estimate_memory(M, 0) * 0.8
-    
+
     def _estimate_build_time(self, M: float, ef_construction: float) -> float:
         """
         Estimate index construction time
@@ -235,13 +237,13 @@ class HNSWTuner:
         """
         base_time_per_million = 0.1  # hours per million vectors
         complexity_factor = (M / 32) * (ef_construction / 200)
-        
+
         return (
-            self.profile.total_vectors / 1e6 * 
-            base_time_per_million * 
+            self.profile.total_vectors / 1e6 *
+            base_time_per_million *
             complexity_factor
         )
-    
+
     def _estimate_latency(
         self,
         M: float,
@@ -255,21 +257,21 @@ class HNSWTuner:
         """
         # Base latency for distance computation
         base_latency = self.profile.vector_dim * 1e-6  # 1μs per dimension
-        
+
         # Graph traversal cost
         traversal_latency = ef_search * base_latency * np.log(M)
-        
+
         # Add overhead for sorting, result assembly
         overhead = 0.5  # ms
-        
+
         latency_p50 = traversal_latency * 1000 + overhead
-        
+
         # p99 is typically 2-3× p50 for HNSW
         if percentile == 99:
             return latency_p50 * 2.5
         else:
             return latency_p50
-    
+
     def _estimate_recall(self, M: float, ef_search: float) -> float:
         """
         Estimate recall for given parameters
@@ -278,7 +280,7 @@ class HNSWTuner:
         """
         # Empirical formula (approximation)
         typical_k = self._get_typical_k()
-        
+
         if ef_search >= typical_k * 4 and M >= 32:
             return 0.98
         elif ef_search >= typical_k * 2 and M >= 24:
@@ -297,10 +299,10 @@ class IVFTuner:
     - n_probe: Number of clusters to search (1 to n_clusters)
     - training_size: Number of vectors for k-means training
     """
-    
+
     def __init__(self, profile: WorkloadProfile):
         self.profile = profile
-        
+
     def tune(self) -> IndexConfig:
         """
         Tune IVF parameters for workload
@@ -325,41 +327,41 @@ class IVFTuner:
                 int(np.sqrt(self.profile.total_vectors) * 4),
                 1024
             )
-        
+
         # Cap at reasonable maximum
         n_clusters = min(n_clusters, 65536)
-        
+
         # Estimate optimal n_probe
         typical_k = self._get_typical_k()
-        
+
         if self.profile.recall_requirement >= 0.98:
             n_probe = max(int(n_clusters * 0.05), 50)  # Search 5% of clusters
         elif self.profile.recall_requirement >= 0.95:
             n_probe = max(int(n_clusters * 0.02), 20)  # Search 2% of clusters
         else:
             n_probe = max(int(n_clusters * 0.01), 10)  # Search 1% of clusters
-        
+
         # Adjust for latency requirements
         if self.profile.latency_p50_requirement < 10:
             n_probe = max(n_probe // 2, 5)
-        
+
         # Training size (typically 10-100× n_clusters)
         training_size = min(
             n_clusters * 50,
             int(self.profile.total_vectors * 0.1)
         )
-        
+
         # Estimate resources
         memory_gb = self._estimate_memory(n_clusters)
         storage_gb = self._estimate_storage(n_clusters)
         build_time_hours = self._estimate_build_time(n_clusters, training_size)
-        
+
         # Estimate performance
         expected_latency_p50 = self._estimate_latency(n_clusters, n_probe, 50)
         expected_latency_p99 = self._estimate_latency(n_clusters, n_probe, 99)
         expected_recall = self._estimate_recall(n_clusters, n_probe)
         expected_throughput = 1000 / expected_latency_p50
-        
+
         return IndexConfig(
             index_type="ivf",
             parameters={
@@ -376,7 +378,7 @@ class IVFTuner:
             expected_recall=expected_recall,
             expected_throughput=expected_throughput,
         )
-    
+
     def _get_typical_k(self) -> int:
         """Get typical k value from distribution"""
         if not self.profile.k_distribution:
@@ -386,7 +388,7 @@ class IVFTuner:
             k * prob for k, prob in self.profile.k_distribution.items()
         ) / total
         return int(avg_k)
-    
+
     def _estimate_memory(self, n_clusters: int) -> float:
         """
         Estimate memory for IVF index
@@ -395,30 +397,30 @@ class IVFTuner:
         """
         # Vector storage
         vector_memory = (
-            self.profile.total_vectors * 
-            self.profile.vector_dim * 
+            self.profile.total_vectors *
+            self.profile.vector_dim *
             4 / 1024**3
         )
-        
+
         # Centroid storage
         centroid_memory = (
-            n_clusters * 
-            self.profile.vector_dim * 
+            n_clusters *
+            self.profile.vector_dim *
             4 / 1024**3
         )
-        
+
         # Inverted list pointers
         list_memory = (
-            self.profile.total_vectors * 
+            self.profile.total_vectors *
             8 / 1024**3  # Pointer per vector
         )
-        
+
         return vector_memory + centroid_memory + list_memory
-    
+
     def _estimate_storage(self, n_clusters: int) -> float:
         """Estimate disk storage"""
         return self._estimate_memory(n_clusters) * 0.9
-    
+
     def _estimate_build_time(
         self,
         n_clusters: int,
@@ -431,22 +433,22 @@ class IVFTuner:
         """
         # k-means iterations (typically 10-50)
         n_iterations = 20
-        
+
         # Time per iteration (empirical)
         time_per_iteration = (
             training_size * n_clusters * self.profile.vector_dim * 1e-9
         )  # hours
-        
+
         kmeans_time = n_iterations * time_per_iteration
-        
+
         # Assignment time (assign all vectors to clusters)
         assignment_time = (
-            self.profile.total_vectors * n_clusters * 
+            self.profile.total_vectors * n_clusters *
             self.profile.vector_dim * 1e-10
         )
-        
+
         return kmeans_time + assignment_time
-    
+
     def _estimate_latency(
         self,
         n_clusters: int,
@@ -456,25 +458,25 @@ class IVFTuner:
         """Estimate query latency"""
         # Coarse quantization cost (find nearest centroids)
         coarse_cost = n_clusters * self.profile.vector_dim * 1e-6
-        
+
         # Fine search cost (search n_probe clusters)
         vectors_per_cluster = self.profile.total_vectors / n_clusters
         candidates = n_probe * vectors_per_cluster
         fine_cost = candidates * self.profile.vector_dim * 1e-6
-        
+
         latency_p50 = (coarse_cost + fine_cost) * 1000  # to ms
-        
+
         if percentile == 99:
             return latency_p50 * 2.0
         else:
             return latency_p50
-    
+
     def _estimate_recall(self, n_clusters: int, n_probe: int) -> float:
         """Estimate recall"""
         # Probability of finding nearest neighbor
         # Depends on cluster quality and n_probe
         probe_ratio = n_probe / n_clusters
-        
+
         if probe_ratio >= 0.05:
             return 0.98
         elif probe_ratio >= 0.02:
@@ -490,12 +492,12 @@ class IndexSelector:
     
     Compares HNSW, IVF, PQ, and hybrid approaches
     """
-    
+
     def __init__(self, profile: WorkloadProfile):
         self.profile = profile
         self.hnsw_tuner = HNSWTuner(profile)
         self.ivf_tuner = IVFTuner(profile)
-        
+
     def select(self) -> IndexConfig:
         """
         Select best index configuration for workload
@@ -505,27 +507,27 @@ class IndexSelector:
         """
         # Generate candidate configurations
         candidates = []
-        
+
         # HNSW candidate
         hnsw_config = self.hnsw_tuner.tune()
         candidates.append(hnsw_config)
-        
+
         # IVF candidate
         ivf_config = self.ivf_tuner.tune()
         candidates.append(ivf_config)
-        
+
         # Score each candidate
         scores = []
         for config in candidates:
             score = self._score_config(config)
             scores.append((score, config))
-        
+
         # Return best scoring configuration
         scores.sort(reverse=True, key=lambda x: x[0])
         best_config = scores[0][1]
-        
+
         return best_config
-    
+
     def _score_config(self, config: IndexConfig) -> float:
         """
         Score configuration based on how well it meets requirements
@@ -534,34 +536,34 @@ class IndexSelector:
             score: Higher is better (0-100)
         """
         score = 100.0
-        
+
         # Latency penalty
         if config.expected_latency_p50 > self.profile.latency_p50_requirement:
             score -= 30 * (
-                config.expected_latency_p50 / 
+                config.expected_latency_p50 /
                 self.profile.latency_p50_requirement - 1
             )
-        
+
         if config.expected_latency_p99 > self.profile.latency_p99_requirement:
             score -= 20 * (
-                config.expected_latency_p99 / 
+                config.expected_latency_p99 /
                 self.profile.latency_p99_requirement - 1
             )
-        
+
         # Recall penalty
         if config.expected_recall < self.profile.recall_requirement:
             score -= 50 * (
                 self.profile.recall_requirement - config.expected_recall
             )
-        
+
         # Memory penalty
         if config.memory_gb > self.profile.memory_budget_gb:
             score -= 25 * (
                 config.memory_gb / self.profile.memory_budget_gb - 1
             )
-        
+
         # Build time penalty (minor)
         if config.build_time_hours > 24:
             score -= 5 * (config.build_time_hours / 24 - 1)
-        
+
         return max(score, 0)

@@ -1,9 +1,11 @@
 # Code from Chapter 08
 # Book: Embeddings at Scale
 
+from datetime import datetime, timedelta
+
 import torch
 import torch.nn as nn
-from datetime import datetime, timedelta
+
 
 class DynamicEmbedding(nn.Module):
     """

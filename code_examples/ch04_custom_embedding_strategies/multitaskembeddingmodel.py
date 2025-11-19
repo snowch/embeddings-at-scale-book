@@ -4,6 +4,7 @@
 import torch
 import torch.nn as nn
 
+
 class MultiTaskEmbeddingModel(nn.Module):
     """
     Single encoder with multiple task-specific heads

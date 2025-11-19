@@ -12,11 +12,13 @@ Techniques:
 5. Streams: Overlap computation and data transfer
 """
 
-import torch
-import torch.nn.functional as F
-import numpy as np
 import time
 from typing import Optional, Tuple
+
+import numpy as np
+import torch
+import torch.nn.functional as F
+
 
 class GPUVectorSearch:
     """

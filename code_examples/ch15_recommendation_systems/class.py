@@ -17,12 +17,14 @@ Techniques:
 - Multi-task learning: Learn across multiple domains simultaneously
 """
 
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple
+
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import numpy as np
-from typing import List, Dict, Optional, Tuple
-from dataclasses import dataclass
+
 
 class ContentBasedItemEmbedding(nn.Module):
     """
@@ -321,7 +323,7 @@ def cold_start_example():
         learning_rate=0.01
     )
 
-    print(f"\n✓ Adapted user context from 2 examples")
+    print("\n✓ Adapted user context from 2 examples")
 
     # Generate recommendations
     print("\nRecommendations:")

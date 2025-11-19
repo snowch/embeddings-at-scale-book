@@ -49,7 +49,7 @@ class Borrower:
     alternative_data: Optional[Dict[str, Any]] = None
     relationships: Optional[List[str]] = None
     application: Optional[Dict[str, Any]] = None
-    
+
     def __post_init__(self):
         if self.employment is None:
             self.employment = {}
@@ -104,7 +104,7 @@ class BorrowerEncoder(nn.Module):
     - Contrastive: Good borrowers close, bad borrowers far
     - Multi-task: Predict default, prepayment, utilization
     """
-    
+
     def __init__(
         self,
         embedding_dim: int = 128,
@@ -113,7 +113,7 @@ class BorrowerEncoder(nn.Module):
     ):
         super().__init__()
         self.embedding_dim = embedding_dim
-        
+
         # Credit history encoder
         self.credit_encoder = nn.Sequential(
             nn.Linear(num_credit_features, 64),
@@ -121,7 +121,7 @@ class BorrowerEncoder(nn.Module):
             nn.Dropout(0.2),
             nn.Linear(64, 64)
         )
-        
+
         # Transaction pattern encoder
         self.transaction_encoder = nn.LSTM(
             input_size=10,  # transaction features
@@ -129,7 +129,7 @@ class BorrowerEncoder(nn.Module):
             num_layers=1,
             batch_first=True
         )
-        
+
         # Alternative data encoder
         self.alternative_encoder = nn.Sequential(
             nn.Linear(num_alternative_features, 64),
@@ -137,7 +137,7 @@ class BorrowerEncoder(nn.Module):
             nn.Dropout(0.2),
             nn.Linear(64, 64)
         )
-        
+
         # Fusion
         self.fusion = nn.Sequential(
             nn.Linear(192, 128),  # 64 * 3
@@ -145,7 +145,7 @@ class BorrowerEncoder(nn.Module):
             nn.Dropout(0.2),
             nn.Linear(128, embedding_dim)
         )
-        
+
     def forward(
         self,
         credit_features: torch.Tensor,
@@ -165,21 +165,21 @@ class BorrowerEncoder(nn.Module):
         """
         # Encode credit history
         credit_emb = self.credit_encoder(credit_features)
-        
+
         # Encode transaction history
         _, (transaction_hidden, _) = self.transaction_encoder(transaction_history)
         transaction_emb = transaction_hidden[-1]
-        
+
         # Encode alternative data
         alternative_emb = self.alternative_encoder(alternative_features)
-        
+
         # Fuse
         combined = torch.cat([credit_emb, transaction_emb, alternative_emb], dim=1)
         borrower_emb = self.fusion(combined)
-        
+
         # Normalize
         borrower_emb = F.normalize(borrower_emb, p=2, dim=1)
-        
+
         return borrower_emb
 
 class CreditRiskScorer(nn.Module):
@@ -194,10 +194,10 @@ class CreditRiskScorer(nn.Module):
     Calibrated to produce well-calibrated probabilities
     for regulatory compliance and pricing.
     """
-    
+
     def __init__(self, embedding_dim: int = 128):
         super().__init__()
-        
+
         # Risk scoring network
         self.scorer = nn.Sequential(
             nn.Linear(embedding_dim + 10, 128),  # +10 for loan features
@@ -208,7 +208,7 @@ class CreditRiskScorer(nn.Module):
             nn.Dropout(0.3),
             nn.Linear(64, 3)  # default_prob, expected_loss, confidence
         )
-        
+
     def forward(
         self,
         borrower_emb: torch.Tensor,
@@ -226,15 +226,15 @@ class CreditRiskScorer(nn.Module):
         """
         # Combine borrower and loan features
         combined = torch.cat([borrower_emb, loan_features], dim=1)
-        
+
         # Score risk
         outputs = self.scorer(combined)
-        
+
         # Split outputs
         default_prob = torch.sigmoid(outputs[:, 0])  # 0-1
         expected_loss = torch.sigmoid(outputs[:, 1])  # 0-1
         confidence = torch.sigmoid(outputs[:, 2])  # 0-1
-        
+
         return default_prob, expected_loss, confidence
 
 # Example: Credit risk assessment
@@ -248,19 +248,19 @@ def credit_risk_example():
     3. Embedding-based risk assessment
     4. Explainability for adverse actions
     """
-    
+
     print("=== Credit Risk Assessment System ===")
     print("\nObjective: Expand access to credit while managing risk")
     print("Challenge: Credit invisibles lack traditional credit history")
     print("Solution: Alternative data + embeddings")
-    
+
     print("\n--- Applicant 1: Traditional Credit User ---")
     print("Credit score: 750")
     print("Income: $75,000/year")
     print("Credit history: 10 years, no missed payments")
     print("Utilization: 15%")
     print("Loan request: $10,000 personal loan")
-    
+
     print("\nAssessment:")
     print("  Traditional model: APPROVE (strong credit history)")
     print("  Default probability: 2.5%")
@@ -268,7 +268,7 @@ def credit_risk_example():
     print("  Credit limit: $10,000")
     print("  Confidence: 0.92")
     print("\n→ Easy approval, standard process")
-    
+
     print("\n--- Applicant 2: Credit Invisible ---")
     print("Credit score: None (no credit history)")
     print("Income: $55,000/year (verified)")
@@ -277,11 +277,11 @@ def credit_risk_example():
     print("Transaction history: Stable income deposits, responsible spending")
     print("Employment: 4 years same employer")
     print("Loan request: $5,000 personal loan")
-    
+
     print("\nTraditional assessment:")
     print("  REJECTED - No credit score")
     print("  → Lost customer, perpetuates credit invisibility")
-    
+
     print("\nEmbedding-based assessment:")
     print("  Borrower embedding analysis:")
     print("    - Similar to: Prime borrowers (based on alternative data)")
@@ -300,7 +300,7 @@ def credit_risk_example():
     print("    ✓ Responsible transaction patterns")
     print("    ! Limited by lack of traditional credit history")
     print("\n→ Expanded access while managing risk")
-    
+
     print("\n--- Applicant 3: High Risk ---")
     print("Credit score: 620 (fair)")
     print("Income: $45,000/year")
@@ -309,7 +309,7 @@ def credit_risk_example():
     print("Transaction history: Frequent overdrafts, gambling transactions")
     print("Recent applications: 5 credit cards last 3 months")
     print("Loan request: $15,000 personal loan")
-    
+
     print("\nEmbedding-based assessment:")
     print("  Borrower embedding analysis:")
     print("    - Similar to: High-default borrowers")
@@ -326,7 +326,7 @@ def credit_risk_example():
     print("    3. Multiple recent credit applications")
     print("    4. Transaction patterns indicate financial stress")
     print("\n→ Responsible rejection with explanation")
-    
+
     print("\n--- Results Across Portfolio ---")
     print("Approval rate: 72% (vs 60% traditional)")
     print("Default rate: 3.8% (vs 4.5% traditional)")

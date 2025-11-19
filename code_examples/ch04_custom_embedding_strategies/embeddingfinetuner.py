@@ -1,9 +1,10 @@
 # Code from Chapter 04
 # Book: Embeddings at Scale
 
-from sentence_transformers import SentenceTransformer, InputExample, losses
-from torch.utils.data import DataLoader
 import torch
+from sentence_transformers import InputExample, SentenceTransformer, losses
+from torch.utils.data import DataLoader
+
 
 class EmbeddingFineTuner:
     """

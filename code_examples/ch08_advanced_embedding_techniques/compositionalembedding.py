@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+
 class CompositionalEmbedding(nn.Module):
     """
     Learn to compose embeddings from multiple components

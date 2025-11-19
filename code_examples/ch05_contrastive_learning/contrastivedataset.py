@@ -3,6 +3,7 @@
 
 import torch.utils.data as data
 
+
 class ContrastiveDataset(data.Dataset):
     """
     Efficient dataset for contrastive learning at scale

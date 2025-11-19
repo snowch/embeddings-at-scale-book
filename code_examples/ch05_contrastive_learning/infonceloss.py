@@ -4,6 +4,7 @@
 import torch
 import torch.nn.functional as F
 
+
 class InfoNCELoss:
     """
     InfoNCE loss for contrastive learning

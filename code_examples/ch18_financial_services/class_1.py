@@ -83,11 +83,11 @@ class ComplianceEncoder(nn.Module):
     - Classification: Predict rule type from content
     - Few-shot: Learn from limited violation examples
     """
-    
+
     def __init__(self, embedding_dim: int = 256):
         super().__init__()
         self.embedding_dim = embedding_dim
-        
+
         # Text encoder (for rules and event descriptions)
         self.text_encoder = nn.LSTM(
             input_size=768,  # BERT embeddings
@@ -96,7 +96,7 @@ class ComplianceEncoder(nn.Module):
             batch_first=True,
             dropout=0.2
         )
-        
+
         # Structured data encoder (for transaction features)
         self.structured_encoder = nn.Sequential(
             nn.Linear(50, 128),
@@ -104,7 +104,7 @@ class ComplianceEncoder(nn.Module):
             nn.Dropout(0.2),
             nn.Linear(128, 256)
         )
-        
+
         # Fusion
         self.fusion = nn.Sequential(
             nn.Linear(512, 256),
@@ -112,7 +112,7 @@ class ComplianceEncoder(nn.Module):
             nn.Dropout(0.2),
             nn.Linear(256, embedding_dim)
         )
-        
+
     def forward(
         self,
         text_embeddings: torch.Tensor,
@@ -131,17 +131,17 @@ class ComplianceEncoder(nn.Module):
         # Encode text
         _, (text_hidden, _) = self.text_encoder(text_embeddings)
         text_emb = text_hidden[-1]
-        
+
         # Encode structured features
         structured_emb = self.structured_encoder(structured_features)
-        
+
         # Fuse
         combined = torch.cat([text_emb, structured_emb], dim=1)
         compliance_emb = self.fusion(combined)
-        
+
         # Normalize
         compliance_emb = F.normalize(compliance_emb, p=2, dim=1)
-        
+
         return compliance_emb
 
 # Example: AML transaction monitoring
@@ -156,12 +156,12 @@ def aml_monitoring_example():
     - Shell company usage
     - Geographic anomalies (high-risk jurisdictions)
     """
-    
+
     print("=== AML Transaction Monitoring ===")
     print("\nObjective: Detect money laundering patterns")
     print("Challenge: Criminals constantly evolve tactics")
     print("Solution: Learn embeddings of suspicious behavior")
-    
+
     print("\n--- Normal Transaction Pattern ---")
     print("Customer: John Smith")
     print("Account age: 5 years")
@@ -170,12 +170,12 @@ def aml_monitoring_example():
     print("  - Monthly rent: $1,800")
     print("  - Utilities, groceries, entertainment")
     print("  - Occasional savings transfers: $500")
-    
+
     print("\nAssessment:")
     print("  Embedding analysis: Normal consumer banking cluster")
     print("  Risk score: 0.02 (low)")
     print("  Action: No review required")
-    
+
     print("\n--- Structuring Pattern (Money Laundering) ---")
     print("Customer: Jane Doe")
     print("Account age: 3 months")
@@ -184,7 +184,7 @@ def aml_monitoring_example():
     print("  - Day 2: Cash deposit $9,800")
     print("  - Day 3: Cash deposit $9,700")
     print("  - Day 4: Wire transfer out $28,000 to offshore account")
-    
+
     print("\nEmbedding analysis:")
     print("  Similar to: Known structuring cases")
     print("  Pattern: Multiple sub-threshold deposits → large outbound transfer")
@@ -193,13 +193,13 @@ def aml_monitoring_example():
     print("    - Rapid sequence of cash deposits")
     print("    - Immediate outbound transfer")
     print("    - Offshore destination")
-    
+
     print("\nAssessment:")
     print("  Risk score: 0.94 (very high)")
     print("  Matched rules: Structuring, rapid movement")
     print("  Action: File SAR (Suspicious Activity Report)")
     print("  Freeze account pending investigation")
-    
+
     print("\n--- Round-Tripping Pattern ---")
     print("Network of accounts:")
     print("  Company A → Company B ($500K)")
@@ -207,7 +207,7 @@ def aml_monitoring_example():
     print("  Company C → Company D ($460K)")
     print("  Company D → Company A ($440K)")
     print("All within 48 hours, no economic purpose")
-    
+
     print("\nGraph embedding analysis:")
     print("  Pattern: Circular money flow")
     print("  Similar to: Known round-tripping schemes")
@@ -216,13 +216,13 @@ def aml_monitoring_example():
     print("    - Rapid timing (no genuine business delay)")
     print("    - Decreasing amounts (fees laundering)")
     print("    - Shell companies (minimal operations)")
-    
+
     print("\nAssessment:")
     print("  Risk score: 0.89 (high)")
     print("  Matched rules: Round-tripping, shell company usage")
     print("  Action: File SAR for all accounts")
     print("  Investigate beneficial ownership")
-    
+
     print("\n--- System Performance ---")
     print("Transactions monitored: 10M per day")
     print("Alerts generated: 2,500 per day (0.025%)")

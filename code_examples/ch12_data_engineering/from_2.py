@@ -12,11 +12,12 @@ Strategies:
 5. Transformers: Convert between schema versions
 """
 
-from typing import Dict, List, Optional, Any, Callable
-from dataclasses import dataclass
-from enum import Enum
 import json
+from dataclasses import dataclass
 from datetime import datetime
+from enum import Enum
+from typing import Any, Callable, Dict, List, Optional
+
 
 class ChangeType(Enum):
     """Type of schema change"""
@@ -178,7 +179,7 @@ class SchemaRegistry:
 
         print(f"Registered schema version {schema_version.version}")
         if set_current:
-            print(f"  Set as current version")
+            print("  Set as current version")
 
     def detect_version(self, data: Dict) -> Optional[str]:
         """

@@ -11,13 +11,15 @@ Strategies:
 4. Query caching: Cache results for repeated queries
 """
 
-import numpy as np
-from typing import List, Optional, Callable
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import queue
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
+from typing import Callable, List, Optional
+
+import numpy as np
+
 
 @dataclass
 class Query:
@@ -189,7 +191,7 @@ class BatchedQueryProcessor:
         self.processing_thread.daemon = True
         self.running = False
 
-        print(f"Initialized batched query processor")
+        print("Initialized batched query processor")
         print(f"  Max batch size: {max_batch_size}")
         print(f"  Max wait time: {max_wait_time_ms} ms")
 
@@ -393,7 +395,7 @@ def parallel_processing_example():
     ]
 
     # Sequential processing (baseline)
-    print(f"\n=== Sequential Processing ===")
+    print("\n=== Sequential Processing ===")
     seq_start = time.time()
     for query in queries:
         result = index.search(query.vector, k=query.k)
@@ -403,7 +405,7 @@ def parallel_processing_example():
     print(f"Throughput: {num_queries / (seq_elapsed / 1000):.0f} queries/sec")
 
     # Parallel processing
-    print(f"\n=== Parallel Processing (8 workers) ===")
+    print("\n=== Parallel Processing (8 workers) ===")
     parallel_search = ParallelVectorSearch(index, num_workers=8)
     responses = parallel_search.process_queries(queries)
     parallel_search.shutdown()

@@ -16,11 +16,13 @@ Challenges:
 - Need to optimize data layout for access patterns
 """
 
-import numpy as np
 import os
 import time
 from pathlib import Path
 from typing import Optional
+
+import numpy as np
+
 
 class MemoryMappedVectorStore:
     """
@@ -78,7 +80,7 @@ class MemoryMappedVectorStore:
             # Reshape to (N, d)
             self.vectors = self.mmap.reshape((self.num_vectors, dim))
 
-            print(f"Loaded memory-mapped vector store")
+            print("Loaded memory-mapped vector store")
             print(f"  Path: {file_path}")
             print(f"  Vectors: {self.num_vectors:,} × {dim} dims")
             print(f"  Size: {self.file_path.stat().st_size / 1e9:.2f} GB")
@@ -288,7 +290,7 @@ class TieredVectorStore:
         # Access tracking: index → access_count
         self.access_counts = {}
 
-        print(f"Initialized tiered vector store")
+        print("Initialized tiered vector store")
         print(f"  Total vectors: {disk_store.num_vectors:,}")
         print(f"  RAM cache size: {ram_cache_size:,} ({ram_cache_size / disk_store.num_vectors:.1%})")
 

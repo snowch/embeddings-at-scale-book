@@ -1,10 +1,11 @@
 # Code from Chapter 08
 # Book: Embeddings at Scale
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import numpy as np
+
 
 class ProbabilisticEmbedding(nn.Module):
     """

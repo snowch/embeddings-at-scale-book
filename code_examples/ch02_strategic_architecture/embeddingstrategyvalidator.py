@@ -88,7 +88,7 @@ class EmbeddingStrategyValidator:
             return {
                 'decision': 'GO (with conditions)',
                 'confidence': 'medium',
-                'rationale': f'Strategy is viable but has gaps. Address issues before full commitment.',
+                'rationale': 'Strategy is viable but has gaps. Address issues before full commitment.',
                 'next_steps': [
                     'Address identified gaps',
                     'Run pilot project to validate assumptions',

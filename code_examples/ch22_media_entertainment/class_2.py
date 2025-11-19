@@ -29,14 +29,16 @@ Production considerations:
 - Legal compliance: Fair use exceptions, counter-notification handling
 """
 
+import json
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Dict, List, Optional, Set, Tuple
+
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import List, Dict, Optional, Tuple, Set
-from dataclasses import dataclass, field
-from datetime import datetime
-import json
+
 
 @dataclass
 class ProtectedContent:
@@ -105,7 +107,7 @@ class RobustVideoEncoder(nn.Module):
         temporal_pooling: str = "attention"  # "mean", "max", "attention"
     ):
         super().__init__()
-        
+
         # Frame encoder (ResNet-based)
         self.frame_encoder = torch.hub.load(
             'pytorch/vision:v0.10.0',
@@ -114,7 +116,7 @@ class RobustVideoEncoder(nn.Module):
         )
         # Remove classification head
         self.frame_encoder.fc = nn.Identity()
-        
+
         # Temporal aggregation
         self.temporal_pooling = temporal_pooling
         if temporal_pooling == "attention":
@@ -123,7 +125,7 @@ class RobustVideoEncoder(nn.Module):
                 num_heads=8,
                 batch_first=True
             )
-        
+
         # Projection to embedding space
         self.projection = nn.Sequential(
             nn.Linear(2048, 1024),
@@ -131,13 +133,13 @@ class RobustVideoEncoder(nn.Module):
             nn.Dropout(0.2),
             nn.Linear(1024, embedding_dim)
         )
-        
+
         # Make robust to transformations
         self.augmentation_invariance = nn.Sequential(
             nn.Linear(embedding_dim, embedding_dim),
             nn.LayerNorm(embedding_dim)
         )
-    
+
     def forward(self, frames: torch.Tensor) -> torch.Tensor:
         """
         Encode video to perceptual hash
@@ -149,12 +151,12 @@ class RobustVideoEncoder(nn.Module):
             fingerprint: [batch, embedding_dim]
         """
         batch_size, num_frames = frames.shape[:2]
-        
+
         # Encode each frame
         frames_flat = frames.view(-1, *frames.shape[2:])  # [batch*num_frames, c, h, w]
         frame_features = self.frame_encoder(frames_flat)  # [batch*num_frames, 2048]
         frame_features = frame_features.view(batch_size, num_frames, -1)  # [batch, num_frames, 2048]
-        
+
         # Temporal pooling
         if self.temporal_pooling == "mean":
             pooled = frame_features.mean(dim=1)
@@ -165,16 +167,16 @@ class RobustVideoEncoder(nn.Module):
                 frame_features, frame_features, frame_features
             )
             pooled = attended.mean(dim=1)
-        
+
         # Project to embedding space
         embedding = self.projection(pooled)  # [batch, embedding_dim]
-        
+
         # Apply augmentation invariance
         fingerprint = self.augmentation_invariance(embedding)
-        
+
         # L2 normalize
         fingerprint = F.normalize(fingerprint, p=2, dim=1)
-        
+
         return fingerprint
 
 class AudioFingerprintEncoder(nn.Module):
@@ -184,32 +186,32 @@ class AudioFingerprintEncoder(nn.Module):
     """
     def __init__(self, embedding_dim: int = 128):
         super().__init__()
-        
+
         # Spectrogram CNN
         self.conv_blocks = nn.Sequential(
             nn.Conv2d(1, 64, kernel_size=3, padding=1),
             nn.BatchNorm2d(64),
             nn.ReLU(),
             nn.MaxPool2d(2),
-            
+
             nn.Conv2d(64, 128, kernel_size=3, padding=1),
             nn.BatchNorm2d(128),
             nn.ReLU(),
             nn.MaxPool2d(2),
-            
+
             nn.Conv2d(128, 256, kernel_size=3, padding=1),
             nn.BatchNorm2d(256),
             nn.ReLU(),
             nn.AdaptiveAvgPool2d((1, 1))
         )
-        
+
         # Fingerprint generation
         self.fingerprint_head = nn.Sequential(
             nn.Linear(256, 256),
             nn.ReLU(),
             nn.Linear(256, embedding_dim)
         )
-    
+
     def forward(self, spectrogram: torch.Tensor) -> torch.Tensor:
         """
         Generate audio fingerprint
@@ -240,13 +242,13 @@ class ContentIdentificationSystem:
         self.audio_encoder = audio_encoder
         self.similarity_threshold = similarity_threshold
         self.clip_threshold = clip_threshold
-        
+
         # Protected content database
         self.protected_db: Dict[str, ProtectedContent] = {}
         self.video_fingerprints: Optional[np.ndarray] = None
         self.audio_fingerprints: Optional[np.ndarray] = None
         self.content_ids: List[str] = []
-    
+
     def add_protected_content(
         self,
         content: ProtectedContent,
@@ -265,31 +267,31 @@ class ContentIdentificationSystem:
             # Generate fingerprints
             video_fp = self.video_encoder(video_frames.unsqueeze(0))
             audio_fp = self.audio_encoder(audio_spectrogram.unsqueeze(0))
-            
+
             content.fingerprint = np.concatenate([
                 video_fp.cpu().numpy().flatten(),
                 audio_fp.cpu().numpy().flatten()
             ])
-            
+
             # Add to database
             self.protected_db[content.content_id] = content
             self.content_ids.append(content.content_id)
-            
+
             # Rebuild index
             self._rebuild_index()
-    
+
     def _rebuild_index(self):
         """Rebuild fingerprint index after additions"""
         if not self.protected_db:
             return
-        
+
         # Stack all fingerprints
         fingerprints = [
             content.fingerprint
             for content in self.protected_db.values()
         ]
         self.fingerprint_matrix = np.vstack(fingerprints)
-    
+
     def identify_content(
         self,
         upload_id: str,
@@ -311,33 +313,33 @@ class ContentIdentificationSystem:
             # Generate fingerprint for upload
             video_fp = self.video_encoder(video_frames.unsqueeze(0))
             audio_fp = self.audio_encoder(audio_spectrogram.unsqueeze(0))
-            
+
             upload_fp = np.concatenate([
                 video_fp.cpu().numpy().flatten(),
                 audio_fp.cpu().numpy().flatten()
             ])
-        
+
         # Compute similarities to all protected content
         similarities = np.dot(self.fingerprint_matrix, upload_fp)
-        
+
         # Find matches above threshold
         matches = []
         for idx, similarity in enumerate(similarities):
             if similarity >= self.similarity_threshold:
                 content_id = self.content_ids[idx]
                 protected = self.protected_db[content_id]
-                
+
                 # Determine match type
                 if similarity >= self.clip_threshold:
                     match_type = "full"
                 else:
                     match_type = "clip"
-                
+
                 # Detect transformations
                 transformations = self._detect_transformations(
                     video_frames, protected
                 )
-                
+
                 match = ContentMatch(
                     match_id=f"match_{upload_id}_{content_id}",
                     upload_id=upload_id,
@@ -349,14 +351,14 @@ class ContentIdentificationSystem:
                     action_taken="flagged",
                     timestamp=datetime.now()
                 )
-                
+
                 matches.append(match)
-        
+
         # Sort by similarity
         matches.sort(key=lambda x: x.similarity, reverse=True)
-        
+
         return matches
-    
+
     def _detect_transformations(
         self,
         upload_frames: torch.Tensor,
@@ -366,19 +368,19 @@ class ContentIdentificationSystem:
         Detect what transformations were applied
         """
         transformations = []
-        
+
         # Simple heuristic detection
         # In production, would have more sophisticated detection
-        
+
         # Check if mirrored (flip detection)
         # Check if cropped (aspect ratio)
         # Check if color adjusted
         # Check if speed changed
         # etc.
-        
+
         # Placeholder
         transformations = ["color_adjusted", "cropped"]
-        
+
         return transformations
 
 # Example usage
@@ -388,17 +390,17 @@ def ip_protection_example():
     """
     print("=== Intellectual Property Protection with Perceptual Hashing ===")
     print()
-    
+
     # Initialize encoders
     video_encoder = RobustVideoEncoder(
         embedding_dim=256,
         temporal_pooling="attention"
     )
-    
+
     audio_encoder = AudioFingerprintEncoder(
         embedding_dim=128
     )
-    
+
     # Initialize content ID system
     content_id_system = ContentIdentificationSystem(
         video_encoder=video_encoder,
@@ -406,7 +408,7 @@ def ip_protection_example():
         similarity_threshold=0.85,
         clip_threshold=0.90
     )
-    
+
     # Add protected content
     print("Adding protected content to database...")
     for i in range(100):
@@ -419,30 +421,30 @@ def ip_protection_example():
             release_date=datetime(2024, 1, 1),
             territories=["US", "UK", "CA"]
         )
-        
+
         # Simulate video and audio
         video_frames = torch.randn(16, 3, 224, 224)  # 16 frames
         audio_spec = torch.randn(1, 128, 128)
-        
+
         content_id_system.add_protected_content(
             protected_content, video_frames, audio_spec
         )
-    
+
     print(f"  - Protected content: {len(content_id_system.protected_db)}")
     print(f"  - Fingerprint database: {content_id_system.fingerprint_matrix.shape}")
     print()
-    
+
     # Simulate upload detection
     print("Checking uploaded content...")
     upload_frames = torch.randn(16, 3, 224, 224)
     upload_audio = torch.randn(1, 128, 128)
-    
+
     matches = content_id_system.identify_content(
         upload_id="upload_12345",
         video_frames=upload_frames,
         audio_spectrogram=upload_audio
     )
-    
+
     print(f"  - Matches found: {len(matches)}")
     if matches:
         for i, match in enumerate(matches[:3], 1):
@@ -452,7 +454,7 @@ def ip_protection_example():
             print(f"     Transformations: {', '.join(match.transformations)}")
             print(f"     Action: {match.action_taken}")
     print()
-    
+
     print("Performance characteristics:")
     print("  - Fingerprint generation: <1 second per video")
     print("  - Search latency: <100ms across 100M protected assets")
@@ -460,7 +462,7 @@ def ip_protection_example():
     print("  - False positive rate: <2%")
     print("  - Robustness: Detects through 50+ transformation types")
     print()
-    
+
     print("Transformation robustness:")
     print("  - Compression: H.264, H.265, VP9 at various bitrates")
     print("  - Resolution: 240p to 4K")
@@ -471,7 +473,7 @@ def ip_protection_example():
     print("  - Overlay: Logo, watermark, text overlays")
     print("  - Audio: Pitch shift, speed change, volume adjustment")
     print()
-    
+
     print("Business impact:")
     print("  - Piracy losses prevented: $500M+ annually")
     print("  - False takedowns reduced: 85% fewer vs keyword systems")

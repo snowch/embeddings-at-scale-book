@@ -228,7 +228,7 @@ config = calc.calculate_shards(
     vectors_per_shard_target=256_000_000
 )
 
-print(f"Shard configuration for 256T vectors:")
+print("Shard configuration for 256T vectors:")
 print(f"  Shards: {config['num_shards']:,}")
 print(f"  Vectors/shard: {config['vectors_per_shard']:,}")
 print(f"  Storage/shard: {config['storage_per_shard_gb']:.1f} GB")

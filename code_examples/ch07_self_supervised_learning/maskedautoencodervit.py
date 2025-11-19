@@ -6,6 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torchvision import transforms
 
+
 class MaskedAutoencoderViT(nn.Module):
     """
     Masked Autoencoder for Vision Transformers (MAE)

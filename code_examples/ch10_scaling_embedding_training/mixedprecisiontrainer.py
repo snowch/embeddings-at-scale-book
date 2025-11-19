@@ -2,7 +2,8 @@
 # Book: Embeddings at Scale
 
 import torch
-from torch.cuda.amp import autocast, GradScaler
+from torch.cuda.amp import GradScaler, autocast
+
 
 class MixedPrecisionTrainer:
     """

@@ -17,11 +17,13 @@ Applications:
 - Counterparty risk: Assess risk in financial networks
 """
 
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple
+
 import numpy as np
 import torch
 import torch.nn as nn
-from typing import List, Dict, Optional, Tuple
-from dataclasses import dataclass
+
 
 @dataclass
 class FinancialEntity:
@@ -112,7 +114,7 @@ class RiskAssessmentSystem:
         # Risk cluster centroids
         self.risk_centroids: Dict[str, np.ndarray] = {}
 
-        print(f"Initialized Risk Assessment System")
+        print("Initialized Risk Assessment System")
         print(f"  Embedding dimension: {embedding_dim}")
 
     def build_risk_clusters(
@@ -270,7 +272,7 @@ def risk_assessment_example():
     )
 
     risk_level, distances = system.assess_risk(test_low)
-    print(f"\nApplicant 1:")
+    print("\nApplicant 1:")
     print(f"  Debt-to-income: {test_low.features['debt_to_income']:.1%}")
     print(f"  Payment history: {test_low.features['payment_history_score']:.1%}")
     print(f"  Assets: ${test_low.features['assets']:,.0f}")
@@ -289,7 +291,7 @@ def risk_assessment_example():
     )
 
     risk_level, distances = system.assess_risk(test_high)
-    print(f"\nApplicant 2:")
+    print("\nApplicant 2:")
     print(f"  Debt-to-income: {test_high.features['debt_to_income']:.1%}")
     print(f"  Payment history: {test_high.features['payment_history_score']:.1%}")
     print(f"  Assets: ${test_high.features['assets']:,.0f}")

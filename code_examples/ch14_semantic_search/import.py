@@ -24,10 +24,12 @@ Applications:
 
 import ast
 import re
-from typing import List, Dict, Optional, Tuple, Set
 from dataclasses import dataclass
+from typing import Dict, List, Optional, Set, Tuple
+
 import torch
 import torch.nn as nn
+
 
 @dataclass
 class CodeSnippet:
@@ -164,7 +166,7 @@ class CodeSearchEngine:
         self.code_ids: List[str] = []
         self.embeddings: Optional[np.ndarray] = None
 
-        print(f"Initialized Code Search Engine")
+        print("Initialized Code Search Engine")
         print(f"  Embedding dimension: {embedding_dim}")
         print(f"  Device: {self.device}")
 

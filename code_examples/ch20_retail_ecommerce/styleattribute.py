@@ -26,13 +26,15 @@ Production considerations:
 - Privacy: Process images on-device or securely delete
 """
 
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
+
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import List, Dict, Optional, Tuple, Any
-from dataclasses import dataclass, field
-from enum import Enum
+
 
 class StyleAttribute(Enum):
     """Visual style attributes"""
@@ -99,11 +101,11 @@ class VisualEncoder(nn.Module):
     - Hard negative mining: Visually similar but different category
     - Cross-domain: Pairs of (user photo, catalog photo) of same item
     """
-    
+
     def __init__(self, embedding_dim=512):
         super().__init__()
         self.embedding_dim = embedding_dim
-        
+
         # Simplified CNN (in production: use pre-trained ViT or EfficientNet)
         self.conv1 = nn.Conv2d(3, 64, kernel_size=3, padding=1)
         self.conv2 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
@@ -111,16 +113,16 @@ class VisualEncoder(nn.Module):
         self.conv4 = nn.Conv2d(256, 512, kernel_size=3, padding=1)
         self.pool = nn.MaxPool2d(2, 2)
         self.global_pool = nn.AdaptiveAvgPool2d((1, 1))
-        
+
         # Multi-head attention for spatial pooling
         self.spatial_attention = nn.MultiheadAttention(
             embed_dim=512,
             num_heads=8,
             batch_first=True
         )
-        
+
         self.fc = nn.Linear(512, embedding_dim)
-        
+
     def extract_features(self, images: torch.Tensor) -> torch.Tensor:
         """Extract multi-scale feature maps"""
         x = F.relu(self.conv1(images))
@@ -131,7 +133,7 @@ class VisualEncoder(nn.Module):
         x = self.pool(x)
         x = F.relu(self.conv4(x))
         return x  # [batch, 512, H, W]
-    
+
     def forward(self, images: torch.Tensor) -> torch.Tensor:
         """
         Args:
@@ -142,18 +144,18 @@ class VisualEncoder(nn.Module):
         # Extract feature maps
         features = self.extract_features(images)  # [batch, 512, H, W]
         batch, channels, h, w = features.shape
-        
+
         # Reshape for attention: [batch, H*W, channels]
         features_flat = features.view(batch, channels, h * w).permute(0, 2, 1)
-        
+
         # Spatial attention pooling
         attended, _ = self.spatial_attention(
             features_flat, features_flat, features_flat
         )
-        
+
         # Global pooling
         pooled = attended.mean(dim=1)  # [batch, channels]
-        
+
         # Final projection
         embedding = self.fc(pooled)
         return F.normalize(embedding, p=2, dim=1)
@@ -171,11 +173,11 @@ class StyleAttributeExtractor(nn.Module):
     Enables fine-grained style transfer: "Find dress with this color
     but different pattern" or "Same silhouette but different material"
     """
-    
+
     def __init__(self, attribute_dim=128):
         super().__init__()
         self.attribute_dim = attribute_dim
-        
+
         # Shared feature extractor
         self.feature_extractor = nn.Sequential(
             nn.Conv2d(3, 64, 3, padding=1),
@@ -188,32 +190,32 @@ class StyleAttributeExtractor(nn.Module):
             nn.ReLU(),
             nn.AdaptiveAvgPool2d((7, 7))
         )
-        
+
         # Attribute-specific heads
         self.color_head = nn.Sequential(
             nn.Linear(256 * 7 * 7, 512),
             nn.ReLU(),
             nn.Linear(512, attribute_dim)
         )
-        
+
         self.pattern_head = nn.Sequential(
             nn.Linear(256 * 7 * 7, 512),
             nn.ReLU(),
             nn.Linear(512, attribute_dim)
         )
-        
+
         self.silhouette_head = nn.Sequential(
             nn.Linear(256 * 7 * 7, 512),
             nn.ReLU(),
             nn.Linear(512, attribute_dim)
         )
-        
+
         self.material_head = nn.Sequential(
             nn.Linear(256 * 7 * 7, 512),
             nn.ReLU(),
             nn.Linear(512, attribute_dim)
         )
-    
+
     def forward(self, images: torch.Tensor) -> Dict[str, torch.Tensor]:
         """
         Args:
@@ -224,7 +226,7 @@ class StyleAttributeExtractor(nn.Module):
         # Extract shared features
         features = self.feature_extractor(images)  # [batch, 256, 7, 7]
         features_flat = features.view(features.size(0), -1)
-        
+
         # Extract each attribute
         return {
             'color': F.normalize(self.color_head(features_flat), p=2, dim=1),
@@ -249,11 +251,11 @@ class CrossDomainAdapter(nn.Module):
     
     Training: Pairs of (user photo, catalog photo) of same product
     """
-    
+
     def __init__(self, embedding_dim=512):
         super().__init__()
         self.embedding_dim = embedding_dim
-        
+
         # Domain discriminator (adversarial training)
         self.discriminator = nn.Sequential(
             nn.Linear(embedding_dim, 256),
@@ -264,7 +266,7 @@ class CrossDomainAdapter(nn.Module):
             nn.Linear(128, 1),
             nn.Sigmoid()
         )
-        
+
         # Adapter: user domain → catalog domain
         self.adapter = nn.Sequential(
             nn.Linear(embedding_dim, 512),
@@ -272,7 +274,7 @@ class CrossDomainAdapter(nn.Module):
             nn.Dropout(0.2),
             nn.Linear(512, embedding_dim)
         )
-    
+
     def forward(self, user_embeddings: torch.Tensor) -> torch.Tensor:
         """
         Args:
@@ -284,7 +286,7 @@ class CrossDomainAdapter(nn.Module):
         # Residual connection
         adapted = user_embeddings + adapted
         return F.normalize(adapted, p=2, dim=1)
-    
+
     def discriminate(self, embeddings: torch.Tensor) -> torch.Tensor:
         """Predict if embedding is from user photo (0) or catalog (1)"""
         return self.discriminator(embeddings)
@@ -304,15 +306,15 @@ class StyleTransferEngine(nn.Module):
     3. Combine: content + style = transferred embedding
     4. Search catalog for products matching transferred embedding
     """
-    
+
     def __init__(self, embedding_dim=512, attribute_dim=128):
         super().__init__()
         self.embedding_dim = embedding_dim
         self.attribute_dim = attribute_dim
-        
+
         self.visual_encoder = VisualEncoder(embedding_dim)
         self.style_extractor = StyleAttributeExtractor(attribute_dim)
-        
+
         # Fusion: content + style → transferred embedding
         self.fusion = nn.Sequential(
             nn.Linear(embedding_dim + attribute_dim * 4, 1024),
@@ -320,7 +322,7 @@ class StyleTransferEngine(nn.Module):
             nn.Dropout(0.2),
             nn.Linear(1024, embedding_dim)
         )
-    
+
     def transfer_style(
         self,
         content_image: torch.Tensor,
@@ -342,10 +344,10 @@ class StyleTransferEngine(nn.Module):
         """
         # Extract content (overall product structure)
         content_emb = self.visual_encoder(content_image)
-        
+
         # Extract style attributes
         style_attrs = self.style_extractor(style_image)
-        
+
         # Select which attributes to transfer
         if style_attributes is None:
             # Transfer all attributes
@@ -368,14 +370,14 @@ class StyleTransferEngine(nn.Module):
                 elif attr == StyleAttribute.MATERIAL:
                     attr_vectors.append(style_attrs['material'])
             style_vector = torch.cat(attr_vectors, dim=1)
-        
+
         # Combine content + style
         combined = torch.cat([content_emb, style_vector], dim=1)
         transferred = self.fusion(combined)
-        
+
         # Blend with original content based on intensity
         transferred = intensity * transferred + (1 - intensity) * content_emb
-        
+
         return F.normalize(transferred, p=2, dim=1)
 
 class VisualSearchSystem:
@@ -389,17 +391,17 @@ class VisualSearchSystem:
     4. Similar products: Find visually similar items
     5. Style transfer: "Find X with style of Y"
     """
-    
+
     def __init__(self):
         self.visual_encoder = VisualEncoder(embedding_dim=512)
         self.style_extractor = StyleAttributeExtractor(attribute_dim=128)
         self.domain_adapter = CrossDomainAdapter(embedding_dim=512)
         self.style_transfer = StyleTransferEngine(embedding_dim=512)
-        
+
         # Product index (simplified)
         self.product_embeddings = {}
         self.product_metadata = {}
-    
+
     def search_by_image(
         self,
         query_image: torch.Tensor,
@@ -420,13 +422,13 @@ class VisualSearchSystem:
         with torch.no_grad():
             # Encode query image
             query_emb = self.visual_encoder(query_image)
-            
+
             # Adapt to catalog domain if user photo
             if is_user_photo:
                 query_emb = self.domain_adapter(query_emb)
-            
+
             query_emb = query_emb.cpu().numpy()[0]
-        
+
         # Find similar products (simplified: brute force)
         results = []
         for product_id, product_emb in self.product_embeddings.items():
@@ -436,11 +438,11 @@ class VisualSearchSystem:
                 'similarity': float(similarity),
                 'product': self.product_metadata[product_id]
             })
-        
+
         # Sort by similarity
         results.sort(key=lambda x: x['similarity'], reverse=True)
         return results[:top_k]
-    
+
     def search_with_style_transfer(
         self,
         content_product_id: str,
@@ -455,7 +457,7 @@ class VisualSearchSystem:
         """
         # Get content product image (simplified: assumes stored)
         content_image = torch.randn(1, 3, 224, 224)
-        
+
         with torch.no_grad():
             # Generate transferred embedding
             transferred_emb = self.style_transfer.transfer_style(
@@ -465,7 +467,7 @@ class VisualSearchSystem:
                 intensity=0.7
             )
             transferred_emb = transferred_emb.cpu().numpy()[0]
-        
+
         # Search for products matching transferred embedding
         results = []
         for product_id, product_emb in self.product_embeddings.items():
@@ -475,7 +477,7 @@ class VisualSearchSystem:
                 'similarity': float(similarity),
                 'product': self.product_metadata[product_id]
             })
-        
+
         results.sort(key=lambda x: x['similarity'], reverse=True)
         return results[:top_k]
 
@@ -489,9 +491,9 @@ def visual_search_example():
     3. Attribute search: "Find dress with this pattern but different color"
     """
     print("=== Visual Search and Style Transfer ===\n")
-    
+
     system = VisualSearchSystem()
-    
+
     # Scenario 1: Search by uploaded photo
     print("--- Scenario 1: Search by Uploaded Photo ---")
     print("User uploads photo of friend's dress from Instagram")
@@ -500,10 +502,10 @@ def visual_search_example():
     print("  - Dress visible but not perfect angle")
     print("  - Background: coffee shop")
     print()
-    
+
     user_photo = torch.randn(1, 3, 224, 224)
     results = system.search_by_image(user_photo, top_k=5, is_user_photo=True)
-    
+
     print("Search results:")
     print("1. Floral Summer Dress (similarity: 0.89)")
     print("   Why: Similar pattern, color palette, casual style")
@@ -517,7 +519,7 @@ def visual_search_example():
     print("   Why: Similar colors and casual vibe")
     print("   Price: $44.99")
     print()
-    
+
     # Scenario 2: Style transfer
     print("--- Scenario 2: Style Transfer Search ---")
     print("User wants: 'Find jeans that match this blue shirt'")
@@ -526,7 +528,7 @@ def visual_search_example():
     print("  - Casual button-down")
     print("  - Cotton material")
     print()
-    
+
     style_image = torch.randn(1, 3, 224, 224)
     results = system.search_with_style_transfer(
         content_product_id="JEANS_BASE",
@@ -534,7 +536,7 @@ def visual_search_example():
         style_attributes=[StyleAttribute.COLOR],
         top_k=5
     )
-    
+
     print("Matching jeans:")
     print("1. Dark Wash Slim Fit Jeans (match: 0.92)")
     print("   Why: Navy-toned denim complements shirt blue")
@@ -548,12 +550,12 @@ def visual_search_example():
     print("   Why: Color coordination, versatile fit")
     print("   Price: $59.99")
     print()
-    
+
     # Scenario 3: Attribute-specific search
     print("--- Scenario 3: Attribute-Specific Search ---")
     print("User says: 'I love this dress pattern but want it in red'")
     print()
-    
+
     print("Original dress: White with floral print")
     print()
     print("Results with same pattern, different color:")
@@ -569,7 +571,7 @@ def visual_search_example():
     print("   Why: Matching print, lighter red/pink")
     print("   Price: $59.99")
     print()
-    
+
     print("--- System Performance ---")
     print("Image encoding: 45ms avg")
     print("Search latency: <100ms")

@@ -16,11 +16,13 @@ Challenges:
 - Quality weighting: Prioritize high-quality sources
 """
 
-from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass
 from datetime import datetime
-import pandas as pd
+from typing import Any, Dict, List, Optional, Tuple
+
 import numpy as np
+import pandas as pd
+
 
 @dataclass
 class DataSource:
@@ -74,7 +76,7 @@ class MultiSourceDataFusion:
         self.primary_key = primary_key
         self.sources: Dict[str, DataSource] = {}
 
-        print(f"Initialized Multi-Source Data Fusion")
+        print("Initialized Multi-Source Data Fusion")
         print(f"  Canonical schema: {len(canonical_schema)} fields")
         print(f"  Primary key: {primary_key}")
 
@@ -412,7 +414,7 @@ def multi_source_fusion_example():
         timestamp=datetime.now()
     )
 
-    print(f"\n=== Fused Data ===")
+    print("\n=== Fused Data ===")
     print(fused_data.head())
     print(f"\nColumns: {list(fused_data.columns)}")
     print(f"Records: {len(fused_data)}")

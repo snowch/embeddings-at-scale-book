@@ -28,14 +28,16 @@ Production considerations:
 - A/B testing: Measure engagement, retention, satisfaction
 """
 
+import json
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple
+
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import List, Dict, Optional, Tuple, Any
-from dataclasses import dataclass, field
-from datetime import datetime
-import json
+
 
 @dataclass
 class MediaContent:
@@ -161,7 +163,7 @@ class MultiModalContentEncoder(nn.Module):
         embedding_dim: int = 256
     ):
         super().__init__()
-        
+
         # Video encoder (pretrained 3D CNN features)
         self.video_encoder = nn.Sequential(
             nn.Linear(video_dim, 512),
@@ -169,7 +171,7 @@ class MultiModalContentEncoder(nn.Module):
             nn.Dropout(0.2),
             nn.Linear(512, 256)
         )
-        
+
         # Audio encoder
         self.audio_encoder = nn.Sequential(
             nn.Linear(audio_dim, 256),
@@ -177,7 +179,7 @@ class MultiModalContentEncoder(nn.Module):
             nn.Dropout(0.2),
             nn.Linear(256, 128)
         )
-        
+
         # Text encoder (BERT features)
         self.text_encoder = nn.Sequential(
             nn.Linear(text_dim, 384),
@@ -185,20 +187,20 @@ class MultiModalContentEncoder(nn.Module):
             nn.Dropout(0.2),
             nn.Linear(384, 256)
         )
-        
+
         # Fusion layer with attention
         self.attention = nn.MultiheadAttention(
             embed_dim=256,
             num_heads=8,
             batch_first=True
         )
-        
+
         # Output projection
         self.output_proj = nn.Sequential(
             nn.Linear(256, embedding_dim),
             nn.LayerNorm(embedding_dim)
         )
-    
+
     def forward(
         self,
         video_features: torch.Tensor,
@@ -221,19 +223,19 @@ class MultiModalContentEncoder(nn.Module):
         a_enc = self.audio_encoder(audio_features)  # [batch, 128]
         a_enc = F.pad(a_enc, (0, 128))  # Pad to 256
         t_enc = self.text_encoder(text_features)  # [batch, 256]
-        
+
         # Stack modalities for attention
         modalities = torch.stack([v_enc, a_enc, t_enc], dim=1)  # [batch, 3, 256]
-        
+
         # Self-attention across modalities
         attended, _ = self.attention(modalities, modalities, modalities)
-        
+
         # Pool across modalities
         pooled = attended.mean(dim=1)  # [batch, 256]
-        
+
         # Project to embedding space
         embedding = self.output_proj(pooled)  # [batch, embedding_dim]
-        
+
         return F.normalize(embedding, p=2, dim=1)
 
 class SequentialViewerEncoder(nn.Module):
@@ -248,7 +250,7 @@ class SequentialViewerEncoder(nn.Module):
         embedding_dim: int = 256
     ):
         super().__init__()
-        
+
         # Transformer encoder for viewing sequence
         encoder_layer = nn.TransformerEncoderLayer(
             d_model=content_embedding_dim,
@@ -261,21 +263,21 @@ class SequentialViewerEncoder(nn.Module):
             encoder_layer,
             num_layers=num_layers
         )
-        
+
         # Positional encoding for recency
         self.positional_encoding = nn.Parameter(
             torch.randn(1, 100, content_embedding_dim)  # Max 100 items
         )
-        
+
         # Engagement weighting
         self.engagement_proj = nn.Linear(1, content_embedding_dim)
-        
+
         # Output projection
         self.output_proj = nn.Sequential(
             nn.Linear(content_embedding_dim, embedding_dim),
             nn.LayerNorm(embedding_dim)
         )
-    
+
     def forward(
         self,
         content_embeddings: torch.Tensor,
@@ -294,31 +296,31 @@ class SequentialViewerEncoder(nn.Module):
             user_embedding: [batch_size, embedding_dim]
         """
         batch_size, seq_len = content_embeddings.shape[:2]
-        
+
         # Add positional encoding (recency)
         pos_enc = self.positional_encoding[:, :seq_len, :]
         content_with_pos = content_embeddings + pos_enc
-        
+
         # Weight by engagement
         engagement_weight = self.engagement_proj(engagement_scores)
         weighted_content = content_with_pos * torch.sigmoid(engagement_weight)
-        
+
         # Transformer encoding
         if mask is not None:
             encoded = self.transformer(weighted_content, src_key_padding_mask=~mask.bool())
         else:
             encoded = self.transformer(weighted_content)
-        
+
         # Pool across sequence (attention-weighted)
         if mask is not None:
             mask_expanded = mask.unsqueeze(-1).float()
             pooled = (encoded * mask_expanded).sum(dim=1) / mask_expanded.sum(dim=1).clamp(min=1)
         else:
             pooled = encoded.mean(dim=1)
-        
+
         # Project to user embedding space
         user_embedding = self.output_proj(pooled)
-        
+
         return F.normalize(user_embedding, p=2, dim=1)
 
 class TwoTowerRecommender(nn.Module):
@@ -335,7 +337,7 @@ class TwoTowerRecommender(nn.Module):
         self.content_encoder = content_encoder
         self.user_encoder = user_encoder
         self.temperature = temperature
-    
+
     def forward(
         self,
         # Content features
@@ -359,17 +361,17 @@ class TwoTowerRecommender(nn.Module):
         content_emb = self.content_encoder(
             video_features, audio_features, text_features
         )
-        
+
         # Encode user
         user_emb = self.user_encoder(
             history_embeddings, history_engagement, history_mask
         )
-        
+
         # Compute similarity matrix
         similarity = torch.matmul(user_emb, content_emb.t()) / self.temperature
-        
+
         return content_emb, user_emb, similarity
-    
+
     def recommend(
         self,
         user_embedding: torch.Tensor,
@@ -393,10 +395,10 @@ class TwoTowerRecommender(nn.Module):
             user_embedding.unsqueeze(0),
             candidate_embeddings.t()
         ).squeeze(0)
-        
+
         # Get top-k
         top_scores, top_indices = torch.topk(similarities, k=top_k)
-        
+
         return top_indices, top_scores
 
 def contrastive_loss(
@@ -417,13 +419,13 @@ def contrastive_loss(
         loss: Scalar contrastive loss
     """
     batch_size = similarity_matrix.shape[0]
-    
+
     # Labels: diagonal elements are positive pairs
     labels = torch.arange(batch_size, device=similarity_matrix.device)
-    
+
     # Cross-entropy loss (treats as classification)
     loss = F.cross_entropy(similarity_matrix, labels)
-    
+
     return loss
 
 # Example usage and training loop
@@ -433,7 +435,7 @@ def content_recommendation_example():
     """
     print("=== Content Recommendation with Multi-Modal Embeddings ===")
     print()
-    
+
     # Initialize model
     content_encoder = MultiModalContentEncoder(
         video_dim=2048,
@@ -441,72 +443,72 @@ def content_recommendation_example():
         text_dim=768,
         embedding_dim=256
     )
-    
+
     user_encoder = SequentialViewerEncoder(
         content_embedding_dim=256,
         hidden_dim=512,
         num_layers=2,
         embedding_dim=256
     )
-    
+
     model = TwoTowerRecommender(
         content_encoder=content_encoder,
         user_encoder=user_encoder,
         temperature=0.07
     )
-    
+
     # Training data shapes
     batch_size = 128
     seq_len = 20
-    
+
     # Simulate content features
     video_features = torch.randn(batch_size, 2048)
     audio_features = torch.randn(batch_size, 512)
     text_features = torch.randn(batch_size, 768)
-    
+
     # Simulate user viewing history
     history_embeddings = torch.randn(batch_size, seq_len, 256)
     history_engagement = torch.rand(batch_size, seq_len, 1)  # 0-1 completion rates
     history_mask = torch.ones(batch_size, seq_len).bool()
-    
+
     # Forward pass
     content_emb, user_emb, similarity = model(
         video_features, audio_features, text_features,
         history_embeddings, history_engagement, history_mask
     )
-    
+
     # Compute loss
     loss = contrastive_loss(similarity, temperature=0.07)
-    
-    print(f"Training batch:")
+
+    print("Training batch:")
     print(f"  - Batch size: {batch_size}")
     print(f"  - Content embeddings: {content_emb.shape}")
     print(f"  - User embeddings: {user_emb.shape}")
     print(f"  - Contrastive loss: {loss.item():.4f}")
     print()
-    
+
     # Simulate recommendation
     model.eval()
     with torch.no_grad():
         # Single user
         user_emb_single = user_emb[0]
-        
+
         # Candidate content (1000 items)
         num_candidates = 1000
         candidate_emb = torch.randn(num_candidates, 256)
         candidate_emb = F.normalize(candidate_emb, p=2, dim=1)
-        
+
         # Get top-10 recommendations
         top_indices, top_scores = model.recommend(
             user_emb_single, candidate_emb, top_k=10
         )
-        
-        print(f"Recommendations:")
+
+        print("Recommendations:")
         print(f"  - Candidate pool: {num_candidates} items")
         print(f"  - Top-10 indices: {top_indices.tolist()}")
         print(f"  - Top-10 scores: {top_scores.tolist()}")
         print()
-    
+
     print("Performance characteristics:")
     print("  - Embedding dimension: 256")
     print("  - Inference latency: <50ms per user")
@@ -514,7 +516,7 @@ def content_recommendation_example():
     print("  - Index size: 100M content × 256 dim × 4 bytes = 100GB")
     print("  - Throughput: 10,000+ QPS per GPU")
     print()
-    
+
     print("Business impact:")
     print("  - Engagement: +35% viewing time")
     print("  - Retention: +28% day-30 retention")

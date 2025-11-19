@@ -1,13 +1,15 @@
 # Code from Chapter 09
 # Book: Embeddings at Scale
 
+import asyncio
+from collections import deque
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional
+
+import numpy as np
 import torch
 import torch.nn as nn
-from typing import Optional, List, Dict
-import asyncio
-from datetime import datetime, timedelta
-import numpy as np
-from collections import deque
+
 
 class HybridEmbeddingSystem:
     """
@@ -420,7 +422,7 @@ def ecommerce_hybrid_example():
 
     # Metrics
     metrics = hybrid_system.get_metrics()
-    print(f"\nSystem metrics:")
+    print("\nSystem metrics:")
     print(f"  Batch ratio: {metrics['batch_ratio']:.2%}")
     print(f"  Real-time ratio: {metrics['realtime_ratio']:.2%}")
     print(f"  Cache hit rate: {metrics['cache_hit_rate']:.2%}")

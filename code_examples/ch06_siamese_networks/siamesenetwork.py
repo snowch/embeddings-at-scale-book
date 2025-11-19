@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+
 class SiameseNetwork(nn.Module):
     """
     Siamese Network for learning similarity metrics

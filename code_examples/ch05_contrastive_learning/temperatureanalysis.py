@@ -1,8 +1,9 @@
 # Code from Chapter 05
 # Book: Embeddings at Scale
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+
 
 class TemperatureAnalysis:
     """

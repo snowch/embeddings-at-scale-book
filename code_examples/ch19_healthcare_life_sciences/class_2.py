@@ -37,7 +37,7 @@ class TreatmentOption:
     contraindications: Optional[List[str]] = None
     cost: Optional[float] = None
     embedding: Optional[np.ndarray] = None
-    
+
     def __post_init__(self):
         if self.side_effects is None:
             self.side_effects = []
@@ -71,22 +71,22 @@ class TreatmentRecommendation:
 
 class PersonalizedTreatmentSystem:
     """Personalized treatment recommendation system"""
-    
+
     def __init__(self, embedding_dim: int = 256, device: str = 'cpu'):
         self.embedding_dim = embedding_dim
         self.device = device
-        
+
         self.patient_encoder = TrialPatientEncoder(embedding_dim).to(device)
-        
+
         self.historical_cases: List[HistoricalCase] = []
         self.case_embeddings: Optional[np.ndarray] = None
-        
+
         self.treatments: Dict[str, TreatmentOption] = {}
-    
+
     def add_historical_case(self, case: HistoricalCase):
         """Add case to historical database"""
         self.historical_cases.append(case)
-        
+
         embeddings = []
         for c in self.historical_cases:
             if c.embedding is not None:
@@ -96,9 +96,9 @@ class PersonalizedTreatmentSystem:
                 emb = emb / np.linalg.norm(emb)
                 c.embedding = emb
                 embeddings.append(emb)
-        
+
         self.case_embeddings = np.array(embeddings)
-    
+
     def find_similar_patients(
         self,
         query_patient: Patient,
@@ -107,21 +107,21 @@ class PersonalizedTreatmentSystem:
         """Find k most similar historical patients"""
         query_emb = np.random.randn(self.embedding_dim).astype(np.float32)
         query_emb = query_emb / np.linalg.norm(query_emb)
-        
+
         if self.case_embeddings is None or len(self.case_embeddings) == 0:
             return []
-        
+
         similarities = np.dot(self.case_embeddings, query_emb)
-        
+
         top_indices = np.argsort(similarities)[::-1][:k]
-        
+
         similar_cases = [
             (self.historical_cases[i], float(similarities[i]))
             for i in top_indices
         ]
-        
+
         return similar_cases
-    
+
     def recommend_treatment(
         self,
         patient: Patient,
@@ -129,7 +129,7 @@ class PersonalizedTreatmentSystem:
     ) -> TreatmentRecommendation:
         """Generate personalized treatment recommendation"""
         similar_cases = self.find_similar_patients(patient, k=20)
-        
+
         if not similar_cases:
             treatment = random.choice(available_treatments)
             return TreatmentRecommendation(
@@ -143,12 +143,12 @@ class PersonalizedTreatmentSystem:
                 expected_qol=0.7,
                 explanation="Insufficient historical data for personalized recommendation"
             )
-        
+
         treatment_outcomes = {}
-        
+
         for case, similarity in similar_cases:
             treatment_id = case.treatment.treatment_id
-            
+
             if treatment_id not in treatment_outcomes:
                 treatment_outcomes[treatment_id] = {
                     'treatment': case.treatment,
@@ -157,12 +157,12 @@ class PersonalizedTreatmentSystem:
                     'survival': [],
                     'qol': []
                 }
-            
+
             treatment_outcomes[treatment_id]['cases'].append((case, similarity))
-            
+
             if case.outcome == "response":
                 treatment_outcomes[treatment_id]['response_rate'] += similarity
-            
+
             if case.survival_time is not None:
                 treatment_outcomes[treatment_id]['survival'].append(
                     case.survival_time * similarity
@@ -171,27 +171,27 @@ class PersonalizedTreatmentSystem:
                 treatment_outcomes[treatment_id]['qol'].append(
                     case.quality_of_life * similarity
                 )
-        
+
         for treatment_id in treatment_outcomes:
             data = treatment_outcomes[treatment_id]
             total_weight = sum(sim for _, sim in data['cases'])
-            
+
             data['response_rate'] /= total_weight
             data['expected_survival'] = np.mean(data['survival']) if data['survival'] else 12.0
             data['expected_qol'] = np.mean(data['qol']) if data['qol'] else 0.7
-            
+
             data['score'] = (
                 data['response_rate'] * 0.5 +
                 min(data['expected_survival'] / 24.0, 1.0) * 0.3 +
                 data['expected_qol'] * 0.2
             )
-        
+
         ranked = sorted(
             treatment_outcomes.items(),
             key=lambda x: x[1]['score'],
             reverse=True
         )
-        
+
         if not ranked:
             treatment = random.choice(available_treatments)
             return TreatmentRecommendation(
@@ -205,24 +205,24 @@ class PersonalizedTreatmentSystem:
                 expected_qol=0.7,
                 explanation="No similar cases found for available treatments"
             )
-        
+
         top_treatment_id, top_data = ranked[0]
         recommended = top_data['treatment']
-        
+
         alternatives = [
             (data['treatment'], data['score'])
             for _, data in ranked[1:4]
         ]
-        
+
         n_cases = len(top_data['cases'])
         confidence = min(0.95, 0.5 + (n_cases / 20) * 0.45)
-        
+
         explanation = f"Based on {n_cases} similar patients, "
         explanation += f"{recommended.name} showed {top_data['response_rate']:.0%} response rate. "
         explanation += f"Expected survival: {top_data['expected_survival']:.1f} months. "
-        
+
         top_cases = [case for case, _ in similar_cases[:5]]
-        
+
         return TreatmentRecommendation(
             patient_id=patient.patient_id,
             recommended_treatment=recommended,
@@ -238,7 +238,7 @@ class PersonalizedTreatmentSystem:
 def personalized_treatment_example():
     """Example: Personalized cancer treatment recommendation"""
     print("=== Personalized Treatment Recommendations ===\n")
-    
+
     patient = Patient(
         patient_id="PT_NEW_001",
         age=62,
@@ -251,13 +251,13 @@ def personalized_treatment_example():
             'Creatinine': 1.1
         }
     )
-    
+
     print(f"Patient: {patient.patient_id}")
     print(f"Demographics: {patient.age}yo {patient.sex}")
     print(f"Medical history: {', '.join(patient.medical_history)}")
-    print(f"Diagnosis: Stage IV colorectal cancer")
-    print(f"Biomarkers: MSI-high, BRAF wildtype, KRAS wildtype")
-    
+    print("Diagnosis: Stage IV colorectal cancer")
+    print("Biomarkers: MSI-high, BRAF wildtype, KRAS wildtype")
+
     treatments = [
         TreatmentOption(
             treatment_id="TX_001",
@@ -288,13 +288,13 @@ def personalized_treatment_example():
             cost=90000
         )
     ]
-    
+
     print(f"\nAvailable treatments: {len(treatments)}")
     for tx in treatments:
         print(f"  • {tx.name} ({tx.category})")
-    
+
     system = PersonalizedTreatmentSystem(embedding_dim=256)
-    
+
     print("\nBuilding historical database...")
     for i in range(100):
         historical_patient = Patient(
@@ -306,13 +306,13 @@ def personalized_treatment_example():
                 k=random.randint(0, 2)
             )
         )
-        
+
         treatment = random.choice(treatments)
-        
+
         outcome = random.choice(['response', 'response', 'stable', 'progression'])
         survival = random.uniform(6, 36)
         qol = random.uniform(0.4, 0.9)
-        
+
         case = HistoricalCase(
             case_id=f"CASE_{i:04d}",
             patient=historical_patient,
@@ -321,41 +321,41 @@ def personalized_treatment_example():
             survival_time=survival,
             quality_of_life=qol
         )
-        
+
         system.add_historical_case(case)
-    
+
     print(f"Historical database: {len(system.historical_cases)} cases")
-    
+
     recommendation = system.recommend_treatment(
         patient=patient,
         available_treatments=treatments
     )
-    
+
     print("\n--- Personalized Treatment Recommendation ---\n")
     print(f"Recommended Treatment: {recommendation.recommended_treatment.name}")
     print(f"Category: {recommendation.recommended_treatment.category}")
     print(f"Mechanism: {recommendation.recommended_treatment.mechanism}")
-    
-    print(f"\nExpected Outcomes:")
+
+    print("\nExpected Outcomes:")
     print(f"  Predicted response: {recommendation.predicted_outcome}")
     print(f"  Expected survival: {recommendation.expected_survival:.1f} months")
     print(f"  Expected QOL: {recommendation.expected_qol:.1%}")
     print(f"  Confidence: {recommendation.confidence:.1%}")
-    
-    print(f"\nRationale:")
+
+    print("\nRationale:")
     print(f"  {recommendation.explanation}")
-    
-    print(f"\nAlternative Treatments:")
+
+    print("\nAlternative Treatments:")
     for i, (treatment, score) in enumerate(recommendation.alternative_treatments, 2):
         print(f"  {i}. {treatment.name} (score: {score:.2f})")
-    
-    print(f"\nSimilar Patient Cases (Top 3):")
+
+    print("\nSimilar Patient Cases (Top 3):")
     for i, case in enumerate(recommendation.similar_cases[:3], 1):
         print(f"  {i}. {case.case_id}:")
         print(f"     Treatment: {case.treatment.name}")
         print(f"     Outcome: {case.outcome}")
         print(f"     Survival: {case.survival_time:.1f} months")
-    
+
     print("\n--- Expected Impact ---")
     print("Traditional approach:")
     print("  • Standard protocol based on diagnosis alone")

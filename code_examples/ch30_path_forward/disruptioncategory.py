@@ -28,9 +28,10 @@ Preparedness dimensions:
 """
 
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Set, Tuple
-from enum import Enum
 from datetime import datetime, timedelta
+from enum import Enum
+from typing import Dict, List, Optional, Set, Tuple
+
 
 class DisruptionCategory(Enum):
     """Types of potential disruptions"""
@@ -60,77 +61,77 @@ class DisruptionScenario:
     scenario_name: str
     category: DisruptionCategory
     description: str
-    
+
     # Probability and impact
     likelihood: DisruptionLikelihood
     impact: DisruptionImpact
     time_horizon: str  # "1-2 years", "2-3 years", etc.
-    
+
     # Detailed analysis
     key_assumptions: List[str]
     triggering_events: List[str]  # What would indicate this happening
     early_warning_signals: List[str]  # Indicators to monitor
-    
+
     # Business implications
     affected_capabilities: Set[str]
     affected_revenue_streams: Set[str]
     required_adaptations: List[str]
     adaptation_cost: float
     adaptation_timeline: timedelta
-    
+
     # Response strategy
     response_plan: str
     contingency_actions: List[str]
     required_investments: Dict[str, float]
     success_metrics: Dict[str, float]
-    
+
     # Tracking
     signals_observed: List[Tuple[datetime, str]] = field(default_factory=list)
     confidence_level: float = 0.5  # 0-1, how confident in this scenario
     last_reviewed: datetime = field(default_factory=datetime.now)
-    
+
     metadata: Dict[str, any] = field(default_factory=dict)
 
-@dataclass  
+@dataclass
 class DisruptionIndicator:
     """Signal that could indicate emerging disruption"""
     indicator_name: str
     category: DisruptionCategory
     data_source: str  # Where we track this
-    
+
     # Measurement
     current_value: float
     threshold_warning: float  # Value triggering attention
     threshold_critical: float  # Value triggering action
-    
+
     # Context
     historical_values: List[Tuple[datetime, float]] = field(default_factory=list)
     trend_direction: str = "stable"  # "increasing", "decreasing", "stable"
     rate_of_change: float = 0.0
-    
+
     # Response
     related_scenarios: List[str] = field(default_factory=list)
     monitoring_frequency: str = "monthly"
     owner: str = ""
-    
+
     def update_value(self, new_value: float, observation_date: datetime):
         """Update indicator and assess trend"""
         self.historical_values.append((observation_date, new_value))
-        
+
         # Calculate trend
         if len(self.historical_values) >= 2:
             old_value = self.historical_values[-2][1]
             self.rate_of_change = (new_value - old_value) / old_value if old_value != 0 else 0
-            
+
             if self.rate_of_change > 0.1:
                 self.trend_direction = "increasing"
             elif self.rate_of_change < -0.1:
                 self.trend_direction = "decreasing"
             else:
                 self.trend_direction = "stable"
-        
+
         self.current_value = new_value
-    
+
     def assess_status(self) -> str:
         """Assess current status relative to thresholds"""
         if self.current_value >= self.threshold_critical:
@@ -142,21 +143,21 @@ class DisruptionIndicator:
 
 class DisruptionPreparedness:
     """System for tracking and preparing for disruptions"""
-    
+
     def __init__(self):
         self.scenarios: Dict[str, DisruptionScenario] = {}
         self.indicators: Dict[str, DisruptionIndicator] = {}
         self.response_playbooks: Dict[str, Dict] = {}
-    
+
     def develop_scenarios(
         self,
         current_position: Dict[str, any],
         time_horizon_years: int = 3
     ) -> List[DisruptionScenario]:
         """Generate comprehensive disruption scenarios"""
-        
+
         scenarios = []
-        
+
         # Technology disruption scenarios
         scenarios.append(DisruptionScenario(
             scenario_name="Quantum Embeddings",
@@ -205,7 +206,7 @@ class DisruptionPreparedness:
                 "adaptation_speed_months": 6
             }
         ))
-        
+
         scenarios.append(DisruptionScenario(
             scenario_name="Embedding Commoditization",
             category=DisruptionCategory.COMPETITIVE,
@@ -253,7 +254,7 @@ class DisruptionPreparedness:
                 "application_revenue_percentage": 0.6
             }
         ))
-        
+
         scenarios.append(DisruptionScenario(
             scenario_name="Privacy Regulation",
             category=DisruptionCategory.REGULATORY,
@@ -301,7 +302,7 @@ class DisruptionPreparedness:
                 "on_device_capability": 0.8
             }
         ))
-        
+
         scenarios.append(DisruptionScenario(
             scenario_name="Multimodal Convergence",
             category=DisruptionCategory.TECHNOLOGY,
@@ -349,17 +350,17 @@ class DisruptionPreparedness:
                 "migration_completion": 0.8
             }
         ))
-        
+
         return scenarios
-    
+
     def prioritize_scenarios(
         self,
         scenarios: List[DisruptionScenario]
     ) -> List[Tuple[DisruptionScenario, float]]:
         """Prioritize scenarios by urgency and impact"""
-        
+
         scored_scenarios = []
-        
+
         for scenario in scenarios:
             # Calculate urgency score
             likelihood_scores = {
@@ -368,37 +369,37 @@ class DisruptionPreparedness:
                 DisruptionLikelihood.HIGH: 0.8,
                 DisruptionLikelihood.IMMINENT: 1.0
             }
-            
+
             impact_scores = {
                 DisruptionImpact.MINOR: 0.2,
                 DisruptionImpact.MODERATE: 0.5,
                 DisruptionImpact.MAJOR: 0.8,
                 DisruptionImpact.EXISTENTIAL: 1.0
             }
-            
+
             likelihood_score = likelihood_scores[scenario.likelihood]
             impact_score = impact_scores[scenario.impact]
-            
+
             # Priority = likelihood × impact × (1 / time_horizon)
             time_factor = 1.0 if "1-2" in scenario.time_horizon else 0.7 if "2-3" in scenario.time_horizon else 0.4
-            
+
             priority = likelihood_score * impact_score * time_factor
-            
+
             scored_scenarios.append((scenario, priority))
-        
+
         # Sort by priority
         scored_scenarios.sort(key=lambda x: x[1], reverse=True)
-        
+
         return scored_scenarios
-    
+
     def design_indicators(
         self,
         scenario: DisruptionScenario
     ) -> List[DisruptionIndicator]:
         """Design monitoring indicators for scenario"""
-        
+
         indicators = []
-        
+
         # Create indicator for each warning signal
         for i, signal in enumerate(scenario.early_warning_signals):
             indicators.append(DisruptionIndicator(
@@ -412,9 +413,9 @@ class DisruptionPreparedness:
                 monitoring_frequency="monthly",
                 owner="strategy_team"
             ))
-        
+
         return indicators
-    
+
     def _infer_data_source(self, signal: str) -> str:
         """Infer appropriate data source for monitoring signal"""
         if "paper" in signal.lower() or "research" in signal.lower():
@@ -427,14 +428,14 @@ class DisruptionPreparedness:
             return "patent_database"
         else:
             return "news_aggregator"
-    
+
     def assess_preparedness(
         self,
         scenario: DisruptionScenario,
         current_capabilities: Dict[str, float]
     ) -> Dict[str, any]:
         """Assess how prepared organization is for scenario"""
-        
+
         # Calculate gap in required capabilities
         capability_gaps = {}
         for capability in scenario.affected_capabilities:
@@ -442,14 +443,14 @@ class DisruptionPreparedness:
             required = 0.8  # Assume need 80% capability
             gap = max(0, required - current)
             capability_gaps[capability] = gap
-        
+
         # Calculate adaptation feasibility
         avg_gap = np.mean(list(capability_gaps.values())) if capability_gaps else 0
         time_available = 365  # days, simplified
         time_required = scenario.adaptation_timeline.days
-        
+
         time_pressure = time_required / time_available if time_available > 0 else 999
-        
+
         # Determine readiness level
         if avg_gap < 0.2 and time_pressure < 0.5:
             readiness = "READY: Well positioned for this scenario"
@@ -459,7 +460,7 @@ class DisruptionPreparedness:
             readiness = "VULNERABLE: Significant adaptation required"
         else:
             readiness = "AT RISK: May not adapt in time"
-        
+
         return {
             "scenario": scenario.scenario_name,
             "capability_gaps": capability_gaps,
@@ -479,18 +480,18 @@ def build_disruption_response_strategy(
     planning_horizon_years: int
 ) -> Dict[str, any]:
     """Develop comprehensive disruption response strategy"""
-    
+
     preparedness = DisruptionPreparedness()
-    
+
     # Generate scenarios
     scenarios = preparedness.develop_scenarios(
         current_position=organization_profile,
         time_horizon_years=planning_horizon_years
     )
-    
+
     # Prioritize
     prioritized = preparedness.prioritize_scenarios(scenarios)
-    
+
     # Assess preparedness for each
     assessments = []
     for scenario, priority in prioritized[:5]:  # Top 5
@@ -500,19 +501,19 @@ def build_disruption_response_strategy(
         )
         assessment["priority_score"] = priority
         assessments.append(assessment)
-    
+
     # Design monitoring indicators
     all_indicators = []
     for scenario, _ in prioritized[:5]:
         indicators = preparedness.design_indicators(scenario)
         all_indicators.extend(indicators)
-    
+
     # Calculate total investment needed
     total_investment = sum(
         s[0].adaptation_cost * s[1]  # Cost weighted by priority
         for s in prioritized[:5]
     )
-    
+
     # Determine investment allocation
     if risk_tolerance == "conservative":
         allocation_factor = 0.5  # Prepare for top 2-3 scenarios
@@ -522,7 +523,7 @@ def build_disruption_response_strategy(
         allocation_factor = 0.2  # Minimal preparation, rapid response
 
     recommended_investment = total_investment * allocation_factor
-    
+
     return {
         "planning_horizon_years": planning_horizon_years,
         "scenarios_evaluated": len(scenarios),
