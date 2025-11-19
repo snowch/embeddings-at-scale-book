@@ -1,6 +1,3 @@
-# Code from Chapter 28
-# Book: Embeddings at Scale
-
 """
 Phase 4: Research Integration and Continuous Innovation
 

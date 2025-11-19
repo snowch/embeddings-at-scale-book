@@ -1,6 +1,3 @@
-# Code from Chapter 28
-# Book: Embeddings at Scale
-
 """
 Phase 3: Enterprise Scaling Architecture
 
