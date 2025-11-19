@@ -629,6 +629,7 @@ Phase 2 success depends on responsive iteration improving product based on actua
 - **NPS surveys**: Net Promoter Score tracking overall satisfaction
 
 **Iteration priorities**:
+
 1. **Critical bugs**: System errors, data corruption, security issues (fix immediately)
 2. **Performance issues**: Latency spikes, downtime, errors (fix within days)
 3. **Quality problems**: Bad results, relevance issues (fix within 1-2 weeks)
@@ -1209,6 +1210,7 @@ Phase 4 systematically translates research into production value:
 - **Timeline**: How long from concept to production value?
 
 **Integration stages**:
+
 1. **Research review** (week 1): Assess paper/technique, evaluate applicability
 2. **Prototype** (weeks 2-4): Implement minimal version, benchmark performance
 3. **Validation** (weeks 5-8): Test on production data, compare to baseline

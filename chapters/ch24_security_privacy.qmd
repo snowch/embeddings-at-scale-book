@@ -1496,6 +1496,7 @@ if __name__ == "__main__":
 ## Practical Privacy Deployment
 
 **Start with Hybrid Approach**:
+
 1. Public-facing API: Differential privacy (ε=1.0)
 2. Internal trusted use: Minimal privacy overhead
 3. Cross-tenant: SGX enclaves + DP
@@ -3957,6 +3958,7 @@ if __name__ == "__main__":
 - Log all consent changes with timestamps
 
 **Breach Response Plan**:
+
 1. Detection: Automated anomaly detection
 2. Assessment: Severity, scope, affected users (1 hour)
 3. Containment: Stop the breach, secure systems (2 hours)
