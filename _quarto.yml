@@ -81,9 +81,7 @@ format:
     theme: cosmo
     code-copy: true
     code-overflow: wrap
-    page-footer:
-      left: "Built from commit: $git-commit$"
-      right: "© 2024 Chris Snow"
+    include-after-body: footer.html
 
   pdf:
     documentclass: book
