@@ -36,12 +36,14 @@ class DataSource:
         quality_score: Data quality score (0-1)
         priority: Priority when conflicts occur (higher = preferred)
     """
+
     source_id: str
     source_type: str
     update_frequency: str
     schema_mapping: Dict[str, str]  # source_field -> canonical_field
     quality_score: float = 1.0
     priority: int = 0
+
 
 class MultiSourceDataFusion:
     """
@@ -61,11 +63,7 @@ class MultiSourceDataFusion:
     - Schema mapping: Translate source schemas to canonical
     """
 
-    def __init__(
-        self,
-        canonical_schema: Dict[str, type],
-        primary_key: str = 'entity_id'
-    ):
+    def __init__(self, canonical_schema: Dict[str, type], primary_key: str = "entity_id"):
         """
         Args:
             canonical_schema: Target schema for fused data
@@ -92,11 +90,7 @@ class MultiSourceDataFusion:
         print(f"  Update frequency: {source.update_frequency}")
         print(f"  Quality score: {source.quality_score}")
 
-    def extract(
-        self,
-        source_id: str,
-        query: Optional[str] = None
-    ) -> pd.DataFrame:
+    def extract(self, source_id: str, query: Optional[str] = None) -> pd.DataFrame:
         """
         Extract data from source
 
@@ -114,20 +108,18 @@ class MultiSourceDataFusion:
 
         # In production: Actually extract from source
         # For now: Return mock data
-        mock_data = pd.DataFrame({
-            'id': [f'{source_id}_1', f'{source_id}_2'],
-            'source_field_1': ['value_1', 'value_2'],
-            'source_field_2': [1.0, 2.0]
-        })
+        mock_data = pd.DataFrame(
+            {
+                "id": [f"{source_id}_1", f"{source_id}_2"],
+                "source_field_1": ["value_1", "value_2"],
+                "source_field_2": [1.0, 2.0],
+            }
+        )
 
         print(f"Extracted {len(mock_data)} records from {source_id}")
         return mock_data
 
-    def align_schema(
-        self,
-        source_id: str,
-        data: pd.DataFrame
-    ) -> pd.DataFrame:
+    def align_schema(self, source_id: str, data: pd.DataFrame) -> pd.DataFrame:
         """
         Align source data to canonical schema
 
@@ -158,7 +150,7 @@ class MultiSourceDataFusion:
             if field not in aligned.columns:
                 # Default values by type
                 if field_type is str:
-                    aligned[field] = ''
+                    aligned[field] = ""
                 elif field_type in (int, float):
                     aligned[field] = 0
                 else:
@@ -171,17 +163,14 @@ class MultiSourceDataFusion:
                     if field_type is str:
                         aligned[field] = aligned[field].astype(str)
                     elif field_type is float:
-                        aligned[field] = pd.to_numeric(aligned[field], errors='coerce')
+                        aligned[field] = pd.to_numeric(aligned[field], errors="coerce")
                 except Exception as e:
                     print(f"⚠️  Type conversion failed for {field}: {e}")
 
         print(f"Aligned {len(aligned)} records to canonical schema")
         return aligned
 
-    def resolve_conflicts(
-        self,
-        datasets: Dict[str, pd.DataFrame]
-    ) -> pd.DataFrame:
+    def resolve_conflicts(self, datasets: Dict[str, pd.DataFrame]) -> pd.DataFrame:
         """
         Resolve conflicts when same entity appears in multiple sources
 
@@ -205,20 +194,16 @@ class MultiSourceDataFusion:
 
             # Add source metadata
             df = df.copy()
-            df['_source'] = source_id
-            df['_priority'] = source.priority
-            df['_quality'] = source.quality_score
+            df["_source"] = source_id
+            df["_priority"] = source.priority
+            df["_quality"] = source.quality_score
 
             if merged is None:
                 merged = df
             else:
                 # Outer join to include all entities
                 merged = pd.merge(
-                    merged,
-                    df,
-                    on=self.primary_key,
-                    how='outer',
-                    suffixes=('', f'_{source_id}')
+                    merged, df, on=self.primary_key, how="outer", suffixes=("", f"_{source_id}")
                 )
 
         # Resolve conflicts for each field
@@ -237,20 +222,13 @@ class MultiSourceDataFusion:
                 resolved[field] = merged[field_columns[0]]
             else:
                 # Resolve conflict using priority
-                resolved[field] = self._resolve_field_conflict(
-                    merged,
-                    field,
-                    field_columns
-                )
+                resolved[field] = self._resolve_field_conflict(merged, field, field_columns)
 
         print(f"Resolved conflicts for {len(resolved)} entities")
         return resolved
 
     def _resolve_field_conflict(
-        self,
-        merged: pd.DataFrame,
-        field: str,
-        field_columns: List[str]
+        self, merged: pd.DataFrame, field: str, field_columns: List[str]
     ) -> pd.Series:
         """
         Resolve conflict for single field
@@ -276,8 +254,8 @@ class MultiSourceDataFusion:
             for col in field_columns:
                 if pd.notna(row[col]):
                     # Extract source from column name
-                    source_id = col.split('_')[-1] if '_' in col else None
-                    priority = row.get(f'_priority_{source_id}', 0) if source_id else 0
+                    source_id = col.split("_")[-1] if "_" in col else None
+                    priority = row.get(f"_priority_{source_id}", 0) if source_id else 0
                     candidates.append((priority, row[col]))
 
             if candidates:
@@ -290,11 +268,7 @@ class MultiSourceDataFusion:
 
         return pd.Series(resolved_values)
 
-    def fuse(
-        self,
-        source_ids: List[str],
-        timestamp: Optional[datetime] = None
-    ) -> pd.DataFrame:
+    def fuse(self, source_ids: List[str], timestamp: Optional[datetime] = None) -> pd.DataFrame:
         """
         Fuse data from multiple sources
 
@@ -332,6 +306,7 @@ class MultiSourceDataFusion:
 
         return fused_data
 
+
 # Example: Fuse product data from multiple sources
 def multi_source_fusion_example():
     """
@@ -347,76 +322,74 @@ def multi_source_fusion_example():
 
     # Define canonical schema
     canonical_schema = {
-        'product_id': str,
-        'title': str,
-        'description': str,
-        'category': str,
-        'price': float,
-        'stock_count': int,
-        'view_count': int,
-        'rating': float
+        "product_id": str,
+        "title": str,
+        "description": str,
+        "category": str,
+        "price": float,
+        "stock_count": int,
+        "view_count": int,
+        "rating": float,
     }
 
     # Initialize fusion engine
-    fusion = MultiSourceDataFusion(
-        canonical_schema=canonical_schema,
-        primary_key='product_id'
-    )
+    fusion = MultiSourceDataFusion(canonical_schema=canonical_schema, primary_key="product_id")
 
     # Register sources
     catalog_source = DataSource(
-        source_id='product_catalog',
-        source_type='database',
-        update_frequency='daily',
+        source_id="product_catalog",
+        source_type="database",
+        update_frequency="daily",
         schema_mapping={
-            'id': 'product_id',
-            'name': 'title',
-            'desc': 'description',
-            'cat': 'category'
+            "id": "product_id",
+            "name": "title",
+            "desc": "description",
+            "cat": "category",
         },
         quality_score=0.95,
-        priority=2
+        priority=2,
     )
     fusion.register_source(catalog_source)
 
     inventory_source = DataSource(
-        source_id='inventory_system',
-        source_type='api',
-        update_frequency='realtime',
+        source_id="inventory_system",
+        source_type="api",
+        update_frequency="realtime",
         schema_mapping={
-            'product_id': 'product_id',
-            'current_price': 'price',
-            'available_quantity': 'stock_count'
+            "product_id": "product_id",
+            "current_price": "price",
+            "available_quantity": "stock_count",
         },
         quality_score=0.98,
-        priority=3  # Highest priority (most authoritative)
+        priority=3,  # Highest priority (most authoritative)
     )
     fusion.register_source(inventory_source)
 
     analytics_source = DataSource(
-        source_id='analytics_platform',
-        source_type='stream',
-        update_frequency='hourly',
+        source_id="analytics_platform",
+        source_type="stream",
+        update_frequency="hourly",
         schema_mapping={
-            'product_id': 'product_id',
-            'views_24h': 'view_count',
-            'avg_rating': 'rating'
+            "product_id": "product_id",
+            "views_24h": "view_count",
+            "avg_rating": "rating",
         },
         quality_score=0.90,
-        priority=1
+        priority=1,
     )
     fusion.register_source(analytics_source)
 
     # Fuse data
     fused_data = fusion.fuse(
-        source_ids=['product_catalog', 'inventory_system', 'analytics_platform'],
-        timestamp=datetime.now()
+        source_ids=["product_catalog", "inventory_system", "analytics_platform"],
+        timestamp=datetime.now(),
     )
 
     print("\n=== Fused Data ===")
     print(fused_data.head())
     print(f"\nColumns: {list(fused_data.columns)}")
     print(f"Records: {len(fused_data)}")
+
 
 # Uncomment to run:
 # multi_source_fusion_example()

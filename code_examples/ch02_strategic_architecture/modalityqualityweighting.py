@@ -7,6 +7,7 @@ import torch
 # ModalityFusion placeholder - see modalityfusion.py for full implementation
 class ModalityFusion:
     """Placeholder for ModalityFusion."""
+
     @staticmethod
     def early_fusion(modality_embeddings, weights=None):
         if weights is None:
@@ -14,15 +15,16 @@ class ModalityFusion:
         fused = sum(w * emb for w, emb in zip(weights, modality_embeddings))
         return fused / torch.norm(fused)
 
+
 class ModalityQualityWeighting:
     """Weight modalities by quality"""
 
     def assess_quality(self, modality_type, data):
         """Assess modality data quality"""
-        if modality_type == 'image':
+        if modality_type == "image":
             # Image quality: resolution, brightness, focus, etc.
             quality = self.image_quality_model.predict(data)
-        elif modality_type == 'text':
+        elif modality_type == "text":
             # Text quality: length, grammar, informativeness
             quality = self.text_quality_model.predict(data)
         else:
@@ -43,6 +45,5 @@ class ModalityQualityWeighting:
 
         # Fused embedding
         return ModalityFusion.early_fusion(
-            list(modality_embs.values()),
-            weights=list(weights.values())
+            list(modality_embs.values()), weights=list(weights.values())
         )

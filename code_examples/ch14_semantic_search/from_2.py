@@ -46,6 +46,7 @@ class MediaAsset:
         content_embedding: Semantic content embedding
         perceptual_hash: Perceptual hash for duplicate detection
     """
+
     asset_id: str
     asset_type: str
     file_path: str
@@ -56,17 +57,21 @@ class MediaAsset:
     content_embedding: Optional[np.ndarray] = None
     perceptual_hash: Optional[str] = None
 
+
 # Placeholder class
 
 
 class ImageEncoder(nn.Module):
     """Placeholder for ImageEncoder."""
+
     def __init__(self):
         super().__init__()
 
     def encode(self, image):
         import torch
+
         return torch.randn(768)
+
 
 class VisualStyleEncoder(nn.Module):
     """
@@ -151,6 +156,7 @@ class VisualStyleEncoder(nn.Module):
 
         return style_embedding
 
+
 class MediaSearchEngine:
     """
     Semantic search for media assets
@@ -169,14 +175,14 @@ class MediaSearchEngine:
     - Cluster similar assets for browsing
     """
 
-    def __init__(self, embedding_dim: int = 512, device: str = 'cuda'):
+    def __init__(self, embedding_dim: int = 512, device: str = "cuda"):
         """
         Args:
             embedding_dim: Embedding dimension
             device: Device for computation
         """
         self.embedding_dim = embedding_dim
-        self.device = device if torch.cuda.is_available() else 'cpu'
+        self.device = device if torch.cuda.is_available() else "cpu"
 
         # Initialize encoders
         self.content_encoder = ImageEncoder(embedding_dim=embedding_dim).to(self.device)
@@ -219,7 +225,7 @@ class MediaSearchEngine:
         img = image.resize((hash_size, hash_size), Image.Resampling.LANCZOS)
 
         # Convert to grayscale
-        img = img.convert('L')
+        img = img.convert("L")
 
         # Get pixel values
         pixels = np.array(img).flatten()
@@ -231,7 +237,7 @@ class MediaSearchEngine:
         binary_hash = (pixels > mean).astype(int)
 
         # Convert to hex string
-        hash_str = ''.join(str(b) for b in binary_hash)
+        hash_str = "".join(str(b) for b in binary_hash)
 
         return hash_str
 
@@ -272,7 +278,7 @@ class MediaSearchEngine:
             asset: Media asset
             image: PIL Image (for image/video assets)
         """
-        if asset.asset_type in ['image', 'video'] and image:
+        if asset.asset_type in ["image", "video"] and image:
             # Encode image
             content_emb, style_emb = self.encode_image(image)
             asset.content_embedding = content_emb
@@ -295,9 +301,7 @@ class MediaSearchEngine:
         self.assets[asset.asset_id] = asset
 
     def search_by_content(
-        self,
-        query_image: Image.Image,
-        top_k: int = 10
+        self, query_image: Image.Image, top_k: int = 10
     ) -> List[Tuple[MediaAsset, float]]:
         """
         Search by visual content (semantic similarity)
@@ -318,17 +322,12 @@ class MediaSearchEngine:
         # Rank results
         ranked_indices = np.argsort(scores)[::-1][:top_k]
 
-        results = [
-            (self.assets[self.asset_ids[idx]], scores[idx])
-            for idx in ranked_indices
-        ]
+        results = [(self.assets[self.asset_ids[idx]], scores[idx]) for idx in ranked_indices]
 
         return results
 
     def search_by_style(
-        self,
-        query_image: Image.Image,
-        top_k: int = 10
+        self, query_image: Image.Image, top_k: int = 10
     ) -> List[Tuple[MediaAsset, float]]:
         """
         Search by visual style (color, composition, texture)
@@ -349,17 +348,12 @@ class MediaSearchEngine:
         # Rank results
         ranked_indices = np.argsort(scores)[::-1][:top_k]
 
-        results = [
-            (self.assets[self.asset_ids[idx]], scores[idx])
-            for idx in ranked_indices
-        ]
+        results = [(self.assets[self.asset_ids[idx]], scores[idx]) for idx in ranked_indices]
 
         return results
 
     def find_duplicates(
-        self,
-        asset_id: str,
-        hamming_threshold: int = 5
+        self, asset_id: str, hamming_threshold: int = 5
     ) -> List[Tuple[MediaAsset, int]]:
         """
         Find near-duplicate assets using perceptual hashing
@@ -398,6 +392,7 @@ class MediaSearchEngine:
 
         return duplicates
 
+
 # Example: Media search for stock photos
 def media_search_example():
     """
@@ -417,33 +412,33 @@ def media_search_example():
     # Create sample media assets
     assets = [
         MediaAsset(
-            asset_id='img_1',
-            asset_type='image',
-            file_path='/media/sunset_beach.jpg',
+            asset_id="img_1",
+            asset_type="image",
+            file_path="/media/sunset_beach.jpg",
             resolution=(1920, 1080),
-            metadata={'tags': ['sunset', 'beach', 'ocean']}
+            metadata={"tags": ["sunset", "beach", "ocean"]},
         ),
         MediaAsset(
-            asset_id='img_2',
-            asset_type='image',
-            file_path='/media/mountain_sunrise.jpg',
+            asset_id="img_2",
+            asset_type="image",
+            file_path="/media/mountain_sunrise.jpg",
             resolution=(1920, 1080),
-            metadata={'tags': ['sunrise', 'mountain', 'landscape']}
+            metadata={"tags": ["sunrise", "mountain", "landscape"]},
         ),
         MediaAsset(
-            asset_id='img_3',
-            asset_type='image',
-            file_path='/media/beach_vacation.jpg',
+            asset_id="img_3",
+            asset_type="image",
+            file_path="/media/beach_vacation.jpg",
             resolution=(1920, 1080),
-            metadata={'tags': ['beach', 'vacation', 'tropical']}
-        )
+            metadata={"tags": ["beach", "vacation", "tropical"]},
+        ),
     ]
 
     # Generate sample images (different colors for demo)
     sample_images = [
-        Image.new('RGB', (224, 224), color='orange'),  # Sunset
-        Image.new('RGB', (224, 224), color='purple'),  # Sunrise
-        Image.new('RGB', (224, 224), color='blue')     # Beach
+        Image.new("RGB", (224, 224), color="orange"),  # Sunset
+        Image.new("RGB", (224, 224), color="purple"),  # Sunrise
+        Image.new("RGB", (224, 224), color="blue"),  # Beach
     ]
 
     # Index assets
@@ -454,7 +449,7 @@ def media_search_example():
 
     # Search by content
     print("\n=== Content Search: Orange query image (sunset) ===")
-    query_img = Image.new('RGB', (224, 224), color='orange')
+    query_img = Image.new("RGB", (224, 224), color="orange")
     results = engine.search_by_content(query_img, top_k=3)
 
     for asset, score in results:
@@ -463,7 +458,7 @@ def media_search_example():
 
     # Search by style
     print("\n=== Style Search: Blue query image (beach) ===")
-    query_img_blue = Image.new('RGB', (224, 224), color='blue')
+    query_img_blue = Image.new("RGB", (224, 224), color="blue")
     results = engine.search_by_style(query_img_blue, top_k=3)
 
     for asset, score in results:
@@ -471,13 +466,14 @@ def media_search_example():
 
     # Find duplicates
     print("\n=== Duplicate Detection for 'img_1' ===")
-    duplicates = engine.find_duplicates('img_1', hamming_threshold=10)
+    duplicates = engine.find_duplicates("img_1", hamming_threshold=10)
 
     if duplicates:
         for dup_asset, distance in duplicates:
             print(f"{dup_asset.asset_id}: Hamming distance = {distance}")
     else:
         print("No duplicates found")
+
 
 # Uncomment to run:
 # media_search_example()

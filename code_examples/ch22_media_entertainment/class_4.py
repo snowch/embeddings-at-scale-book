@@ -54,6 +54,7 @@ class ContentSegment:
         narrative_role: Role in story (setup, conflict, resolution)
         embedding: Learned segment embedding
     """
+
     segment_id: str
     start_time: float
     end_time: float
@@ -64,6 +65,7 @@ class ContentSegment:
     emotion: Optional[str] = None
     narrative_role: Optional[str] = None
     embedding: Optional[np.ndarray] = None
+
 
 @dataclass
 class EditSuggestion:
@@ -81,6 +83,7 @@ class EditSuggestion:
         confidence: Confidence in suggestion
         rationale: Why this suggestion
     """
+
     suggestion_id: str
     suggestion_type: str
     segments: List[str] = field(default_factory=list)
@@ -91,30 +94,19 @@ class EditSuggestion:
     confidence: float = 0.0
     rationale: str = ""
 
+
 class SaliencyDetector(nn.Module):
     """
     Detect salient/engaging moments in content
     """
-    def __init__(
-        self,
-        video_dim: int = 2048,
-        audio_dim: int = 512,
-        hidden_dim: int = 512
-    ):
+
+    def __init__(self, video_dim: int = 2048, audio_dim: int = 512, hidden_dim: int = 512):
         super().__init__()
 
         # Multi-modal feature encoder
-        self.video_encoder = nn.Sequential(
-            nn.Linear(video_dim, 512),
-            nn.ReLU(),
-            nn.Dropout(0.2)
-        )
+        self.video_encoder = nn.Sequential(nn.Linear(video_dim, 512), nn.ReLU(), nn.Dropout(0.2))
 
-        self.audio_encoder = nn.Sequential(
-            nn.Linear(audio_dim, 256),
-            nn.ReLU(),
-            nn.Dropout(0.2)
-        )
+        self.audio_encoder = nn.Sequential(nn.Linear(audio_dim, 256), nn.ReLU(), nn.Dropout(0.2))
 
         # Temporal context (LSTM)
         self.temporal_context = nn.LSTM(
@@ -122,7 +114,7 @@ class SaliencyDetector(nn.Module):
             hidden_size=hidden_dim,
             num_layers=2,
             batch_first=True,
-            bidirectional=True
+            bidirectional=True,
         )
 
         # Saliency prediction
@@ -131,14 +123,10 @@ class SaliencyDetector(nn.Module):
             nn.ReLU(),
             nn.Dropout(0.3),
             nn.Linear(256, 1),
-            nn.Sigmoid()
+            nn.Sigmoid(),
         )
 
-    def forward(
-        self,
-        video_features: torch.Tensor,
-        audio_features: torch.Tensor
-    ) -> torch.Tensor:
+    def forward(self, video_features: torch.Tensor, audio_features: torch.Tensor) -> torch.Tensor:
         """
         Predict saliency scores for each time step
 
@@ -164,46 +152,39 @@ class SaliencyDetector(nn.Module):
 
         return saliency
 
+
 class EmotionalArcModeler(nn.Module):
     """
     Model emotional trajectory of content
     """
-    def __init__(
-        self,
-        feature_dim: int = 768,
-        num_emotions: int = 8,
-        hidden_dim: int = 512
-    ):
+
+    def __init__(self, feature_dim: int = 768, num_emotions: int = 8, hidden_dim: int = 512):
         super().__init__()
 
         # Emotion categories
         self.emotions = [
-            "joy", "sadness", "anger", "fear",
-            "surprise", "neutral", "tension", "relief"
+            "joy",
+            "sadness",
+            "anger",
+            "fear",
+            "surprise",
+            "neutral",
+            "tension",
+            "relief",
         ]
 
         # Feature encoder
-        self.encoder = nn.Sequential(
-            nn.Linear(feature_dim, hidden_dim),
-            nn.ReLU(),
-            nn.Dropout(0.2)
-        )
+        self.encoder = nn.Sequential(nn.Linear(feature_dim, hidden_dim), nn.ReLU(), nn.Dropout(0.2))
 
         # Temporal model (Transformer)
         encoder_layer = nn.TransformerEncoderLayer(
-            d_model=hidden_dim,
-            nhead=8,
-            dim_feedforward=1024,
-            batch_first=True
+            d_model=hidden_dim, nhead=8, dim_feedforward=1024, batch_first=True
         )
         self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=3)
 
         # Emotion classifier
         self.emotion_classifier = nn.Sequential(
-            nn.Linear(hidden_dim, 256),
-            nn.ReLU(),
-            nn.Dropout(0.3),
-            nn.Linear(256, num_emotions)
+            nn.Linear(hidden_dim, 256), nn.ReLU(), nn.Dropout(0.3), nn.Linear(256, num_emotions)
         )
 
     def forward(self, features: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -231,15 +212,14 @@ class EmotionalArcModeler(nn.Module):
 
         return emotion_logits, arc_embedding
 
+
 class ClipGenerator(nn.Module):
     """
     Generate clip suggestions from long-form content
     """
+
     def __init__(
-        self,
-        segment_dim: int = 512,
-        target_duration: float = 60.0,
-        max_segments: int = 100
+        self, segment_dim: int = 512, target_duration: float = 60.0, max_segments: int = 100
     ):
         super().__init__()
         self.target_duration = target_duration
@@ -247,31 +227,24 @@ class ClipGenerator(nn.Module):
 
         # Segment encoder
         self.segment_encoder = nn.Sequential(
-            nn.Linear(segment_dim, 256),
-            nn.ReLU(),
-            nn.Linear(256, 128)
+            nn.Linear(segment_dim, 256), nn.ReLU(), nn.Linear(256, 128)
         )
 
         # Segment selection (attention)
         self.selection_attention = nn.MultiheadAttention(
-            embed_dim=128,
-            num_heads=4,
-            batch_first=True
+            embed_dim=128, num_heads=4, batch_first=True
         )
 
         # Selection scorer
         self.selection_scorer = nn.Sequential(
-            nn.Linear(128, 64),
-            nn.ReLU(),
-            nn.Linear(64, 1),
-            nn.Sigmoid()
+            nn.Linear(128, 64), nn.ReLU(), nn.Linear(64, 1), nn.Sigmoid()
         )
 
     def forward(
         self,
         segment_embeddings: torch.Tensor,
         segment_durations: torch.Tensor,
-        saliency_scores: torch.Tensor
+        saliency_scores: torch.Tensor,
     ) -> torch.Tensor:
         """
         Generate clip by selecting segments
@@ -299,9 +272,7 @@ class ClipGenerator(nn.Module):
         return weighted_scores
 
     def generate_clip(
-        self,
-        segments: List[ContentSegment],
-        target_duration: Optional[float] = None
+        self, segments: List[ContentSegment], target_duration: Optional[float] = None
     ) -> List[ContentSegment]:
         """
         Select segments to create clip of target duration
@@ -311,11 +282,7 @@ class ClipGenerator(nn.Module):
         target = target_duration or self.target_duration
 
         # Sort segments by saliency
-        sorted_segments = sorted(
-            segments,
-            key=lambda s: s.saliency_score,
-            reverse=True
-        )
+        sorted_segments = sorted(segments, key=lambda s: s.saliency_score, reverse=True)
 
         # Greedily select until target duration
         selected = []
@@ -335,15 +302,17 @@ class ClipGenerator(nn.Module):
 
         return selected
 
+
 class TrailerGenerator:
     """
     Generate movie/show trailers
     """
+
     def __init__(
         self,
         saliency_detector: SaliencyDetector,
         emotion_modeler: EmotionalArcModeler,
-        clip_generator: ClipGenerator
+        clip_generator: ClipGenerator,
     ):
         self.saliency_detector = saliency_detector
         self.emotion_modeler = emotion_modeler
@@ -353,7 +322,7 @@ class TrailerGenerator:
         self,
         segments: List[ContentSegment],
         target_duration: float = 120.0,
-        trailer_type: str = "teaser"  # "teaser", "theatrical", "tv_spot"
+        trailer_type: str = "teaser",  # "teaser", "theatrical", "tv_spot"
     ) -> EditSuggestion:
         """
         Generate trailer from content segments
@@ -366,17 +335,11 @@ class TrailerGenerator:
         5. End on cliffhanger/hook
         """
         # Adjust duration by trailer type
-        duration_map = {
-            "teaser": 60.0,
-            "theatrical": 150.0,
-            "tv_spot": 30.0
-        }
+        duration_map = {"teaser": 60.0, "theatrical": 150.0, "tv_spot": 30.0}
         target = duration_map.get(trailer_type, target_duration)
 
         # Generate clip
-        selected_segments = self.clip_generator.generate_clip(
-            segments, target_duration=target
-        )
+        selected_segments = self.clip_generator.generate_clip(segments, target_duration=target)
 
         # Create suggestion
         suggestion = EditSuggestion(
@@ -387,10 +350,11 @@ class TrailerGenerator:
             pacing="fast" if trailer_type == "teaser" else "medium",
             transitions=["quick_cut"] * (len(selected_segments) - 1),
             confidence=0.85,
-            rationale=f"Selected {len(selected_segments)} high-saliency segments with emotional variety"
+            rationale=f"Selected {len(selected_segments)} high-saliency segments with emotional variety",
         )
 
         return suggestion
+
 
 # Example usage
 def creative_generation_example():
@@ -401,27 +365,16 @@ def creative_generation_example():
     print()
 
     # Initialize models
-    saliency_detector = SaliencyDetector(
-        video_dim=2048,
-        audio_dim=512,
-        hidden_dim=512
-    )
+    saliency_detector = SaliencyDetector(video_dim=2048, audio_dim=512, hidden_dim=512)
 
-    emotion_modeler = EmotionalArcModeler(
-        feature_dim=768,
-        num_emotions=8,
-        hidden_dim=512
-    )
+    emotion_modeler = EmotionalArcModeler(feature_dim=768, num_emotions=8, hidden_dim=512)
 
-    clip_generator = ClipGenerator(
-        segment_dim=512,
-        target_duration=60.0
-    )
+    clip_generator = ClipGenerator(segment_dim=512, target_duration=60.0)
 
     trailer_generator = TrailerGenerator(
         saliency_detector=saliency_detector,
         emotion_modeler=emotion_modeler,
-        clip_generator=clip_generator
+        clip_generator=clip_generator,
     )
 
     # Simulate content analysis
@@ -436,7 +389,9 @@ def creative_generation_example():
         saliency_scores = saliency_detector(video_features, audio_features)
 
     print(f"  - Content segments: {num_segments}")
-    print(f"  - Saliency scores range: {saliency_scores.min().item():.3f} - {saliency_scores.max().item():.3f}")
+    print(
+        f"  - Saliency scores range: {saliency_scores.min().item():.3f} - {saliency_scores.max().item():.3f}"
+    )
     print(f"  - High-saliency segments: {(saliency_scores > 0.7).sum().item()}")
     print()
 
@@ -459,15 +414,13 @@ def creative_generation_example():
             segment_id=f"seg_{i}",
             start_time=float(i * 10),
             end_time=float((i + 1) * 10),
-            saliency_score=float(saliency_scores[0, i].item())
+            saliency_score=float(saliency_scores[0, i].item()),
         )
         for i in range(num_segments)
     ]
 
     trailer = trailer_generator.generate_trailer(
-        segments=segments,
-        target_duration=120.0,
-        trailer_type="theatrical"
+        segments=segments, target_duration=120.0, trailer_type="theatrical"
     )
 
     print(f"  - Type: {trailer.suggestion_type}")
@@ -502,6 +455,7 @@ def creative_generation_example():
     print("  - A/B testing: Test 10+ trailer variants economically")
     print()
     print("→ Embeddings augment creative production with intelligent automation")
+
 
 # Uncomment to run:
 # creative_generation_example()

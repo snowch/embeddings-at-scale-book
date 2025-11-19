@@ -5,6 +5,7 @@ import torch.nn.functional as F
 # Code from Chapter 05
 # Book: Embeddings at Scale
 
+
 class MultiModalContrastive(nn.Module):
     """
     Contrastive learning for multi-modal data (text + image, text + metadata, etc.)

@@ -35,6 +35,7 @@ from typing import Dict, List, Optional
 
 class VendorCategory(Enum):
     """Vendor categories"""
+
     VECTOR_DATABASE = "vector_database"
     EMBEDDING_MODEL = "embedding_model"
     MLOPS_PLATFORM = "mlops_platform"
@@ -42,18 +43,23 @@ class VendorCategory(Enum):
     MONITORING = "monitoring"
     DATA_PIPELINE = "data_pipeline"
 
+
 class RequirementPriority(Enum):
     """Requirement priorities"""
+
     MUST_HAVE = "must_have"  # Non-negotiable
     IMPORTANT = "important"  # Strong preference
     NICE_TO_HAVE = "nice_to_have"  # Bonus but not required
 
+
 class RiskLevel(Enum):
     """Risk levels"""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
     CRITICAL = "critical"
+
 
 @dataclass
 class Requirement:
@@ -68,12 +74,14 @@ class Requirement:
         evaluation_criteria: How to assess if vendor meets this
         weight: Scoring weight (1-10)
     """
+
     name: str
     category: str
     priority: RequirementPriority
     description: str
     evaluation_criteria: str
     weight: int
+
 
 @dataclass
 class Vendor:
@@ -92,6 +100,7 @@ class Vendor:
         strengths: Key advantages
         weaknesses: Known limitations
     """
+
     name: str
     category: VendorCategory
     description: str
@@ -102,6 +111,7 @@ class Vendor:
     pricing_model: str = ""
     strengths: List[str] = field(default_factory=list)
     weaknesses: List[str] = field(default_factory=list)
+
 
 @dataclass
 class VendorScore:
@@ -117,6 +127,7 @@ class VendorScore:
         recommendation: Buy/pass/pilot recommendation
         reasoning: Explanation of recommendation
     """
+
     vendor_name: str
     requirement_scores: Dict[str, float]
     weighted_score: float
@@ -124,6 +135,7 @@ class VendorScore:
     risks: List[Dict[str, any]]
     recommendation: str
     reasoning: str
+
 
 @dataclass
 class BuildVsBuyAnalysis:
@@ -140,6 +152,7 @@ class BuildVsBuyAnalysis:
         team_capability: Internal capability to build (1-10)
         recommendation: Build/buy/hybrid
     """
+
     component: str
     build_cost_5yr: float
     build_timeline_months: int
@@ -149,6 +162,7 @@ class BuildVsBuyAnalysis:
     team_capability: int
     recommendation: str
     reasoning: str
+
 
 class VendorEvaluationFramework:
     """
@@ -170,10 +184,7 @@ class VendorEvaluationFramework:
         self.vendors[vendor.name] = vendor
 
     def score_vendor(
-        self,
-        vendor_name: str,
-        requirement_scores: Dict[str, float],
-        cost_model: Dict[str, float]
+        self, vendor_name: str, requirement_scores: Dict[str, float], cost_model: Dict[str, float]
     ) -> VendorScore:
         """
         Score vendor against requirements
@@ -199,7 +210,7 @@ class VendorEvaluationFramework:
             priority_multiplier = {
                 RequirementPriority.MUST_HAVE: 3.0,
                 RequirementPriority.IMPORTANT: 2.0,
-                RequirementPriority.NICE_TO_HAVE: 1.0
+                RequirementPriority.NICE_TO_HAVE: 1.0,
             }[req.priority]
 
             weight = req.weight * priority_multiplier
@@ -209,8 +220,8 @@ class VendorEvaluationFramework:
         weighted_score = weighted_sum / total_weight if total_weight > 0 else 0
 
         # Calculate 5-year TCO
-        setup_cost = cost_model.get('setup', 0)
-        annual_cost = cost_model.get('annual', 0)
+        setup_cost = cost_model.get("setup", 0)
+        annual_cost = cost_model.get("annual", 0)
         total_cost_5yr = setup_cost + (annual_cost * 5)
 
         # Identify risks
@@ -218,9 +229,7 @@ class VendorEvaluationFramework:
 
         # Generate recommendation
         recommendation, reasoning = self._generate_recommendation(
-            weighted_score,
-            total_cost_5yr,
-            risks
+            weighted_score, total_cost_5yr, risks
         )
 
         return VendorScore(
@@ -230,14 +239,11 @@ class VendorEvaluationFramework:
             total_cost_5yr=total_cost_5yr,
             risks=risks,
             recommendation=recommendation,
-            reasoning=reasoning
+            reasoning=reasoning,
         )
 
     def _identify_vendor_risks(
-        self,
-        vendor: Vendor,
-        requirement_scores: Dict[str, float],
-        cost_model: Dict[str, float]
+        self, vendor: Vendor, requirement_scores: Dict[str, float], cost_model: Dict[str, float]
     ) -> List[Dict[str, any]]:
         """Identify vendor-specific risks"""
 
@@ -245,88 +251,92 @@ class VendorEvaluationFramework:
 
         # Vendor stability risk
         if vendor.founded_year and vendor.founded_year > datetime.now().year - 3:
-            risks.append({
-                'type': 'vendor_stability',
-                'level': RiskLevel.MEDIUM,
-                'description': f'Young company (founded {vendor.founded_year}), potential acquisition or shutdown risk',
-                'mitigation': 'Negotiate data portability, maintain exit strategy'
-            })
+            risks.append(
+                {
+                    "type": "vendor_stability",
+                    "level": RiskLevel.MEDIUM,
+                    "description": f"Young company (founded {vendor.founded_year}), potential acquisition or shutdown risk",
+                    "mitigation": "Negotiate data portability, maintain exit strategy",
+                }
+            )
 
         # Funding risk
         if vendor.funding_raised and vendor.funding_raised < 10:
-            risks.append({
-                'type': 'funding',
-                'level': RiskLevel.MEDIUM,
-                'description': 'Limited funding may impact long-term viability',
-                'mitigation': 'Monitor financial health, diversify vendors'
-            })
+            risks.append(
+                {
+                    "type": "funding",
+                    "level": RiskLevel.MEDIUM,
+                    "description": "Limited funding may impact long-term viability",
+                    "mitigation": "Monitor financial health, diversify vendors",
+                }
+            )
 
         # Must-have requirement gaps
         for req_name, score in requirement_scores.items():
             req = self.requirements[req_name]
             if req.priority == RequirementPriority.MUST_HAVE and score < 7:
-                risks.append({
-                    'type': 'capability_gap',
-                    'level': RiskLevel.HIGH,
-                    'description': f'Does not fully meet must-have requirement: {req_name}',
-                    'mitigation': 'Negotiate roadmap commitment or find alternative'
-                })
+                risks.append(
+                    {
+                        "type": "capability_gap",
+                        "level": RiskLevel.HIGH,
+                        "description": f"Does not fully meet must-have requirement: {req_name}",
+                        "mitigation": "Negotiate roadmap commitment or find alternative",
+                    }
+                )
 
         # Cost risk
-        variable_cost = cost_model.get('per_query', 0)
+        variable_cost = cost_model.get("per_query", 0)
         if variable_cost > 0:
-            risks.append({
-                'type': 'cost_scaling',
-                'level': RiskLevel.MEDIUM,
-                'description': 'Variable pricing creates cost unpredictability at scale',
-                'mitigation': 'Negotiate volume discounts, implement cost controls'
-            })
+            risks.append(
+                {
+                    "type": "cost_scaling",
+                    "level": RiskLevel.MEDIUM,
+                    "description": "Variable pricing creates cost unpredictability at scale",
+                    "mitigation": "Negotiate volume discounts, implement cost controls",
+                }
+            )
 
         # Lock-in risk
-        if any('proprietary' in w.lower() or 'closed' in w.lower() for w in vendor.weaknesses):
-            risks.append({
-                'type': 'vendor_lock_in',
-                'level': RiskLevel.HIGH,
-                'description': 'Proprietary technology increases switching costs',
-                'mitigation': 'Use open standards where possible, maintain abstraction layer'
-            })
+        if any("proprietary" in w.lower() or "closed" in w.lower() for w in vendor.weaknesses):
+            risks.append(
+                {
+                    "type": "vendor_lock_in",
+                    "level": RiskLevel.HIGH,
+                    "description": "Proprietary technology increases switching costs",
+                    "mitigation": "Use open standards where possible, maintain abstraction layer",
+                }
+            )
 
         return risks
 
     def _generate_recommendation(
-        self,
-        weighted_score: float,
-        total_cost_5yr: float,
-        risks: List[Dict[str, any]]
+        self, weighted_score: float, total_cost_5yr: float, risks: List[Dict[str, any]]
     ) -> tuple[str, str]:
         """Generate buy/pass/pilot recommendation"""
 
         # Count high/critical risks
-        high_risks = len([
-            r for r in risks
-            if r['level'] in [RiskLevel.HIGH, RiskLevel.CRITICAL]
-        ])
+        high_risks = len([r for r in risks if r["level"] in [RiskLevel.HIGH, RiskLevel.CRITICAL]])
 
         # Decision logic
         if weighted_score >= 8.0 and high_risks == 0:
             return (
                 "BUY",
-                f"Strong match (score: {weighted_score:.1f}/10) with manageable risks. Proceed to negotiation."
+                f"Strong match (score: {weighted_score:.1f}/10) with manageable risks. Proceed to negotiation.",
             )
         elif weighted_score >= 7.0 and high_risks <= 1:
             return (
                 "PILOT",
-                f"Good match (score: {weighted_score:.1f}/10) but some concerns. Run pilot to validate."
+                f"Good match (score: {weighted_score:.1f}/10) but some concerns. Run pilot to validate.",
             )
         elif weighted_score >= 6.0:
             return (
                 "PILOT",
-                f"Moderate match (score: {weighted_score:.1f}/10). Pilot alongside alternatives."
+                f"Moderate match (score: {weighted_score:.1f}/10). Pilot alongside alternatives.",
             )
         else:
             return (
                 "PASS",
-                f"Insufficient match (score: {weighted_score:.1f}/10). Look for better alternatives."
+                f"Insufficient match (score: {weighted_score:.1f}/10). Look for better alternatives.",
             )
 
     def analyze_build_vs_buy(
@@ -334,7 +344,7 @@ class VendorEvaluationFramework:
         component: str,
         build_estimate: Dict[str, any],
         buy_estimate: Dict[str, any],
-        strategic_factors: Dict[str, int]
+        strategic_factors: Dict[str, int],
     ) -> BuildVsBuyAnalysis:
         """
         Analyze whether to build or buy component
@@ -348,35 +358,29 @@ class VendorEvaluationFramework:
         Returns:
             Build vs buy recommendation
         """
-        build_cost_5yr = (
-            build_estimate['dev_cost'] +
-            build_estimate['annual_maintenance'] * 5
-        )
+        build_cost_5yr = build_estimate["dev_cost"] + build_estimate["annual_maintenance"] * 5
 
-        buy_cost_5yr = (
-            buy_estimate['setup_cost'] +
-            buy_estimate['annual_cost'] * 5
-        )
+        buy_cost_5yr = buy_estimate["setup_cost"] + buy_estimate["annual_cost"] * 5
 
-        strategic_value = strategic_factors.get('strategic_value', 5)
-        team_capability = strategic_factors.get('team_capability', 5)
+        strategic_value = strategic_factors.get("strategic_value", 5)
+        team_capability = strategic_factors.get("team_capability", 5)
 
         # Decision logic
-        cost_ratio = buy_cost_5yr / build_cost_5yr if build_cost_5yr > 0 else float('inf')
-        time_advantage_buy = build_estimate['timeline_months'] - buy_estimate['timeline_months']
+        cost_ratio = buy_cost_5yr / build_cost_5yr if build_cost_5yr > 0 else float("inf")
+        time_advantage_buy = build_estimate["timeline_months"] - buy_estimate["timeline_months"]
 
         # Scoring
         build_score = (
-            team_capability * 2 +  # Can we build it?
-            strategic_value * 3 +  # Should we build it?
-            (10 if cost_ratio > 1.5 else 0)  # Cost advantage?
+            team_capability * 2  # Can we build it?
+            + strategic_value * 3  # Should we build it?
+            + (10 if cost_ratio > 1.5 else 0)  # Cost advantage?
         )
 
         buy_score = (
-            (10 - team_capability) * 2 +  # Lacking capability?
-            (10 - strategic_value) * 2 +  # Not strategic?
-            (min(time_advantage_buy, 12) * 0.8) +  # Time advantage?
-            (10 if cost_ratio < 0.7 else 0)  # Cost advantage?
+            (10 - team_capability) * 2  # Lacking capability?
+            + (10 - strategic_value) * 2  # Not strategic?
+            + (min(time_advantage_buy, 12) * 0.8)  # Time advantage?
+            + (10 if cost_ratio < 0.7 else 0)  # Cost advantage?
         )
 
         if build_score > buy_score + 10:
@@ -401,30 +405,23 @@ class VendorEvaluationFramework:
         return BuildVsBuyAnalysis(
             component=component,
             build_cost_5yr=build_cost_5yr,
-            build_timeline_months=build_estimate['timeline_months'],
+            build_timeline_months=build_estimate["timeline_months"],
             buy_cost_5yr=buy_cost_5yr,
-            buy_timeline_months=buy_estimate['timeline_months'],
+            buy_timeline_months=buy_estimate["timeline_months"],
             strategic_value=strategic_value,
             team_capability=team_capability,
             recommendation=recommendation,
-            reasoning=reasoning
+            reasoning=reasoning,
         )
 
-    def create_vendor_comparison(
-        self,
-        vendor_scores: List[VendorScore]
-    ) -> str:
+    def create_vendor_comparison(self, vendor_scores: List[VendorScore]) -> str:
         """Create vendor comparison matrix"""
 
         comparison = "# Vendor Comparison\n\n"
 
         # Overall ranking
         comparison += "## Overall Ranking\n\n"
-        sorted_vendors = sorted(
-            vendor_scores,
-            key=lambda v: v.weighted_score,
-            reverse=True
-        )
+        sorted_vendors = sorted(vendor_scores, key=lambda v: v.weighted_score, reverse=True)
 
         comparison += "| Rank | Vendor | Score | 5Y TCO | Recommendation |\n"
         comparison += "|------|--------|-------|--------|----------------|\n"
@@ -447,10 +444,7 @@ class VendorEvaluationFramework:
 
         for req_name in req_names:
             comparison += f"| {req_name} | "
-            scores = [
-                f"{v.requirement_scores.get(req_name, 0):.1f}"
-                for v in sorted_vendors
-            ]
+            scores = [f"{v.requirement_scores.get(req_name, 0):.1f}" for v in sorted_vendors]
             comparison += " | ".join(scores) + " |\n"
 
         # Risk summary
@@ -462,8 +456,8 @@ class VendorEvaluationFramework:
             if not vendor_score.risks:
                 comparison += "*No significant risks identified*\n\n"
             else:
-                high_risks = [r for r in vendor_score.risks if r['level'] == RiskLevel.HIGH]
-                medium_risks = [r for r in vendor_score.risks if r['level'] == RiskLevel.MEDIUM]
+                high_risks = [r for r in vendor_score.risks if r["level"] == RiskLevel.HIGH]
+                medium_risks = [r for r in vendor_score.risks if r["level"] == RiskLevel.MEDIUM]
 
                 if high_risks:
                     comparison += "**High Risks:**\n"
@@ -497,7 +491,7 @@ def evaluate_vector_database_vendors():
             priority=RequirementPriority.MUST_HAVE,
             description="Support at least 10 billion vectors with acceptable performance",
             evaluation_criteria="Documented large deployments, benchmark results",
-            weight=10
+            weight=10,
         ),
         Requirement(
             name="Sub-50ms p99 latency",
@@ -505,7 +499,7 @@ def evaluate_vector_database_vendors():
             priority=RequirementPriority.MUST_HAVE,
             description="p99 query latency under 50ms at scale",
             evaluation_criteria="Load testing, customer references",
-            weight=9
+            weight=9,
         ),
         Requirement(
             name="High availability (99.9%+)",
@@ -513,7 +507,7 @@ def evaluate_vector_database_vendors():
             priority=RequirementPriority.IMPORTANT,
             description="Production-grade reliability with replication",
             evaluation_criteria="SLA, uptime history, architecture",
-            weight=8
+            weight=8,
         ),
         Requirement(
             name="Managed service option",
@@ -521,7 +515,7 @@ def evaluate_vector_database_vendors():
             priority=RequirementPriority.IMPORTANT,
             description="Fully managed cloud deployment available",
             evaluation_criteria="Service offering, pricing",
-            weight=7
+            weight=7,
         ),
         Requirement(
             name="Open source / portable",
@@ -529,8 +523,8 @@ def evaluate_vector_database_vendors():
             priority=RequirementPriority.NICE_TO_HAVE,
             description="Open source or standard APIs to avoid lock-in",
             evaluation_criteria="License, export capabilities",
-            weight=6
-        )
+            weight=6,
+        ),
     ]
 
     for req in requirements:
@@ -550,13 +544,13 @@ def evaluate_vector_database_vendors():
             strengths=[
                 "Fully managed, zero ops",
                 "Excellent performance at scale",
-                "Strong support and documentation"
+                "Strong support and documentation",
             ],
             weaknesses=[
                 "Proprietary / closed source",
                 "Pricing can be expensive at scale",
-                "Less control than self-hosted"
-            ]
+                "Less control than self-hosted",
+            ],
         ),
         Vendor(
             name="Weaviate",
@@ -570,13 +564,13 @@ def evaluate_vector_database_vendors():
             strengths=[
                 "Open source / portable",
                 "Rich feature set (hybrid search, ML integration)",
-                "Active community"
+                "Active community",
             ],
             weaknesses=[
                 "Self-hosting complexity",
                 "Smaller reference customer base",
-                "Some performance limitations"
-            ]
+                "Some performance limitations",
+            ],
         ),
         Vendor(
             name="Milvus",
@@ -590,14 +584,14 @@ def evaluate_vector_database_vendors():
             strengths=[
                 "CNCF project / open source",
                 "Proven at extreme scale",
-                "Strong GPU acceleration"
+                "Strong GPU acceleration",
             ],
             weaknesses=[
                 "Complex setup and tuning",
                 "Documentation can be challenging",
-                "Managed service less mature"
-            ]
-        )
+                "Managed service less mature",
+            ],
+        ),
     ]
 
     for vendor in vendors:
@@ -612,15 +606,13 @@ def evaluate_vector_database_vendors():
         "Sub-50ms p99 latency": 9.0,
         "High availability (99.9%+)": 9.5,
         "Managed service option": 10.0,
-        "Open source / portable": 2.0
+        "Open source / portable": 2.0,
     }
     pinecone_costs = {
-        'setup': 0,
-        'annual': 120000  # Example: $10k/month managed
+        "setup": 0,
+        "annual": 120000,  # Example: $10k/month managed
     }
-    vendor_scores.append(
-        framework.score_vendor("Pinecone", pinecone_scores, pinecone_costs)
-    )
+    vendor_scores.append(framework.score_vendor("Pinecone", pinecone_scores, pinecone_costs))
 
     # Weaviate scores
     weaviate_scores = {
@@ -628,15 +620,13 @@ def evaluate_vector_database_vendors():
         "Sub-50ms p99 latency": 7.5,
         "High availability (99.9%+)": 7.0,
         "Managed service option": 8.0,
-        "Open source / portable": 10.0
+        "Open source / portable": 10.0,
     }
     weaviate_costs = {
-        'setup': 50000,  # Implementation effort
-        'annual': 80000  # Self-hosted infrastructure
+        "setup": 50000,  # Implementation effort
+        "annual": 80000,  # Self-hosted infrastructure
     }
-    vendor_scores.append(
-        framework.score_vendor("Weaviate", weaviate_scores, weaviate_costs)
-    )
+    vendor_scores.append(framework.score_vendor("Weaviate", weaviate_scores, weaviate_costs))
 
     # Milvus scores
     milvus_scores = {
@@ -644,39 +634,37 @@ def evaluate_vector_database_vendors():
         "Sub-50ms p99 latency": 8.0,
         "High availability (99.9%+)": 7.5,
         "Managed service option": 7.0,
-        "Open source / portable": 10.0
+        "Open source / portable": 10.0,
     }
     milvus_costs = {
-        'setup': 75000,  # More complex setup
-        'annual': 100000  # Infrastructure + maintenance
+        "setup": 75000,  # More complex setup
+        "annual": 100000,  # Infrastructure + maintenance
     }
-    vendor_scores.append(
-        framework.score_vendor("Milvus", milvus_scores, milvus_costs)
-    )
+    vendor_scores.append(framework.score_vendor("Milvus", milvus_scores, milvus_costs))
 
     # Display comparison
     print(framework.create_vendor_comparison(vendor_scores))
 
     # Build vs buy analysis for custom solution
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("\n=== Build vs Buy Analysis: Vector Database ===\n")
 
     analysis = framework.analyze_build_vs_buy(
         component="Vector Database",
         build_estimate={
-            'dev_cost': 500000,  # 2 engineers x 12 months
-            'annual_maintenance': 300000,  # 1.5 engineers ongoing
-            'timeline_months': 12
+            "dev_cost": 500000,  # 2 engineers x 12 months
+            "annual_maintenance": 300000,  # 1.5 engineers ongoing
+            "timeline_months": 12,
         },
         buy_estimate={
-            'setup_cost': 50000,  # Integration and setup
-            'annual_cost': 120000,  # Managed service
-            'timeline_months': 2
+            "setup_cost": 50000,  # Integration and setup
+            "annual_cost": 120000,  # Managed service
+            "timeline_months": 2,
         },
         strategic_factors={
-            'strategic_value': 4,  # Not core differentiation
-            'team_capability': 6  # Some expertise but not specialized
-        }
+            "strategic_value": 4,  # Not core differentiation
+            "team_capability": 6,  # Some expertise but not specialized
+        },
     )
 
     print(f"Component: {analysis.component}")
@@ -688,6 +676,7 @@ def evaluate_vector_database_vendors():
     print("\nBuy option:")
     print(f"  5-year cost: ${analysis.buy_cost_5yr:,.0f}")
     print(f"  Time to production: {analysis.buy_timeline_months} months")
+
 
 if __name__ == "__main__":
     evaluate_vector_database_vendors()

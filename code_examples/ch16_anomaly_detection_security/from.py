@@ -49,6 +49,7 @@ class Transaction:
         features: Additional features (category, etc.)
         is_fraud: Ground truth label (if available)
     """
+
     transaction_id: str
     user_id: str
     merchant_id: str
@@ -62,6 +63,7 @@ class Transaction:
     def __post_init__(self):
         if self.features is None:
             self.features = {}
+
 
 class TransactionEncoder(nn.Module):
     """
@@ -83,7 +85,7 @@ class TransactionEncoder(nn.Module):
         embedding_dim: int = 128,
         num_users: int = 1000000,
         num_merchants: int = 100000,
-        num_devices: int = 10000
+        num_devices: int = 10000,
     ):
         super().__init__()
         self.embedding_dim = embedding_dim
@@ -98,7 +100,7 @@ class TransactionEncoder(nn.Module):
             nn.Linear(embedding_dim // 4 + 10, 128),  # +10 for numerical features
             nn.ReLU(),
             nn.Dropout(0.2),
-            nn.Linear(128, embedding_dim)
+            nn.Linear(128, embedding_dim),
         )
 
     def forward(
@@ -106,7 +108,7 @@ class TransactionEncoder(nn.Module):
         user_ids: torch.Tensor,
         merchant_ids: torch.Tensor,
         device_ids: torch.Tensor,
-        numerical_features: torch.Tensor
+        numerical_features: torch.Tensor,
     ) -> torch.Tensor:
         """
         Encode transactions
@@ -139,6 +141,7 @@ class TransactionEncoder(nn.Module):
 
         return transaction_emb
 
+
 class TransactionAutoencoder(nn.Module):
     """
     Autoencoder for fraud detection
@@ -158,26 +161,14 @@ class TransactionAutoencoder(nn.Module):
     - Fraud transactions have high error (novel patterns)
     """
 
-    def __init__(
-        self,
-        input_dim: int = 128,
-        latent_dim: int = 32
-    ):
+    def __init__(self, input_dim: int = 128, latent_dim: int = 32):
         super().__init__()
 
         # Encoder
-        self.encoder = nn.Sequential(
-            nn.Linear(input_dim, 64),
-            nn.ReLU(),
-            nn.Linear(64, latent_dim)
-        )
+        self.encoder = nn.Sequential(nn.Linear(input_dim, 64), nn.ReLU(), nn.Linear(64, latent_dim))
 
         # Decoder
-        self.decoder = nn.Sequential(
-            nn.Linear(latent_dim, 64),
-            nn.ReLU(),
-            nn.Linear(64, input_dim)
-        )
+        self.decoder = nn.Sequential(nn.Linear(latent_dim, 64), nn.ReLU(), nn.Linear(64, input_dim))
 
     def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
@@ -208,6 +199,7 @@ class TransactionAutoencoder(nn.Module):
         scores = ((x - reconstructed) ** 2).mean(dim=1)
         return scores
 
+
 class FraudDetectionSystem:
     """
     Production fraud detection system
@@ -229,7 +221,7 @@ class FraudDetectionSystem:
         self,
         embedding_dim: int = 128,
         anomaly_threshold: float = 0.95,  # 95th percentile
-        device: str = 'cuda'
+        device: str = "cuda",
     ):
         """
         Args:
@@ -239,18 +231,15 @@ class FraudDetectionSystem:
         """
         self.embedding_dim = embedding_dim
         self.anomaly_threshold = anomaly_threshold
-        self.device = device if torch.cuda.is_available() else 'cpu'
+        self.device = device if torch.cuda.is_available() else "cpu"
 
         # Transaction encoder
-        self.transaction_encoder = TransactionEncoder(
-            embedding_dim=embedding_dim
-        ).to(self.device)
+        self.transaction_encoder = TransactionEncoder(embedding_dim=embedding_dim).to(self.device)
 
         # Autoencoder for anomaly detection
-        self.autoencoder = TransactionAutoencoder(
-            input_dim=embedding_dim,
-            latent_dim=32
-        ).to(self.device)
+        self.autoencoder = TransactionAutoencoder(input_dim=embedding_dim, latent_dim=32).to(
+            self.device
+        )
 
         # Threshold (learned from normal transactions)
         self.score_threshold: Optional[float] = None
@@ -301,23 +290,26 @@ class FraudDetectionSystem:
         log_amount = np.log1p(transaction.amount)
 
         # Placeholder for additional features
-        features = np.array([
-            log_amount / 10.0,  # Normalize
-            hour / 24.0,
-            day_of_week,
-            0.0,  # Placeholder: days since first transaction
-            0.0,  # Placeholder: transaction velocity
-            0.0,  # Placeholder: amount deviation
-            0.0, 0.0, 0.0, 0.0  # Additional feature placeholders
-        ], dtype=np.float32)
+        features = np.array(
+            [
+                log_amount / 10.0,  # Normalize
+                hour / 24.0,
+                day_of_week,
+                0.0,  # Placeholder: days since first transaction
+                0.0,  # Placeholder: transaction velocity
+                0.0,  # Placeholder: amount deviation
+                0.0,
+                0.0,
+                0.0,
+                0.0,  # Additional feature placeholders
+            ],
+            dtype=np.float32,
+        )
 
         return features
 
     def train_autoencoder(
-        self,
-        transactions: List[Transaction],
-        num_epochs: int = 10,
-        batch_size: int = 256
+        self, transactions: List[Transaction], num_epochs: int = 10, batch_size: int = 256
     ):
         """
         Train autoencoder on normal transactions
@@ -351,7 +343,9 @@ class FraudDetectionSystem:
             num_features_tensor = torch.from_numpy(num_features).unsqueeze(0).to(self.device)
 
             with torch.no_grad():
-                emb = self.transaction_encoder(user_ids, merchant_ids, device_ids, num_features_tensor)
+                emb = self.transaction_encoder(
+                    user_ids, merchant_ids, device_ids, num_features_tensor
+                )
                 embeddings.append(emb.cpu().numpy()[0])
 
         embeddings = np.array(embeddings)
@@ -369,7 +363,7 @@ class FraudDetectionSystem:
 
             # Mini-batch training
             for i in range(0, len(embeddings), batch_size):
-                batch = embeddings_tensor[i:i+batch_size]
+                batch = embeddings_tensor[i : i + batch_size]
 
                 # Forward pass
                 _, reconstructed = self.autoencoder(batch)
@@ -386,7 +380,7 @@ class FraudDetectionSystem:
                 num_batches += 1
 
             avg_loss = total_loss / num_batches
-            print(f"Epoch {epoch+1}/{num_epochs}, Loss: {avg_loss:.4f}")
+            print(f"Epoch {epoch + 1}/{num_epochs}, Loss: {avg_loss:.4f}")
 
         print("✓ Training complete")
 
@@ -415,9 +409,7 @@ class FraudDetectionSystem:
         print(f"  {self.anomaly_threshold:.1%} of training data below threshold")
 
     def detect_fraud(
-        self,
-        transaction: Transaction,
-        return_score: bool = False
+        self, transaction: Transaction, return_score: bool = False
     ) -> Tuple[bool, float]:
         """
         Detect if transaction is fraudulent
@@ -464,6 +456,7 @@ class FraudDetectionSystem:
 
         return is_fraud, anomaly_score
 
+
 # Example: Credit card fraud detection
 def fraud_detection_example():
     """
@@ -486,13 +479,13 @@ def fraud_detection_example():
     normal_transactions = []
     for i in range(1000):
         transaction = Transaction(
-            transaction_id=f'txn_{i}',
-            user_id=f'user_{i % 100}',
-            merchant_id=f'merchant_{i % 50}',
+            transaction_id=f"txn_{i}",
+            user_id=f"user_{i % 100}",
+            merchant_id=f"merchant_{i % 50}",
             amount=20 + np.random.rand() * 100,  # $20-$120
             timestamp=time.time() - (1000 - i) * 3600,  # Last 1000 hours
-            device_id=f'device_{i % 200}',
-            is_fraud=False
+            device_id=f"device_{i % 200}",
+            is_fraud=False,
         )
         normal_transactions.append(transaction)
 
@@ -504,12 +497,12 @@ def fraud_detection_example():
     # Test on normal transaction
     print("\n=== Testing on Normal Transaction ===")
     test_normal = Transaction(
-        transaction_id='test_normal',
-        user_id='user_0',
-        merchant_id='merchant_0',
+        transaction_id="test_normal",
+        user_id="user_0",
+        merchant_id="merchant_0",
         amount=50.0,
         timestamp=time.time(),
-        device_id='device_0'
+        device_id="device_0",
     )
 
     is_fraud, score = system.detect_fraud(test_normal)
@@ -520,12 +513,12 @@ def fraud_detection_example():
     # Test on anomalous transaction
     print("\n=== Testing on Anomalous Transaction ===")
     test_fraud = Transaction(
-        transaction_id='test_fraud',
-        user_id='user_999',  # New user
-        merchant_id='merchant_99',  # New merchant
+        transaction_id="test_fraud",
+        user_id="user_999",  # New user
+        merchant_id="merchant_99",  # New merchant
         amount=5000.0,  # Large amount
         timestamp=time.time(),
-        device_id='device_999'  # New device
+        device_id="device_999",  # New device
     )
 
     is_fraud, score = system.detect_fraud(test_fraud)
@@ -538,6 +531,7 @@ def fraud_detection_example():
     print(f"Total transactions processed: {system.transaction_count}")
     print(f"Fraud detected: {system.fraud_count}")
     print(f"Fraud rate: {system.fraud_count / system.transaction_count:.2%}")
+
 
 # Uncomment to run:
 # fraud_detection_example()

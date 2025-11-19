@@ -39,12 +39,14 @@ import torch.nn.functional as F
 
 class DemandRegime(Enum):
     """Demand pattern categories"""
+
     STEADY = "steady"  # Consistent demand
     SEASONAL = "seasonal"  # Seasonal spikes
     TRENDING_UP = "trending_up"  # Growing demand
     TRENDING_DOWN = "trending_down"  # Declining demand
     VOLATILE = "volatile"  # Unpredictable
     LONG_TAIL = "long_tail"  # Sparse, intermittent
+
 
 @dataclass
 class InventoryItem:
@@ -68,6 +70,7 @@ class InventoryItem:
         supplier_reliability: Delivery reliability (0-1)
         embedding: Learned product embedding
     """
+
     sku_id: str
     product_name: str
     category: str
@@ -84,6 +87,7 @@ class InventoryItem:
     supplier_reliability: float = 0.95
     embedding: Optional[np.ndarray] = None
 
+
 @dataclass
 class Location:
     """
@@ -99,6 +103,7 @@ class Location:
         traffic: Foot traffic or web traffic
         embedding: Location embedding (regional preferences)
     """
+
     location_id: str
     location_type: str  # "store", "warehouse", "dc"
     region: str
@@ -107,6 +112,7 @@ class Location:
     nearby_competitors: int = 0
     traffic: float = 1000.0
     embedding: Optional[np.ndarray] = None
+
 
 @dataclass
 class DemandForecast:
@@ -124,6 +130,7 @@ class DemandForecast:
         stockout_probability: P(demand > current_stock)
         optimal_order_quantity: Recommended replenishment
     """
+
     sku_id: str
     location_id: str
     forecast_date: datetime
@@ -133,6 +140,7 @@ class DemandForecast:
     contributing_factors: Dict[str, float]
     stockout_probability: float
     optimal_order_quantity: int
+
 
 class ProductEncoder(nn.Module):
     """
@@ -147,12 +155,7 @@ class ProductEncoder(nn.Module):
     Output: Product embedding capturing demand drivers
     """
 
-    def __init__(
-        self,
-        num_categories=1000,
-        num_brands=5000,
-        embedding_dim=256
-    ):
+    def __init__(self, num_categories=1000, num_brands=5000, embedding_dim=256):
         super().__init__()
         self.embedding_dim = embedding_dim
 
@@ -165,11 +168,7 @@ class ProductEncoder(nn.Module):
 
         # Historical demand encoder (LSTM)
         self.demand_lstm = nn.LSTM(
-            input_size=1,
-            hidden_size=128,
-            num_layers=2,
-            batch_first=True,
-            dropout=0.2
+            input_size=1, hidden_size=128, num_layers=2, batch_first=True, dropout=0.2
         )
 
         # Fusion
@@ -177,7 +176,7 @@ class ProductEncoder(nn.Module):
             nn.Linear(64 + 64 + 64 + 128, 512),
             nn.ReLU(),
             nn.Dropout(0.2),
-            nn.Linear(512, embedding_dim)
+            nn.Linear(512, embedding_dim),
         )
 
     def forward(
@@ -185,7 +184,7 @@ class ProductEncoder(nn.Module):
         category_ids: torch.Tensor,
         brand_ids: torch.Tensor,
         numerical_features: torch.Tensor,
-        demand_history: torch.Tensor
+        demand_history: torch.Tensor,
     ) -> torch.Tensor:
         """
         Args:
@@ -214,6 +213,7 @@ class ProductEncoder(nn.Module):
         embedding = self.fusion(combined)
 
         return F.normalize(embedding, p=2, dim=1)
+
 
 class TemporalEncoder(nn.Module):
     """
@@ -245,10 +245,7 @@ class TemporalEncoder(nn.Module):
         self.event_emb = nn.Embedding(100, 32)  # Various events
 
         # Fusion
-        self.fusion = nn.Sequential(
-            nn.Linear(64 + 32 + 32, embedding_dim),
-            nn.ReLU()
-        )
+        self.fusion = nn.Sequential(nn.Linear(64 + 32 + 32, embedding_dim), nn.ReLU())
 
     def encode_cyclical(self, timestamps: torch.Tensor) -> torch.Tensor:
         """
@@ -265,24 +262,24 @@ class TemporalEncoder(nn.Module):
         month = (timestamps % (12 * 30 * 24 * 3600)) / (12 * 30 * 24 * 3600)
         quarter = (timestamps % (4 * 90 * 24 * 3600)) / (4 * 90 * 24 * 3600)
 
-        cyclical = torch.stack([
-            torch.sin(2 * np.pi * day_of_week),
-            torch.cos(2 * np.pi * day_of_week),
-            torch.sin(2 * np.pi * week_of_year),
-            torch.cos(2 * np.pi * week_of_year),
-            torch.sin(2 * np.pi * month),
-            torch.cos(2 * np.pi * month),
-            torch.sin(2 * np.pi * quarter),
-            torch.cos(2 * np.pi * quarter)
-        ], dim=1)
+        cyclical = torch.stack(
+            [
+                torch.sin(2 * np.pi * day_of_week),
+                torch.cos(2 * np.pi * day_of_week),
+                torch.sin(2 * np.pi * week_of_year),
+                torch.cos(2 * np.pi * week_of_year),
+                torch.sin(2 * np.pi * month),
+                torch.cos(2 * np.pi * month),
+                torch.sin(2 * np.pi * quarter),
+                torch.cos(2 * np.pi * quarter),
+            ],
+            dim=1,
+        )
 
         return cyclical
 
     def forward(
-        self,
-        timestamps: torch.Tensor,
-        trends: torch.Tensor,
-        event_ids: torch.Tensor
+        self, timestamps: torch.Tensor, trends: torch.Tensor, event_ids: torch.Tensor
     ) -> torch.Tensor:
         """
         Args:
@@ -305,6 +302,7 @@ class TemporalEncoder(nn.Module):
         # Combine
         combined = torch.cat([cyclical_emb, trend_emb, event_emb], dim=1)
         return self.fusion(combined)
+
 
 class RegionalEncoder(nn.Module):
     """
@@ -333,16 +331,10 @@ class RegionalEncoder(nn.Module):
         self.climate_proj = nn.Linear(5, 32)
 
         # Fusion
-        self.fusion = nn.Sequential(
-            nn.Linear(64 + 64 + 32, embedding_dim),
-            nn.ReLU()
-        )
+        self.fusion = nn.Sequential(nn.Linear(64 + 64 + 32, embedding_dim), nn.ReLU())
 
     def forward(
-        self,
-        location_ids: torch.Tensor,
-        demographics: torch.Tensor,
-        climate: torch.Tensor
+        self, location_ids: torch.Tensor, demographics: torch.Tensor, climate: torch.Tensor
     ) -> torch.Tensor:
         """
         Args:
@@ -358,6 +350,7 @@ class RegionalEncoder(nn.Module):
 
         combined = torch.cat([loc_emb, demo_emb, climate_emb], dim=1)
         return self.fusion(combined)
+
 
 class DemandForecaster(nn.Module):
     """
@@ -385,9 +378,7 @@ class DemandForecaster(nn.Module):
 
         # Attention fusion: which factors matter for this forecast?
         self.attention = nn.MultiheadAttention(
-            embed_dim=embedding_dim + 128 + 128,
-            num_heads=8,
-            batch_first=True
+            embed_dim=embedding_dim + 128 + 128, num_heads=8, batch_first=True
         )
 
         # Forecast heads
@@ -397,21 +388,17 @@ class DemandForecaster(nn.Module):
             nn.Dropout(0.2),
             nn.Linear(512, 256),
             nn.ReLU(),
-            nn.Linear(256, 1)
+            nn.Linear(256, 1),
         )
 
         # Uncertainty head (predict log variance)
         self.uncertainty_head = nn.Sequential(
-            nn.Linear(embedding_dim + 128 + 128, 256),
-            nn.ReLU(),
-            nn.Linear(256, 1)
+            nn.Linear(embedding_dim + 128 + 128, 256), nn.ReLU(), nn.Linear(256, 1)
         )
 
         # Regime classifier
         self.regime_head = nn.Sequential(
-            nn.Linear(embedding_dim + 128 + 128, 256),
-            nn.ReLU(),
-            nn.Linear(256, len(DemandRegime))
+            nn.Linear(embedding_dim + 128 + 128, 256), nn.ReLU(), nn.Linear(256, len(DemandRegime))
         )
 
     def forward(
@@ -428,7 +415,7 @@ class DemandForecaster(nn.Module):
         # Regional inputs
         location_ids: torch.Tensor,
         demographics: torch.Tensor,
-        climate: torch.Tensor
+        climate: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Returns:
@@ -462,6 +449,7 @@ class DemandForecaster(nn.Module):
 
         return demand, uncertainty, regime_logits
 
+
 class InventoryOptimizer:
     """
     Optimize inventory decisions using demand forecasts
@@ -481,10 +469,7 @@ class InventoryOptimizer:
         self.forecaster = forecaster
 
     def compute_optimal_order(
-        self,
-        item: InventoryItem,
-        location: Location,
-        forecast_horizon_weeks: int = 8
+        self, item: InventoryItem, location: Location, forecast_horizon_weeks: int = 8
     ) -> DemandForecast:
         """
         Compute optimal order quantity for SKU at location
@@ -508,9 +493,16 @@ class InventoryOptimizer:
             climate = torch.randn(1, 5)
 
             demand, uncertainty, regime_logits = self.forecaster(
-                category_id, brand_id, numerical, demand_hist,
-                timestamp, trends, event_id,
-                location_id, demographics, climate
+                category_id,
+                brand_id,
+                numerical,
+                demand_hist,
+                timestamp,
+                trends,
+                event_id,
+                location_id,
+                demographics,
+                climate,
             )
 
             predicted_demand = float(demand[0, 0])
@@ -521,7 +513,7 @@ class InventoryOptimizer:
         # Confidence interval (95%)
         confidence_interval = (
             max(0, predicted_demand - 1.96 * predicted_std),
-            predicted_demand + 1.96 * predicted_std
+            predicted_demand + 1.96 * predicted_std,
         )
 
         # Stockout probability
@@ -541,12 +533,7 @@ class InventoryOptimizer:
         optimal_order = max(0, int(target_stock - item.current_stock))
 
         # Contributing factors
-        factors = {
-            'base_demand': 0.6,
-            'seasonality': 0.2,
-            'trend': 0.1,
-            'regional_preference': 0.1
-        }
+        factors = {"base_demand": 0.6, "seasonality": 0.2, "trend": 0.1, "regional_preference": 0.1}
 
         return DemandForecast(
             sku_id=item.sku_id,
@@ -557,8 +544,9 @@ class InventoryOptimizer:
             demand_regime=regime,
             contributing_factors=factors,
             stockout_probability=stockout_prob,
-            optimal_order_quantity=optimal_order
+            optimal_order_quantity=optimal_order,
         )
+
 
 def inventory_optimization_example():
     """
@@ -589,7 +577,7 @@ def inventory_optimization_example():
         current_stock=100,
         lead_time_weeks=3,
         holding_cost_per_week=0.50,
-        stockout_cost=15.00
+        stockout_cost=15.00,
     )
 
     location1 = Location(
@@ -597,7 +585,7 @@ def inventory_optimization_example():
         location_type="store",
         region="Southeast",
         demographics={"avg_age": 32, "income": "medium-high"},
-        weather={"avg_temp": 85, "rainfall": "low"}
+        weather={"avg_temp": 85, "rainfall": "low"},
     )
 
     print(f"New product: {new_item.product_name}")
@@ -610,7 +598,9 @@ def inventory_optimization_example():
     forecast1 = optimizer.compute_optimal_order(new_item, location1)
     print("Demand forecast (week 1):")
     print(f"  Predicted: {forecast1.predicted_demand:.1f} units")
-    print(f"  95% CI: [{forecast1.confidence_interval[0]:.1f}, {forecast1.confidence_interval[1]:.1f}]")
+    print(
+        f"  95% CI: [{forecast1.confidence_interval[0]:.1f}, {forecast1.confidence_interval[1]:.1f}]"
+    )
     print(f"  Regime: {forecast1.demand_regime.value}")
     print(f"  Stockout risk: {forecast1.stockout_probability:.1%}")
     print()
@@ -633,18 +623,56 @@ def inventory_optimization_example():
         price=199.99,
         cost=85.00,
         attributes={"material": "wool", "season": "winter", "weight": "heavy"},
-        historical_demand=np.array([
-            # Weekly sales: low in summer, spike in fall/winter
-            2, 1, 1, 2, 1, 1, 2, 2,  # Summer
-            3, 4, 5, 8, 12, 18, 25, 35,  # Fall ramp-up
-            45, 52, 48, 50, 55, 60, 58, 62,  # Winter peak
-            54, 48, 40, 32, 25, 18, 12, 8,  # Spring decline
-            5, 3, 2, 2, 1, 1, 1, 2,  # Early summer
-        ] + [1] * 16),  # Continuation
+        historical_demand=np.array(
+            [
+                # Weekly sales: low in summer, spike in fall/winter
+                2,
+                1,
+                1,
+                2,
+                1,
+                1,
+                2,
+                2,  # Summer
+                3,
+                4,
+                5,
+                8,
+                12,
+                18,
+                25,
+                35,  # Fall ramp-up
+                45,
+                52,
+                48,
+                50,
+                55,
+                60,
+                58,
+                62,  # Winter peak
+                54,
+                48,
+                40,
+                32,
+                25,
+                18,
+                12,
+                8,  # Spring decline
+                5,
+                3,
+                2,
+                2,
+                1,
+                1,
+                1,
+                2,  # Early summer
+            ]
+            + [1] * 16
+        ),  # Continuation
         current_stock=150,
         lead_time_weeks=4,
         holding_cost_per_week=1.50,
-        stockout_cost=50.00
+        stockout_cost=50.00,
     )
 
     location2 = Location(
@@ -652,7 +680,7 @@ def inventory_optimization_example():
         location_type="store",
         region="Northeast",
         demographics={"avg_age": 38, "income": "high"},
-        weather={"avg_temp": 42, "rainfall": "medium"}
+        weather={"avg_temp": 42, "rainfall": "medium"},
     )
 
     print(f"Product: {seasonal_item.product_name}")
@@ -666,7 +694,9 @@ def inventory_optimization_example():
     print("  Week 2: ~48 units (accelerating)")
     print("  Week 3: ~55 units (peak approaching)")
     print("  Week 4: ~60 units (peak season)")
-    print(f"  95% CI: [{forecast2.confidence_interval[0]:.1f}, {forecast2.confidence_interval[1]:.1f}]")
+    print(
+        f"  95% CI: [{forecast2.confidence_interval[0]:.1f}, {forecast2.confidence_interval[1]:.1f}]"
+    )
     print()
     print("Inventory decision:")
     print(f"  Current stock: {seasonal_item.current_stock} units")
@@ -691,13 +721,13 @@ def inventory_optimization_example():
         attributes={"color": "white", "style": "basic", "fit": "regular"},
         historical_demand=np.random.poisson(25, 52),
         current_stock=200,
-        lead_time_weeks=2
+        lead_time_weeks=2,
     )
 
     locations = [
         Location("NYC_MANHATTAN", "store", "Northeast", {"density": "very_high"}),
         Location("SUBURBAN_TX", "store", "South", {"density": "low"}),
-        Location("LA_VENICE", "store", "West", {"density": "high"})
+        Location("LA_VENICE", "store", "West", {"density": "high"}),
     ]
 
     print(f"Product: {item.product_name}")
@@ -738,6 +768,7 @@ def inventory_optimization_example():
     print("  - Markdown rate: -4.2 percentage points")
     print()
     print("→ Better forecasts = optimal inventory = higher profitability")
+
 
 # Uncomment to run:
 # inventory_optimization_example()

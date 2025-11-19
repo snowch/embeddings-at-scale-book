@@ -25,21 +25,20 @@ import torch.nn.functional as F
 @dataclass
 class SearchResult:
     """Placeholder for SearchResult."""
+
     indices: np.ndarray
     scores: np.ndarray
     latency_ms: float
 
+
 class OptimizedExactSearch:
     """Placeholder for OptimizedExactSearch."""
+
     def __init__(self):
         pass
 
     def search(self, query_vector, k=10):
-        return SearchResult(
-            indices=np.array([0]),
-            scores=np.array([1.0]),
-            latency_ms=0.1
-        )
+        return SearchResult(indices=np.array([0]), scores=np.array([1.0]), latency_ms=0.1)
 
 
 class GPUVectorSearch:
@@ -64,19 +63,14 @@ class GPUVectorSearch:
     - 1B × 512 × 2 = 1TB (requires partitioning or multi-GPU)
     """
 
-    def __init__(
-        self,
-        corpus: np.ndarray,
-        use_fp16: bool = True,
-        device_id: int = 0
-    ):
+    def __init__(self, corpus: np.ndarray, use_fp16: bool = True, device_id: int = 0):
         """
         Args:
             corpus: Corpus embeddings (N, d)
             use_fp16: Use half precision (2× memory, 2-8× faster)
             device_id: GPU device ID
         """
-        self.device = torch.device(f'cuda:{device_id}')
+        self.device = torch.device(f"cuda:{device_id}")
         self.use_fp16 = use_fp16
 
         print(f"Initializing GPU vector search on {self.device}")
@@ -99,11 +93,7 @@ class GPUVectorSearch:
         print(f"  Precision: {'FP16' if use_fp16 else 'FP32'}")
         print(f"  GPU memory: {memory_gb:.2f} GB")
 
-    def search(
-        self,
-        query: np.ndarray,
-        k: int = 10
-    ) -> SearchResult:
+    def search(self, query: np.ndarray, k: int = 10) -> SearchResult:
         """
         GPU-accelerated search
 
@@ -139,11 +129,7 @@ class GPUVectorSearch:
 
         # Find top-k using GPU kernel
         top_scores, top_indices = torch.topk(
-            similarities,
-            k=min(k, len(self.corpus)),
-            dim=1,
-            largest=True,
-            sorted=True
+            similarities, k=min(k, len(self.corpus)), dim=1, largest=True, sorted=True
         )
 
         # Synchronize GPU (wait for kernel completion)
@@ -159,17 +145,10 @@ class GPUVectorSearch:
 
         latency_ms = (time.time() - start_time) * 1000
 
-        return SearchResult(
-            indices=top_indices,
-            scores=top_scores,
-            latency_ms=latency_ms
-        )
+        return SearchResult(indices=top_indices, scores=top_scores, latency_ms=latency_ms)
 
     def batch_search_async(
-        self,
-        queries: np.ndarray,
-        k: int = 10,
-        batch_size: int = 1000
+        self, queries: np.ndarray, k: int = 10, batch_size: int = 1000
     ) -> list[SearchResult]:
         """
         Asynchronous batch search using CUDA streams
@@ -219,9 +198,7 @@ class GPUVectorSearch:
                     similarities = torch.matmul(batch_gpu, self.corpus.T)
 
                 top_scores, top_indices = torch.topk(
-                    similarities,
-                    k=min(k, len(self.corpus)),
-                    dim=1
+                    similarities, k=min(k, len(self.corpus)), dim=1
                 )
 
             # Wait for computation
@@ -233,13 +210,16 @@ class GPUVectorSearch:
 
             # Store results
             for j in range(len(batch_queries)):
-                results.append(SearchResult(
-                    indices=top_indices_cpu[j],
-                    scores=top_scores_cpu[j],
-                    latency_ms=0.0  # Measured per batch, not per query
-                ))
+                results.append(
+                    SearchResult(
+                        indices=top_indices_cpu[j],
+                        scores=top_scores_cpu[j],
+                        latency_ms=0.0,  # Measured per batch, not per query
+                    )
+                )
 
         return results
+
 
 class MultiGPUVectorSearch:
     """
@@ -260,11 +240,7 @@ class MultiGPUVectorSearch:
     Speedup: Linear with number of GPUs (4 GPUs → 4× capacity, same latency)
     """
 
-    def __init__(
-        self,
-        corpus: np.ndarray,
-        num_gpus: Optional[int] = None
-    ):
+    def __init__(self, corpus: np.ndarray, num_gpus: Optional[int] = None):
         """
         Args:
             corpus: Full corpus (N, d)
@@ -289,18 +265,11 @@ class MultiGPUVectorSearch:
 
             # Create GPU index for this shard
             gpu_index = GPUVectorSearch(shard, device_id=gpu_id)
-            self.gpu_indices.append({
-                'index': gpu_index,
-                'offset': start_idx
-            })
+            self.gpu_indices.append({"index": gpu_index, "offset": start_idx})
 
             print(f"  GPU {gpu_id}: {len(shard):,} vectors")
 
-    def search(
-        self,
-        query: np.ndarray,
-        k: int = 10
-    ) -> SearchResult:
+    def search(self, query: np.ndarray, k: int = 10) -> SearchResult:
         """
         Search across all GPU shards
 
@@ -316,10 +285,10 @@ class MultiGPUVectorSearch:
         # Search each shard in parallel
         shard_results = []
         for gpu_info in self.gpu_indices:
-            result = gpu_info['index'].search(query, k=k)
+            result = gpu_info["index"].search(query, k=k)
 
             # Offset indices to global positions
-            result.indices = result.indices + gpu_info['offset']
+            result.indices = result.indices + gpu_info["offset"]
 
             shard_results.append(result)
 
@@ -334,11 +303,8 @@ class MultiGPUVectorSearch:
 
         latency_ms = (time.time() - start_time) * 1000
 
-        return SearchResult(
-            indices=top_indices,
-            scores=top_scores,
-            latency_ms=latency_ms
-        )
+        return SearchResult(indices=top_indices, scores=top_scores, latency_ms=latency_ms)
+
 
 # Example: GPU acceleration benchmark
 def gpu_acceleration_example():
@@ -396,6 +362,7 @@ def gpu_acceleration_example():
     print(f"Total latency: {batch_elapsed:.2f} ms")
     print(f"Per-query latency: {batch_elapsed / 100:.2f} ms")
     print(f"Throughput: {100 / (batch_elapsed / 1000):.0f} queries/sec")
+
 
 # Uncomment to run:
 # gpu_acceleration_example()

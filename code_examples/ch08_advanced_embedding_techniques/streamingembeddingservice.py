@@ -5,6 +5,7 @@ import torch
 # Code from Chapter 08
 # Book: Embeddings at Scale
 
+
 class StreamingEmbeddingService:
     """
     Production service for real-time dynamic embeddings
@@ -56,12 +57,14 @@ class StreamingEmbeddingService:
 
         In production: Write to message queue, return immediately
         """
-        self.interaction_queue.append({
-            'user_id': user_id,
-            'item_id': item_id,
-            'type': interaction_type,
-            'timestamp': datetime.now()
-        })
+        self.interaction_queue.append(
+            {
+                "user_id": user_id,
+                "item_id": item_id,
+                "type": interaction_type,
+                "timestamp": datetime.now(),
+            }
+        )
 
     def process_updates(self):
         """
@@ -78,7 +81,7 @@ class StreamingEmbeddingService:
         # Group by user for efficiency
         user_interactions = {}
         for interaction in self.interaction_queue:
-            user_id = interaction['user_id']
+            user_id = interaction["user_id"]
             if user_id not in user_interactions:
                 user_interactions[user_id] = []
             user_interactions[user_id].append(interaction)
@@ -88,8 +91,8 @@ class StreamingEmbeddingService:
             for interaction in interactions:
                 self.model.update_from_interaction(
                     torch.tensor([user_id]),
-                    torch.tensor([interaction['item_id']]),
-                    interaction['type']
+                    torch.tensor([interaction["item_id"]]),
+                    interaction["type"],
                 )
 
             # Invalidate cache

@@ -42,9 +42,7 @@ class HyperbolicEmbedding(nn.Module):
 
         # Initialize embeddings in the Poincaré ball
         # Start near origin for stability
-        self.embeddings = nn.Parameter(
-            torch.randn(num_items, embedding_dim) * 0.01
-        )
+        self.embeddings = nn.Parameter(torch.randn(num_items, embedding_dim) * 0.01)
 
     def poincare_distance(self, u, v):
         """
@@ -58,8 +56,8 @@ class HyperbolicEmbedding(nn.Module):
         - Preserves hyperbolic geometry
         """
         # Compute squared norms
-        u_norm_sq = torch.sum(u ** 2, dim=-1, keepdim=True)
-        v_norm_sq = torch.sum(v ** 2, dim=-1, keepdim=True)
+        u_norm_sq = torch.sum(u**2, dim=-1, keepdim=True)
+        v_norm_sq = torch.sum(v**2, dim=-1, keepdim=True)
 
         # Compute squared Euclidean distance
         diff_norm_sq = torch.sum((u - v) ** 2, dim=-1, keepdim=True)
@@ -84,11 +82,7 @@ class HyperbolicEmbedding(nn.Module):
         norm = torch.norm(x, p=2, dim=-1, keepdim=True)
         # If norm >= 1, project to (1 - eps)
         max_norm = 1 - eps
-        scale = torch.where(
-            norm >= max_norm,
-            max_norm / (norm + 1e-7),
-            torch.ones_like(norm)
-        )
+        scale = torch.where(norm >= max_norm, max_norm / (norm + 1e-7), torch.ones_like(norm))
         return x * scale
 
     def get_embeddings(self, indices):
@@ -115,6 +109,7 @@ class HyperbolicEmbedding(nn.Module):
 
         return distances.mean()
 
+
 class HierarchicalEmbeddingTrainer:
     """
     Train hierarchical embeddings from taxonomy structure
@@ -126,13 +121,7 @@ class HierarchicalEmbeddingTrainer:
     - Level-based regularization
     """
 
-    def __init__(
-        self,
-        taxonomy,
-        embedding_dim=5,
-        curvature=1.0,
-        learning_rate=0.01
-    ):
+    def __init__(self, taxonomy, embedding_dim=5, curvature=1.0, learning_rate=0.01):
         """
         Args:
             taxonomy: Dict mapping child_id → parent_id
@@ -158,17 +147,10 @@ class HierarchicalEmbeddingTrainer:
         self.idx_to_item = {idx: item for item, idx in self.item_to_idx.items()}
 
         # Initialize model
-        self.model = HyperbolicEmbedding(
-            self.num_items,
-            embedding_dim,
-            curvature
-        )
+        self.model = HyperbolicEmbedding(self.num_items, embedding_dim, curvature)
 
         # Riemannian optimizer for hyperbolic space
-        self.optimizer = torch.optim.Adam(
-            self.model.parameters(),
-            lr=learning_rate
-        )
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
 
     def create_training_batch(self, batch_size=64):
         """
@@ -202,7 +184,7 @@ class HierarchicalEmbeddingTrainer:
         return (
             torch.LongTensor(parent_indices),
             torch.LongTensor(child_indices),
-            torch.LongTensor(negative_indices)
+            torch.LongTensor(negative_indices),
         )
 
     def train_step(self, batch_size=64, margin=1.0):
@@ -235,9 +217,7 @@ class HierarchicalEmbeddingTrainer:
 
         # Re-project to Poincaré ball after update
         with torch.no_grad():
-            self.model.embeddings.data = self.model.project_to_ball(
-                self.model.embeddings.data
-            )
+            self.model.embeddings.data = self.model.project_to_ball(self.model.embeddings.data)
 
         return loss.item()
 
@@ -280,21 +260,19 @@ class HierarchicalEmbeddingTrainer:
         all_indices = torch.arange(self.num_items)
         all_emb = self.model.get_embeddings(all_indices)
 
-        distances = self.model.poincare_distance(
-            query_emb.expand(self.num_items, -1),
-            all_emb
-        )
+        distances = self.model.poincare_distance(query_emb.expand(self.num_items, -1), all_emb)
 
         # Get top-k closest (excluding self)
         _, sorted_indices = torch.sort(distances.squeeze())
         similar_items = []
 
-        for idx in sorted_indices[1:top_k+1]:  # Skip first (self)
+        for idx in sorted_indices[1 : top_k + 1]:  # Skip first (self)
             item_name = self.idx_to_item[idx.item()]
             dist = distances[idx].item()
             similar_items.append((item_name, dist))
 
         return similar_items
+
 
 # Example: Training on product taxonomy
 def train_product_hierarchy_example():
@@ -307,28 +285,26 @@ def train_product_hierarchy_example():
     # Define product taxonomy (child → parent)
     product_taxonomy = {
         # Electronics branch
-        'gaming_laptop': 'laptops',
-        'business_laptop': 'laptops',
-        'ultrabook': 'laptops',
-        'laptops': 'computers',
-        'desktop': 'computers',
-        'computers': 'electronics',
-
+        "gaming_laptop": "laptops",
+        "business_laptop": "laptops",
+        "ultrabook": "laptops",
+        "laptops": "computers",
+        "desktop": "computers",
+        "computers": "electronics",
         # Mobile branch
-        'smartphone': 'mobile_devices',
-        'tablet': 'mobile_devices',
-        'smartwatch': 'wearables',
-        'fitness_tracker': 'wearables',
-        'mobile_devices': 'electronics',
-        'wearables': 'electronics',
-
+        "smartphone": "mobile_devices",
+        "tablet": "mobile_devices",
+        "smartwatch": "wearables",
+        "fitness_tracker": "wearables",
+        "mobile_devices": "electronics",
+        "wearables": "electronics",
         # Home appliances branch
-        'refrigerator': 'kitchen_appliances',
-        'dishwasher': 'kitchen_appliances',
-        'kitchen_appliances': 'home_appliances',
-        'washing_machine': 'laundry_appliances',
-        'dryer': 'laundry_appliances',
-        'laundry_appliances': 'home_appliances',
+        "refrigerator": "kitchen_appliances",
+        "dishwasher": "kitchen_appliances",
+        "kitchen_appliances": "home_appliances",
+        "washing_machine": "laundry_appliances",
+        "dryer": "laundry_appliances",
+        "laundry_appliances": "home_appliances",
     }
 
     # Train hierarchical embeddings
@@ -336,7 +312,7 @@ def train_product_hierarchy_example():
         product_taxonomy,
         embedding_dim=5,  # Much lower than typical 256-768
         curvature=1.0,
-        learning_rate=0.01
+        learning_rate=0.01,
     )
 
     print("Training hierarchical embeddings...")
@@ -344,16 +320,17 @@ def train_product_hierarchy_example():
 
     # Test hierarchical similarity
     print("\nHierarchical similarity for 'gaming_laptop':")
-    similar = trainer.find_similar('gaming_laptop', top_k=5)
+    similar = trainer.find_similar("gaming_laptop", top_k=5)
     for item, distance in similar:
         print(f"  {item}: {distance:.4f}")
 
     print("\nHierarchical similarity for 'smartphone':")
-    similar = trainer.find_similar('smartphone', top_k=5)
+    similar = trainer.find_similar("smartphone", top_k=5)
     for item, distance in similar:
         print(f"  {item}: {distance:.4f}")
 
     return trainer
+
 
 # Uncomment to run:
 # trainer = train_product_hierarchy_example()

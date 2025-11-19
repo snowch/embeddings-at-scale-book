@@ -3,6 +3,7 @@ import numpy as np
 # Code from Chapter 02
 # Book: Embeddings at Scale
 
+
 class EmbeddingQuantization:
     """Quantize embeddings to reduce storage"""
 
@@ -21,15 +22,12 @@ class EmbeddingQuantization:
         quantized = scaled.astype(np.uint8)
 
         # Store scale factors for dequantization
-        scale_factors = {
-            'min': min_val,
-            'max': max_val
-        }
+        scale_factors = {"min": min_val, "max": max_val}
 
         return quantized, scale_factors
 
     def dequantize_int8_to_float32(self, quantized, scale_factors):
         """Dequantize back to float32"""
         scaled = quantized.astype(np.float32) / 255
-        dequantized = scaled * (scale_factors['max'] - scale_factors['min']) + scale_factors['min']
+        dequantized = scaled * (scale_factors["max"] - scale_factors["min"]) + scale_factors["min"]
         return dequantized

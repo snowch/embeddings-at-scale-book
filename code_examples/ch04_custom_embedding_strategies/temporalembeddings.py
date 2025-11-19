@@ -4,22 +4,27 @@ import torch
 # Code from Chapter 04
 # Book: Embeddings at Scale
 
+
 # Placeholder encoder classes for temporal embeddings
 class StaticEncoder:
     """Placeholder static encoder. Replace with actual model."""
+
     def __init__(self, dim):
         self.dim = dim
 
     def encode(self, content):
         return torch.randn(self.dim)
 
+
 class TimeEncoder:
     """Placeholder time encoder. Replace with actual model."""
+
     def __init__(self, dim):
         self.dim = dim
 
     def encode(self, timestamp):
         return torch.randn(self.dim)
+
 
 class TemporalEmbeddings:
     """
@@ -61,23 +66,23 @@ class TemporalEmbeddings:
 # Domains requiring temporal awareness:
 temporal_use_cases = [
     {
-        'domain': 'News Search',
-        'requirement': 'Recent articles more relevant for most queries',
-        'approach': 'Time decay on similarity scores'
+        "domain": "News Search",
+        "requirement": "Recent articles more relevant for most queries",
+        "approach": "Time decay on similarity scores",
     },
     {
-        'domain': 'Social Media',
-        'requirement': 'Trending topics change rapidly',
-        'approach': 'Short-window embeddings, frequent retraining'
+        "domain": "Social Media",
+        "requirement": "Trending topics change rapidly",
+        "approach": "Short-window embeddings, frequent retraining",
     },
     {
-        'domain': 'Fashion/Trends',
-        'requirement': 'Style similarity depends on current trends',
-        'approach': 'Time-conditioned embeddings, seasonal retraining'
+        "domain": "Fashion/Trends",
+        "requirement": "Style similarity depends on current trends",
+        "approach": "Time-conditioned embeddings, seasonal retraining",
     },
     {
-        'domain': 'Scientific Research',
-        'requirement': 'Paradigm shifts change what\'s similar',
-        'approach': 'Period-specific embeddings (pre/post major discoveries)'
-    }
+        "domain": "Scientific Research",
+        "requirement": "Paradigm shifts change what's similar",
+        "approach": "Period-specific embeddings (pre/post major discoveries)",
+    },
 ]

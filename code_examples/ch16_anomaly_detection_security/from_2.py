@@ -45,12 +45,14 @@ class Product:
         is_defective: Ground truth label
         defect_type: Type of defect (if defective)
     """
+
     product_id: str
     measurements: np.ndarray
     image: Optional[Image.Image] = None
     process_params: Optional[Dict[str, float]] = None
     is_defective: bool = False
     defect_type: Optional[str] = None
+
 
 class ProductEncoder(nn.Module):
     """
@@ -63,19 +65,13 @@ class ProductEncoder(nn.Module):
     """
 
     def __init__(
-        self,
-        measurement_dim: int = 100,
-        image_embedding_dim: int = 256,
-        output_dim: int = 128
+        self, measurement_dim: int = 100, image_embedding_dim: int = 256, output_dim: int = 128
     ):
         super().__init__()
 
         # Measurement encoder
         self.measurement_encoder = nn.Sequential(
-            nn.Linear(measurement_dim, 256),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(256, 128)
+            nn.Linear(measurement_dim, 256), nn.ReLU(), nn.Dropout(0.2), nn.Linear(256, 128)
         )
 
         # Image encoder (simplified CNN)
@@ -86,16 +82,14 @@ class ProductEncoder(nn.Module):
             nn.ReLU(),
             nn.AdaptiveAvgPool2d((1, 1)),
             nn.Flatten(),
-            nn.Linear(64, image_embedding_dim)
+            nn.Linear(64, image_embedding_dim),
         )
 
         # Fusion layer
         self.fusion = nn.Linear(128 + image_embedding_dim, output_dim)
 
     def forward(
-        self,
-        measurements: torch.Tensor,
-        images: Optional[torch.Tensor] = None
+        self, measurements: torch.Tensor, images: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
         """
         Encode product
@@ -126,6 +120,7 @@ class ProductEncoder(nn.Module):
 
         return product_emb
 
+
 class QualityControlSystem:
     """
     Manufacturing quality control system
@@ -142,11 +137,7 @@ class QualityControlSystem:
     - Process monitoring (drift detection)
     """
 
-    def __init__(
-        self,
-        embedding_dim: int = 128,
-        anomaly_threshold: float = 0.95
-    ):
+    def __init__(self, embedding_dim: int = 128, anomaly_threshold: float = 0.95):
         """
         Args:
             embedding_dim: Embedding dimension
@@ -204,10 +195,7 @@ class QualityControlSystem:
         print(f"  Centroid: {self.cluster_centroid.shape}")
         print(f"  Radius (95th percentile): {self.cluster_radius:.4f}")
 
-    def inspect_product(
-        self,
-        product: Product
-    ) -> Tuple[bool, float]:
+    def inspect_product(self, product: Product) -> Tuple[bool, float]:
         """
         Inspect product for defects
 
@@ -238,6 +226,7 @@ class QualityControlSystem:
 
         return is_defective, float(distance)
 
+
 # Example: Electronics manufacturing
 def quality_control_example():
     """
@@ -260,11 +249,7 @@ def quality_control_example():
         # Normal measurements: Mean around 0, small variance
         measurements = np.random.randn(100).astype(np.float32) * 0.1
 
-        product = Product(
-            product_id=f'product_{i}',
-            measurements=measurements,
-            is_defective=False
-        )
+        product = Product(product_id=f"product_{i}", measurements=measurements, is_defective=False)
         normal_products.append(product)
 
     print("=== Building Normal Cluster ===")
@@ -273,9 +258,9 @@ def quality_control_example():
     # Test: Normal product
     print("\n=== Inspecting Normal Product ===")
     test_normal = Product(
-        product_id='test_normal',
+        product_id="test_normal",
         measurements=np.random.randn(100).astype(np.float32) * 0.1,
-        is_defective=False
+        is_defective=False,
     )
 
     is_defective, distance = system.inspect_product(test_normal)
@@ -290,10 +275,10 @@ def quality_control_example():
     defect_measurements[0:10] += 2.0  # Anomaly in first 10 measurements
 
     test_defective = Product(
-        product_id='test_defective',
+        product_id="test_defective",
         measurements=defect_measurements,
         is_defective=True,
-        defect_type='solder_defect'
+        defect_type="solder_defect",
     )
 
     is_defective, distance = system.inspect_product(test_defective)
@@ -306,6 +291,7 @@ def quality_control_example():
     print(f"Products inspected: {system.products_inspected}")
     print(f"Defects detected: {system.defects_detected}")
     print(f"Defect rate: {system.defects_detected / system.products_inspected:.2%}")
+
 
 # Uncomment to run:
 # quality_control_example()

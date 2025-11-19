@@ -4,6 +4,7 @@ import torch.nn.functional as F
 # Code from Chapter 06
 # Book: Embeddings at Scale
 
+
 class PrototypicalNetworkClassifier:
     """
     Prototypical Networks for few-shot learning
@@ -54,10 +55,7 @@ class PrototypicalNetworkClassifier:
             # Compute distances to all prototypes
             distances = {}
             for class_id, prototype in self.prototypes.items():
-                dist = F.pairwise_distance(
-                    query_embedding,
-                    prototype.unsqueeze(0)
-                ).item()
+                dist = F.pairwise_distance(query_embedding, prototype.unsqueeze(0)).item()
                 distances[class_id] = dist
 
             # Return class with minimum distance

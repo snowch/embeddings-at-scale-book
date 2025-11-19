@@ -1,6 +1,7 @@
 # Code from Chapter 03
 # Book: Embeddings at Scale
 
+
 class ScaleConstraints:
     """Understanding what makes 256T rows challenging"""
 
@@ -13,7 +14,7 @@ class ScaleConstraints:
 
         # Raw embeddings
         raw_bytes = num_vectors * embedding_dim * bytes_per_float
-        raw_petabytes = raw_bytes / (1024 ** 5)
+        raw_petabytes = raw_bytes / (1024**5)
 
         # HNSW index (adds ~50% overhead for graph structure)
         index_petabytes = raw_petabytes * 1.5
@@ -27,11 +28,11 @@ class ScaleConstraints:
         monthly_cost = machines_needed * 8.064 * 24 * 30
 
         return {
-            'raw_data_size_pb': raw_petabytes,
-            'with_index_size_pb': index_petabytes,
-            'machines_needed_1tb_ram': int(machines_needed),
-            'monthly_cost_if_all_ram': f'${monthly_cost:,.0f}',
-            'conclusion': 'Infeasible - must use hybrid memory/disk strategies'
+            "raw_data_size_pb": raw_petabytes,
+            "with_index_size_pb": index_petabytes,
+            "machines_needed_1tb_ram": int(machines_needed),
+            "monthly_cost_if_all_ram": f"${monthly_cost:,.0f}",
+            "conclusion": "Infeasible - must use hybrid memory/disk strategies",
         }
 
     def build_time_constraints(self):
@@ -50,9 +51,9 @@ class ScaleConstraints:
         parallel_days = total_days / parallel_machines
 
         return {
-            'single_machine_build_time_years': total_years,
-            'parallel_build_time_days': parallel_days,
-            'conclusion': 'Must parallelize + use incremental updates'
+            "single_machine_build_time_years": total_years,
+            "parallel_build_time_days": parallel_days,
+            "conclusion": "Must parallelize + use incremental updates",
         }
 
     def query_time_constraints(self):
@@ -64,22 +65,23 @@ class ScaleConstraints:
 
         # Breakdown
         breakdown = {
-            'network_latency': '20ms (to nearest region)',
-            'query_parsing': '1ms',
-            'index_search': '50ms (the critical path)',
-            'metadata_filtering': '10ms',
-            'result_aggregation': '5ms',
-            'serialization': '5ms',
-            'buffer': '9ms (for variance)',
-            'total': '100ms'
+            "network_latency": "20ms (to nearest region)",
+            "query_parsing": "1ms",
+            "index_search": "50ms (the critical path)",
+            "metadata_filtering": "10ms",
+            "result_aggregation": "5ms",
+            "serialization": "5ms",
+            "buffer": "9ms (for variance)",
+            "total": "100ms",
         }
 
         return {
-            'target_p99_ms': target_p99_latency_ms,
-            'breakdown': breakdown,
-            'index_search_budget': '50ms',
-            'implication': 'Index must return results in <50ms at p99'
+            "target_p99_ms": target_p99_latency_ms,
+            "breakdown": breakdown,
+            "index_search_budget": "50ms",
+            "implication": "Index must return results in <50ms at p99",
         }
+
 
 constraints = ScaleConstraints()
 mem_constraints = constraints.memory_constraints()

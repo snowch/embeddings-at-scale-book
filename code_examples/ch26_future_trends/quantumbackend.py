@@ -43,8 +43,10 @@ import numpy as np
 # (Qiskit, Cirq, PennyLane) and access to quantum hardware/simulators
 # This is a conceptual framework for future hybrid systems
 
+
 class QuantumBackend(Enum):
     """Quantum computing backends"""
+
     SIMULATOR = "simulator"
     IBM_QUANTUM = "ibm_quantum"
     GOOGLE_CIRQ = "google_cirq"
@@ -52,6 +54,7 @@ class QuantumBackend(Enum):
     DWAVE_ANNEALER = "dwave_annealer"
     IONQ = "ionq"
     RIGETTI = "rigetti"
+
 
 @dataclass
 class QuantumConfig:
@@ -69,6 +72,7 @@ class QuantumConfig:
         algorithm: Quantum algorithm to use
         classical_refinement: Verify quantum results classically
     """
+
     backend: QuantumBackend = QuantumBackend.SIMULATOR
     num_qubits: int = 20
     max_depth: int = 100
@@ -79,9 +83,11 @@ class QuantumConfig:
     algorithm: str = "grover"  # "grover", "qaoa", "vqe", "annealing"
     classical_refinement: bool = True
 
+
 @dataclass
 class QuantumSearchResult:
     """Results from quantum similarity search"""
+
     indices: np.ndarray
     distances: np.ndarray
     probabilities: np.ndarray  # Quantum measurement probabilities
@@ -91,6 +97,7 @@ class QuantumSearchResult:
     speedup_factor: float
     error_estimate: float
     backend_used: str
+
 
 class QuantumEmbeddingSearch:
     """
@@ -165,18 +172,15 @@ class QuantumEmbeddingSearch:
 
             # Store encoding information
             encodings[idx] = {
-                'amplitudes': normalized,
-                'norm': norm,
-                'phase': 0  # Could encode additional information in phase
+                "amplitudes": normalized,
+                "norm": norm,
+                "phase": 0,  # Could encode additional information in phase
             }
 
         return encodings
 
     def search(
-        self,
-        query: np.ndarray,
-        k: int = 10,
-        use_quantum: Optional[bool] = None
+        self, query: np.ndarray, k: int = 10, use_quantum: Optional[bool] = None
     ) -> QuantumSearchResult:
         """
         Perform similarity search using hybrid quantum-classical algorithm
@@ -188,8 +192,7 @@ class QuantumEmbeddingSearch:
         """
         if use_quantum is None:
             use_quantum = (
-                self.quantum_available and
-                self.num_embeddings > self.config.hybrid_threshold
+                self.quantum_available and self.num_embeddings > self.config.hybrid_threshold
             )
 
         if use_quantum:
@@ -197,11 +200,7 @@ class QuantumEmbeddingSearch:
         else:
             return self._classical_search(query, k)
 
-    def _classical_search(
-        self,
-        query: np.ndarray,
-        k: int
-    ) -> QuantumSearchResult:
+    def _classical_search(self, query: np.ndarray, k: int) -> QuantumSearchResult:
         """Classical similarity search as baseline"""
         import time
 
@@ -228,14 +227,10 @@ class QuantumEmbeddingSearch:
             classical_time_ms=classical_time,
             speedup_factor=1.0,
             error_estimate=0.0,
-            backend_used="classical"
+            backend_used="classical",
         )
 
-    def _quantum_search(
-        self,
-        query: np.ndarray,
-        k: int
-    ) -> QuantumSearchResult:
+    def _quantum_search(self, query: np.ndarray, k: int) -> QuantumSearchResult:
         """
         Quantum-accelerated similarity search
 
@@ -274,11 +269,7 @@ class QuantumEmbeddingSearch:
 
         # Classical refinement
         classical_start = time.time()
-        refined_results = self._refine_quantum_candidates(
-            query_norm,
-            candidates,
-            k
-        )
+        refined_results = self._refine_quantum_candidates(query_norm, candidates, k)
         classical_time = (time.time() - classical_start) * 1000
 
         # Estimate speedup
@@ -286,33 +277,25 @@ class QuantumEmbeddingSearch:
         practical_speedup = min(theoretical_speedup, 100)  # Current limitations
 
         return QuantumSearchResult(
-            indices=refined_results['indices'],
-            distances=refined_results['distances'],
-            probabilities=refined_results['probabilities'],
+            indices=refined_results["indices"],
+            distances=refined_results["distances"],
+            probabilities=refined_results["probabilities"],
             num_queries=1,
             quantum_time_ms=quantum_time,
             classical_time_ms=classical_time,
             speedup_factor=practical_speedup,
-            error_estimate=refined_results['error'],
-            backend_used=f"quantum_{self.config.backend.value}"
+            error_estimate=refined_results["error"],
+            backend_used=f"quantum_{self.config.backend.value}",
         )
 
-    def _compute_similarity_threshold(
-        self,
-        query: np.ndarray,
-        k: int
-    ) -> float:
+    def _compute_similarity_threshold(self, query: np.ndarray, k: int) -> float:
         """
         Estimate similarity threshold for top-k results
 
         Sample embeddings to estimate kth-highest similarity
         """
         sample_size = min(1000, self.num_embeddings)
-        sample_indices = np.random.choice(
-            self.num_embeddings,
-            sample_size,
-            replace=False
-        )
+        sample_indices = np.random.choice(self.num_embeddings, sample_size, replace=False)
         sample_similarities = self.embeddings[sample_indices] @ query
 
         # Estimate kth percentile
@@ -322,10 +305,7 @@ class QuantumEmbeddingSearch:
         return threshold * 0.9  # Conservative threshold
 
     def _simulate_grover_search(
-        self,
-        query: np.ndarray,
-        threshold: float,
-        num_iterations: int
+        self, query: np.ndarray, threshold: float, num_iterations: int
     ) -> np.ndarray:
         """
         Simulate Grover's algorithm for similarity search
@@ -362,25 +342,21 @@ class QuantumEmbeddingSearch:
         # Probability distribution after Grover iterations
         probabilities = np.zeros(self.num_embeddings)
         probabilities[marked_indices] = final_prob / num_marked
-        probabilities[~np.isin(np.arange(self.num_embeddings), marked_indices)] = \
-            (1 - final_prob) / (self.num_embeddings - num_marked)
+        probabilities[~np.isin(np.arange(self.num_embeddings), marked_indices)] = (
+            1 - final_prob
+        ) / (self.num_embeddings - num_marked)
 
         # Sample based on quantum measurement probabilities
         candidates = np.random.choice(
             self.num_embeddings,
             size=min(100, self.num_embeddings),
             replace=False,
-            p=probabilities / probabilities.sum()
+            p=probabilities / probabilities.sum(),
         )
 
         return candidates
 
-    def _refine_quantum_candidates(
-        self,
-        query: np.ndarray,
-        candidates: np.ndarray,
-        k: int
-    ) -> Dict:
+    def _refine_quantum_candidates(self, query: np.ndarray, candidates: np.ndarray, k: int) -> Dict:
         """
         Classical refinement of quantum search results
 
@@ -401,10 +377,10 @@ class QuantumEmbeddingSearch:
         error_estimate = 0.01  # 1% typical quantum error with error mitigation
 
         return {
-            'indices': top_k_candidates,
-            'distances': 1.0 - top_k_similarities,
-            'probabilities': np.ones(k),  # Post-refinement is deterministic
-            'error': error_estimate
+            "indices": top_k_candidates,
+            "distances": 1.0 - top_k_similarities,
+            "probabilities": np.ones(k),  # Post-refinement is deterministic
+            "error": error_estimate,
         }
 
 
@@ -424,7 +400,7 @@ def demonstrate_quantum_search():
         num_qubits=20,
         max_depth=100,
         hybrid_threshold=10000,
-        algorithm="grover"
+        algorithm="grover",
     )
 
     # Build index
@@ -441,7 +417,9 @@ def demonstrate_quantum_search():
 
     # Quantum-accelerated search
     quantum_result = search.search(query, k=10, use_quantum=True)
-    print(f"Quantum search: {quantum_result.quantum_time_ms:.2f}ms " +
-          f"+ {quantum_result.classical_time_ms:.2f}ms refinement")
+    print(
+        f"Quantum search: {quantum_result.quantum_time_ms:.2f}ms "
+        + f"+ {quantum_result.classical_time_ms:.2f}ms refinement"
+    )
     print(f"Speedup: {quantum_result.speedup_factor:.1f}×")
     print(f"Error estimate: {quantum_result.error_estimate:.4f}")

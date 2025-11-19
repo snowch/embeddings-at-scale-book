@@ -28,8 +28,8 @@ class SpotInstanceTrainer:
     def __init__(
         self,
         model: nn.Module,
-        checkpoint_dir: str = './checkpoints',
-        checkpoint_interval_minutes: int = 15
+        checkpoint_dir: str = "./checkpoints",
+        checkpoint_interval_minutes: int = 15,
     ):
         self.model = model
         self.checkpoint_dir = Path(checkpoint_dir)
@@ -61,7 +61,7 @@ class SpotInstanceTrainer:
         epoch: int = 0,
         step: int = 0,
         optimizer: torch.optim.Optimizer = None,
-        emergency: bool = False
+        emergency: bool = False,
     ):
         """
         Save training checkpoint
@@ -73,17 +73,17 @@ class SpotInstanceTrainer:
             emergency: Emergency checkpoint (spot preemption)
         """
         checkpoint = {
-            'epoch': epoch,
-            'step': step,
-            'model_state_dict': self.model.state_dict(),
-            'optimizer_state_dict': optimizer.state_dict() if optimizer else None,
-            'timestamp': time.time()
+            "epoch": epoch,
+            "step": step,
+            "model_state_dict": self.model.state_dict(),
+            "optimizer_state_dict": optimizer.state_dict() if optimizer else None,
+            "timestamp": time.time(),
         }
 
         if emergency:
-            checkpoint_path = self.checkpoint_dir / 'emergency_checkpoint.pt'
+            checkpoint_path = self.checkpoint_dir / "emergency_checkpoint.pt"
         else:
-            checkpoint_path = self.checkpoint_dir / f'checkpoint_epoch_{epoch}_step_{step}.pt'
+            checkpoint_path = self.checkpoint_dir / f"checkpoint_epoch_{epoch}_step_{step}.pt"
 
         torch.save(checkpoint, checkpoint_path)
         print(f"✓ Checkpoint saved: {checkpoint_path}")
@@ -99,17 +99,17 @@ class SpotInstanceTrainer:
             checkpoint: Checkpoint data (or None if no checkpoint exists)
         """
         # Check for emergency checkpoint first
-        emergency_path = self.checkpoint_dir / 'emergency_checkpoint.pt'
+        emergency_path = self.checkpoint_dir / "emergency_checkpoint.pt"
         if emergency_path.exists():
             print(f"Loading emergency checkpoint: {emergency_path}")
             checkpoint = torch.load(emergency_path)
-            self.model.load_state_dict(checkpoint['model_state_dict'])
-            if optimizer and checkpoint['optimizer_state_dict']:
-                optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+            self.model.load_state_dict(checkpoint["model_state_dict"])
+            if optimizer and checkpoint["optimizer_state_dict"]:
+                optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
             return checkpoint
 
         # Find latest regular checkpoint
-        checkpoints = sorted(self.checkpoint_dir.glob('checkpoint_*.pt'))
+        checkpoints = sorted(self.checkpoint_dir.glob("checkpoint_*.pt"))
         if not checkpoints:
             print("No checkpoints found, starting from scratch")
             return None
@@ -117,9 +117,9 @@ class SpotInstanceTrainer:
         latest = checkpoints[-1]
         print(f"Loading checkpoint: {latest}")
         checkpoint = torch.load(latest)
-        self.model.load_state_dict(checkpoint['model_state_dict'])
-        if optimizer and checkpoint['optimizer_state_dict']:
-            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        self.model.load_state_dict(checkpoint["model_state_dict"])
+        if optimizer and checkpoint["optimizer_state_dict"]:
+            optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
 
         return checkpoint
 
@@ -134,7 +134,7 @@ class SpotInstanceTrainer:
         optimizer: torch.optim.Optimizer,
         epochs: int = 10,
         start_epoch: int = 0,
-        start_step: int = 0
+        start_step: int = 0,
     ):
         """
         Training loop with automatic checkpointing
@@ -153,7 +153,7 @@ class SpotInstanceTrainer:
                     continue  # Skip to resume point
 
                 # Training step
-                loss = self.model(batch['anchor_ids'], batch['positive_ids'])
+                loss = self.model(batch["anchor_ids"], batch["positive_ids"])
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()

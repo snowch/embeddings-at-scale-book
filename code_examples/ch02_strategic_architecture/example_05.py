@@ -8,8 +8,10 @@ import numpy as np
 # Placeholder encoder
 class PlaceholderTextEncoder:
     """Placeholder text encoder. Replace with actual model."""
+
     def encode(self, text):
         return np.random.randn(768).astype(np.float32)
+
 
 text_encoder = PlaceholderTextEncoder()
 

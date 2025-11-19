@@ -45,10 +45,12 @@ class SessionEvent:
         timestamp: When event occurred
         context: Additional context (device, location, etc.)
     """
+
     item_id: str
     event_type: str
     timestamp: float
     context: Dict[str, any] = None
+
 
 class SessionEncoder(nn.Module):
     """
@@ -65,19 +67,13 @@ class SessionEncoder(nn.Module):
     """
 
     def __init__(
-        self,
-        item_embedding_dim: int = 128,
-        session_embedding_dim: int = 128,
-        hidden_dim: int = 256
+        self, item_embedding_dim: int = 128, session_embedding_dim: int = 128, hidden_dim: int = 256
     ):
         super().__init__()
 
         # RNN for sequential modeling
         self.rnn = nn.GRU(
-            input_size=item_embedding_dim,
-            hidden_size=hidden_dim,
-            num_layers=2,
-            batch_first=True
+            input_size=item_embedding_dim, hidden_size=hidden_dim, num_layers=2, batch_first=True
         )
 
         # Attention mechanism
@@ -86,11 +82,7 @@ class SessionEncoder(nn.Module):
         # Output projection
         self.output_projection = nn.Linear(hidden_dim, session_embedding_dim)
 
-    def forward(
-        self,
-        item_embeddings: torch.Tensor,
-        lengths: torch.Tensor
-    ) -> torch.Tensor:
+    def forward(self, item_embeddings: torch.Tensor, lengths: torch.Tensor) -> torch.Tensor:
         """
         Encode session to embedding
 
@@ -121,6 +113,7 @@ class SessionEncoder(nn.Module):
 
         return session_emb
 
+
 class RealTimePersonalizer:
     """
     Real-time recommendation personalization
@@ -142,7 +135,7 @@ class RealTimePersonalizer:
         self,
         base_user_embeddings: Dict[str, np.ndarray],
         base_item_embeddings: Dict[str, np.ndarray],
-        session_window: int = 30  # minutes
+        session_window: int = 30,  # minutes
     ):
         """
         Args:
@@ -158,10 +151,7 @@ class RealTimePersonalizer:
         self.user_sessions: Dict[str, Deque[SessionEvent]] = {}
 
         # Session encoder
-        self.session_encoder = SessionEncoder(
-            item_embedding_dim=128,
-            session_embedding_dim=128
-        )
+        self.session_encoder = SessionEncoder(item_embedding_dim=128, session_embedding_dim=128)
         self.session_encoder.eval()
 
         print("Initialized Real-Time Personalizer")
@@ -184,14 +174,14 @@ class RealTimePersonalizer:
 
         # Clean old events (outside session window)
         current_time = time.time()
-        while (self.user_sessions[user_id] and
-               current_time - self.user_sessions[user_id][0].timestamp > self.session_window):
+        while (
+            self.user_sessions[user_id]
+            and current_time - self.user_sessions[user_id][0].timestamp > self.session_window
+        ):
             self.user_sessions[user_id].popleft()
 
     def get_personalized_embedding(
-        self,
-        user_id: str,
-        context: Optional[Dict] = None
+        self, user_id: str, context: Optional[Dict] = None
     ) -> np.ndarray:
         """
         Get real-time personalized user embedding
@@ -275,15 +265,12 @@ class RealTimePersonalizer:
         weights = weights / weights.sum()  # Normalize
 
         # Weighted average
-        session_emb = np.average(item_embs, axis=0, weights=weights[:len(item_embs)])
+        session_emb = np.average(item_embs, axis=0, weights=weights[: len(item_embs)])
 
         return session_emb
 
     def recommend_realtime(
-        self,
-        user_id: str,
-        top_k: int = 10,
-        context: Optional[Dict] = None
+        self, user_id: str, top_k: int = 10, context: Optional[Dict] = None
     ) -> List[Tuple[str, float]]:
         """
         Generate real-time personalized recommendations
@@ -309,6 +296,7 @@ class RealTimePersonalizer:
         sorted_items = sorted(scores.items(), key=lambda x: x[1], reverse=True)
         return sorted_items[:top_k]
 
+
 # Example: Real-time e-commerce personalization
 def realtime_personalization_example():
     """
@@ -323,26 +311,19 @@ def realtime_personalization_example():
     """
 
     # Initialize with base embeddings
-    base_user_embs = {
-        'user_123': np.random.randn(128).astype(np.float32)
-    }
-    base_user_embs['user_123'] /= np.linalg.norm(base_user_embs['user_123'])
+    base_user_embs = {"user_123": np.random.randn(128).astype(np.float32)}
+    base_user_embs["user_123"] /= np.linalg.norm(base_user_embs["user_123"])
 
-    base_item_embs = {
-        f'item_{i}': np.random.randn(128).astype(np.float32)
-        for i in range(20)
-    }
+    base_item_embs = {f"item_{i}": np.random.randn(128).astype(np.float32) for i in range(20)}
     for item_id in base_item_embs:
         base_item_embs[item_id] /= np.linalg.norm(base_item_embs[item_id])
 
     # Initialize personalizer
     personalizer = RealTimePersonalizer(
-        base_user_embeddings=base_user_embs,
-        base_item_embeddings=base_item_embs,
-        session_window=30
+        base_user_embeddings=base_user_embs, base_item_embeddings=base_item_embs, session_window=30
     )
 
-    user_id = 'user_123'
+    user_id = "user_123"
 
     # Initial recommendations (based on base embedding)
     print("=== Initial Recommendations ===")
@@ -352,17 +333,13 @@ def realtime_personalization_example():
 
     # Simulate user session
     print("\n=== User Session ===")
-    session_items = ['item_5', 'item_7', 'item_12']
+    session_items = ["item_5", "item_7", "item_12"]
 
     for _i, item_id in enumerate(session_items):
         print(f"\nUser views {item_id}")
 
         # Track event
-        event = SessionEvent(
-            item_id=item_id,
-            event_type='view',
-            timestamp=time.time()
-        )
+        event = SessionEvent(item_id=item_id, event_type="view", timestamp=time.time())
         personalizer.track_event(user_id, event)
 
         # Generate updated recommendations
@@ -370,6 +347,7 @@ def realtime_personalization_example():
         recs = personalizer.recommend_realtime(user_id, top_k=5)
         for rec_item_id, score in recs[:3]:
             print(f"  {rec_item_id}: {score:.3f}")
+
 
 # Uncomment to run:
 # realtime_personalization_example()

@@ -19,8 +19,9 @@ class MultiNodeContrastiveLearning:
     - All-gather for embeddings (manual)
     """
 
-    def __init__(self, model, rank, world_size, local_rank,
-                 master_addr='localhost', master_port='12355'):
+    def __init__(
+        self, model, rank, world_size, local_rank, master_addr="localhost", master_port="12355"
+    ):
         """
         Args:
             model: Embedding model
@@ -42,22 +43,20 @@ class MultiNodeContrastiveLearning:
         torch.cuda.set_device(local_rank)
         self.model = self.model.to(local_rank)
         self.model = torch.nn.parallel.DistributedDataParallel(
-            self.model,
-            device_ids=[local_rank],
-            output_device=local_rank
+            self.model, device_ids=[local_rank], output_device=local_rank
         )
 
     def _init_distributed(self, master_addr, master_port):
         """Initialize distributed backend"""
         import os
 
-        os.environ['MASTER_ADDR'] = master_addr
-        os.environ['MASTER_PORT'] = master_port
+        os.environ["MASTER_ADDR"] = master_addr
+        os.environ["MASTER_PORT"] = master_port
 
         dist.init_process_group(
-            backend='nccl',  # NCCL for multi-node GPU communication
+            backend="nccl",  # NCCL for multi-node GPU communication
             rank=self.rank,
-            world_size=self.world_size
+            world_size=self.world_size,
         )
 
         print(f"Initialized rank {self.rank}/{self.world_size}")
@@ -69,10 +68,7 @@ class MultiNodeContrastiveLearning:
         More complex than single-node: network communication between nodes
         """
         # Create buffer for gathered embeddings
-        gathered_embeddings = [
-            torch.zeros_like(local_embeddings)
-            for _ in range(self.world_size)
-        ]
+        gathered_embeddings = [torch.zeros_like(local_embeddings) for _ in range(self.world_size)]
 
         # All-gather across all GPUs
         dist.all_gather(gathered_embeddings, local_embeddings)
@@ -88,12 +84,11 @@ class MultiNodeContrastiveLearning:
         """
         # Forward pass
         anchor_emb = self.model(
-            batch['anchor_ids'].cuda(self.local_rank),
-            batch['anchor_mask'].cuda(self.local_rank)
+            batch["anchor_ids"].cuda(self.local_rank), batch["anchor_mask"].cuda(self.local_rank)
         )
         positive_emb = self.model(
-            batch['positive_ids'].cuda(self.local_rank),
-            batch['positive_mask'].cuda(self.local_rank)
+            batch["positive_ids"].cuda(self.local_rank),
+            batch["positive_mask"].cuda(self.local_rank),
         )
 
         # Gather embeddings from all GPUs (across nodes)
@@ -105,7 +100,7 @@ class MultiNodeContrastiveLearning:
             anchor_emb,  # Local anchors
             all_anchors,  # Global negatives
             all_positives,  # Global positives
-            rank=self.rank
+            rank=self.rank,
         )
 
         return loss

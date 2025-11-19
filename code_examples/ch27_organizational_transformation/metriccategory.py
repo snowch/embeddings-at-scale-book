@@ -35,22 +35,28 @@ from typing import Dict, List, Optional
 
 class MetricCategory(Enum):
     """Metric categories"""
+
     TECHNICAL = "technical"
     OPERATIONAL = "operational"
     USER = "user"
     BUSINESS = "business"
 
+
 class MetricType(Enum):
     """Leading vs lagging indicators"""
+
     LEADING = "leading"  # Predicts future outcomes
     LAGGING = "lagging"  # Measures outcomes
     COINCIDENT = "coincident"  # Real-time indicator
 
+
 class AlertSeverity(Enum):
     """Alert severity levels"""
+
     INFO = "info"
     WARNING = "warning"
     CRITICAL = "critical"
+
 
 @dataclass
 class Metric:
@@ -69,6 +75,7 @@ class Metric:
         calculation: How to compute this metric
         review_frequency: How often to review (daily, weekly, etc.)
     """
+
     name: str
     category: MetricCategory
     metric_type: MetricType
@@ -80,6 +87,7 @@ class Metric:
     calculation: str = ""
     review_frequency: str = "daily"
     related_metrics: List[str] = field(default_factory=list)
+
 
 @dataclass
 class MetricValue:
@@ -93,11 +101,13 @@ class MetricValue:
         dimensions: Additional context (application, region, etc.)
         alert_level: Alert severity if thresholds breached
     """
+
     metric_name: str
     value: float
     timestamp: datetime
     dimensions: Dict[str, str] = field(default_factory=dict)
     alert_level: Optional[AlertSeverity] = None
+
 
 @dataclass
 class Dashboard:
@@ -111,11 +121,13 @@ class Dashboard:
         refresh_rate: How often to update
         alert_routing: Where to send alerts
     """
+
     name: str
     audience: str
     metrics: List[str]
     refresh_rate: str
     alert_routing: List[str] = field(default_factory=list)
+
 
 class MetricsFramework:
     """
@@ -153,10 +165,7 @@ class MetricsFramework:
         self.dashboards[dashboard.name] = dashboard
 
     def get_metric_summary(
-        self,
-        metric_name: str,
-        start_time: datetime,
-        end_time: datetime
+        self, metric_name: str, start_time: datetime, end_time: datetime
     ) -> Dict[str, any]:
         """
         Get summary statistics for metric over time period
@@ -175,33 +184,33 @@ class MetricsFramework:
 
         # Filter measurements
         relevant_measurements = [
-            m for m in self.measurements
-            if m.metric_name == metric_name
-            and start_time <= m.timestamp <= end_time
+            m
+            for m in self.measurements
+            if m.metric_name == metric_name and start_time <= m.timestamp <= end_time
         ]
 
         if not relevant_measurements:
             return {
-                'metric': metric_name,
-                'period': f"{start_time} to {end_time}",
-                'measurements': 0
+                "metric": metric_name,
+                "period": f"{start_time} to {end_time}",
+                "measurements": 0,
             }
 
         values = [m.value for m in relevant_measurements]
 
         return {
-            'metric': metric_name,
-            'category': metric.category.value,
-            'period': f"{start_time} to {end_time}",
-            'measurements': len(values),
-            'current': values[-1],
-            'mean': sum(values) / len(values),
-            'min': min(values),
-            'max': max(values),
-            'target': metric.target,
-            'meets_target': values[-1] <= metric.target if metric.target else None,
-            'trend': 'improving' if len(values) > 1 and values[-1] < values[0] else 'degrading',
-            'alerts': len([m for m in relevant_measurements if m.alert_level])
+            "metric": metric_name,
+            "category": metric.category.value,
+            "period": f"{start_time} to {end_time}",
+            "measurements": len(values),
+            "current": values[-1],
+            "mean": sum(values) / len(values),
+            "min": min(values),
+            "max": max(values),
+            "target": metric.target,
+            "meets_target": values[-1] <= metric.target if metric.target else None,
+            "trend": "improving" if len(values) > 1 and values[-1] < values[0] else "degrading",
+            "alerts": len([m for m in relevant_measurements if m.alert_level]),
         }
 
     def identify_issues(self) -> List[Dict[str, any]]:
@@ -223,52 +232,47 @@ class MetricsFramework:
 
             # Check if meeting target
             if metric.target and latest.value > metric.target * 1.1:  # 10% tolerance
-                severity = 'high' if latest.value > metric.target * 1.5 else 'medium'
+                severity = "high" if latest.value > metric.target * 1.5 else "medium"
 
-                issues.append({
-                    'metric': metric_name,
-                    'category': metric.category.value,
-                    'severity': severity,
-                    'current': latest.value,
-                    'target': metric.target,
-                    'gap': latest.value - metric.target,
-                    'gap_percent': ((latest.value - metric.target) / metric.target * 100),
-                    'recommendation': self._generate_recommendation(metric, latest)
-                })
+                issues.append(
+                    {
+                        "metric": metric_name,
+                        "category": metric.category.value,
+                        "severity": severity,
+                        "current": latest.value,
+                        "target": metric.target,
+                        "gap": latest.value - metric.target,
+                        "gap_percent": ((latest.value - metric.target) / metric.target * 100),
+                        "recommendation": self._generate_recommendation(metric, latest),
+                    }
+                )
 
         # Sort by severity and gap
-        issues.sort(key=lambda i: (
-            0 if i['severity'] == 'high' else 1,
-            -i['gap_percent']
-        ))
+        issues.sort(key=lambda i: (0 if i["severity"] == "high" else 1, -i["gap_percent"]))
 
         return issues
 
-    def _generate_recommendation(
-        self,
-        metric: Metric,
-        measurement: MetricValue
-    ) -> str:
+    def _generate_recommendation(self, metric: Metric, measurement: MetricValue) -> str:
         """Generate recommendation for metric issue"""
 
         if metric.category == MetricCategory.TECHNICAL:
-            if 'latency' in metric.name.lower():
+            if "latency" in metric.name.lower():
                 return "Investigate query performance, check index efficiency, consider caching"
-            elif 'accuracy' in metric.name.lower():
+            elif "accuracy" in metric.name.lower():
                 return "Review model quality, check for concept drift, consider retraining"
-            elif 'error' in metric.name.lower():
+            elif "error" in metric.name.lower():
                 return "Check logs for error patterns, review recent deployments"
 
         elif metric.category == MetricCategory.OPERATIONAL:
-            if 'availability' in metric.name.lower():
+            if "availability" in metric.name.lower():
                 return "Review incident logs, check infrastructure health, improve monitoring"
-            elif 'cost' in metric.name.lower():
+            elif "cost" in metric.name.lower():
                 return "Analyze cost drivers, optimize queries, review pricing tiers"
 
         elif metric.category == MetricCategory.USER:
-            if 'ctr' in metric.name.lower():
+            if "ctr" in metric.name.lower():
                 return "Review search relevance, analyze failed queries, improve ranking"
-            elif 'satisfaction' in metric.name.lower():
+            elif "satisfaction" in metric.name.lower():
                 return "Collect user feedback, identify pain points, run usability studies"
 
         elif metric.category == MetricCategory.BUSINESS:
@@ -320,11 +324,7 @@ class MetricsFramework:
 
         return config
 
-    def generate_executive_summary(
-        self,
-        start_time: datetime,
-        end_time: datetime
-    ) -> str:
+    def generate_executive_summary(self, start_time: datetime, end_time: datetime) -> str:
         """Generate executive summary of key metrics"""
 
         summary = "# Embedding System Performance Summary\n"
@@ -338,8 +338,12 @@ class MetricsFramework:
             by_category[metric.category].append(metric.name)
 
         # Summarize each category
-        for category in [MetricCategory.BUSINESS, MetricCategory.USER,
-                        MetricCategory.OPERATIONAL, MetricCategory.TECHNICAL]:
+        for category in [
+            MetricCategory.BUSINESS,
+            MetricCategory.USER,
+            MetricCategory.OPERATIONAL,
+            MetricCategory.TECHNICAL,
+        ]:
             if category not in by_category:
                 continue
 
@@ -348,12 +352,14 @@ class MetricsFramework:
             for metric_name in by_category[category]:
                 metric_summary = self.get_metric_summary(metric_name, start_time, end_time)
 
-                if metric_summary.get('measurements', 0) == 0:
+                if metric_summary.get("measurements", 0) == 0:
                     continue
 
-                status = "✓" if metric_summary.get('meets_target') else "⚠"
+                status = "✓" if metric_summary.get("meets_target") else "⚠"
                 summary += f"{status} **{metric_name}:** {metric_summary['current']:.2f} {self.metrics[metric_name].unit}"
-                summary += f" (target: {metric_summary['target']:.2f}, trend: {metric_summary['trend']})\n"
+                summary += (
+                    f" (target: {metric_summary['target']:.2f}, trend: {metric_summary['trend']})\n"
+                )
 
             summary += "\n"
 
@@ -390,7 +396,7 @@ def create_embedding_metrics_framework():
             threshold_critical=100.0,
             calculation="99th percentile of query execution time",
             review_frequency="hourly",
-            related_metrics=["User Satisfaction", "Search Success Rate"]
+            related_metrics=["User Satisfaction", "Search Success Rate"],
         ),
         Metric(
             name="Embedding Quality Score",
@@ -403,7 +409,7 @@ def create_embedding_metrics_framework():
             threshold_critical=0.75,
             calculation="Intra-cluster similarity minus inter-cluster similarity",
             review_frequency="daily",
-            related_metrics=["Search Relevance", "Recommendation CTR"]
+            related_metrics=["Search Relevance", "Recommendation CTR"],
         ),
         Metric(
             name="Model Drift Score",
@@ -416,8 +422,8 @@ def create_embedding_metrics_framework():
             threshold_critical=0.15,
             calculation="KL divergence between current and baseline distributions",
             review_frequency="daily",
-            related_metrics=["Embedding Quality Score"]
-        )
+            related_metrics=["Embedding Quality Score"],
+        ),
     ]
 
     # Operational metrics
@@ -433,7 +439,7 @@ def create_embedding_metrics_framework():
             threshold_critical=99.0,
             calculation="(Total time - downtime) / total time * 100",
             review_frequency="daily",
-            related_metrics=["User Satisfaction"]
+            related_metrics=["User Satisfaction"],
         ),
         Metric(
             name="Cost per 1M Queries",
@@ -446,8 +452,8 @@ def create_embedding_metrics_framework():
             threshold_critical=20.0,
             calculation="Total infrastructure cost / query volume * 1M",
             review_frequency="weekly",
-            related_metrics=["ROI"]
-        )
+            related_metrics=["ROI"],
+        ),
     ]
 
     # User metrics
@@ -463,7 +469,7 @@ def create_embedding_metrics_framework():
             threshold_critical=75.0,
             calculation="(Searches with click or conversion) / total searches * 100",
             review_frequency="daily",
-            related_metrics=["User Satisfaction", "Conversion Rate"]
+            related_metrics=["User Satisfaction", "Conversion Rate"],
         ),
         Metric(
             name="User Satisfaction Score",
@@ -476,7 +482,7 @@ def create_embedding_metrics_framework():
             threshold_critical=3.8,
             calculation="Average of user survey responses",
             review_frequency="weekly",
-            related_metrics=["Customer Retention"]
+            related_metrics=["Customer Retention"],
         ),
         Metric(
             name="Feature Adoption Rate",
@@ -489,8 +495,8 @@ def create_embedding_metrics_framework():
             threshold_critical=60.0,
             calculation="Active users of feature / total active users * 100",
             review_frequency="weekly",
-            related_metrics=["User Engagement"]
-        )
+            related_metrics=["User Engagement"],
+        ),
     ]
 
     # Business metrics
@@ -506,7 +512,7 @@ def create_embedding_metrics_framework():
             threshold_critical=300000.0,
             calculation="A/B test measured revenue lift * user base",
             review_frequency="monthly",
-            related_metrics=["Conversion Rate", "Average Order Value"]
+            related_metrics=["Conversion Rate", "Average Order Value"],
         ),
         Metric(
             name="Cost Savings",
@@ -517,7 +523,7 @@ def create_embedding_metrics_framework():
             target=200000.0,
             calculation="Previous manual process cost - current automated cost",
             review_frequency="monthly",
-            related_metrics=["Efficiency Gain"]
+            related_metrics=["Efficiency Gain"],
         ),
         Metric(
             name="ROI",
@@ -530,8 +536,8 @@ def create_embedding_metrics_framework():
             threshold_critical=1.0,
             calculation="(Revenue impact + cost savings) / total investment",
             review_frequency="quarterly",
-            related_metrics=["Revenue Impact", "Cost Savings"]
-        )
+            related_metrics=["Revenue Impact", "Cost Savings"],
+        ),
     ]
 
     # Define all metrics
@@ -548,10 +554,10 @@ def create_embedding_metrics_framework():
                 "Embedding Quality Score",
                 "Model Drift Score",
                 "System Availability",
-                "Cost per 1M Queries"
+                "Cost per 1M Queries",
             ],
             refresh_rate="Real-time",
-            alert_routing=["#eng-alerts", "oncall@company.com"]
+            alert_routing=["#eng-alerts", "oncall@company.com"],
         ),
         Dashboard(
             name="Product Dashboard",
@@ -561,10 +567,10 @@ def create_embedding_metrics_framework():
                 "User Satisfaction Score",
                 "Feature Adoption Rate",
                 "Query Latency p99",
-                "System Availability"
+                "System Availability",
             ],
             refresh_rate="Hourly",
-            alert_routing=["#product-alerts"]
+            alert_routing=["#product-alerts"],
         ),
         Dashboard(
             name="Executive Dashboard",
@@ -574,11 +580,11 @@ def create_embedding_metrics_framework():
                 "ROI",
                 "Cost Savings",
                 "User Satisfaction Score",
-                "System Availability"
+                "System Availability",
             ],
             refresh_rate="Daily",
-            alert_routing=["exec-reports@company.com"]
-        )
+            alert_routing=["exec-reports@company.com"],
+        ),
     ]
 
     for dashboard in dashboards:
@@ -588,63 +594,60 @@ def create_embedding_metrics_framework():
     base_time = datetime.now() - timedelta(days=7)
 
     # Good performance
-    framework.record_measurement(MetricValue(
-        metric_name="Query Latency p99",
-        value=45.0,
-        timestamp=base_time,
-        dimensions={'region': 'us-east-1', 'application': 'search'}
-    ))
+    framework.record_measurement(
+        MetricValue(
+            metric_name="Query Latency p99",
+            value=45.0,
+            timestamp=base_time,
+            dimensions={"region": "us-east-1", "application": "search"},
+        )
+    )
 
-    framework.record_measurement(MetricValue(
-        metric_name="Embedding Quality Score",
-        value=0.87,
-        timestamp=base_time,
-        dimensions={'model_version': 'v2.3'}
-    ))
+    framework.record_measurement(
+        MetricValue(
+            metric_name="Embedding Quality Score",
+            value=0.87,
+            timestamp=base_time,
+            dimensions={"model_version": "v2.3"},
+        )
+    )
 
     # Issue: Cost above target
-    framework.record_measurement(MetricValue(
-        metric_name="Cost per 1M Queries",
-        value=18.0,
-        timestamp=base_time,
-        dimensions={'month': 'November'}
-    ))
+    framework.record_measurement(
+        MetricValue(
+            metric_name="Cost per 1M Queries",
+            value=18.0,
+            timestamp=base_time,
+            dimensions={"month": "November"},
+        )
+    )
 
     # Good user metrics
-    framework.record_measurement(MetricValue(
-        metric_name="Search Success Rate",
-        value=87.5,
-        timestamp=base_time
-    ))
+    framework.record_measurement(
+        MetricValue(metric_name="Search Success Rate", value=87.5, timestamp=base_time)
+    )
 
-    framework.record_measurement(MetricValue(
-        metric_name="User Satisfaction Score",
-        value=4.3,
-        timestamp=base_time
-    ))
+    framework.record_measurement(
+        MetricValue(metric_name="User Satisfaction Score", value=4.3, timestamp=base_time)
+    )
 
     # Strong business impact
-    framework.record_measurement(MetricValue(
-        metric_name="Revenue Impact",
-        value=550000.0,
-        timestamp=base_time,
-        dimensions={'quarter': 'Q4'}
-    ))
+    framework.record_measurement(
+        MetricValue(
+            metric_name="Revenue Impact",
+            value=550000.0,
+            timestamp=base_time,
+            dimensions={"quarter": "Q4"},
+        )
+    )
 
-    framework.record_measurement(MetricValue(
-        metric_name="ROI",
-        value=3.8,
-        timestamp=base_time
-    ))
+    framework.record_measurement(MetricValue(metric_name="ROI", value=3.8, timestamp=base_time))
 
     # Display executive summary
-    print(framework.generate_executive_summary(
-        base_time - timedelta(days=7),
-        base_time
-    ))
+    print(framework.generate_executive_summary(base_time - timedelta(days=7), base_time))
 
     # Show issues
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("\n=== Issues Requiring Attention ===\n")
 
     issues = framework.identify_issues()
@@ -655,9 +658,10 @@ def create_embedding_metrics_framework():
         print(f"  Recommendation: {issue['recommendation']}\n")
 
     # Show dashboard configs
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("\n=== Engineering Dashboard Config ===\n")
     print(framework.generate_dashboard_config("Engineering Dashboard"))
+
 
 if __name__ == "__main__":
     create_embedding_metrics_framework()

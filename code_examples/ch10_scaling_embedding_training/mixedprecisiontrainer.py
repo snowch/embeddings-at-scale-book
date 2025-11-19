@@ -9,6 +9,7 @@ from torch.cuda.amp import GradScaler, autocast
 # See distributedembeddingtable.py for full implementation
 class DistributedContrastiveEmbedding(nn.Module):
     """Placeholder for DistributedContrastiveEmbedding. Replace with actual implementation."""
+
     def __init__(self, vocab_size=100000, embedding_dim=512):
         super().__init__()
         self.embedding = nn.Embedding(vocab_size, embedding_dim)
@@ -48,22 +49,14 @@ class MixedPrecisionTrainer:
     - Memory: 2× reduction (enables larger batches)
     """
 
-    def __init__(
-        self,
-        model: nn.Module,
-        device: str = 'cuda'
-    ):
+    def __init__(self, model: nn.Module, device: str = "cuda"):
         self.model = model.to(device)
         self.device = device
 
         # Gradient scaler (prevents underflow)
         self.scaler = GradScaler()
 
-    def train_step(
-        self,
-        batch: dict,
-        optimizer: torch.optim.Optimizer
-    ) -> float:
+    def train_step(self, batch: dict, optimizer: torch.optim.Optimizer) -> float:
         """
         Training step with automatic mixed precision
 
@@ -76,8 +69,8 @@ class MixedPrecisionTrainer:
         """
         self.model.train()
 
-        anchor_ids = batch['anchor_ids'].to(self.device)
-        positive_ids = batch['positive_ids'].to(self.device)
+        anchor_ids = batch["anchor_ids"].to(self.device)
+        positive_ids = batch["positive_ids"].to(self.device)
 
         # Zero gradients
         optimizer.zero_grad()
@@ -91,10 +84,7 @@ class MixedPrecisionTrainer:
 
         # Unscale gradients and clip
         self.scaler.unscale_(optimizer)
-        torch.nn.utils.clip_grad_norm_(
-            self.model.parameters(),
-            max_norm=1.0
-        )
+        torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
 
         # Optimizer step (with gradient scaling)
         self.scaler.step(optimizer)
@@ -103,6 +93,7 @@ class MixedPrecisionTrainer:
         self.scaler.update()
 
         return loss.item()
+
 
 # Combining Gradient Accumulation + Mixed Precision
 class ScalableTrainer:
@@ -127,22 +118,13 @@ class ScalableTrainer:
     Total: ~20× faster training with 256× larger batch
     """
 
-    def __init__(
-        self,
-        model: nn.Module,
-        accumulation_steps: int = 4,
-        device: str = 'cuda'
-    ):
+    def __init__(self, model: nn.Module, accumulation_steps: int = 4, device: str = "cuda"):
         self.model = model.to(device)
         self.accumulation_steps = accumulation_steps
         self.device = device
         self.scaler = GradScaler()
 
-    def train_step(
-        self,
-        dataloader,
-        optimizer: torch.optim.Optimizer
-    ) -> float:
+    def train_step(self, dataloader, optimizer: torch.optim.Optimizer) -> float:
         """
         Training step combining both techniques
 
@@ -162,8 +144,8 @@ class ScalableTrainer:
             if i >= self.accumulation_steps:
                 break
 
-            anchor_ids = batch['anchor_ids'].to(self.device)
-            positive_ids = batch['positive_ids'].to(self.device)
+            anchor_ids = batch["anchor_ids"].to(self.device)
+            positive_ids = batch["positive_ids"].to(self.device)
 
             # Forward in FP16
             with autocast():
@@ -177,10 +159,7 @@ class ScalableTrainer:
 
         # Unscale and clip
         self.scaler.unscale_(optimizer)
-        torch.nn.utils.clip_grad_norm_(
-            self.model.parameters(),
-            max_norm=1.0
-        )
+        torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
 
         # Step and update scaler
         self.scaler.step(optimizer)
@@ -189,6 +168,7 @@ class ScalableTrainer:
         optimizer.zero_grad()
 
         return total_loss
+
 
 def benchmark_mixed_precision():
     """
@@ -203,17 +183,17 @@ def benchmark_mixed_precision():
     model = DistributedContrastiveEmbedding(vocab_size=100000)
 
     # FP32 baseline
-    model_fp32 = model.to('cuda')
+    model_fp32 = model.to("cuda")
     optimizer = torch.optim.AdamW(model_fp32.parameters())
 
     batch = {
-        'anchor_ids': torch.randint(0, 100000, (512,)).cuda(),
-        'positive_ids': torch.randint(0, 100000, (512,)).cuda()
+        "anchor_ids": torch.randint(0, 100000, (512,)).cuda(),
+        "positive_ids": torch.randint(0, 100000, (512,)).cuda(),
     }
 
     # Warmup
     for _ in range(10):
-        loss = model_fp32(batch['anchor_ids'], batch['positive_ids'])
+        loss = model_fp32(batch["anchor_ids"], batch["positive_ids"])
         loss.backward()
         optimizer.step()
         optimizer.zero_grad()
@@ -222,7 +202,7 @@ def benchmark_mixed_precision():
     torch.cuda.synchronize()
     start = time.time()
     for _ in range(100):
-        loss = model_fp32(batch['anchor_ids'], batch['positive_ids'])
+        loss = model_fp32(batch["anchor_ids"], batch["positive_ids"])
         loss.backward()
         optimizer.step()
         optimizer.zero_grad()
@@ -230,7 +210,7 @@ def benchmark_mixed_precision():
     fp32_time = time.time() - start
 
     # FP16 with AMP
-    model_fp16 = model.to('cuda')
+    model_fp16 = model.to("cuda")
     optimizer = torch.optim.AdamW(model_fp16.parameters())
     trainer = MixedPrecisionTrainer(model_fp16)
 
@@ -249,6 +229,7 @@ def benchmark_mixed_precision():
     print(f"FP32 time: {fp32_time:.2f}s")
     print(f"FP16 time: {fp16_time:.2f}s")
     print(f"Speedup: {fp32_time / fp16_time:.2f}×")
+
 
 # Uncomment to run:
 # benchmark_mixed_precision()

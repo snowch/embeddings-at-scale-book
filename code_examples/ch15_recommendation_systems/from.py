@@ -44,6 +44,7 @@ class User:
         interactions: List of item IDs user interacted with
         embedding: Learned user embedding
     """
+
     user_id: str
     features: Dict[str, any] = None
     interactions: List[str] = None
@@ -54,6 +55,7 @@ class User:
             self.features = {}
         if self.interactions is None:
             self.interactions = []
+
 
 @dataclass
 class Item:
@@ -67,6 +69,7 @@ class Item:
         embedding: Learned item embedding
         popularity: Interaction count (for popularity bias)
     """
+
     item_id: str
     features: Dict[str, any] = None
     content: Optional[str] = None
@@ -76,6 +79,7 @@ class Item:
     def __post_init__(self):
         if self.features is None:
             self.features = {}
+
 
 @dataclass
 class Interaction:
@@ -89,11 +93,13 @@ class Interaction:
         rating: Explicit rating (1-5) or implicit (1 for positive)
         timestamp: When interaction occurred
     """
+
     user_id: str
     item_id: str
-    interaction_type: str = 'click'
+    interaction_type: str = "click"
     rating: float = 1.0
     timestamp: Optional[float] = None
+
 
 class UserEncoder(nn.Module):
     """
@@ -110,11 +116,7 @@ class UserEncoder(nn.Module):
     - Preferences (favorite categories)
     """
 
-    def __init__(
-        self,
-        embedding_dim: int = 128,
-        num_users: int = 1000000
-    ):
+    def __init__(self, embedding_dim: int = 128, num_users: int = 1000000):
         super().__init__()
         self.embedding_dim = embedding_dim
 
@@ -126,7 +128,7 @@ class UserEncoder(nn.Module):
         self.feature_mlp = nn.Sequential(
             nn.Linear(embedding_dim, embedding_dim * 2),
             nn.ReLU(),
-            nn.Linear(embedding_dim * 2, embedding_dim)
+            nn.Linear(embedding_dim * 2, embedding_dim),
         )
 
     def forward(self, user_ids: torch.Tensor) -> torch.Tensor:
@@ -150,6 +152,7 @@ class UserEncoder(nn.Module):
 
         return user_emb
 
+
 class ItemEncoder(nn.Module):
     """
     Encode item features to embedding
@@ -165,11 +168,7 @@ class ItemEncoder(nn.Module):
     - Popularity signals
     """
 
-    def __init__(
-        self,
-        embedding_dim: int = 128,
-        num_items: int = 10000000
-    ):
+    def __init__(self, embedding_dim: int = 128, num_items: int = 10000000):
         super().__init__()
         self.embedding_dim = embedding_dim
 
@@ -180,7 +179,7 @@ class ItemEncoder(nn.Module):
         self.feature_mlp = nn.Sequential(
             nn.Linear(embedding_dim, embedding_dim * 2),
             nn.ReLU(),
-            nn.Linear(embedding_dim * 2, embedding_dim)
+            nn.Linear(embedding_dim * 2, embedding_dim),
         )
 
     def forward(self, item_ids: torch.Tensor) -> torch.Tensor:
@@ -204,6 +203,7 @@ class ItemEncoder(nn.Module):
 
         return item_emb
 
+
 class CollaborativeFilteringModel(nn.Module):
     """
     Two-tower embedding model for collaborative filtering
@@ -225,10 +225,7 @@ class CollaborativeFilteringModel(nn.Module):
     """
 
     def __init__(
-        self,
-        embedding_dim: int = 128,
-        num_users: int = 1000000,
-        num_items: int = 10000000
+        self, embedding_dim: int = 128, num_users: int = 1000000, num_items: int = 10000000
     ):
         super().__init__()
         self.embedding_dim = embedding_dim
@@ -237,11 +234,7 @@ class CollaborativeFilteringModel(nn.Module):
         self.user_encoder = UserEncoder(embedding_dim, num_users)
         self.item_encoder = ItemEncoder(embedding_dim, num_items)
 
-    def forward(
-        self,
-        user_ids: torch.Tensor,
-        item_ids: torch.Tensor
-    ) -> torch.Tensor:
+    def forward(self, user_ids: torch.Tensor, item_ids: torch.Tensor) -> torch.Tensor:
         """
         Predict relevance scores
 
@@ -269,6 +262,7 @@ class CollaborativeFilteringModel(nn.Module):
         """Encode items to embeddings"""
         return self.item_encoder(item_ids)
 
+
 class RecommendationEngine:
     """
     Production recommendation system
@@ -286,18 +280,14 @@ class RecommendationEngine:
     - Diversity and fairness controls
     """
 
-    def __init__(
-        self,
-        embedding_dim: int = 128,
-        device: str = 'cuda'
-    ):
+    def __init__(self, embedding_dim: int = 128, device: str = "cuda"):
         """
         Args:
             embedding_dim: Embedding dimension
             device: Device for computation
         """
         self.embedding_dim = embedding_dim
-        self.device = device if torch.cuda.is_available() else 'cpu'
+        self.device = device if torch.cuda.is_available() else "cpu"
 
         # Data stores
         self.users: Dict[str, User] = {}
@@ -353,7 +343,7 @@ class RecommendationEngine:
         num_epochs: int = 10,
         batch_size: int = 1024,
         learning_rate: float = 0.001,
-        neg_samples: int = 4
+        neg_samples: int = 4,
     ):
         """
         Train collaborative filtering model
@@ -370,9 +360,7 @@ class RecommendationEngine:
 
         # Initialize model
         self.model = CollaborativeFilteringModel(
-            embedding_dim=self.embedding_dim,
-            num_users=len(self.users),
-            num_items=len(self.items)
+            embedding_dim=self.embedding_dim, num_users=len(self.users), num_items=len(self.items)
         ).to(self.device)
 
         # Optimizer
@@ -392,7 +380,7 @@ class RecommendationEngine:
 
             # Mini-batch training
             for i in range(0, len(self.interactions), batch_size):
-                batch_interactions = self.interactions[i:i+batch_size]
+                batch_interactions = self.interactions[i : i + batch_size]
 
                 # Prepare batch
                 user_ids = []
@@ -441,7 +429,7 @@ class RecommendationEngine:
                 num_batches += 1
 
             avg_loss = total_loss / num_batches
-            print(f"Epoch {epoch+1}/{num_epochs}, Loss: {avg_loss:.4f}")
+            print(f"Epoch {epoch + 1}/{num_epochs}, Loss: {avg_loss:.4f}")
 
         print("✓ Training complete")
 
@@ -463,10 +451,7 @@ class RecommendationEngine:
         print(f"✓ Cached {len(self.item_ids_list)} item embeddings")
 
     def recommend(
-        self,
-        user_id: str,
-        top_k: int = 10,
-        exclude_interacted: bool = True
+        self, user_id: str, top_k: int = 10, exclude_interacted: bool = True
     ) -> List[Tuple[str, float]]:
         """
         Generate recommendations for user
@@ -519,6 +504,7 @@ class RecommendationEngine:
 
         return recommendations
 
+
 # Example: Movie recommendation system
 def collaborative_filtering_example():
     """
@@ -536,16 +522,13 @@ def collaborative_filtering_example():
     engine = RecommendationEngine(embedding_dim=64)
 
     # Add users
-    users = [
-        User(f'user_{i}', features={'age': 20 + i % 40})
-        for i in range(100)
-    ]
+    users = [User(f"user_{i}", features={"age": 20 + i % 40}) for i in range(100)]
     for user in users:
         engine.add_user(user)
 
     # Add movies
     movies = [
-        Item(f'movie_{i}', features={'genre': ['action', 'comedy', 'drama'][i % 3]})
+        Item(f"movie_{i}", features={"genre": ["action", "comedy", "drama"][i % 3]})
         for i in range(50)
     ]
     for movie in movies:
@@ -555,10 +538,10 @@ def collaborative_filtering_example():
     # Users tend to watch movies in same genre
     for user in users:
         # User prefers specific genre
-        preferred_genre_idx = int(user.user_id.split('_')[1]) % 3
+        preferred_genre_idx = int(user.user_id.split("_")[1]) % 3
 
         # Watch 5-10 movies
-        num_interactions = 5 + (int(user.user_id.split('_')[1]) % 6)
+        num_interactions = 5 + (int(user.user_id.split("_")[1]) % 6)
 
         for _ in range(num_interactions):
             # 70% chance of preferred genre
@@ -567,13 +550,13 @@ def collaborative_filtering_example():
             else:
                 movie_idx = random.randint(0, 49)
 
-            movie_id = f'movie_{movie_idx}'
+            movie_id = f"movie_{movie_idx}"
 
             interaction = Interaction(
                 user_id=user.user_id,
                 item_id=movie_id,
-                interaction_type='watch',
-                rating=4.0 + random.random()
+                interaction_type="watch",
+                rating=4.0 + random.random(),
             )
             engine.add_interaction(interaction)
 
@@ -586,7 +569,7 @@ def collaborative_filtering_example():
     engine.train(num_epochs=5, batch_size=64, neg_samples=4)
 
     # Generate recommendations
-    test_user = 'user_0'
+    test_user = "user_0"
     print(f"\n=== Recommendations for {test_user} ===")
     print("User's watch history:")
     for item_id in engine.users[test_user].interactions[:5]:
@@ -598,6 +581,7 @@ def collaborative_filtering_example():
     for item_id, score in recommendations:
         item = engine.items[item_id]
         print(f"  {item_id}: {item.features['genre']} (score: {score:.3f})")
+
 
 # Uncomment to run:
 # collaborative_filtering_example()

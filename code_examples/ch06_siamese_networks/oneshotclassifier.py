@@ -6,22 +6,21 @@ import torch.nn.functional as F
 # Code from Chapter 06
 # Book: Embeddings at Scale
 
+
 # Placeholder function for creating Siamese network
-def create_enterprise_siamese_network(input_type='tabular', input_dim=50):
+def create_enterprise_siamese_network(input_type="tabular", input_dim=50):
     """Create enterprise Siamese network. Placeholder implementation."""
+
     class PlaceholderSiameseNetwork(nn.Module):
         def __init__(self):
             super().__init__()
-            self.encoder = nn.Sequential(
-                nn.Linear(input_dim, 128),
-                nn.ReLU(),
-                nn.Linear(128, 64)
-            )
+            self.encoder = nn.Sequential(nn.Linear(input_dim, 128), nn.ReLU(), nn.Linear(128, 64))
 
         def forward(self, x):
             return self.encoder(x)
 
     return PlaceholderSiameseNetwork()
+
 
 class OneShotClassifier:
     """
@@ -39,7 +38,7 @@ class OneShotClassifier:
     - Customer service: New issue categories
     """
 
-    def __init__(self, siamese_model, distance_metric='euclidean'):
+    def __init__(self, siamese_model, distance_metric="euclidean"):
         """
         Args:
             siamese_model: Trained Siamese network
@@ -78,9 +77,7 @@ class OneShotClassifier:
             for class_id, embedding in zip(class_ids, embeddings):
                 if class_id in self.support_set:
                     # Average with existing embedding
-                    self.support_set[class_id] = (
-                        self.support_set[class_id] + embedding.cpu()
-                    ) / 2
+                    self.support_set[class_id] = (self.support_set[class_id] + embedding.cpu()) / 2
                 else:
                     self.support_set[class_id] = embedding.cpu()
 
@@ -109,16 +106,14 @@ class OneShotClassifier:
             for class_id, support_embedding in self.support_set.items():
                 support_embedding = support_embedding.to(query_embedding.device)
 
-                if self.distance_metric == 'euclidean':
+                if self.distance_metric == "euclidean":
                     dist = F.pairwise_distance(
-                        query_embedding,
-                        support_embedding.unsqueeze(0)
+                        query_embedding, support_embedding.unsqueeze(0)
                     ).item()
                 else:  # cosine
-                    dist = (1 - F.cosine_similarity(
-                        query_embedding,
-                        support_embedding.unsqueeze(0)
-                    )).item()
+                    dist = (
+                        1 - F.cosine_similarity(query_embedding, support_embedding.unsqueeze(0))
+                    ).item()
 
                 distances[class_id] = dist
 
@@ -151,9 +146,7 @@ class OneShotClassifier:
             Dict mapping class_id to probability
         """
         class_ids, distances = self.predict(
-            query,
-            return_distances=True,
-            top_k=len(self.support_set)
+            query, return_distances=True, top_k=len(self.support_set)
         )
 
         # Convert distances to similarities (negative distance)
@@ -223,17 +216,16 @@ class FraudDetectionOneShot:
         with torch.no_grad():
             transaction_embedding = self.classifier.model.get_embedding(transaction)
             normal_similarity = F.cosine_similarity(
-                transaction_embedding,
-                self.normal_behavior_embedding.unsqueeze(0)
+                transaction_embedding, self.normal_behavior_embedding.unsqueeze(0)
             ).item()
 
         # If very similar to normal, not fraud
         if normal_similarity > 0.9:
             return {
-                'is_fraud': False,
-                'fraud_type': None,
-                'confidence': 0.0,
-                'normal_similarity': normal_similarity
+                "is_fraud": False,
+                "fraud_type": None,
+                "confidence": 0.0,
+                "normal_similarity": normal_similarity,
             }
 
         # Check if similar to any fraud pattern
@@ -243,10 +235,10 @@ class FraudDetectionOneShot:
         is_fraud = confidence > fraud_threshold
 
         return {
-            'is_fraud': is_fraud,
-            'fraud_type': fraud_type if is_fraud else None,
-            'confidence': confidence,
-            'normal_similarity': normal_similarity
+            "is_fraud": is_fraud,
+            "fraud_type": fraud_type if is_fraud else None,
+            "confidence": confidence,
+            "normal_similarity": normal_similarity,
         }
 
 
@@ -257,8 +249,8 @@ def example_fraud_detection():
     # 1. Train Siamese network on historical fraud patterns
     # (Assume this is already done)
     siamese_model = create_enterprise_siamese_network(
-        input_type='tabular',
-        input_dim=50  # 50 transaction features
+        input_type="tabular",
+        input_dim=50,  # 50 transaction features
     )
 
     # 2. Create fraud detection system
@@ -269,13 +261,9 @@ def example_fraud_detection():
     fraud_detector.set_normal_behavior(normal_transactions)
 
     # 4. Add known fraud patterns (one example each!)
+    fraud_detector.add_fraud_pattern(fraud_id="card_testing", fraud_transaction=torch.randn(1, 50))
     fraud_detector.add_fraud_pattern(
-        fraud_id='card_testing',
-        fraud_transaction=torch.randn(1, 50)
-    )
-    fraud_detector.add_fraud_pattern(
-        fraud_id='account_takeover',
-        fraud_transaction=torch.randn(1, 50)
+        fraud_id="account_takeover", fraud_transaction=torch.randn(1, 50)
     )
 
     # 5. Check new transactions

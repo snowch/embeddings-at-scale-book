@@ -34,12 +34,7 @@ class FederatedEmbeddingServer:
     - Optional: Secure aggregation (encrypted updates)
     """
 
-    def __init__(
-        self,
-        embedding_model,
-        num_clients,
-        aggregation_method='fedavg'
-    ):
+    def __init__(self, embedding_model, num_clients, aggregation_method="fedavg"):
         """
         Args:
             embedding_model: Global embedding model architecture
@@ -54,7 +49,7 @@ class FederatedEmbeddingServer:
         self.client_data_sizes = {}
 
         # For FedProx: penalty term for client drift
-        self.mu = 0.01 if aggregation_method == 'fedprox' else 0
+        self.mu = 0.01 if aggregation_method == "fedprox" else 0
 
     def get_global_model(self):
         """Send current global model to clients"""
@@ -73,9 +68,9 @@ class FederatedEmbeddingServer:
         Returns:
             Updated global model
         """
-        if self.aggregation_method == 'fedavg':
+        if self.aggregation_method == "fedavg":
             return self._fedavg_aggregate(client_models, client_data_sizes)
-        elif self.aggregation_method == 'fedprox':
+        elif self.aggregation_method == "fedprox":
             return self._fedprox_aggregate(client_models, client_data_sizes)
         else:
             raise ValueError(f"Unknown aggregation: {self.aggregation_method}")
@@ -117,6 +112,7 @@ class FederatedEmbeddingServer:
         # Same as FedAvg (regularization happens on client side)
         return self._fedavg_aggregate(client_models, client_data_sizes)
 
+
 class FederatedEmbeddingClient:
     """
     Client in federated embedding learning
@@ -125,13 +121,7 @@ class FederatedEmbeddingClient:
     Shares only model updates, never raw data
     """
 
-    def __init__(
-        self,
-        client_id,
-        local_data,
-        local_labels=None,
-        learning_rate=0.01
-    ):
+    def __init__(self, client_id, local_data, local_labels=None, learning_rate=0.01):
         """
         Args:
             client_id: Unique identifier for this client
@@ -154,10 +144,7 @@ class FederatedEmbeddingClient:
         Initialize local model as copy of global
         """
         self.local_model = deepcopy(global_model)
-        self.optimizer = torch.optim.SGD(
-            self.local_model.parameters(),
-            lr=self.learning_rate
-        )
+        self.optimizer = torch.optim.SGD(self.local_model.parameters(), lr=self.learning_rate)
 
     def local_train(self, num_epochs=5, batch_size=32):
         """
@@ -179,7 +166,7 @@ class FederatedEmbeddingClient:
             indices = torch.randperm(num_samples)
 
             for i in range(0, num_samples, batch_size):
-                batch_indices = indices[i:i+batch_size]
+                batch_indices = indices[i : i + batch_size]
                 batch_data = self.local_data[batch_indices]
 
                 # Forward pass
@@ -226,6 +213,7 @@ class FederatedEmbeddingClient:
                 noise = torch.randn_like(param.grad) * noise_scale
                 param.grad.add_(noise)
 
+
 def federated_learning_simulation():
     """
     Simulate federated learning across multiple hospitals
@@ -246,9 +234,7 @@ def federated_learning_simulation():
         def __init__(self, input_dim=100, embedding_dim=64):
             super().__init__()
             self.encoder = nn.Sequential(
-                nn.Linear(input_dim, 256),
-                nn.ReLU(),
-                nn.Linear(256, embedding_dim)
+                nn.Linear(input_dim, 256), nn.ReLU(), nn.Linear(256, embedding_dim)
             )
 
         def forward(self, x):
@@ -257,9 +243,7 @@ def federated_learning_simulation():
     # Initialize server
     global_model = MedicalEmbedding(input_dim=100, embedding_dim=64)
     server = FederatedEmbeddingServer(
-        embedding_model=global_model,
-        num_clients=10,
-        aggregation_method='fedavg'
+        embedding_model=global_model, num_clients=10, aggregation_method="fedavg"
     )
 
     # Create clients (hospitals)
@@ -271,10 +255,7 @@ def federated_learning_simulation():
         local_labels = torch.randint(0, 10, (num_patients,))  # Conditions
 
         client = FederatedEmbeddingClient(
-            client_id=i,
-            local_data=local_data,
-            local_labels=local_labels,
-            learning_rate=0.01
+            client_id=i, local_data=local_data, local_labels=local_labels, learning_rate=0.01
         )
         clients.append(client)
 
@@ -293,10 +274,7 @@ def federated_learning_simulation():
         # 2. Each client trains locally
         for client in clients:
             client.receive_global_model(server.get_global_model())
-            updated_model, num_samples = client.local_train(
-                num_epochs=5,
-                batch_size=32
-            )
+            updated_model, num_samples = client.local_train(num_epochs=5, batch_size=32)
 
             # Optional: Add differential privacy
             # client.add_differential_privacy(epsilon=1.0)
@@ -314,6 +292,7 @@ def federated_learning_simulation():
     print("trained on all hospitals' data without sharing patient information")
 
     return server.global_model
+
 
 # Uncomment to run:
 # global_model = federated_learning_simulation()

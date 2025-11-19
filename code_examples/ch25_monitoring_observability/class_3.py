@@ -36,6 +36,7 @@ import numpy as np
 @dataclass
 class UserEvent:
     """Single user interaction event"""
+
     timestamp: datetime
     user_id: str
     session_id: str
@@ -63,9 +64,11 @@ class UserEvent:
     experiment_group: Optional[str] = None  # For A/B testing
     model_version: str = "unknown"
 
+
 @dataclass
 class SessionMetrics:
     """Metrics for a user session"""
+
     session_id: str
     user_id: str
     start_time: datetime
@@ -97,9 +100,11 @@ class SessionMetrics:
         """Calculate session duration in minutes"""
         return (self.end_time - self.start_time).total_seconds() / 60.0
 
+
 @dataclass
 class ExperimentResults:
     """A/B test experiment results"""
+
     experiment_name: str
     start_date: datetime
     end_date: datetime
@@ -123,6 +128,7 @@ class ExperimentResults:
     # Decision
     winner: Optional[str] = None
     lift: Dict[str, float] = field(default_factory=dict)
+
 
 class UserExperienceAnalytics:
     """
@@ -151,7 +157,7 @@ class UserExperienceAnalytics:
                 session_id=event.session_id,
                 user_id=event.user_id,
                 start_time=event.timestamp,
-                end_time=event.timestamp
+                end_time=event.timestamp,
             )
 
         session = self.sessions[event.session_id]
@@ -167,8 +173,9 @@ class UserExperienceAnalytics:
                     session.avg_click_position = event.result_position
                 else:
                     session.avg_click_position = (
-                        (session.avg_click_position * (session.num_clicks - 1) + event.result_position) / session.num_clicks
-                    )
+                        session.avg_click_position * (session.num_clicks - 1)
+                        + event.result_position
+                    ) / session.num_clicks
         elif event.event_type == "view":
             session.num_views += 1
             session.total_dwell_time += event.dwell_time_seconds
@@ -194,7 +201,7 @@ class UserExperienceAnalytics:
         self,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
-        experiment_group: Optional[str] = None
+        experiment_group: Optional[str] = None,
     ) -> Dict[str, float]:
         """
         Calculate engagement metrics for time period
@@ -217,10 +224,16 @@ class UserExperienceAnalytics:
         total_queries = sum(1 for e in filtered_events if e.event_type == "query")
         total_clicks = sum(1 for e in filtered_events if e.clicked)
         total_views = sum(1 for e in filtered_events if e.event_type == "view")
-        total_dwell_time = sum(e.dwell_time_seconds for e in filtered_events if e.event_type == "view")
+        total_dwell_time = sum(
+            e.dwell_time_seconds for e in filtered_events if e.event_type == "view"
+        )
 
         # Click positions
-        click_positions = [e.result_position for e in filtered_events if e.clicked and e.result_position is not None]
+        click_positions = [
+            e.result_position
+            for e in filtered_events
+            if e.clicked and e.result_position is not None
+        ]
 
         metrics = {
             "total_events": len(filtered_events),
@@ -230,7 +243,7 @@ class UserExperienceAnalytics:
             "click_through_rate": total_clicks / max(total_queries, 1),
             "avg_dwell_time_seconds": total_dwell_time / max(total_views, 1),
             "avg_click_position": np.mean(click_positions) if click_positions else 0.0,
-            "clicks_per_query": total_clicks / max(total_queries, 1)
+            "clicks_per_query": total_clicks / max(total_queries, 1),
         }
 
         return metrics
@@ -239,7 +252,7 @@ class UserExperienceAnalytics:
         self,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
-        experiment_group: Optional[str] = None
+        experiment_group: Optional[str] = None,
     ) -> Dict[str, float]:
         """Calculate business metrics like conversion rate, revenue, etc."""
         # Filter sessions
@@ -250,7 +263,9 @@ class UserExperienceAnalytics:
             filtered_sessions = [s for s in filtered_sessions if s.end_time <= end_date]
         if experiment_group:
             # Need to check events in session for experiment group
-            session_ids = {e.session_id for e in self.events if e.experiment_group == experiment_group}
+            session_ids = {
+                e.session_id for e in self.events if e.experiment_group == experiment_group
+            }
             filtered_sessions = [s for s in filtered_sessions if s.session_id in session_ids]
 
         if not filtered_sessions:
@@ -265,7 +280,7 @@ class UserExperienceAnalytics:
             "conversion_rate": converted_sessions / total_sessions,
             "total_revenue": total_revenue,
             "revenue_per_session": total_revenue / total_sessions,
-            "revenue_per_converted_session": total_revenue / max(converted_sessions, 1)
+            "revenue_per_converted_session": total_revenue / max(converted_sessions, 1),
         }
 
         return metrics
@@ -277,7 +292,7 @@ class UserExperienceAnalytics:
         treatment_group: str,
         start_date: datetime,
         end_date: datetime,
-        metrics_to_test: List[str]
+        metrics_to_test: List[str],
     ) -> ExperimentResults:
         """
         Run A/B test comparing two embedding models
@@ -326,7 +341,7 @@ class UserExperienceAnalytics:
             p_values[metric] = 0.05  # Placeholder
             confidence_intervals[metric] = (
                 treatment_value * 0.95,
-                treatment_value * 1.05
+                treatment_value * 1.05,
             )  # Placeholder
 
         # Determine winner (simplified)
@@ -352,16 +367,14 @@ class UserExperienceAnalytics:
             p_values=p_values,
             confidence_intervals=confidence_intervals,
             winner=winner,
-            lift=lift
+            lift=lift,
         )
 
         self.experiments[experiment_name] = results
         return results
 
     def generate_ux_report(
-        self,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None
+        self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
     ) -> str:
         """Generate comprehensive UX report"""
         engagement = self.get_engagement_metrics(start_date, end_date)
@@ -370,25 +383,25 @@ class UserExperienceAnalytics:
         report = f"""
 User Experience Analytics Report
 =================================
-Period: {start_date.strftime('%Y-%m-%d') if start_date else 'All time'} to {end_date.strftime('%Y-%m-%d') if end_date else 'Present'}
+Period: {start_date.strftime("%Y-%m-%d") if start_date else "All time"} to {end_date.strftime("%Y-%m-%d") if end_date else "Present"}
 
 Engagement Metrics:
 ------------------
-Total Events:        {engagement.get('total_events', 0):>12,}
-Total Queries:       {engagement.get('total_queries', 0):>12,}
-Total Clicks:        {engagement.get('total_clicks', 0):>12,}
-Click-Through Rate:  {engagement.get('click_through_rate', 0)*100:>11.2f}%
-Avg Dwell Time:      {engagement.get('avg_dwell_time_seconds', 0):>11.1f}s
-Avg Click Position:  {engagement.get('avg_click_position', 0):>11.1f}
-Clicks per Query:    {engagement.get('clicks_per_query', 0):>11.2f}
+Total Events:        {engagement.get("total_events", 0):>12,}
+Total Queries:       {engagement.get("total_queries", 0):>12,}
+Total Clicks:        {engagement.get("total_clicks", 0):>12,}
+Click-Through Rate:  {engagement.get("click_through_rate", 0) * 100:>11.2f}%
+Avg Dwell Time:      {engagement.get("avg_dwell_time_seconds", 0):>11.1f}s
+Avg Click Position:  {engagement.get("avg_click_position", 0):>11.1f}
+Clicks per Query:    {engagement.get("clicks_per_query", 0):>11.2f}
 
 Business Metrics:
 ----------------
-Total Sessions:      {business.get('total_sessions', 0):>12,}
-Conversion Rate:     {business.get('conversion_rate', 0)*100:>11.2f}%
-Total Revenue:       ${business.get('total_revenue', 0):>11.2f}
-Revenue/Session:     ${business.get('revenue_per_session', 0):>11.2f}
-Revenue/Conversion:  ${business.get('revenue_per_converted_session', 0):>11.2f}
+Total Sessions:      {business.get("total_sessions", 0):>12,}
+Conversion Rate:     {business.get("conversion_rate", 0) * 100:>11.2f}%
+Total Revenue:       ${business.get("total_revenue", 0):>11.2f}
+Revenue/Session:     ${business.get("revenue_per_session", 0):>11.2f}
+Revenue/Conversion:  ${business.get("revenue_per_converted_session", 0):>11.2f}
 """
 
         # Add experiment results if any
@@ -398,7 +411,9 @@ Revenue/Conversion:  ${business.get('revenue_per_converted_session', 0):>11.2f}
             for name, results in self.experiments.items():
                 report += f"\nExperiment: {name}\n"
                 report += f"Winner: {results.winner or 'Inconclusive'}\n"
-                report += f"Primary Metric Lift: {results.lift.get('click_through_rate', 0)*100:.2f}%\n"
+                report += (
+                    f"Primary Metric Lift: {results.lift.get('click_through_rate', 0) * 100:.2f}%\n"
+                )
 
         return report
 
@@ -426,71 +441,85 @@ if __name__ == "__main__":
             # Generate queries for this session
             num_queries = np.random.randint(1, 5)
             for query_num in range(num_queries):
-                timestamp = base_time + timedelta(days=day, minutes=session_num*10 + query_num*2)
+                timestamp = base_time + timedelta(
+                    days=day, minutes=session_num * 10 + query_num * 2
+                )
 
                 # Query event
-                analytics.track_event(UserEvent(
-                    timestamp=timestamp,
-                    user_id=user_id,
-                    session_id=session_id,
-                    event_type="query",
-                    query=f"sample query {query_num}",
-                    experiment_group=experiment_group
-                ))
+                analytics.track_event(
+                    UserEvent(
+                        timestamp=timestamp,
+                        user_id=user_id,
+                        session_id=session_id,
+                        event_type="query",
+                        query=f"sample query {query_num}",
+                        experiment_group=experiment_group,
+                    )
+                )
 
                 # Maybe click on result
                 if np.random.random() < 0.3 * ctr_boost:  # 30% CTR for control, 33% for treatment
-                    click_position = np.random.choice([1, 2, 3, 4, 5], p=[0.4, 0.3, 0.15, 0.10, 0.05])
-                    analytics.track_event(UserEvent(
-                        timestamp=timestamp + timedelta(seconds=2),
-                        user_id=user_id,
-                        session_id=session_id,
-                        event_type="click",
-                        result_id=f"result_{click_position}",
-                        result_position=click_position,
-                        clicked=True,
-                        experiment_group=experiment_group
-                    ))
+                    click_position = np.random.choice(
+                        [1, 2, 3, 4, 5], p=[0.4, 0.3, 0.15, 0.10, 0.05]
+                    )
+                    analytics.track_event(
+                        UserEvent(
+                            timestamp=timestamp + timedelta(seconds=2),
+                            user_id=user_id,
+                            session_id=session_id,
+                            event_type="click",
+                            result_id=f"result_{click_position}",
+                            result_position=click_position,
+                            clicked=True,
+                            experiment_group=experiment_group,
+                        )
+                    )
 
                     # View the result
-                    dwell_time = np.random.exponential(30) # Average 30 seconds
-                    analytics.track_event(UserEvent(
-                        timestamp=timestamp + timedelta(seconds=3),
-                        user_id=user_id,
-                        session_id=session_id,
-                        event_type="view",
-                        result_id=f"result_{click_position}",
-                        dwell_time_seconds=dwell_time,
-                        experiment_group=experiment_group
-                    ))
+                    dwell_time = np.random.exponential(30)  # Average 30 seconds
+                    analytics.track_event(
+                        UserEvent(
+                            timestamp=timestamp + timedelta(seconds=3),
+                            user_id=user_id,
+                            session_id=session_id,
+                            event_type="view",
+                            result_id=f"result_{click_position}",
+                            dwell_time_seconds=dwell_time,
+                            experiment_group=experiment_group,
+                        )
+                    )
 
             # Maybe convert
-            if np.random.random() < 0.1 * ctr_boost:  # 10% conversion for control, 11% for treatment
-                analytics.track_event(UserEvent(
-                    timestamp=timestamp + timedelta(minutes=5),
-                    user_id=user_id,
-                    session_id=session_id,
-                    event_type="purchase",
-                    converted=True,
-                    revenue=np.random.uniform(20, 200),
-                    experiment_group=experiment_group
-                ))
+            if (
+                np.random.random() < 0.1 * ctr_boost
+            ):  # 10% conversion for control, 11% for treatment
+                analytics.track_event(
+                    UserEvent(
+                        timestamp=timestamp + timedelta(minutes=5),
+                        user_id=user_id,
+                        session_id=session_id,
+                        event_type="purchase",
+                        converted=True,
+                        revenue=np.random.uniform(20, 200),
+                        experiment_group=experiment_group,
+                    )
+                )
 
     # Generate overall UX report
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     report = analytics.generate_ux_report(start_date=base_time, end_date=datetime.now())
     print(report)
 
     # Run A/B test
     print("\n\nRunning A/B Test...")
-    print("="*70)
+    print("=" * 70)
     experiment = analytics.run_ab_test(
         experiment_name="embedding_model_v2",
         control_group="control",
         treatment_group="treatment",
         start_date=base_time,
         end_date=datetime.now(),
-        metrics_to_test=["click_through_rate", "conversion_rate", "revenue_per_session"]
+        metrics_to_test=["click_through_rate", "conversion_rate", "revenue_per_session"],
     )
 
     print(f"\nExperiment: {experiment.experiment_name}")
@@ -503,4 +532,4 @@ if __name__ == "__main__":
         print(f"  {metric}: {value:.4f}")
     print("\nLift:")
     for metric, lift_value in experiment.lift.items():
-        print(f"  {metric}: {lift_value*100:+.2f}%")
+        print(f"  {metric}: {lift_value * 100:+.2f}%")

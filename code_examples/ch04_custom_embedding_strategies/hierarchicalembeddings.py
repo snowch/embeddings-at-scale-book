@@ -7,11 +7,13 @@ import numpy as np
 # Placeholder encoder class
 class Encoder:
     """Placeholder encoder. Replace with actual model."""
+
     def __init__(self, dim=512):
         self.dim = dim
 
     def encode(self, text):
         return np.random.randn(self.dim).astype(np.float32)
+
 
 class HierarchicalEmbeddings:
     """
@@ -20,12 +22,12 @@ class HierarchicalEmbeddings:
 
     def __init__(self):
         self.level_encoders = {
-            'category': Encoder(dim=256),    # Coarse level
-            'subcategory': Encoder(dim=512),  # Medium level
-            'product': Encoder(dim=768)       # Fine level
+            "category": Encoder(dim=256),  # Coarse level
+            "subcategory": Encoder(dim=512),  # Medium level
+            "product": Encoder(dim=768),  # Fine level
         }
 
-    def encode_hierarchical(self, item, level='product'):
+    def encode_hierarchical(self, item, level="product"):
         """
         Encode at different hierarchy levels
 
@@ -37,11 +39,9 @@ class HierarchicalEmbeddings:
         embeddings = {}
 
         # Encode at each level in hierarchy
-        for level_name in ['category', 'subcategory', 'product']:
+        for level_name in ["category", "subcategory", "product"]:
             if level_name in item:
-                embeddings[level_name] = self.level_encoders[level_name].encode(
-                    item[level_name]
-                )
+                embeddings[level_name] = self.level_encoders[level_name].encode(item[level_name])
 
             # Stop at requested level
             if level_name == level:
@@ -49,7 +49,7 @@ class HierarchicalEmbeddings:
 
         return embeddings
 
-    def hierarchical_search(self, query, level='product'):
+    def hierarchical_search(self, query, level="product"):
         """
         Search at appropriate hierarchy level
 

@@ -4,6 +4,7 @@ import torch.nn as nn
 # Code from Chapter 08
 # Book: Embeddings at Scale
 
+
 class TaskAdaptiveComposition(nn.Module):
     """
     Learn task-specific composition strategies
@@ -27,28 +28,24 @@ class TaskAdaptiveComposition(nn.Module):
         self.tasks = tasks
 
         # Project components to common space
-        self.projections = nn.ModuleDict({
-            name: nn.Linear(dim, output_dim)
-            for name, dim in component_dims.items()
-        })
+        self.projections = nn.ModuleDict(
+            {name: nn.Linear(dim, output_dim) for name, dim in component_dims.items()}
+        )
 
         # Task-specific attention for composition
-        self.task_attention = nn.ModuleDict({
-            task: nn.MultiheadAttention(
-                embed_dim=output_dim,
-                num_heads=4,
-                batch_first=True
-            )
-            for task in tasks
-        })
+        self.task_attention = nn.ModuleDict(
+            {
+                task: nn.MultiheadAttention(embed_dim=output_dim, num_heads=4, batch_first=True)
+                for task in tasks
+            }
+        )
 
         # Task-specific queries (what each task "looks for")
-        self.task_queries = nn.ParameterDict({
-            task: nn.Parameter(torch.randn(1, 1, output_dim))
-            for task in tasks
-        })
+        self.task_queries = nn.ParameterDict(
+            {task: nn.Parameter(torch.randn(1, 1, output_dim)) for task in tasks}
+        )
 
-    def forward(self, component_embeddings, task='search'):
+    def forward(self, component_embeddings, task="search"):
         """
         Compose embeddings for specific task
 
@@ -61,8 +58,7 @@ class TaskAdaptiveComposition(nn.Module):
         """
         # Project components
         projected = {
-            name: self.projections[name](emb)
-            for name, emb in component_embeddings.items()
+            name: self.projections[name](emb) for name, emb in component_embeddings.items()
         }
 
         # Stack for attention
@@ -73,10 +69,6 @@ class TaskAdaptiveComposition(nn.Module):
         query = self.task_queries[task].expand(batch_size, -1, -1)
 
         # Task-specific attention
-        composed, _ = self.task_attention[task](
-            query=query,
-            key=stacked,
-            value=stacked
-        )
+        composed, _ = self.task_attention[task](query=query, key=stacked, value=stacked)
 
         return composed.squeeze(1)

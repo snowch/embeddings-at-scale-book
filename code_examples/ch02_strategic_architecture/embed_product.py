@@ -3,21 +3,27 @@ import torch
 # Code from Chapter 02
 # Book: Embeddings at Scale
 
+
 # Import ModalityFusion from same directory
 # In production: from .modalityfusion import ModalityFusion
 class ModalityFusion:
     """Placeholder for ModalityFusion. See modalityfusion.py for full implementation."""
+
     @staticmethod
     def early_fusion(modality_embeddings, weights=None):
         if weights is None:
             weights = [1.0 / len(modality_embeddings)] * len(modality_embeddings)
-        fused = sum(w * torch.tensor(emb) if not isinstance(emb, torch.Tensor) else w * emb
-                   for w, emb in zip(weights, modality_embeddings))
+        fused = sum(
+            w * torch.tensor(emb) if not isinstance(emb, torch.Tensor) else w * emb
+            for w, emb in zip(weights, modality_embeddings)
+        )
         return fused / torch.norm(fused)
+
 
 # Placeholder encoder with multiple encoding methods
 class MultiModalEncoder:
     """Placeholder multi-modal encoder. Replace with actual model."""
+
     def encode_text(self, text):
         return torch.randn(768)
 
@@ -27,7 +33,9 @@ class MultiModalEncoder:
     def encode_structured(self, data):
         return torch.randn(768)
 
+
 encoder = MultiModalEncoder()
+
 
 def embed_product(product):
     """Create comprehensive product embedding"""
@@ -55,13 +63,15 @@ def embed_product(product):
         weights.append(0.15)
 
     # Structured: price, rating, category, brand
-    structured_emb = encoder.encode_structured({
-        'price': product.price,
-        'rating': product.avg_rating,
-        'num_reviews': product.num_reviews,
-        'category': product.category,
-        'brand': product.brand
-    })
+    structured_emb = encoder.encode_structured(
+        {
+            "price": product.price,
+            "rating": product.avg_rating,
+            "num_reviews": product.num_reviews,
+            "category": product.category,
+            "brand": product.brand,
+        }
+    )
     embeddings.append(structured_emb)
     weights.append(0.15)
 

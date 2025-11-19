@@ -11,6 +11,7 @@ from transformers import (
 # Code from Chapter 07
 # Book: Embeddings at Scale
 
+
 class AdvancedMLM:
     """
     Advanced MLM with production optimizations
@@ -39,7 +40,7 @@ class AdvancedMLM:
         for idx, token_id in enumerate(input_ids):
             token = self.tokenizer.decode([token_id])
 
-            if token.startswith('##'):
+            if token.startswith("##"):
                 # Continuation of previous word
                 current_word.append(idx)
             else:
@@ -53,11 +54,7 @@ class AdvancedMLM:
 
         # Sample words to mask
         num_words_to_mask = max(1, int(len(words) * mlm_probability))
-        words_to_mask = np.random.choice(
-            len(words),
-            size=num_words_to_mask,
-            replace=False
-        )
+        words_to_mask = np.random.choice(len(words), size=num_words_to_mask, replace=False)
 
         # Create mask
         mask = torch.zeros_like(input_ids, dtype=torch.bool)
@@ -84,7 +81,7 @@ class AdvancedMLM:
             start = np.random.randint(0, max(1, seq_len - span_length))
 
             # Mask span
-            mask[start:start + span_length] = True
+            mask[start : start + span_length] = True
 
         return mask
 
@@ -113,7 +110,7 @@ class AdvancedMLM:
 
             # Find entity in tokens
             for i in range(len(tokens) - len(entity_tokens) + 1):
-                if tokens[i:i+len(entity_tokens)] == entity_tokens:
+                if tokens[i : i + len(entity_tokens)] == entity_tokens:
                     entity_positions.extend(range(i, i + len(entity_tokens)))
 
         # Create mask
@@ -143,7 +140,7 @@ class DomainAdaptiveMLM:
     - Adapts to domain specifics
     """
 
-    def __init__(self, pretrained_model_name='bert-base-uncased'):
+    def __init__(self, pretrained_model_name="bert-base-uncased"):
         """
         Args:
             pretrained_model_name: HuggingFace model to adapt
@@ -154,9 +151,9 @@ class DomainAdaptiveMLM:
     def adapt_to_domain(
         self,
         domain_texts,
-        output_dir='./adapted_model',
+        output_dir="./adapted_model",
         num_epochs=3,
-        learning_rate=2e-5  # Lower LR for adaptation
+        learning_rate=2e-5,  # Lower LR for adaptation
     ):
         """
         Adapt pre-trained model to domain
@@ -170,27 +167,18 @@ class DomainAdaptiveMLM:
         from datasets import Dataset
 
         # Prepare dataset
-        dataset = Dataset.from_dict({'text': domain_texts})
+        dataset = Dataset.from_dict({"text": domain_texts})
 
         def tokenize_function(examples):
             return self.tokenizer(
-                examples['text'],
-                truncation=True,
-                max_length=512,
-                padding='max_length'
+                examples["text"], truncation=True, max_length=512, padding="max_length"
             )
 
-        tokenized_dataset = dataset.map(
-            tokenize_function,
-            batched=True,
-            remove_columns=['text']
-        )
+        tokenized_dataset = dataset.map(tokenize_function, batched=True, remove_columns=["text"])
 
         # Data collator
         data_collator = DataCollatorForLanguageModeling(
-            tokenizer=self.tokenizer,
-            mlm=True,
-            mlm_probability=0.15
+            tokenizer=self.tokenizer, mlm=True, mlm_probability=0.15
         )
 
         # Training arguments (conservative for adaptation)
@@ -203,7 +191,7 @@ class DomainAdaptiveMLM:
             warmup_ratio=0.1,
             logging_steps=100,
             save_steps=1000,
-            fp16=torch.cuda.is_available()
+            fp16=torch.cuda.is_available(),
         )
 
         # Train
@@ -211,7 +199,7 @@ class DomainAdaptiveMLM:
             model=self.model,
             args=training_args,
             data_collator=data_collator,
-            train_dataset=tokenized_dataset
+            train_dataset=tokenized_dataset,
         )
 
         print("Adapting model to domain...")

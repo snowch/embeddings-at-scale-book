@@ -49,12 +49,14 @@ class EmbeddingBatch:
         timestamp: When embeddings were generated
         model_version: Embedding model version
     """
+
     embeddings: np.ndarray
     ids: List[str]
     labels: Optional[np.ndarray] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
     timestamp: datetime = field(default_factory=datetime.now)
     model_version: str = "unknown"
+
 
 @dataclass
 class QualityMetrics:
@@ -94,6 +96,7 @@ class QualityMetrics:
         anomalies: List of detected quality anomalies
         quality_score: Overall quality score (0-100)
     """
+
     timestamp: datetime
     model_version: str
 
@@ -126,6 +129,7 @@ class QualityMetrics:
     anomalies: List[str] = field(default_factory=list)
     quality_score: float = 0.0
 
+
 class EmbeddingQualityMonitor:
     """
     Comprehensive embedding quality monitoring system
@@ -139,7 +143,7 @@ class EmbeddingQualityMonitor:
         reference_embeddings: Optional[EmbeddingBatch] = None,
         quality_thresholds: Optional[Dict[str, Tuple[float, float]]] = None,
         alert_callback: Optional[callable] = None,
-        history_window: int = 100
+        history_window: int = 100,
     ):
         """
         Initialize quality monitoring system
@@ -170,18 +174,15 @@ class EmbeddingQualityMonitor:
             "inter_cluster_similarity": (0.0, 0.4),
             "silhouette_score": (0.3, 1.0),
             "davies_bouldin_score": (0.0, 2.0),  # Lower is better
-            "effective_dimensions": (50, None),   # At least 50 dimensions used
-            "dimension_entropy": (3.0, None),     # High entropy = good utilization
+            "effective_dimensions": (50, None),  # At least 50 dimensions used
+            "dimension_entropy": (3.0, None),  # High entropy = good utilization
             "temporal_stability": (0.90, 1.0),
             "downstream_accuracy": (0.85, 1.0),
-            "quality_score": (70, 100)
+            "quality_score": (70, 100),
         }
 
     def compute_quality_metrics(
-        self,
-        batch: EmbeddingBatch,
-        n_clusters: int = 10,
-        sample_size: int = 10000
+        self, batch: EmbeddingBatch, n_clusters: int = 10, sample_size: int = 10000
     ) -> QualityMetrics:
         """
         Compute comprehensive quality metrics for embedding batch
@@ -211,6 +212,7 @@ class EmbeddingQualityMonitor:
             labels = sampled_labels
         else:
             from sklearn.cluster import MiniBatchKMeans
+
             kmeans = MiniBatchKMeans(n_clusters=n_clusters, random_state=42, batch_size=1000)
             labels = kmeans.fit_predict(sampled_embeddings)
 
@@ -220,7 +222,11 @@ class EmbeddingQualityMonitor:
         # Sklearn clustering metrics
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            silhouette = float(silhouette_score(sampled_embeddings, labels, sample_size=min(5000, len(sampled_embeddings))))
+            silhouette = float(
+                silhouette_score(
+                    sampled_embeddings, labels, sample_size=min(5000, len(sampled_embeddings))
+                )
+            )
             db_score = float(davies_bouldin_score(sampled_embeddings, labels))
             ch_score = float(calinski_harabasz_score(sampled_embeddings, labels))
 
@@ -229,7 +235,9 @@ class EmbeddingQualityMonitor:
         total_variance = np.sum(dim_variance)
         variance_ratio = dim_variance / total_variance if total_variance > 0 else dim_variance
         effective_dims = int(np.sum(variance_ratio > 0.01))  # Dimensions with >1% variance
-        dim_entropy = float(entropy(variance_ratio + 1e-10))  # Add small constant for numerical stability
+        dim_entropy = float(
+            entropy(variance_ratio + 1e-10)
+        )  # Add small constant for numerical stability
 
         # 3. Similarity calibration metrics
         similarity_dist = self._compute_similarity_distribution(sampled_embeddings)
@@ -274,7 +282,7 @@ class EmbeddingQualityMonitor:
             temporal_stability=temporal_stab,
             cross_version_stability=cross_version_stab,
             downstream_accuracy=downstream_acc,
-            proxy_metrics=proxy_metrics_dict
+            proxy_metrics=proxy_metrics_dict,
         )
 
         # Detect anomalies and compute quality score
@@ -293,9 +301,7 @@ class EmbeddingQualityMonitor:
         return metrics
 
     def _compute_cluster_similarities(
-        self,
-        embeddings: np.ndarray,
-        labels: np.ndarray
+        self, embeddings: np.ndarray, labels: np.ndarray
     ) -> Tuple[float, float]:
         """Compute average intra-cluster and inter-cluster similarity"""
         unique_labels = np.unique(labels)
@@ -329,9 +335,7 @@ class EmbeddingQualityMonitor:
         return intra_cluster_sim, inter_cluster_sim
 
     def _compute_similarity_distribution(
-        self,
-        embeddings: np.ndarray,
-        n_samples: int = 1000
+        self, embeddings: np.ndarray, n_samples: int = 1000
     ) -> Dict[str, float]:
         """Compute distribution statistics of pairwise similarities"""
         # Sample pairs to avoid O(N^2) complexity
@@ -354,14 +358,11 @@ class EmbeddingQualityMonitor:
             "q25": float(np.percentile(similarities, 25)),
             "q50": float(np.percentile(similarities, 50)),
             "q75": float(np.percentile(similarities, 75)),
-            "q95": float(np.percentile(similarities, 95))
+            "q95": float(np.percentile(similarities, 95)),
         }
 
     def _compute_calibration_error(
-        self,
-        embeddings: np.ndarray,
-        labels: Optional[np.ndarray],
-        n_bins: int = 10
+        self, embeddings: np.ndarray, labels: Optional[np.ndarray], n_bins: int = 10
     ) -> float:
         """
         Compute calibration error for similarity scores
@@ -407,10 +408,7 @@ class EmbeddingQualityMonitor:
         return float(calibration_error)
 
     def _compute_threshold_stability(
-        self,
-        embeddings: np.ndarray,
-        labels: Optional[np.ndarray],
-        n_folds: int = 5
+        self, embeddings: np.ndarray, labels: Optional[np.ndarray], n_folds: int = 5
     ) -> float:
         """
         Compute stability of optimal similarity threshold across data splits
@@ -460,9 +458,7 @@ class EmbeddingQualityMonitor:
         return float(np.var(optimal_thresholds))
 
     def _compute_temporal_stability(
-        self,
-        current_embeddings: np.ndarray,
-        previous_metrics: QualityMetrics
+        self, current_embeddings: np.ndarray, previous_metrics: QualityMetrics
     ) -> float:
         """
         Compute stability between current and previous embeddings
@@ -481,10 +477,7 @@ class EmbeddingQualityMonitor:
         return float(correlation) if not np.isnan(correlation) else 0.0
 
     def _compute_cross_version_stability(
-        self,
-        current_batch: EmbeddingBatch,
-        reference_batch: EmbeddingBatch,
-        n_samples: int = 1000
+        self, current_batch: EmbeddingBatch, reference_batch: EmbeddingBatch, n_samples: int = 1000
     ) -> float:
         """
         Compute stability between different model versions
@@ -517,23 +510,17 @@ class EmbeddingQualityMonitor:
 
         return float(np.mean(correlations))
 
-    def _compute_downstream_accuracy(
-        self,
-        embeddings: np.ndarray,
-        labels: np.ndarray
-    ) -> float:
+    def _compute_downstream_accuracy(self, embeddings: np.ndarray, labels: np.ndarray) -> float:
         """Compute downstream classification accuracy using embeddings"""
         from sklearn.linear_model import LogisticRegression
         from sklearn.model_selection import cross_val_score
 
         clf = LogisticRegression(max_iter=1000, random_state=42)
-        scores = cross_val_score(clf, embeddings, labels, cv=5, scoring='accuracy')
+        scores = cross_val_score(clf, embeddings, labels, cv=5, scoring="accuracy")
         return float(np.mean(scores))
 
     def _compute_proxy_metrics(
-        self,
-        embeddings: np.ndarray,
-        labels: np.ndarray
+        self, embeddings: np.ndarray, labels: np.ndarray
     ) -> Dict[str, float]:
         """Compute proxy task metrics (k-NN classification, clustering purity)"""
         from sklearn.model_selection import cross_val_score
@@ -543,8 +530,8 @@ class EmbeddingQualityMonitor:
 
         # k-NN accuracy
         knn = KNeighborsClassifier(n_neighbors=5)
-        knn_scores = cross_val_score(knn, embeddings, labels, cv=3, scoring='accuracy')
-        metrics['knn_accuracy'] = float(np.mean(knn_scores))
+        knn_scores = cross_val_score(knn, embeddings, labels, cv=3, scoring="accuracy")
+        metrics["knn_accuracy"] = float(np.mean(knn_scores))
 
         # Clustering purity (if enough samples)
         if len(embeddings) > 100:
@@ -554,7 +541,7 @@ class EmbeddingQualityMonitor:
             n_clusters = len(np.unique(labels))
             kmeans = MiniBatchKMeans(n_clusters=n_clusters, random_state=42)
             pred_labels = kmeans.fit_predict(embeddings)
-            metrics['clustering_ari'] = float(adjusted_rand_score(labels, pred_labels))
+            metrics["clustering_ari"] = float(adjusted_rand_score(labels, pred_labels))
 
         return metrics
 
@@ -568,7 +555,7 @@ class EmbeddingQualityMonitor:
             ("inter_cluster_similarity", metrics.inter_cluster_similarity),
             ("silhouette_score", metrics.silhouette_score),
             ("effective_dimensions", metrics.effective_dimensions),
-            ("dimension_entropy", metrics.dimension_entropy)
+            ("dimension_entropy", metrics.dimension_entropy),
         ]
 
         if metrics.temporal_stability is not None:
@@ -592,14 +579,19 @@ class EmbeddingQualityMonitor:
         # Davies-Bouldin score: lower is better, so invert the check
         db_min, db_max = self.quality_thresholds.get("davies_bouldin_score", (None, 2.0))
         if db_max is not None and metrics.davies_bouldin_score > db_max:
-            anomalies.append(f"davies_bouldin_score too high: {metrics.davies_bouldin_score:.3f} > {db_max}")
+            anomalies.append(
+                f"davies_bouldin_score too high: {metrics.davies_bouldin_score:.3f} > {db_max}"
+            )
 
         # Check for significant drops from baseline
         if self.baseline_metrics is not None:
-            if metrics.downstream_accuracy is not None and self.baseline_metrics.downstream_accuracy is not None:
+            if (
+                metrics.downstream_accuracy is not None
+                and self.baseline_metrics.downstream_accuracy is not None
+            ):
                 drop = self.baseline_metrics.downstream_accuracy - metrics.downstream_accuracy
                 if drop > 0.05:  # >5% drop
-                    anomalies.append(f"downstream_accuracy dropped {drop*100:.1f}% from baseline")
+                    anomalies.append(f"downstream_accuracy dropped {drop * 100:.1f}% from baseline")
 
             if metrics.temporal_stability is not None and metrics.temporal_stability < 0.90:
                 anomalies.append(f"temporal_stability low: {metrics.temporal_stability:.3f} < 0.90")
@@ -621,7 +613,7 @@ class EmbeddingQualityMonitor:
             weights.append(0.15)
 
         if metrics.intra_cluster_similarity > metrics.inter_cluster_similarity:
-            cluster_separation = (metrics.intra_cluster_similarity - metrics.inter_cluster_similarity)
+            cluster_separation = metrics.intra_cluster_similarity - metrics.inter_cluster_similarity
             scores.append(cluster_separation * 100)
             weights.append(0.15)
 
@@ -654,7 +646,7 @@ class EmbeddingQualityMonitor:
 
         # Penalize anomalies
         if metrics.anomalies:
-            quality_score *= (1 - 0.1 * len(metrics.anomalies))  # -10% per anomaly
+            quality_score *= 1 - 0.1 * len(metrics.anomalies)  # -10% per anomaly
 
         return max(0.0, min(100.0, quality_score))
 
@@ -682,10 +674,10 @@ Dimension entropy: {metrics.dimension_entropy:.3f}
 
 Similarity Distribution:
 -----------------------
-Mean: {metrics.similarity_distribution['mean']:.3f}
-Std: {metrics.similarity_distribution['std']:.3f}
-Range: [{metrics.similarity_distribution['min']:.3f}, {metrics.similarity_distribution['max']:.3f}]
-Percentiles: Q25={metrics.similarity_distribution['q25']:.3f}, Q50={metrics.similarity_distribution['q50']:.3f}, Q75={metrics.similarity_distribution['q75']:.3f}
+Mean: {metrics.similarity_distribution["mean"]:.3f}
+Std: {metrics.similarity_distribution["std"]:.3f}
+Range: [{metrics.similarity_distribution["min"]:.3f}, {metrics.similarity_distribution["max"]:.3f}]
+Percentiles: Q25={metrics.similarity_distribution["q25"]:.3f}, Q50={metrics.similarity_distribution["q50"]:.3f}, Q75={metrics.similarity_distribution["q75"]:.3f}
 """
 
         if metrics.temporal_stability is not None:
@@ -735,44 +727,52 @@ Percentiles: Q25={metrics.similarity_distribution['q25']:.3f}, Q50={metrics.simi
 
         # Plot 1: Overall quality score
         quality_scores = [m.quality_score for m in metrics_list]
-        axes[0, 0].plot(timestamps, quality_scores, marker='o')
+        axes[0, 0].plot(timestamps, quality_scores, marker="o")
         axes[0, 0].set_title("Overall Quality Score")
         axes[0, 0].set_ylabel("Score (0-100)")
         axes[0, 0].grid(True, alpha=0.3)
-        axes[0, 0].axhline(y=70, color='r', linestyle='--', alpha=0.5, label='Threshold')
+        axes[0, 0].axhline(y=70, color="r", linestyle="--", alpha=0.5, label="Threshold")
         axes[0, 0].legend()
 
         # Plot 2: Clustering metrics
         silhouette_scores = [m.silhouette_score for m in metrics_list]
         intra_sims = [m.intra_cluster_similarity for m in metrics_list]
         inter_sims = [m.inter_cluster_similarity for m in metrics_list]
-        axes[0, 1].plot(timestamps, silhouette_scores, marker='o', label='Silhouette')
-        axes[0, 1].plot(timestamps, intra_sims, marker='s', label='Intra-cluster sim', alpha=0.7)
-        axes[0, 1].plot(timestamps, inter_sims, marker='^', label='Inter-cluster sim', alpha=0.7)
+        axes[0, 1].plot(timestamps, silhouette_scores, marker="o", label="Silhouette")
+        axes[0, 1].plot(timestamps, intra_sims, marker="s", label="Intra-cluster sim", alpha=0.7)
+        axes[0, 1].plot(timestamps, inter_sims, marker="^", label="Inter-cluster sim", alpha=0.7)
         axes[0, 1].set_title("Clustering Metrics")
         axes[0, 1].set_ylabel("Score")
         axes[0, 1].legend()
         axes[0, 1].grid(True, alpha=0.3)
 
         # Plot 3: Stability metrics
-        temporal_stabilities = [m.temporal_stability for m in metrics_list if m.temporal_stability is not None]
-        temporal_timestamps = [m.timestamp for m in metrics_list if m.temporal_stability is not None]
+        temporal_stabilities = [
+            m.temporal_stability for m in metrics_list if m.temporal_stability is not None
+        ]
+        temporal_timestamps = [
+            m.timestamp for m in metrics_list if m.temporal_stability is not None
+        ]
         if temporal_stabilities:
-            axes[1, 0].plot(temporal_timestamps, temporal_stabilities, marker='o', color='purple')
+            axes[1, 0].plot(temporal_timestamps, temporal_stabilities, marker="o", color="purple")
             axes[1, 0].set_title("Temporal Stability")
             axes[1, 0].set_ylabel("Correlation")
-            axes[1, 0].axhline(y=0.90, color='r', linestyle='--', alpha=0.5, label='Threshold')
+            axes[1, 0].axhline(y=0.90, color="r", linestyle="--", alpha=0.5, label="Threshold")
             axes[1, 0].legend()
             axes[1, 0].grid(True, alpha=0.3)
 
         # Plot 4: Downstream accuracy
-        downstream_accs = [m.downstream_accuracy for m in metrics_list if m.downstream_accuracy is not None]
-        downstream_timestamps = [m.timestamp for m in metrics_list if m.downstream_accuracy is not None]
+        downstream_accs = [
+            m.downstream_accuracy for m in metrics_list if m.downstream_accuracy is not None
+        ]
+        downstream_timestamps = [
+            m.timestamp for m in metrics_list if m.downstream_accuracy is not None
+        ]
         if downstream_accs:
-            axes[1, 1].plot(downstream_timestamps, downstream_accs, marker='o', color='green')
+            axes[1, 1].plot(downstream_timestamps, downstream_accs, marker="o", color="green")
             axes[1, 1].set_title("Downstream Accuracy")
             axes[1, 1].set_ylabel("Accuracy")
-            axes[1, 1].axhline(y=0.85, color='r', linestyle='--', alpha=0.5, label='Threshold')
+            axes[1, 1].axhline(y=0.85, color="r", linestyle="--", alpha=0.5, label="Threshold")
             axes[1, 1].legend()
             axes[1, 1].grid(True, alpha=0.3)
 
@@ -805,13 +805,13 @@ if __name__ == "__main__":
         embeddings=reference_embeddings_data,
         ids=[f"ref_{i}" for i in range(len(reference_embeddings_data))],
         labels=reference_labels,
-        model_version="v1.0"
+        model_version="v1.0",
     )
 
     # Initialize monitor
     monitor = EmbeddingQualityMonitor(
         reference_embeddings=reference_batch,
-        alert_callback=lambda m: print(f"⚠️ Alert: {len(m.anomalies)} anomalies detected!")
+        alert_callback=lambda m: print(f"⚠️ Alert: {len(m.anomalies)} anomalies detected!"),
     )
 
     # Simulate monitoring over time with gradual quality degradation
@@ -823,7 +823,9 @@ if __name__ == "__main__":
         current_labels = []
         for i in range(n_classes):
             class_center = np.random.randn(n_dims) * 2
-            class_samples = class_center + np.random.randn(n_samples // n_classes, n_dims) * noise_level
+            class_samples = (
+                class_center + np.random.randn(n_samples // n_classes, n_dims) * noise_level
+            )
             current_embeddings_data.append(class_samples)
             current_labels.extend([i] * (n_samples // n_classes))
 
@@ -835,13 +837,13 @@ if __name__ == "__main__":
             ids=[f"day{day}_{i}" for i in range(len(current_embeddings_data))],
             labels=current_labels,
             model_version=f"v1.{day}",
-            timestamp=datetime.now() + timedelta(days=day)
+            timestamp=datetime.now() + timedelta(days=day),
         )
 
         # Compute quality metrics
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"Day {day}: Computing quality metrics")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
 
         metrics = monitor.compute_quality_metrics(current_batch)
         print(monitor.generate_quality_report(metrics))

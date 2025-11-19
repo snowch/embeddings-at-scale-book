@@ -35,9 +35,11 @@ Production considerations:
 - Continuous learning: Update models with new cases
 """
 
+
 @dataclass
 class MedicalImage:
     """Medical imaging study"""
+
     image_id: str
     modality: str
     body_part: str
@@ -51,9 +53,11 @@ class MedicalImage:
         if self.metadata is None:
             self.metadata = {}
 
+
 @dataclass
 class Patient:
     """Patient clinical data"""
+
     patient_id: str
     age: int
     sex: str
@@ -74,9 +78,11 @@ class Patient:
         if self.vitals is None:
             self.vitals = {}
 
+
 @dataclass
 class DiagnosticReport:
     """Diagnostic prediction output"""
+
     patient_id: str
     image_id: str
     predicted_diagnosis: str
@@ -86,6 +92,7 @@ class DiagnosticReport:
     prognosis: Dict[str, float]
     similar_cases: List[str]
     explanation: str
+
 
 class ImageEncoder(nn.Module):
     """Encode medical images to embeddings"""
@@ -97,19 +104,12 @@ class ImageEncoder(nn.Module):
         self.patch_embed = nn.Conv2d(3, 256, kernel_size=16, stride=16)
 
         encoder_layer = nn.TransformerEncoderLayer(
-            d_model=256,
-            nhead=8,
-            dim_feedforward=1024,
-            dropout=0.1,
-            batch_first=True
+            d_model=256, nhead=8, dim_feedforward=1024, dropout=0.1, batch_first=True
         )
         self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=12)
 
         self.projection = nn.Sequential(
-            nn.Linear(256, 512),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(512, embedding_dim)
+            nn.Linear(256, 512), nn.ReLU(), nn.Dropout(0.2), nn.Linear(512, embedding_dim)
         )
 
     def forward(self, images: torch.Tensor) -> torch.Tensor:
@@ -124,6 +124,7 @@ class ImageEncoder(nn.Module):
 
         return F.normalize(image_emb, p=2, dim=-1)
 
+
 class ClinicalEncoder(nn.Module):
     """Encode clinical data to embeddings"""
 
@@ -131,35 +132,23 @@ class ClinicalEncoder(nn.Module):
         super().__init__()
         self.embedding_dim = embedding_dim
 
-        self.demo_encoder = nn.Sequential(
-            nn.Linear(10, 64),
-            nn.ReLU(),
-            nn.Linear(64, 64)
-        )
+        self.demo_encoder = nn.Sequential(nn.Linear(10, 64), nn.ReLU(), nn.Linear(64, 64))
 
-        self.labs_encoder = nn.Sequential(
-            nn.Linear(50, 128),
-            nn.ReLU(),
-            nn.Linear(128, 128)
-        )
+        self.labs_encoder = nn.Sequential(nn.Linear(50, 128), nn.ReLU(), nn.Linear(128, 128))
 
         self.history_encoder = nn.Sequential(
-            nn.Embedding(1000, 64),
-            nn.LSTM(64, 128, batch_first=True)
+            nn.Embedding(1000, 64), nn.LSTM(64, 128, batch_first=True)
         )
 
         self.fusion = nn.Sequential(
             nn.Linear(64 + 128 + 128, 512),
             nn.ReLU(),
             nn.Dropout(0.2),
-            nn.Linear(512, embedding_dim)
+            nn.Linear(512, embedding_dim),
         )
 
     def forward(
-        self,
-        demographics: torch.Tensor,
-        labs: torch.Tensor,
-        history: torch.Tensor
+        self, demographics: torch.Tensor, labs: torch.Tensor, history: torch.Tensor
     ) -> torch.Tensor:
         """Encode clinical data to embeddings"""
         demo_emb = self.demo_encoder(demographics)
@@ -174,10 +163,11 @@ class ClinicalEncoder(nn.Module):
 
         return F.normalize(clinical_emb, p=2, dim=-1)
 
+
 class MultiModalDiagnosticSystem:
     """Complete diagnostic system with multi-modal embeddings"""
 
-    def __init__(self, embedding_dim: int = 512, device: str = 'cpu'):
+    def __init__(self, embedding_dim: int = 512, device: str = "cpu"):
         self.embedding_dim = embedding_dim
         self.device = device
 
@@ -188,7 +178,7 @@ class MultiModalDiagnosticSystem:
             nn.Linear(embedding_dim + embedding_dim // 2, 512),
             nn.ReLU(),
             nn.Dropout(0.2),
-            nn.Linear(512, embedding_dim)
+            nn.Linear(512, embedding_dim),
         ).to(device)
 
         self.diagnostic_classifier = nn.Sequential(
@@ -196,14 +186,11 @@ class MultiModalDiagnosticSystem:
             nn.ReLU(),
             nn.Dropout(0.2),
             nn.Linear(256, 100),
-            nn.Softmax(dim=-1)
+            nn.Softmax(dim=-1),
         ).to(device)
 
         self.severity_predictor = nn.Sequential(
-            nn.Linear(embedding_dim, 128),
-            nn.ReLU(),
-            nn.Linear(128, 1),
-            nn.Sigmoid()
+            nn.Linear(embedding_dim, 128), nn.ReLU(), nn.Linear(128, 1), nn.Sigmoid()
         ).to(device)
 
         self.case_database = {}
@@ -213,7 +200,7 @@ class MultiModalDiagnosticSystem:
         medical_image: MedicalImage,
         patient: Patient,
         image_tensor: torch.Tensor,
-        clinical_tensors: Dict[str, torch.Tensor]
+        clinical_tensors: Dict[str, torch.Tensor],
     ) -> DiagnosticReport:
         """Generate diagnostic report from image + clinical data"""
         self.image_encoder.eval()
@@ -223,9 +210,9 @@ class MultiModalDiagnosticSystem:
         self.clinical_encoder.eval()
         with torch.no_grad():
             clinical_emb = self.clinical_encoder(
-                demographics=clinical_tensors['demographics'].to(self.device),
-                labs=clinical_tensors['labs'].to(self.device),
-                history=clinical_tensors['history'].to(self.device)
+                demographics=clinical_tensors["demographics"].to(self.device),
+                labs=clinical_tensors["labs"].to(self.device),
+                history=clinical_tensors["history"].to(self.device),
             )
 
         self.fusion.eval()
@@ -245,8 +232,14 @@ class MultiModalDiagnosticSystem:
         top_indices = np.argsort(diagnosis_probs)[::-1][:5]
 
         diagnosis_names = [
-            "Normal", "Pneumonia", "COVID-19", "Lung Cancer", "COPD",
-            "Tuberculosis", "Cardiomegaly", "Pleural Effusion"
+            "Normal",
+            "Pneumonia",
+            "COVID-19",
+            "Lung Cancer",
+            "COPD",
+            "Tuberculosis",
+            "Cardiomegaly",
+            "Pleural Effusion",
         ]
 
         predicted_diagnosis = diagnosis_names[top_indices[0] % len(diagnosis_names)]
@@ -278,12 +271,13 @@ class MultiModalDiagnosticSystem:
             differential=differential,
             severity=float(severity.cpu().item()),
             prognosis={
-                'survival_1yr': random.uniform(0.7, 0.95),
-                'hospitalization_risk': random.uniform(0.1, 0.4)
+                "survival_1yr": random.uniform(0.7, 0.95),
+                "hospitalization_risk": random.uniform(0.1, 0.4),
             },
             similar_cases=similar_cases,
-            explanation=explanation
+            explanation=explanation,
         )
+
 
 def medical_imaging_example():
     """Example: Chest X-ray diagnosis with clinical data"""
@@ -295,8 +289,8 @@ def medical_imaging_example():
         sex="M",
         medical_history=["Hypertension", "Type 2 Diabetes", "Former smoker"],
         medications=["Metformin", "Lisinopril"],
-        labs={'WBC': 12.5, 'CRP': 85.0, 'Ferritin': 450.0},
-        vitals={'temperature': 38.9, 'heart_rate': 105, 'resp_rate': 24, 'spo2': 91}
+        labs={"WBC": 12.5, "CRP": 85.0, "Ferritin": 450.0},
+        vitals={"temperature": 38.9, "heart_rate": 105, "resp_rate": 24, "spo2": 91},
     )
 
     print(f"Patient: {patient.patient_id}, {patient.age}yo {patient.sex}")
@@ -307,7 +301,7 @@ def medical_imaging_example():
         image_id="IMG_67890",
         modality="Chest X-ray",
         body_part="Chest (PA view)",
-        findings="Bilateral infiltrates, predominantly in lower lobes"
+        findings="Bilateral infiltrates, predominantly in lower lobes",
     )
 
     print(f"\nImaging: {image.modality}")
@@ -317,13 +311,17 @@ def medical_imaging_example():
 
     image_tensor = torch.randn(3, 224, 224)
     clinical_tensors = {
-        'demographics': torch.randn(1, 10),
-        'labs': torch.randn(1, 50),
-        'history': torch.randint(0, 1000, (1, 5))
+        "demographics": torch.randn(1, 10),
+        "labs": torch.randn(1, 50),
+        "history": torch.randint(0, 1000, (1, 5)),
     }
 
-    report = system.diagnose(medical_image=image, patient=patient,
-                             image_tensor=image_tensor, clinical_tensors=clinical_tensors)
+    report = system.diagnose(
+        medical_image=image,
+        patient=patient,
+        image_tensor=image_tensor,
+        clinical_tensors=clinical_tensors,
+    )
 
     print("\n--- Diagnostic Report ---\n")
     print(f"Primary Diagnosis: {report.predicted_diagnosis}")
@@ -342,6 +340,7 @@ def medical_imaging_example():
     print("Specificity: 92.5%")
     print("Processing time: <2 seconds")
     print("Reduction in radiologist time: 65%")
+
 
 # Uncomment to run:
 # medical_imaging_example()

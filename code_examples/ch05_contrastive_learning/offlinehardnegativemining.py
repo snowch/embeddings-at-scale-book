@@ -64,12 +64,11 @@ class OfflineHardNegativeMining:
             for batch in dataloader:
                 # Encode batch
                 embeddings = model(
-                    batch['input_ids'].to(device),
-                    batch['attention_mask'].to(device)
+                    batch["input_ids"].to(device), batch["attention_mask"].to(device)
                 )
 
                 all_embeddings.append(embeddings.cpu())
-                all_ids.extend(batch['id'])
+                all_ids.extend(batch["id"])
 
         # Concatenate all
         embeddings = torch.cat(all_embeddings, dim=0).numpy()
@@ -95,10 +94,7 @@ class OfflineHardNegativeMining:
             nlist = int(np.sqrt(num_examples))  # Number of cells
             quantizer = faiss.IndexFlatIP(self.embedding_dim)  # Inner product
             self.index = faiss.IndexIVFFlat(
-                quantizer,
-                self.embedding_dim,
-                nlist,
-                faiss.METRIC_INNER_PRODUCT
+                quantizer, self.embedding_dim, nlist, faiss.METRIC_INNER_PRODUCT
             )
 
             # Train index (required for IVF)
@@ -135,7 +131,7 @@ class OfflineHardNegativeMining:
 
         for idx, query_id in enumerate(query_ids):
             # Get query embedding
-            query_embedding = self.dataset_embeddings[query_id:query_id+1]
+            query_embedding = self.dataset_embeddings[query_id : query_id + 1]
 
             # Search for k+N nearest neighbors (some may be positives to exclude)
             # Get extra to account for self and positives
@@ -164,8 +160,7 @@ class OfflineHardNegativeMining:
 
         return hard_negatives
 
-    def refresh_hard_negatives(self, model, dataloader, device,
-                               positive_pairs=None):
+    def refresh_hard_negatives(self, model, dataloader, device, positive_pairs=None):
         """
         Full refresh: encode dataset, build index, mine negatives
 
@@ -186,12 +181,11 @@ class OfflineHardNegativeMining:
 
         print("Mining hard negatives...")
         query_ids = list(range(len(ids)))
-        positive_ids_list = [positive_pairs.get(i, []) for i in query_ids] if positive_pairs else None
-
-        hard_negatives = self.mine_hard_negatives(
-            query_ids,
-            positive_ids=positive_ids_list
+        positive_ids_list = (
+            [positive_pairs.get(i, []) for i in query_ids] if positive_pairs else None
         )
+
+        hard_negatives = self.mine_hard_negatives(query_ids, positive_ids=positive_ids_list)
 
         print(f"Mined {self.num_hard_negatives} hard negatives for {len(hard_negatives)} examples")
 
@@ -235,9 +229,9 @@ class HardNegativeDataset(data.Dataset):
             negative = self.base_dataset[neg_id]
 
         return {
-            'anchor': item['text'],
-            'positive': item['positive'],  # Assume dataset provides positives
-            'negative': negative['text']
+            "anchor": item["text"],
+            "positive": item["positive"],  # Assume dataset provides positives
+            "negative": negative["text"],
         }
 
 
@@ -247,8 +241,7 @@ def train_with_offline_hard_negatives(model, base_dataset, device, num_epochs=10
     Training loop with periodic hard negative mining
     """
     hard_negative_miner = OfflineHardNegativeMining(
-        embedding_dim=model.embedding_dim,
-        num_hard_negatives=10
+        embedding_dim=model.embedding_dim, num_hard_negatives=10
     )
 
     # Mine hard negatives every epoch
@@ -256,23 +249,13 @@ def train_with_offline_hard_negatives(model, base_dataset, device, num_epochs=10
         print(f"\nEpoch {epoch}")
 
         # Refresh hard negatives
-        dataloader = torch.utils.data.DataLoader(
-            base_dataset,
-            batch_size=256,
-            shuffle=False
-        )
+        dataloader = torch.utils.data.DataLoader(base_dataset, batch_size=256, shuffle=False)
 
-        hard_negatives = hard_negative_miner.refresh_hard_negatives(
-            model, dataloader, device
-        )
+        hard_negatives = hard_negative_miner.refresh_hard_negatives(model, dataloader, device)
 
         # Create dataset with hard negatives
         train_dataset = HardNegativeDataset(base_dataset, hard_negatives)
-        train_loader = torch.utils.data.DataLoader(
-            train_dataset,
-            batch_size=64,
-            shuffle=True
-        )
+        train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=64, shuffle=True)
 
         # Train epoch
         model.train()

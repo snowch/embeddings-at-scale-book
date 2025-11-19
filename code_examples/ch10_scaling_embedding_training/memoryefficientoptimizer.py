@@ -24,10 +24,7 @@ class MemoryEfficientOptimizer:
 
     @staticmethod
     def get_optimizer(
-        parameters,
-        optimizer_type: str = 'adamw',
-        lr: float = 0.001,
-        memory_efficient: bool = True
+        parameters, optimizer_type: str = "adamw", lr: float = 0.001, memory_efficient: bool = True
     ):
         """
         Get memory-efficient optimizer
@@ -42,40 +39,34 @@ class MemoryEfficientOptimizer:
             optimizer: Configured optimizer
         """
 
-        if optimizer_type == 'adamw':
+        if optimizer_type == "adamw":
             if memory_efficient:
                 # Use fused AdamW (faster, lower memory)
                 return optim.AdamW(
                     parameters,
                     lr=lr,
-                    fused=True  # Fused kernel (A100+)
+                    fused=True,  # Fused kernel (A100+)
                 )
             else:
                 return optim.AdamW(parameters, lr=lr)
 
-        elif optimizer_type == 'sgd':
+        elif optimizer_type == "sgd":
             # SGD with momentum uses less memory than Adam
-            return optim.SGD(
-                parameters,
-                lr=lr,
-                momentum=0.9,
-                nesterov=True
-            )
+            return optim.SGD(parameters, lr=lr, momentum=0.9, nesterov=True)
 
-        elif optimizer_type == '8bit_adam':
+        elif optimizer_type == "8bit_adam":
             # Requires: pip install bitsandbytes
             try:
                 import bitsandbytes as bnb
-                return bnb.optim.Adam8bit(
-                    parameters,
-                    lr=lr
-                )
+
+                return bnb.optim.Adam8bit(parameters, lr=lr)
             except ImportError:
                 print("bitsandbytes not installed, falling back to AdamW")
                 return optim.AdamW(parameters, lr=lr)
 
         else:
             raise ValueError(f"Unknown optimizer: {optimizer_type}")
+
 
 def memory_usage_comparison():
     """
@@ -85,11 +76,7 @@ def memory_usage_comparison():
     """
 
     # Create dummy model
-    model = nn.Sequential(
-        nn.Linear(1024, 4096),
-        nn.ReLU(),
-        nn.Linear(4096, 1024)
-    )
+    model = nn.Sequential(nn.Linear(1024, 4096), nn.ReLU(), nn.Linear(4096, 1024))
 
     num_params = sum(p.numel() for p in model.parameters())
     print(f"Model parameters: {num_params / 1e6:.1f}M")
@@ -115,6 +102,7 @@ def memory_usage_comparison():
     print(f"  Adam (FP16): {param_memory_mb + adam_fp16_mb:.1f} MB")
     print(f"  Adam (8-bit): {param_memory_mb + adam_8bit_mb:.1f} MB")
     print(f"  SGD: {param_memory_mb + sgd_mb:.1f} MB")
+
 
 # Uncomment to run:
 # memory_usage_comparison()

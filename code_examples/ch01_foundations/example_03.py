@@ -8,7 +8,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 documents = [
     "Machine learning is a subset of artificial intelligence.",
     "Deep learning uses neural networks with multiple layers.",
-    "Natural language processing deals with text data."
+    "Natural language processing deals with text data.",
 ]
 query = "What is machine learning?"
 

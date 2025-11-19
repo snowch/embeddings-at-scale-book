@@ -22,8 +22,9 @@ class InfoNCELoss:
         """
         self.temperature = temperature
 
-    def compute_loss(self, anchor_embeddings, positive_embeddings,
-                     negative_embeddings=None, all_embeddings=None):
+    def compute_loss(
+        self, anchor_embeddings, positive_embeddings, negative_embeddings=None, all_embeddings=None
+    ):
         """
         Compute InfoNCE loss
 
@@ -56,10 +57,7 @@ class InfoNCELoss:
 
             # Similarity matrix: anchor × all
             # Shape: (batch_size, total_size)
-            similarity_matrix = torch.matmul(
-                anchor_norm,
-                all_norm.T
-            ) / self.temperature
+            similarity_matrix = torch.matmul(anchor_norm, all_norm.T) / self.temperature
 
             # Mask out the positive (assume positives at same index)
             # Create labels: positive is at index i for anchor i
@@ -88,21 +86,26 @@ class InfoNCELoss:
 
             # Negative similarities: anchor · negatives
             # Shape: (batch_size, num_negatives)
-            negative_sim = torch.matmul(
-                anchor_norm.unsqueeze(1),  # (batch, 1, dim)
-                negative_norm.transpose(1, 2)  # (batch, dim, num_neg)
-            ).squeeze(1) / self.temperature
+            negative_sim = (
+                torch.matmul(
+                    anchor_norm.unsqueeze(1),  # (batch, 1, dim)
+                    negative_norm.transpose(1, 2),  # (batch, dim, num_neg)
+                ).squeeze(1)
+                / self.temperature
+            )
 
             # Concatenate positive and negative similarities
             # Shape: (batch_size, 1 + num_negatives)
-            logits = torch.cat([
-                positive_sim.unsqueeze(1),  # Positive is first
-                negative_sim
-            ], dim=1)
+            logits = torch.cat(
+                [
+                    positive_sim.unsqueeze(1),  # Positive is first
+                    negative_sim,
+                ],
+                dim=1,
+            )
 
             # Labels: positive is always at index 0
-            labels = torch.zeros(batch_size, dtype=torch.long,
-                               device=anchor_embeddings.device)
+            labels = torch.zeros(batch_size, dtype=torch.long, device=anchor_embeddings.device)
 
             loss = F.cross_entropy(logits, labels)
 
@@ -117,21 +120,17 @@ class InfoNCELoss:
             raise ValueError("Must provide either negative_embeddings or all_embeddings")
 
         metrics = {
-            'accuracy': accuracy.item(),
-            'positive_similarity': positive_sim_mean.item(),
-            'negative_similarity': negative_sim_mean.item(),
-            'similarity_gap': (positive_sim_mean - negative_sim_mean).item()
+            "accuracy": accuracy.item(),
+            "positive_similarity": positive_sim_mean.item(),
+            "negative_similarity": negative_sim_mean.item(),
+            "similarity_gap": (positive_sim_mean - negative_sim_mean).item(),
         }
 
         return loss, metrics
 
 
 # Example usage
-encoder = torch.nn.Sequential(
-    torch.nn.Linear(512, 256),
-    torch.nn.ReLU(),
-    torch.nn.Linear(256, 128)
-)
+encoder = torch.nn.Sequential(torch.nn.Linear(512, 256), torch.nn.ReLU(), torch.nn.Linear(256, 128))
 
 # Batch of data
 anchors = torch.randn(64, 512)  # 64 examples
@@ -145,11 +144,7 @@ all_emb = encoder(all_batch)
 
 # Compute loss
 loss_fn = InfoNCELoss(temperature=0.07)
-loss, metrics = loss_fn.compute_loss(
-    anchor_emb,
-    positive_emb,
-    all_embeddings=all_emb
-)
+loss, metrics = loss_fn.compute_loss(anchor_emb, positive_emb, all_embeddings=all_emb)
 
 print(f"Loss: {loss.item():.4f}")
 print(f"Accuracy: {metrics['accuracy']:.2%}")

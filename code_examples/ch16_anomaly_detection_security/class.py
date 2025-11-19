@@ -40,11 +40,13 @@ class FinancialEntity:
         risk_level: Risk category (low, medium, high)
         embedding: Learned embedding
     """
+
     entity_id: str
     entity_type: str
     features: Dict[str, float]
     risk_level: Optional[str] = None
     embedding: Optional[np.ndarray] = None
+
 
 class FinancialEntityEncoder(nn.Module):
     """
@@ -56,18 +58,11 @@ class FinancialEntityEncoder(nn.Module):
     - Network features (relationships, supply chain position)
     """
 
-    def __init__(
-        self,
-        feature_dim: int = 50,
-        embedding_dim: int = 128
-    ):
+    def __init__(self, feature_dim: int = 50, embedding_dim: int = 128):
         super().__init__()
 
         self.encoder = nn.Sequential(
-            nn.Linear(feature_dim, 128),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(128, embedding_dim)
+            nn.Linear(feature_dim, 128), nn.ReLU(), nn.Dropout(0.2), nn.Linear(128, embedding_dim)
         )
 
     def forward(self, features: torch.Tensor) -> torch.Tensor:
@@ -83,6 +78,7 @@ class FinancialEntityEncoder(nn.Module):
         emb = self.encoder(features)
         emb = F.normalize(emb, p=2, dim=1)
         return emb
+
 
 class RiskAssessmentSystem:
     """
@@ -100,10 +96,7 @@ class RiskAssessmentSystem:
     - Network risk analysis (contagion)
     """
 
-    def __init__(
-        self,
-        embedding_dim: int = 128
-    ):
+    def __init__(self, embedding_dim: int = 128):
         """
         Args:
             embedding_dim: Embedding dimension
@@ -120,10 +113,7 @@ class RiskAssessmentSystem:
         print("Initialized Risk Assessment System")
         print(f"  Embedding dimension: {embedding_dim}")
 
-    def build_risk_clusters(
-        self,
-        entities: List[FinancialEntity]
-    ):
+    def build_risk_clusters(self, entities: List[FinancialEntity]):
         """
         Build risk clusters from labeled entities
 
@@ -133,17 +123,21 @@ class RiskAssessmentSystem:
         print(f"Building risk clusters from {len(entities)} entities...")
 
         # Group by risk level
-        risk_groups = {'low': [], 'medium': [], 'high': []}
+        risk_groups = {"low": [], "medium": [], "high": []}
 
         for entity in entities:
             if entity.risk_level in risk_groups:
                 # Extract features (simplified)
-                features = np.array([
-                    entity.features.get('debt_to_income', 0.5),
-                    entity.features.get('payment_history_score', 0.7),
-                    entity.features.get('assets', 50000) / 100000,
-                    # ... more features
-                ] + [0.0] * 47, dtype=np.float32)  # Pad to 50 dimensions
+                features = np.array(
+                    [
+                        entity.features.get("debt_to_income", 0.5),
+                        entity.features.get("payment_history_score", 0.7),
+                        entity.features.get("assets", 50000) / 100000,
+                        # ... more features
+                    ]
+                    + [0.0] * 47,
+                    dtype=np.float32,
+                )  # Pad to 50 dimensions
 
                 features_tensor = torch.from_numpy(features).unsqueeze(0)
 
@@ -160,10 +154,7 @@ class RiskAssessmentSystem:
 
         print("✓ Built risk clusters")
 
-    def assess_risk(
-        self,
-        entity: FinancialEntity
-    ) -> Tuple[str, Dict[str, float]]:
+    def assess_risk(self, entity: FinancialEntity) -> Tuple[str, Dict[str, float]]:
         """
         Assess risk level for entity
 
@@ -174,11 +165,15 @@ class RiskAssessmentSystem:
             (risk_level, distances_to_clusters)
         """
         # Extract features
-        features = np.array([
-            entity.features.get('debt_to_income', 0.5),
-            entity.features.get('payment_history_score', 0.7),
-            entity.features.get('assets', 50000) / 100000,
-        ] + [0.0] * 47, dtype=np.float32)
+        features = np.array(
+            [
+                entity.features.get("debt_to_income", 0.5),
+                entity.features.get("payment_history_score", 0.7),
+                entity.features.get("assets", 50000) / 100000,
+            ]
+            + [0.0] * 47,
+            dtype=np.float32,
+        )
 
         features_tensor = torch.from_numpy(features).unsqueeze(0)
 
@@ -195,6 +190,7 @@ class RiskAssessmentSystem:
         risk_level = min(distances.keys(), key=lambda k: distances[k])
 
         return risk_level, distances
+
 
 # Example: Credit risk assessment
 def risk_assessment_example():
@@ -218,42 +214,42 @@ def risk_assessment_example():
     # Low risk entities
     for i in range(100):
         entity = FinancialEntity(
-            entity_id=f'low_risk_{i}',
-            entity_type='person',
+            entity_id=f"low_risk_{i}",
+            entity_type="person",
             features={
-                'debt_to_income': 0.2 + np.random.rand() * 0.1,  # 20-30%
-                'payment_history_score': 0.9 + np.random.rand() * 0.1,  # 90-100%
-                'assets': 100000 + np.random.rand() * 50000  # $100K-$150K
+                "debt_to_income": 0.2 + np.random.rand() * 0.1,  # 20-30%
+                "payment_history_score": 0.9 + np.random.rand() * 0.1,  # 90-100%
+                "assets": 100000 + np.random.rand() * 50000,  # $100K-$150K
             },
-            risk_level='low'
+            risk_level="low",
         )
         training_entities.append(entity)
 
     # Medium risk entities
     for i in range(100):
         entity = FinancialEntity(
-            entity_id=f'medium_risk_{i}',
-            entity_type='person',
+            entity_id=f"medium_risk_{i}",
+            entity_type="person",
             features={
-                'debt_to_income': 0.35 + np.random.rand() * 0.15,  # 35-50%
-                'payment_history_score': 0.7 + np.random.rand() * 0.15,  # 70-85%
-                'assets': 30000 + np.random.rand() * 40000  # $30K-$70K
+                "debt_to_income": 0.35 + np.random.rand() * 0.15,  # 35-50%
+                "payment_history_score": 0.7 + np.random.rand() * 0.15,  # 70-85%
+                "assets": 30000 + np.random.rand() * 40000,  # $30K-$70K
             },
-            risk_level='medium'
+            risk_level="medium",
         )
         training_entities.append(entity)
 
     # High risk entities
     for i in range(100):
         entity = FinancialEntity(
-            entity_id=f'high_risk_{i}',
-            entity_type='person',
+            entity_id=f"high_risk_{i}",
+            entity_type="person",
             features={
-                'debt_to_income': 0.6 + np.random.rand() * 0.3,  # 60-90%
-                'payment_history_score': 0.3 + np.random.rand() * 0.3,  # 30-60%
-                'assets': 5000 + np.random.rand() * 15000  # $5K-$20K
+                "debt_to_income": 0.6 + np.random.rand() * 0.3,  # 60-90%
+                "payment_history_score": 0.3 + np.random.rand() * 0.3,  # 30-60%
+                "assets": 5000 + np.random.rand() * 15000,  # $5K-$20K
             },
-            risk_level='high'
+            risk_level="high",
         )
         training_entities.append(entity)
 
@@ -265,13 +261,9 @@ def risk_assessment_example():
 
     # Test: Low risk applicant
     test_low = FinancialEntity(
-        entity_id='applicant_1',
-        entity_type='person',
-        features={
-            'debt_to_income': 0.25,
-            'payment_history_score': 0.95,
-            'assets': 120000
-        }
+        entity_id="applicant_1",
+        entity_type="person",
+        features={"debt_to_income": 0.25, "payment_history_score": 0.95, "assets": 120000},
     )
 
     risk_level, distances = system.assess_risk(test_low)
@@ -284,13 +276,9 @@ def risk_assessment_example():
 
     # Test: High risk applicant
     test_high = FinancialEntity(
-        entity_id='applicant_2',
-        entity_type='person',
-        features={
-            'debt_to_income': 0.75,
-            'payment_history_score': 0.45,
-            'assets': 8000
-        }
+        entity_id="applicant_2",
+        entity_type="person",
+        features={"debt_to_income": 0.75, "payment_history_score": 0.45, "assets": 8000},
     )
 
     risk_level, distances = system.assess_risk(test_high)
@@ -300,6 +288,7 @@ def risk_assessment_example():
     print(f"  Assets: ${test_high.features['assets']:,.0f}")
     print(f"  Risk level: {risk_level.upper()}")
     print(f"  Distances: {', '.join([f'{k}={v:.3f}' for k, v in distances.items()])}")
+
 
 # Uncomment to run:
 # risk_assessment_example()

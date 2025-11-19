@@ -5,6 +5,7 @@ import torch.nn.functional as F
 # Code from Chapter 06
 # Book: Embeddings at Scale
 
+
 class EnterpriseOptimizedSiameseNetwork(nn.Module):
     """
     Production-optimized Siamese network with enterprise features
@@ -18,11 +19,7 @@ class EnterpriseOptimizedSiameseNetwork(nn.Module):
     """
 
     def __init__(
-        self,
-        base_model,
-        embedding_dim=512,
-        use_attention=True,
-        use_gradient_checkpointing=False
+        self, base_model, embedding_dim=512, use_attention=True, use_gradient_checkpointing=False
     ):
         super().__init__()
 
@@ -34,16 +31,13 @@ class EnterpriseOptimizedSiameseNetwork(nn.Module):
             nn.Linear(embedding_dim, embedding_dim),
             nn.BatchNorm1d(embedding_dim),
             nn.ReLU(),
-            nn.Linear(embedding_dim, embedding_dim)
+            nn.Linear(embedding_dim, embedding_dim),
         )
 
         # Optional attention for focusing on important features
         if use_attention:
             self.attention = nn.MultiheadAttention(
-                embed_dim=embedding_dim,
-                num_heads=8,
-                dropout=0.1,
-                batch_first=True
+                embed_dim=embedding_dim, num_heads=8, dropout=0.1, batch_first=True
             )
         else:
             self.attention = None
@@ -53,12 +47,8 @@ class EnterpriseOptimizedSiameseNetwork(nn.Module):
 
         if self.use_gradient_checkpointing and self.training:
             # Save memory during training by recomputing activations
-            embedding1 = torch.utils.checkpoint.checkpoint(
-                self._encode, x1
-            )
-            embedding2 = torch.utils.checkpoint.checkpoint(
-                self._encode, x2
-            )
+            embedding1 = torch.utils.checkpoint.checkpoint(self._encode, x1)
+            embedding2 = torch.utils.checkpoint.checkpoint(self._encode, x2)
         else:
             embedding1 = self._encode(x1)
             embedding2 = self._encode(x2)
@@ -74,11 +64,7 @@ class EnterpriseOptimizedSiameseNetwork(nn.Module):
         if self.attention is not None:
             # Reshape for attention (batch, seq_len=1, dim)
             features_reshaped = features.unsqueeze(1)
-            attended, _ = self.attention(
-                features_reshaped,
-                features_reshaped,
-                features_reshaped
-            )
+            attended, _ = self.attention(features_reshaped, features_reshaped, features_reshaped)
             features = attended.squeeze(1)
 
         # Project to embedding space
@@ -89,14 +75,7 @@ class EnterpriseOptimizedSiameseNetwork(nn.Module):
 
 
 # Training loop with mixed precision
-def train_siamese_enterprise(
-    model,
-    train_loader,
-    optimizer,
-    criterion,
-    device,
-    use_amp=True
-):
+def train_siamese_enterprise(model, train_loader, optimizer, criterion, device, use_amp=True):
     """
     Enterprise training loop with automatic mixed precision
 
@@ -136,13 +115,10 @@ def train_siamese_enterprise(
             loss.backward()
             optimizer.step()
 
-        total_loss += metrics['loss']
-        total_accuracy += metrics['accuracy']
+        total_loss += metrics["loss"]
+        total_accuracy += metrics["accuracy"]
 
     avg_loss = total_loss / len(train_loader)
     avg_accuracy = total_accuracy / len(train_loader)
 
-    return {
-        'loss': avg_loss,
-        'accuracy': avg_accuracy
-    }
+    return {"loss": avg_loss, "accuracy": avg_accuracy}

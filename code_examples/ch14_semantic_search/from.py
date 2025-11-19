@@ -43,6 +43,7 @@ class MultiModalQuery:
         audio: Audio query as waveform (optional)
         modality_weights: Weights for each modality when combining
     """
+
     text: Optional[str] = None
     image: Optional[Image.Image] = None
     audio: Optional[np.ndarray] = None
@@ -51,20 +52,19 @@ class MultiModalQuery:
     def __post_init__(self):
         if self.modality_weights is None:
             # Default: Equal weighting
-            active_modalities = sum([
-                self.text is not None,
-                self.image is not None,
-                self.audio is not None
-            ])
+            active_modalities = sum(
+                [self.text is not None, self.image is not None, self.audio is not None]
+            )
             if active_modalities > 0:
                 weight = 1.0 / active_modalities
                 self.modality_weights = {}
                 if self.text:
-                    self.modality_weights['text'] = weight
+                    self.modality_weights["text"] = weight
                 if self.image:
-                    self.modality_weights['image'] = weight
+                    self.modality_weights["image"] = weight
                 if self.audio:
-                    self.modality_weights['audio'] = weight
+                    self.modality_weights["audio"] = weight
+
 
 @dataclass
 class MultiModalDocument:
@@ -79,12 +79,14 @@ class MultiModalDocument:
         metadata: Additional metadata
         embeddings: Cached embeddings per modality
     """
+
     doc_id: str
     text: Optional[str] = None
     image: Optional[Image.Image] = None
     audio: Optional[np.ndarray] = None
     metadata: Dict = None
     embeddings: Optional[Dict[str, np.ndarray]] = None
+
 
 class TextEncoder(nn.Module):
     """
@@ -102,7 +104,7 @@ class TextEncoder(nn.Module):
         vocab_size: int = 50000,
         embedding_dim: int = 512,
         hidden_dim: int = 768,
-        num_layers: int = 12
+        num_layers: int = 12,
     ):
         super().__init__()
         self.embedding_dim = embedding_dim
@@ -112,10 +114,7 @@ class TextEncoder(nn.Module):
 
         # Transformer encoder
         encoder_layer = nn.TransformerEncoderLayer(
-            d_model=hidden_dim,
-            nhead=8,
-            dim_feedforward=hidden_dim * 4,
-            batch_first=True
+            d_model=hidden_dim, nhead=8, dim_feedforward=hidden_dim * 4, batch_first=True
         )
         self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
 
@@ -149,6 +148,7 @@ class TextEncoder(nn.Module):
 
         return x
 
+
 class ImageEncoder(nn.Module):
     """
     Image encoder for multi-modal embeddings
@@ -160,11 +160,7 @@ class ImageEncoder(nn.Module):
     In production: Use pre-trained CLIP image encoder
     """
 
-    def __init__(
-        self,
-        embedding_dim: int = 512,
-        image_size: int = 224
-    ):
+    def __init__(self, embedding_dim: int = 512, image_size: int = 224):
         super().__init__()
         self.embedding_dim = embedding_dim
         self.image_size = image_size
@@ -175,14 +171,12 @@ class ImageEncoder(nn.Module):
             nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
-
             nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
-
             nn.Conv2d(128, 256, kernel_size=3, stride=2, padding=1),
             nn.ReLU(),
-            nn.AdaptiveAvgPool2d((1, 1))
+            nn.AdaptiveAvgPool2d((1, 1)),
         )
 
         # Projection to shared space
@@ -210,6 +204,7 @@ class ImageEncoder(nn.Module):
 
         return x
 
+
 class AudioEncoder(nn.Module):
     """
     Audio encoder for multi-modal embeddings
@@ -220,12 +215,7 @@ class AudioEncoder(nn.Module):
     - Projects to shared embedding space (512-dim)
     """
 
-    def __init__(
-        self,
-        embedding_dim: int = 512,
-        sample_rate: int = 16000,
-        n_mels: int = 128
-    ):
+    def __init__(self, embedding_dim: int = 512, sample_rate: int = 16000, n_mels: int = 128):
         super().__init__()
         self.embedding_dim = embedding_dim
         self.sample_rate = sample_rate
@@ -236,12 +226,10 @@ class AudioEncoder(nn.Module):
             nn.Conv2d(1, 64, kernel_size=3, stride=2, padding=1),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2),
-
             nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2),
-
-            nn.AdaptiveAvgPool2d((1, 1))
+            nn.AdaptiveAvgPool2d((1, 1)),
         )
 
         # Projection to shared space
@@ -269,6 +257,7 @@ class AudioEncoder(nn.Module):
 
         return x
 
+
 class MultiModalSearchEngine:
     """
     Multi-modal semantic search engine
@@ -291,18 +280,14 @@ class MultiModalSearchEngine:
     - Cache popular queries
     """
 
-    def __init__(
-        self,
-        embedding_dim: int = 512,
-        device: str = 'cuda'
-    ):
+    def __init__(self, embedding_dim: int = 512, device: str = "cuda"):
         """
         Args:
             embedding_dim: Dimension of shared embedding space
             device: Device for computation ('cuda' or 'cpu')
         """
         self.embedding_dim = embedding_dim
-        self.device = device if torch.cuda.is_available() else 'cpu'
+        self.device = device if torch.cuda.is_available() else "cpu"
 
         # Initialize encoders
         self.text_encoder = TextEncoder(embedding_dim=embedding_dim).to(self.device)
@@ -319,9 +304,9 @@ class MultiModalSearchEngine:
 
         # Per-modality indices: modality -> (doc_ids, embeddings)
         self.indices: Dict[str, Tuple[List[str], np.ndarray]] = {
-            'text': ([], np.array([])),
-            'image': ([], np.array([])),
-            'audio': ([], np.array([]))
+            "text": ([], np.array([])),
+            "image": ([], np.array([])),
+            "audio": ([], np.array([])),
         }
 
         print("Initialized Multi-Modal Search Engine")
@@ -440,15 +425,15 @@ class MultiModalSearchEngine:
 
             # Update text index
             doc_ids = [doc.doc_id for _, doc in text_docs]
-            existing_ids, existing_embs = self.indices['text']
+            existing_ids, existing_embs = self.indices["text"]
 
             if len(existing_embs) > 0:
-                self.indices['text'] = (
+                self.indices["text"] = (
                     list(existing_ids) + doc_ids,
-                    np.vstack([existing_embs, text_embeddings])
+                    np.vstack([existing_embs, text_embeddings]),
                 )
             else:
-                self.indices['text'] = (doc_ids, text_embeddings)
+                self.indices["text"] = (doc_ids, text_embeddings)
 
             print(f"  Indexed {len(text_docs)} text documents")
 
@@ -459,15 +444,15 @@ class MultiModalSearchEngine:
 
             # Update image index
             doc_ids = [doc.doc_id for _, doc in image_docs]
-            existing_ids, existing_embs = self.indices['image']
+            existing_ids, existing_embs = self.indices["image"]
 
             if len(existing_embs) > 0:
-                self.indices['image'] = (
+                self.indices["image"] = (
                     list(existing_ids) + doc_ids,
-                    np.vstack([existing_embs, image_embeddings])
+                    np.vstack([existing_embs, image_embeddings]),
                 )
             else:
-                self.indices['image'] = (doc_ids, image_embeddings)
+                self.indices["image"] = (doc_ids, image_embeddings)
 
             print(f"  Indexed {len(image_docs)} image documents")
 
@@ -478,15 +463,15 @@ class MultiModalSearchEngine:
 
             # Update audio index
             doc_ids = [doc.doc_id for _, doc in audio_docs]
-            existing_ids, existing_embs = self.indices['audio']
+            existing_ids, existing_embs = self.indices["audio"]
 
             if len(existing_embs) > 0:
-                self.indices['audio'] = (
+                self.indices["audio"] = (
                     list(existing_ids) + doc_ids,
-                    np.vstack([existing_embs, audio_embeddings])
+                    np.vstack([existing_embs, audio_embeddings]),
                 )
             else:
-                self.indices['audio'] = (doc_ids, audio_embeddings)
+                self.indices["audio"] = (doc_ids, audio_embeddings)
 
             print(f"  Indexed {len(audio_docs)} audio documents")
 
@@ -501,10 +486,7 @@ class MultiModalSearchEngine:
         print(f"  Audio index: {len(self.indices['audio'][0])}")
 
     def search(
-        self,
-        query: MultiModalQuery,
-        top_k: int = 10,
-        modality_filter: Optional[str] = None
+        self, query: MultiModalQuery, top_k: int = 10, modality_filter: Optional[str] = None
     ) -> List[Tuple[str, float]]:
         """
         Search across modalities
@@ -526,15 +508,15 @@ class MultiModalSearchEngine:
 
         if query.text:
             text_emb = self.encode_text([query.text])[0]
-            query_embeddings['text'] = text_emb
+            query_embeddings["text"] = text_emb
 
         if query.image:
             image_emb = self.encode_images([query.image])[0]
-            query_embeddings['image'] = image_emb
+            query_embeddings["image"] = image_emb
 
         if query.audio:
             audio_emb = self.encode_audio([query.audio])[0]
-            query_embeddings['audio'] = audio_emb
+            query_embeddings["audio"] = audio_emb
 
         if not query_embeddings:
             return []
@@ -543,7 +525,7 @@ class MultiModalSearchEngine:
         all_scores = {}  # doc_id -> score
 
         # Determine which document modalities to search
-        search_modalities = [modality_filter] if modality_filter else ['text', 'image', 'audio']
+        search_modalities = [modality_filter] if modality_filter else ["text", "image", "audio"]
 
         for doc_modality in search_modalities:
             doc_ids, doc_embeddings = self.indices[doc_modality]
@@ -570,6 +552,7 @@ class MultiModalSearchEngine:
 
         return ranked_results[:top_k]
 
+
 # Example: Multi-modal product search
 def multimodal_search_example():
     """
@@ -589,23 +572,23 @@ def multimodal_search_example():
     # Create sample products
     products = [
         MultiModalDocument(
-            doc_id='product_1',
-            text='Red summer dress with floral pattern',
-            image=Image.new('RGB', (224, 224), color='red'),
-            metadata={'category': 'clothing', 'price': 49.99}
+            doc_id="product_1",
+            text="Red summer dress with floral pattern",
+            image=Image.new("RGB", (224, 224), color="red"),
+            metadata={"category": "clothing", "price": 49.99},
         ),
         MultiModalDocument(
-            doc_id='product_2',
-            text='Blue denim jeans with distressed look',
-            image=Image.new('RGB', (224, 224), color='blue'),
-            metadata={'category': 'clothing', 'price': 79.99}
+            doc_id="product_2",
+            text="Blue denim jeans with distressed look",
+            image=Image.new("RGB", (224, 224), color="blue"),
+            metadata={"category": "clothing", "price": 79.99},
         ),
         MultiModalDocument(
-            doc_id='product_3',
-            text='Wireless bluetooth headphones with noise cancellation',
-            image=Image.new('RGB', (224, 224), color='black'),
-            metadata={'category': 'electronics', 'price': 199.99}
-        )
+            doc_id="product_3",
+            text="Wireless bluetooth headphones with noise cancellation",
+            image=Image.new("RGB", (224, 224), color="black"),
+            metadata={"category": "electronics", "price": 199.99},
+        ),
     ]
 
     # Index products
@@ -613,7 +596,7 @@ def multimodal_search_example():
 
     # Search: Text query
     print("\n=== Text Query: 'red dress' ===")
-    query1 = MultiModalQuery(text='red dress')
+    query1 = MultiModalQuery(text="red dress")
     results1 = engine.search(query1, top_k=3)
 
     for doc_id, score in results1:
@@ -622,7 +605,7 @@ def multimodal_search_example():
 
     # Search: Image query
     print("\n=== Image Query: Red image ===")
-    query_image = Image.new('RGB', (224, 224), color='red')
+    query_image = Image.new("RGB", (224, 224), color="red")
     query2 = MultiModalQuery(image=query_image)
     results2 = engine.search(query2, top_k=3)
 
@@ -632,17 +615,16 @@ def multimodal_search_example():
 
     # Search: Multi-modal query (text + image)
     print("\n=== Multi-Modal Query: 'dress' + blue image ===")
-    query_image_blue = Image.new('RGB', (224, 224), color='blue')
+    query_image_blue = Image.new("RGB", (224, 224), color="blue")
     query3 = MultiModalQuery(
-        text='dress',
-        image=query_image_blue,
-        modality_weights={'text': 0.6, 'image': 0.4}
+        text="dress", image=query_image_blue, modality_weights={"text": 0.6, "image": 0.4}
     )
     results3 = engine.search(query3, top_k=3)
 
     for doc_id, score in results3:
         doc = engine.documents[doc_id]
         print(f"{doc_id}: {doc.text[:50]}... (score: {score:.3f})")
+
 
 # Uncomment to run:
 # multimodal_search_example()

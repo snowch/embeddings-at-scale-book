@@ -4,6 +4,7 @@ import torch.nn.functional as F
 # Code from Chapter 05
 # Book: Embeddings at Scale
 
+
 class InBatchHardNegativeMining:
     """
     Mine hard negatives from within batch
@@ -27,8 +28,9 @@ class InBatchHardNegativeMining:
         self.temperature = temperature
         self.hardness_threshold = hardness_threshold
 
-    def compute_loss_with_hard_negatives(self, anchor_emb, positive_emb,
-                                         all_emb, num_hard_negatives=10):
+    def compute_loss_with_hard_negatives(
+        self, anchor_emb, positive_emb, all_emb, num_hard_negatives=10
+    ):
         """
         Compute contrastive loss using hard negatives from batch
 
@@ -58,16 +60,10 @@ class InBatchHardNegativeMining:
 
         for i in range(batch_size):
             # Positive similarity
-            pos_sim = F.cosine_similarity(
-                anchor_norm[i:i+1],
-                positive_norm[i:i+1]
-            )
+            pos_sim = F.cosine_similarity(anchor_norm[i : i + 1], positive_norm[i : i + 1])
 
             # All negative similarities (excluding positive)
-            neg_sims = torch.cat([
-                all_similarities[i, :i],
-                all_similarities[i, i+1:]
-            ])
+            neg_sims = torch.cat([all_similarities[i, :i], all_similarities[i, i + 1 :]])
 
             # Find hard negatives: highest similarities that aren't positive
             # Filter to similarities above threshold (hard enough to be useful)
@@ -81,9 +77,7 @@ class InBatchHardNegativeMining:
                     hard_neg_sims = hard_neg_sims.topk(num_hard_negatives)[0]
             else:
                 # Fallback: use hardest negatives even if below threshold
-                hard_neg_sims = neg_sims.topk(
-                    min(num_hard_negatives, len(neg_sims))
-                )[0]
+                hard_neg_sims = neg_sims.topk(min(num_hard_negatives, len(neg_sims)))[0]
 
             # Contrastive loss with hard negatives
             pos_exp = torch.exp(pos_sim / self.temperature)
@@ -97,8 +91,8 @@ class InBatchHardNegativeMining:
         loss = torch.stack(losses).mean()
 
         metrics = {
-            'hard_negative_similarity': torch.stack(hard_negative_sims).mean().item(),
-            'num_hard_negatives_used': num_hard_negatives
+            "hard_negative_similarity": torch.stack(hard_negative_sims).mean().item(),
+            "num_hard_negatives_used": num_hard_negatives,
         }
 
         return loss, metrics

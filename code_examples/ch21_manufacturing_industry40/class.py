@@ -52,6 +52,7 @@ class SensorReading:
         defect_type: Type of defect (if any)
         embedding: Learned sensor embedding
     """
+
     timestamp: datetime
     machine_id: str
     product_id: str
@@ -60,6 +61,7 @@ class SensorReading:
     quality_label: Optional[str] = None  # "pass", "fail", "marginal"
     defect_type: Optional[str] = None  # specific defect category
     embedding: Optional[np.ndarray] = None
+
 
 @dataclass
 class QualityPrediction:
@@ -76,6 +78,7 @@ class QualityPrediction:
         recommended_actions: Suggested interventions
         severity: Predicted severity if defect occurs
     """
+
     product_id: str
     timestamp: datetime
     defect_probability: float
@@ -85,6 +88,7 @@ class QualityPrediction:
     recommended_actions: List[str] = field(default_factory=list)
     severity: Optional[str] = None  # "minor", "major", "critical"
 
+
 class TemporalConvNet(nn.Module):
     """
     Temporal convolutional network for sensor time series
@@ -92,37 +96,26 @@ class TemporalConvNet(nn.Module):
     Captures local temporal patterns across multiple sensors
     with dilated convolutions for multi-scale dependencies.
     """
+
     def __init__(
-        self,
-        input_size: int,
-        num_channels: List[int],
-        kernel_size: int = 3,
-        dropout: float = 0.1
+        self, input_size: int, num_channels: List[int], kernel_size: int = 3, dropout: float = 0.1
     ):
         super().__init__()
         layers = []
         num_levels = len(num_channels)
 
         for i in range(num_levels):
-            dilation_size = 2 ** i
-            in_channels = input_size if i == 0 else num_channels[i-1]
+            dilation_size = 2**i
+            in_channels = input_size if i == 0 else num_channels[i - 1]
             out_channels = num_channels[i]
 
             padding = (kernel_size - 1) * dilation_size
 
             conv = nn.Conv1d(
-                in_channels,
-                out_channels,
-                kernel_size,
-                dilation=dilation_size,
-                padding=padding
+                in_channels, out_channels, kernel_size, dilation=dilation_size, padding=padding
             )
 
-            layers.extend([
-                conv,
-                nn.ReLU(),
-                nn.Dropout(dropout)
-            ])
+            layers.extend([conv, nn.ReLU(), nn.Dropout(dropout)])
 
         self.network = nn.Sequential(*layers)
 
@@ -135,6 +128,7 @@ class TemporalConvNet(nn.Module):
         """
         return self.network(x)
 
+
 class SensorEncoder(nn.Module):
     """
     Encode multi-sensor time-series data to embeddings
@@ -142,6 +136,7 @@ class SensorEncoder(nn.Module):
     Uses temporal convolutions + self-attention to capture
     both local patterns and long-range dependencies.
     """
+
     def __init__(
         self,
         num_sensors: int,
@@ -149,7 +144,7 @@ class SensorEncoder(nn.Module):
         num_heads: int = 8,
         num_layers: int = 4,
         embedding_dim: int = 512,
-        dropout: float = 0.1
+        dropout: float = 0.1,
     ):
         super().__init__()
 
@@ -157,7 +152,7 @@ class SensorEncoder(nn.Module):
         self.temporal_conv = TemporalConvNet(
             input_size=num_sensors,
             num_channels=[hidden_dim, hidden_dim, hidden_dim],
-            dropout=dropout
+            dropout=dropout,
         )
 
         # Self-attention for long-range dependencies
@@ -166,25 +161,20 @@ class SensorEncoder(nn.Module):
             nhead=num_heads,
             dim_feedforward=hidden_dim * 4,
             dropout=dropout,
-            batch_first=True
+            batch_first=True,
         )
-        self.transformer = nn.TransformerEncoder(
-            encoder_layer,
-            num_layers=num_layers
-        )
+        self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
 
         # Project to embedding space
         self.projection = nn.Sequential(
             nn.Linear(hidden_dim, embedding_dim),
             nn.LayerNorm(embedding_dim),
             nn.ReLU(),
-            nn.Dropout(dropout)
+            nn.Dropout(dropout),
         )
 
     def forward(
-        self,
-        sensor_data: torch.Tensor,
-        mask: Optional[torch.Tensor] = None
+        self, sensor_data: torch.Tensor, mask: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
         """
         Args:
@@ -214,6 +204,7 @@ class SensorEncoder(nn.Module):
         embeddings = self.projection(x)
         return embeddings
 
+
 class DefectPredictor(nn.Module):
     """
     Predict defects from sensor + process + product embeddings
@@ -224,12 +215,9 @@ class DefectPredictor(nn.Module):
     3. Defect severity
     4. Time until defect manifestation
     """
+
     def __init__(
-        self,
-        embedding_dim: int,
-        num_defect_types: int,
-        hidden_dim: int = 512,
-        dropout: float = 0.1
+        self, embedding_dim: int, num_defect_types: int, hidden_dim: int = 512, dropout: float = 0.1
     ):
         super().__init__()
 
@@ -242,7 +230,7 @@ class DefectPredictor(nn.Module):
             nn.Linear(hidden_dim, hidden_dim),
             nn.LayerNorm(hidden_dim),
             nn.ReLU(),
-            nn.Dropout(dropout)
+            nn.Dropout(dropout),
         )
 
         # Task-specific heads
@@ -252,10 +240,7 @@ class DefectPredictor(nn.Module):
         self.time_to_defect = nn.Linear(hidden_dim, 1)  # minutes until defect
 
     def forward(
-        self,
-        sensor_emb: torch.Tensor,
-        process_emb: torch.Tensor,
-        product_emb: torch.Tensor
+        self, sensor_emb: torch.Tensor, process_emb: torch.Tensor, product_emb: torch.Tensor
     ) -> Dict[str, torch.Tensor]:
         """
         Args:
@@ -273,13 +258,14 @@ class DefectPredictor(nn.Module):
 
         # Multi-task predictions
         predictions = {
-            'defect_prob': torch.sigmoid(self.defect_binary(fused)),
-            'defect_type': self.defect_type(fused),
-            'severity': self.defect_severity(fused),
-            'time_to_defect': F.relu(self.time_to_defect(fused))
+            "defect_prob": torch.sigmoid(self.defect_binary(fused)),
+            "defect_type": self.defect_type(fused),
+            "severity": self.defect_severity(fused),
+            "time_to_defect": F.relu(self.time_to_defect(fused)),
         }
 
         return predictions
+
 
 class PredictiveQualitySystem:
     """
@@ -292,13 +278,14 @@ class PredictiveQualitySystem:
     - Explainability for operators
     - Continuous learning from outcomes
     """
+
     def __init__(
         self,
         sensor_encoder: SensorEncoder,
         defect_predictor: DefectPredictor,
         window_size: int = 100,  # sensor readings per window
         alert_threshold: float = 0.3,  # defect probability threshold
-        device: str = 'cuda'
+        device: str = "cuda",
     ):
         self.sensor_encoder = sensor_encoder.to(device)
         self.defect_predictor = defect_predictor.to(device)
@@ -353,10 +340,7 @@ class PredictiveQualitySystem:
         return np.array(normalized)
 
     def process_sensor_stream(
-        self,
-        reading: SensorReading,
-        process_embedding: np.ndarray,
-        product_embedding: np.ndarray
+        self, reading: SensorReading, process_embedding: np.ndarray, product_embedding: np.ndarray
     ) -> Optional[QualityPrediction]:
         """
         Process real-time sensor reading and predict quality
@@ -388,26 +372,22 @@ class PredictiveQualitySystem:
         # Inference
         with torch.no_grad():
             sensor_emb = self.sensor_encoder(sensor_tensor)
-            predictions = self.defect_predictor(
-                sensor_emb,
-                process_tensor,
-                product_tensor
-            )
+            predictions = self.defect_predictor(sensor_emb, process_tensor, product_tensor)
 
         # Extract predictions
-        defect_prob = predictions['defect_prob'].item()
-        defect_type_logits = predictions['defect_type'].cpu().numpy()[0]
-        severity_logits = predictions['severity'].cpu().numpy()[0]
-        predictions['time_to_defect'].item()
+        defect_prob = predictions["defect_prob"].item()
+        defect_type_logits = predictions["defect_type"].cpu().numpy()[0]
+        severity_logits = predictions["severity"].cpu().numpy()[0]
+        predictions["time_to_defect"].item()
 
         # Create prediction object
-        defect_types = ['surface_defect', 'dimensional', 'material', 'assembly', 'functional']
+        defect_types = ["surface_defect", "dimensional", "material", "assembly", "functional"]
         defect_type_probs = {
             defect_types[i]: float(prob)
             for i, prob in enumerate(F.softmax(torch.FloatTensor(defect_type_logits), dim=0))
         }
 
-        severity_map = {0: 'minor', 1: 'major', 2: 'critical'}
+        severity_map = {0: "minor", 1: "major", 2: "critical"}
         severity_idx = np.argmax(severity_logits)
 
         prediction = QualityPrediction(
@@ -416,7 +396,7 @@ class PredictiveQualitySystem:
             defect_probability=defect_prob,
             defect_type_probabilities=defect_type_probs,
             confidence=max(defect_type_probs.values()),
-            severity=severity_map[severity_idx]
+            severity=severity_map[severity_idx],
         )
 
         # Identify contributing factors (importance)
@@ -436,12 +416,13 @@ class PredictiveQualitySystem:
                 f"Check {top_factor} sensor calibration",
                 f"Adjust process parameters for {reading.machine_id}",
                 "Increase inspection frequency for next 10 units",
-                "Alert quality supervisor"
+                "Alert quality supervisor",
             ]
 
         self.prediction_history.append(prediction)
 
         return prediction
+
 
 def predictive_quality_example():
     """
@@ -463,23 +444,16 @@ def predictive_quality_example():
     window_size = 100  # readings (~30 seconds at 200/min)
 
     # Initialize models
-    sensor_encoder = SensorEncoder(
-        num_sensors=num_sensors,
-        hidden_dim=256,
-        embedding_dim=512
-    )
+    sensor_encoder = SensorEncoder(num_sensors=num_sensors, hidden_dim=256, embedding_dim=512)
 
-    defect_predictor = DefectPredictor(
-        embedding_dim=512,
-        num_defect_types=5
-    )
+    defect_predictor = DefectPredictor(embedding_dim=512, num_defect_types=5)
 
     quality_system = PredictiveQualitySystem(
         sensor_encoder=sensor_encoder,
         defect_predictor=defect_predictor,
         window_size=window_size,
         alert_threshold=0.3,
-        device='cpu'  # Use 'cuda' in production
+        device="cpu",  # Use 'cuda' in production
     )
 
     print("System initialized:")
@@ -506,7 +480,7 @@ def predictive_quality_example():
         timestamp = datetime.now() + timedelta(seconds=i * 0.3)
 
         # Normal operation with occasional anomaly
-        is_anomaly = (i > 150 and i < 170)  # Anomaly period
+        is_anomaly = i > 150 and i < 170  # Anomaly period
 
         sensors = {}
         for s in range(num_sensors):
@@ -515,21 +489,19 @@ def predictive_quality_example():
                 # Inject anomaly in specific sensors
                 if s in [5, 12, 23]:  # Force, temp, vibration sensors
                     base_value += np.random.randn() * 30  # Large deviation
-            sensors[f'sensor_{s:02d}'] = float(base_value)
+            sensors[f"sensor_{s:02d}"] = float(base_value)
 
         reading = SensorReading(
             timestamp=timestamp,
-            machine_id='PRESS_01',
-            product_id=f'PANEL_{i:05d}',
+            machine_id="PRESS_01",
+            product_id=f"PANEL_{i:05d}",
             sensors=sensors,
-            process_params={'speed': 200, 'force': 500, 'temperature': 150}
+            process_params={"speed": 200, "force": 500, "temperature": 150},
         )
 
         # Process reading
         prediction = quality_system.process_sensor_stream(
-            reading,
-            process_embedding,
-            product_embedding
+            reading, process_embedding, product_embedding
         )
 
         if prediction is not None:
@@ -543,7 +515,9 @@ def predictive_quality_example():
                     print(f"⚠️  QUALITY ALERT - {prediction.product_id}")
                     print(f"   Defect probability: {prediction.defect_probability:.1%}")
                     print(f"   Predicted severity: {prediction.severity}")
-                    print(f"   Most likely defect: {max(prediction.defect_type_probabilities.items(), key=lambda x: x[1])[0]}")
+                    print(
+                        f"   Most likely defect: {max(prediction.defect_type_probabilities.items(), key=lambda x: x[1])[0]}"
+                    )
                     print("   Top contributing factors:")
                     for factor, importance in prediction.contributing_factors[:3]:
                         print(f"      - {factor}: {importance:.2f}")
@@ -559,7 +533,7 @@ def predictive_quality_example():
     print()
     print(f"Products monitored: {products_monitored}")
     print(f"Alerts generated: {alerts_generated}")
-    print(f"Alert rate: {alerts_generated/products_monitored*100:.1f}%")
+    print(f"Alert rate: {alerts_generated / products_monitored * 100:.1f}%")
     print()
     print("Performance metrics:")
     print("  - Inference latency: <5ms per prediction")
@@ -574,6 +548,7 @@ def predictive_quality_example():
     print("  - Downtime reduction: 23% (preventive interventions)")
     print()
     print("→ Predictive quality control prevents defects before occurrence")
+
 
 # Uncomment to run:
 # predictive_quality_example()

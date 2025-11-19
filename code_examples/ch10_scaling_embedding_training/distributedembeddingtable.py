@@ -62,13 +62,7 @@ class DistributedEmbeddingTable(nn.Module):
     - 12.5M vocab per GPU × 512 dims × 4 bytes = 25GB per GPU (fits on A100)
     """
 
-    def __init__(
-        self,
-        total_vocab_size: int,
-        embedding_dim: int,
-        world_size: int,
-        rank: int
-    ):
+    def __init__(self, total_vocab_size: int, embedding_dim: int, world_size: int, rank: int):
         """
         Args:
             total_vocab_size: Full vocabulary size
@@ -88,10 +82,7 @@ class DistributedEmbeddingTable(nn.Module):
         self.vocab_end = (rank + 1) * self.vocab_per_gpu
 
         # Local embedding table (subset of vocabulary)
-        self.embeddings = nn.Embedding(
-            self.vocab_per_gpu,
-            embedding_dim
-        )
+        self.embeddings = nn.Embedding(self.vocab_per_gpu, embedding_dim)
 
         print(f"Rank {rank}: Vocabulary range [{self.vocab_start}, {self.vocab_end})")
         print(f"  Local embedding size: {self.vocab_per_gpu * embedding_dim * 4 / 1e9:.2f} GB")
@@ -115,10 +106,7 @@ class DistributedEmbeddingTable(nn.Module):
         device = input_ids.device
 
         # Initialize output
-        output = torch.zeros(
-            batch_size, seq_len, self.embedding_dim,
-            device=device
-        )
+        output = torch.zeros(batch_size, seq_len, self.embedding_dim, device=device)
 
         # Mask for tokens this GPU is responsible for
         local_mask = (input_ids >= self.vocab_start) & (input_ids < self.vocab_end)
@@ -138,6 +126,7 @@ class DistributedEmbeddingTable(nn.Module):
         dist.all_reduce(output, op=dist.ReduceOp.SUM)
 
         return output
+
 
 class DistributedContrastiveEmbedding(nn.Module):
     """
@@ -166,7 +155,7 @@ class DistributedContrastiveEmbedding(nn.Module):
         vocab_size: int,
         embedding_dim: int = 512,
         hidden_dim: int = 2048,
-        temperature: float = 0.07
+        temperature: float = 0.07,
     ):
         super().__init__()
 
@@ -175,18 +164,12 @@ class DistributedContrastiveEmbedding(nn.Module):
 
         # Projection head (data parallel)
         self.projection = nn.Sequential(
-            nn.Linear(embedding_dim, hidden_dim),
-            nn.ReLU(),
-            nn.Linear(hidden_dim, embedding_dim)
+            nn.Linear(embedding_dim, hidden_dim), nn.ReLU(), nn.Linear(hidden_dim, embedding_dim)
         )
 
         self.temperature = temperature
 
-    def forward(
-        self,
-        anchor_ids: torch.Tensor,
-        positive_ids: torch.Tensor
-    ) -> torch.Tensor:
+    def forward(self, anchor_ids: torch.Tensor, positive_ids: torch.Tensor) -> torch.Tensor:
         """
         Distributed contrastive loss
 
@@ -249,6 +232,7 @@ class DistributedContrastiveEmbedding(nn.Module):
         # Concatenate along batch dimension
         return torch.cat(tensor_list, dim=0)
 
+
 class DistributedTrainer:
     """
     Orchestrates distributed training across multiple GPUs/nodes
@@ -271,13 +255,7 @@ class DistributedTrainer:
     - Optimizer state synchronization
     """
 
-    def __init__(
-        self,
-        model: nn.Module,
-        local_rank: int,
-        world_size: int,
-        backend: str = 'nccl'
-    ):
+    def __init__(self, model: nn.Module, local_rank: int, world_size: int, backend: str = "nccl"):
         """
         Args:
             model: Model to train
@@ -290,14 +268,10 @@ class DistributedTrainer:
 
         # Initialize distributed process group
         if not dist.is_initialized():
-            dist.init_process_group(
-                backend=backend,
-                world_size=world_size,
-                rank=local_rank
-            )
+            dist.init_process_group(backend=backend, world_size=world_size, rank=local_rank)
 
         # Move model to GPU
-        self.device = torch.device(f'cuda:{local_rank}')
+        self.device = torch.device(f"cuda:{local_rank}")
         model = model.to(self.device)
 
         # Wrap in DistributedDataParallel
@@ -305,16 +279,12 @@ class DistributedTrainer:
             model,
             device_ids=[local_rank],
             output_device=local_rank,
-            find_unused_parameters=False  # Optimization: skip if all params used
+            find_unused_parameters=False,  # Optimization: skip if all params used
         )
 
         print(f"Initialized DDP on rank {local_rank}/{world_size}")
 
-    def train_step(
-        self,
-        batch: Dict[str, torch.Tensor],
-        optimizer: torch.optim.Optimizer
-    ) -> float:
+    def train_step(self, batch: Dict[str, torch.Tensor], optimizer: torch.optim.Optimizer) -> float:
         """
         Single distributed training step
 
@@ -334,10 +304,7 @@ class DistributedTrainer:
         self.model.train()
 
         # Forward pass
-        loss = self.model(
-            batch['anchor_ids'],
-            batch['positive_ids']
-        )
+        loss = self.model(batch["anchor_ids"], batch["positive_ids"])
 
         # Backward pass (DDP automatically synchronizes gradients)
         optimizer.zero_grad()
@@ -362,9 +329,9 @@ class DistributedTrainer:
         """
         if self.local_rank == 0:
             checkpoint = {
-                'epoch': epoch,
-                'model_state_dict': self.model.module.state_dict(),
-                'optimizer_state_dict': optimizer.state_dict(),
+                "epoch": epoch,
+                "model_state_dict": self.model.module.state_dict(),
+                "optimizer_state_dict": optimizer.state_dict(),
             }
             torch.save(checkpoint, path)
             print(f"Checkpoint saved: {path}")
@@ -376,12 +343,9 @@ class DistributedTrainer:
         """Cleanup distributed training"""
         dist.destroy_process_group()
 
+
 # Example: Training script for distributed embedding model
-def train_distributed_embedding_model(
-    rank: int,
-    world_size: int,
-    epochs: int = 10
-):
+def train_distributed_embedding_model(rank: int, world_size: int, epochs: int = 10):
     """
     Distributed training script
 

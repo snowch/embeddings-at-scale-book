@@ -4,6 +4,7 @@ import torch
 # Code from Chapter 07
 # Book: Embeddings at Scale
 
+
 class IndustrialDefectDetection:
     """
     Defect detection using self-supervised ViT
@@ -70,14 +71,14 @@ class IndustrialDefectDetection:
             confidence = anomaly_score
 
         result = {
-            'is_defective': is_defective,
-            'anomaly_score': anomaly_score,
-            'confidence': confidence
+            "is_defective": is_defective,
+            "anomaly_score": anomaly_score,
+            "confidence": confidence,
         }
 
         if return_reconstruction:
-            result['reconstruction'] = reconstructed
-            result['mask'] = mask
+            result["reconstruction"] = reconstructed
+            result["mask"] = mask
 
         return result
 
@@ -85,6 +86,7 @@ class IndustrialDefectDetection:
 # Placeholder classes and functions
 class MaskedAutoencoderViT:
     """Placeholder MAE model. Replace with actual implementation."""
+
     def __init__(self):
         pass
 
@@ -98,9 +100,11 @@ class MaskedAutoencoderViT:
     def eval(self):
         pass
 
+
 def train_mae_on_industrial_images(image_dir, output_dir, num_epochs):
     """Train MAE on industrial images. Placeholder implementation."""
     pass
+
 
 # Example: Manufacturing defect detection
 def example_manufacturing_defect_detection():
@@ -113,9 +117,7 @@ def example_manufacturing_defect_detection():
 
     # Train on normal images (self-supervised)
     train_mae_on_industrial_images(
-        image_dir='./normal_products',
-        output_dir='./mae_manufacturing',
-        num_epochs=100
+        image_dir="./normal_products", output_dir="./mae_manufacturing", num_epochs=100
     )
 
     # 2. Setup defect detector
@@ -125,13 +127,15 @@ def example_manufacturing_defect_detection():
     from torchvision import transforms
     from torchvision.datasets import ImageFolder
 
-    transform = transforms.Compose([
-        transforms.Resize(224),
-        transforms.ToTensor(),
-        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-    ])
+    transform = transforms.Compose(
+        [
+            transforms.Resize(224),
+            transforms.ToTensor(),
+            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+        ]
+    )
 
-    normal_dataset = ImageFolder('./normal_products_val', transform=transform)
+    normal_dataset = ImageFolder("./normal_products_val", transform=transform)
     normal_images = [normal_dataset[i][0] for i in range(100)]
 
     detector.calibrate_threshold(normal_images, percentile=95)

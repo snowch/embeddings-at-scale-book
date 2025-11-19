@@ -3,6 +3,7 @@ import torch
 # Code from Chapter 05
 # Book: Embeddings at Scale
 
+
 class GradientAccumulationContrastive:
     """
     Simulate large batch sizes through gradient accumulation
@@ -13,8 +14,7 @@ class GradientAccumulationContrastive:
     Effective batch size = micro_batch_size × accumulation_steps
     """
 
-    def __init__(self, model, optimizer, micro_batch_size=256,
-                 effective_batch_size=4096):
+    def __init__(self, model, optimizer, micro_batch_size=256, effective_batch_size=4096):
         """
         Args:
             model: Embedding model
@@ -41,14 +41,13 @@ class GradientAccumulationContrastive:
         self.optimizer.zero_grad()
 
         accumulated_loss = 0
-        accumulated_metrics = {'accuracy': 0, 'positive_sim': 0, 'negative_sim': 0}
+        accumulated_metrics = {"accuracy": 0, "positive_sim": 0, "negative_sim": 0}
 
         # Accumulate gradients over multiple micro-batches
         for step, batch in enumerate(dataloader):
             # Forward pass
             embeddings = self.model(
-                batch['input_ids'].to(device),
-                batch['attention_mask'].to(device)
+                batch["input_ids"].to(device), batch["attention_mask"].to(device)
             )
 
             loss, metrics = self.model.compute_loss(embeddings)
@@ -61,9 +60,9 @@ class GradientAccumulationContrastive:
             loss.backward()
 
             accumulated_loss += loss.item()
-            accumulated_metrics['accuracy'] += metrics['accuracy']
-            accumulated_metrics['positive_sim'] += metrics['positive_sim']
-            accumulated_metrics['negative_sim'] += metrics['negative_sim']
+            accumulated_metrics["accuracy"] += metrics["accuracy"]
+            accumulated_metrics["positive_sim"] += metrics["positive_sim"]
+            accumulated_metrics["negative_sim"] += metrics["negative_sim"]
 
             # Update weights after accumulation_steps
             if (step + 1) % self.accumulation_steps == 0:

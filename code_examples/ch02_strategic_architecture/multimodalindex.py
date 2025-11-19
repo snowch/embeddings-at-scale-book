@@ -5,9 +5,11 @@ import torch
 # Code from Chapter 02
 # Book: Embeddings at Scale
 
+
 # ModalityFusion placeholder - see modalityfusion.py for full implementation
 class ModalityFusion:
     """Placeholder for ModalityFusion."""
+
     @staticmethod
     def early_fusion(modality_embeddings, weights=None):
         if weights is None:
@@ -20,6 +22,7 @@ class ModalityFusion:
             embeddings_tensors.append(emb)
         fused = sum(w * emb for w, emb in zip(weights, embeddings_tensors))
         return fused / torch.norm(fused)
+
 
 class MultiModalIndex:
     """Scalable multi-modal indexing"""
@@ -38,7 +41,9 @@ class MultiModalIndex:
         # Metadata storage
         self.metadata = []
 
-    def add_multimodal_item(self, item_id, text_emb=None, image_emb=None, video_emb=None, metadata=None):
+    def add_multimodal_item(
+        self, item_id, text_emb=None, image_emb=None, video_emb=None, metadata=None
+    ):
         """Add item with multiple modalities"""
         # Add to modality-specific indices
         if text_emb is not None:
@@ -55,13 +60,15 @@ class MultiModalIndex:
             self.unified_index.add(fused_emb.reshape(1, -1))
 
         # Store metadata
-        self.metadata.append({
-            'item_id': item_id,
-            'has_text': text_emb is not None,
-            'has_image': image_emb is not None,
-            'has_video': video_emb is not None,
-            'metadata': metadata
-        })
+        self.metadata.append(
+            {
+                "item_id": item_id,
+                "has_text": text_emb is not None,
+                "has_image": image_emb is not None,
+                "has_video": video_emb is not None,
+                "metadata": metadata,
+            }
+        )
 
     def search_multimodal(self, query_embs, modality_weights=None, k=10):
         """
@@ -73,17 +80,17 @@ class MultiModalIndex:
 
         # Search each modality
         results_by_modality = {}
-        if 'text' in query_embs:
-            distances, indices = self.text_index.search(query_embs['text'].reshape(1, -1), k)
-            results_by_modality['text'] = list(zip(indices[0], distances[0]))
+        if "text" in query_embs:
+            distances, indices = self.text_index.search(query_embs["text"].reshape(1, -1), k)
+            results_by_modality["text"] = list(zip(indices[0], distances[0]))
 
-        if 'image' in query_embs:
-            distances, indices = self.image_index.search(query_embs['image'].reshape(1, -1), k)
-            results_by_modality['image'] = list(zip(indices[0], distances[0]))
+        if "image" in query_embs:
+            distances, indices = self.image_index.search(query_embs["image"].reshape(1, -1), k)
+            results_by_modality["image"] = list(zip(indices[0], distances[0]))
 
-        if 'video' in query_embs:
-            distances, indices = self.video_index.search(query_embs['video'].reshape(1, -1), k)
-            results_by_modality['video'] = list(zip(indices[0], distances[0]))
+        if "video" in query_embs:
+            distances, indices = self.video_index.search(query_embs["video"].reshape(1, -1), k)
+            results_by_modality["video"] = list(zip(indices[0], distances[0]))
 
         # Combine results with late fusion
         combined_scores = {}
@@ -99,9 +106,9 @@ class MultiModalIndex:
 
         return [
             {
-                'item_id': self.metadata[idx]['item_id'],
-                'score': score,
-                'metadata': self.metadata[idx]['metadata']
+                "item_id": self.metadata[idx]["item_id"],
+                "score": score,
+                "metadata": self.metadata[idx]["metadata"],
             }
             for idx, score in top_k
         ]

@@ -14,6 +14,7 @@ from torch.utils.data.distributed import DistributedSampler
 # See distributedembeddingtable.py for full implementation
 class DistributedContrastiveEmbedding(nn.Module):
     """Placeholder for DistributedContrastiveEmbedding. Replace with actual implementation."""
+
     def __init__(self, vocab_size=100000, embedding_dim=512):
         super().__init__()
         self.embedding = nn.Embedding(vocab_size, embedding_dim)
@@ -43,9 +44,10 @@ class EmbeddingDataset(Dataset):
         # Generate random anchor-positive pairs
         # In production: Load real pairs from storage
         return {
-            'anchor_id': torch.randint(0, self.vocab_size, (1,)).item(),
-            'positive_id': torch.randint(0, self.vocab_size, (1,)).item()
+            "anchor_id": torch.randint(0, self.vocab_size, (1,)).item(),
+            "positive_id": torch.randint(0, self.vocab_size, (1,)).item(),
         }
+
 
 def setup_distributed(rank: int, world_size: int):
     """
@@ -60,22 +62,19 @@ def setup_distributed(rank: int, world_size: int):
 
     # Initialize process group
     dist.init_process_group(
-        backend='nccl',  # NCCL for GPU communication
-        init_method='tcp://localhost:12355',
+        backend="nccl",  # NCCL for GPU communication
+        init_method="tcp://localhost:12355",
         world_size=world_size,
-        rank=rank
+        rank=rank,
     )
+
 
 def cleanup_distributed():
     """Cleanup distributed resources"""
     dist.destroy_process_group()
 
-def train_worker(
-    rank: int,
-    world_size: int,
-    epochs: int = 10,
-    batch_size: int = 512
-):
+
+def train_worker(rank: int, world_size: int, epochs: int = 10, batch_size: int = 512):
     """
     Training worker for single GPU
 
@@ -93,10 +92,7 @@ def train_worker(
     setup_distributed(rank, world_size)
 
     # Create model and move to GPU
-    model = DistributedContrastiveEmbedding(
-        vocab_size=100000,
-        embedding_dim=512
-    )
+    model = DistributedContrastiveEmbedding(vocab_size=100000, embedding_dim=512)
     model = model.to(rank)
 
     # Wrap in DDP
@@ -106,20 +102,11 @@ def train_worker(
     dataset = EmbeddingDataset(num_samples=100000, vocab_size=100000)
 
     # Distributed sampler (each GPU sees different data)
-    sampler = DistributedSampler(
-        dataset,
-        num_replicas=world_size,
-        rank=rank,
-        shuffle=True
-    )
+    sampler = DistributedSampler(dataset, num_replicas=world_size, rank=rank, shuffle=True)
 
     # Data loader
     dataloader = DataLoader(
-        dataset,
-        batch_size=batch_size,
-        sampler=sampler,
-        num_workers=4,
-        pin_memory=True
+        dataset, batch_size=batch_size, sampler=sampler, num_workers=4, pin_memory=True
     )
 
     # Optimizer (scale learning rate by world size)
@@ -137,8 +124,8 @@ def train_worker(
 
         for batch_idx, batch in enumerate(dataloader):
             # Move to GPU
-            anchor_ids = torch.tensor([batch['anchor_id']], device=rank)
-            positive_ids = torch.tensor([batch['positive_id']], device=rank)
+            anchor_ids = torch.tensor([batch["anchor_id"]], device=rank)
+            positive_ids = torch.tensor([batch["positive_id"]], device=rank)
 
             # Forward
             loss = model(anchor_ids, positive_ids)
@@ -166,6 +153,7 @@ def train_worker(
     # Cleanup
     cleanup_distributed()
 
+
 def launch_multi_gpu_training(world_size: int = 8):
     """
     Launch multi-GPU training
@@ -177,12 +165,8 @@ def launch_multi_gpu_training(world_size: int = 8):
     """
 
     # Spawn processes (one per GPU)
-    mp.spawn(
-        train_worker,
-        args=(world_size,),
-        nprocs=world_size,
-        join=True
-    )
+    mp.spawn(train_worker, args=(world_size,), nprocs=world_size, join=True)
+
 
 # Uncomment to run:
 # launch_multi_gpu_training(world_size=torch.cuda.device_count())

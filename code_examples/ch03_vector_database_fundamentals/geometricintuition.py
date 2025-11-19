@@ -33,10 +33,10 @@ class GeometricIntuition:
         # Use case: When both direction and magnitude matter
 
         return {
-            'l2_distance': l2_distance,
-            'cosine_similarity': cosine_sim,
-            'inner_product': inner_product,
-            'recommendation': 'Use cosine similarity for normalized embeddings'
+            "l2_distance": l2_distance,
+            "cosine_similarity": cosine_sim,
+            "inner_product": inner_product,
+            "recommendation": "Use cosine similarity for normalized embeddings",
         }
 
     def curse_of_dimensionality(self, dimensions):
@@ -52,8 +52,8 @@ class GeometricIntuition:
         # Curse: All distances become similar, making discrimination harder
 
         return {
-            'dimensions': dimensions,
-            'challenge': 'Distances concentrate in high-D space',
-            'solution': 'Use index structures that exploit local geometry',
-            'key_insight': 'Locality-sensitive hashing and graph-based indices'
+            "dimensions": dimensions,
+            "challenge": "Distances concentrate in high-D space",
+            "solution": "Use index structures that exploit local geometry",
+            "key_insight": "Locality-sensitive hashing and graph-based indices",
         }

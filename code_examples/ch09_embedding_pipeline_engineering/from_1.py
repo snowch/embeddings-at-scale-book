@@ -24,6 +24,7 @@ class ExperimentConfig:
     - minimum_sample_size: Min users before stat sig test
     - maximum_duration_days: Auto-conclude after this period
     """
+
     experiment_id: str
     control_model_id: str
     treatment_model_id: str
@@ -33,6 +34,7 @@ class ExperimentConfig:
     minimum_sample_size: int
     maximum_duration_days: int
     start_time: datetime
+
 
 class EmbeddingExperimentFramework:
     """
@@ -60,10 +62,7 @@ class EmbeddingExperimentFramework:
         # Metric storage (in production: data warehouse)
         self.metrics: Dict[str, List[Dict]] = {}  # exp_id → [metric_events]
 
-    def create_experiment(
-        self,
-        config: ExperimentConfig
-    ) -> str:
+    def create_experiment(self, config: ExperimentConfig) -> str:
         """
         Create new A/B test experiment
 
@@ -87,11 +86,7 @@ class EmbeddingExperimentFramework:
 
         return config.experiment_id
 
-    def assign_user(
-        self,
-        user_id: str,
-        experiment_id: str
-    ) -> str:
+    def assign_user(self, user_id: str, experiment_id: str) -> str:
         """
         Assign user to control or treatment
 
@@ -112,11 +107,7 @@ class EmbeddingExperimentFramework:
 
         # Assign based on hash
         config = self.active_experiments[experiment_id]
-        variant = self._hash_based_assignment(
-            user_id,
-            experiment_id,
-            config.traffic_allocation
-        )
+        variant = self._hash_based_assignment(user_id, experiment_id, config.traffic_allocation)
 
         # Store assignment
         if user_id not in self.user_assignments:
@@ -126,10 +117,7 @@ class EmbeddingExperimentFramework:
         return variant
 
     def _hash_based_assignment(
-        self,
-        user_id: str,
-        experiment_id: str,
-        treatment_allocation: float
+        self, user_id: str, experiment_id: str, treatment_allocation: float
     ) -> str:
         """
         Deterministic assignment using hash function
@@ -149,11 +137,7 @@ class EmbeddingExperimentFramework:
         else:
             return "control"
 
-    def get_model_for_user(
-        self,
-        user_id: str,
-        experiment_id: str
-    ) -> str:
+    def get_model_for_user(self, user_id: str, experiment_id: str) -> str:
         """
         Get appropriate model version for user
 
@@ -174,7 +158,7 @@ class EmbeddingExperimentFramework:
         user_id: str,
         metric_name: str,
         metric_value: float,
-        timestamp: Optional[datetime] = None
+        timestamp: Optional[datetime] = None,
     ):
         """
         Log metric event for analysis
@@ -195,19 +179,16 @@ class EmbeddingExperimentFramework:
             variant = self.assign_user(user_id, experiment_id)
 
         metric_event = {
-            'user_id': user_id,
-            'variant': variant,
-            'metric_name': metric_name,
-            'metric_value': metric_value,
-            'timestamp': timestamp or datetime.now()
+            "user_id": user_id,
+            "variant": variant,
+            "metric_name": metric_name,
+            "metric_value": metric_value,
+            "timestamp": timestamp or datetime.now(),
         }
 
         self.metrics[experiment_id].append(metric_event)
 
-    def analyze_experiment(
-        self,
-        experiment_id: str
-    ) -> Dict:
+    def analyze_experiment(self, experiment_id: str) -> Dict:
         """
         Analyze experiment results
 
@@ -230,54 +211,45 @@ class EmbeddingExperimentFramework:
         events = self.metrics[experiment_id]
 
         # Separate control and treatment metrics
-        control_metrics = [e for e in events if e['variant'] == 'control']
-        treatment_metrics = [e for e in events if e['variant'] == 'treatment']
+        control_metrics = [e for e in events if e["variant"] == "control"]
+        treatment_metrics = [e for e in events if e["variant"] == "treatment"]
 
         # Analyze primary metric
         primary_result = self._analyze_metric(
-            config.primary_metric,
-            control_metrics,
-            treatment_metrics
+            config.primary_metric, control_metrics, treatment_metrics
         )
 
         # Analyze secondary metrics
         secondary_results = {}
         for metric in config.secondary_metrics:
             secondary_results[metric] = self._analyze_metric(
-                metric,
-                control_metrics,
-                treatment_metrics
+                metric, control_metrics, treatment_metrics
             )
 
         # Statistical power and sample size check
-        adequate_sample_size = len({e['user_id'] for e in events}) >= config.minimum_sample_size
+        adequate_sample_size = len({e["user_id"] for e in events}) >= config.minimum_sample_size
 
         # Generate recommendation
         recommendation = self._generate_recommendation(
-            primary_result,
-            secondary_results,
-            adequate_sample_size
+            primary_result, secondary_results, adequate_sample_size
         )
 
         results = {
-            'experiment_id': experiment_id,
-            'primary_metric': primary_result,
-            'secondary_metrics': secondary_results,
-            'sample_size': {
-                'control': len({e['user_id'] for e in control_metrics}),
-                'treatment': len({e['user_id'] for e in treatment_metrics})
+            "experiment_id": experiment_id,
+            "primary_metric": primary_result,
+            "secondary_metrics": secondary_results,
+            "sample_size": {
+                "control": len({e["user_id"] for e in control_metrics}),
+                "treatment": len({e["user_id"] for e in treatment_metrics}),
             },
-            'adequate_sample_size': adequate_sample_size,
-            'recommendation': recommendation
+            "adequate_sample_size": adequate_sample_size,
+            "recommendation": recommendation,
         }
 
         return results
 
     def _analyze_metric(
-        self,
-        metric_name: str,
-        control_events: List[Dict],
-        treatment_events: List[Dict]
+        self, metric_name: str, control_events: List[Dict], treatment_events: List[Dict]
     ) -> Dict:
         """
         Statistical analysis for single metric
@@ -285,16 +257,20 @@ class EmbeddingExperimentFramework:
         Returns lift, p-value, confidence interval
         """
         # Extract metric values
-        control_values = [e['metric_value'] for e in control_events if e['metric_name'] == metric_name]
-        treatment_values = [e['metric_value'] for e in treatment_events if e['metric_name'] == metric_name]
+        control_values = [
+            e["metric_value"] for e in control_events if e["metric_name"] == metric_name
+        ]
+        treatment_values = [
+            e["metric_value"] for e in treatment_events if e["metric_name"] == metric_name
+        ]
 
         if not control_values or not treatment_values:
             return {
-                'control_mean': None,
-                'treatment_mean': None,
-                'lift': None,
-                'p_value': None,
-                'significant': False
+                "control_mean": None,
+                "treatment_mean": None,
+                "lift": None,
+                "p_value": None,
+                "significant": False,
             }
 
         # Compute statistics
@@ -309,7 +285,9 @@ class EmbeddingExperimentFramework:
         pooled_std = np.sqrt((control_std**2 + treatment_std**2) / 2)
 
         if pooled_std > 0:
-            t_stat = (treatment_mean - control_mean) / (pooled_std * np.sqrt(2 / min(len(control_values), len(treatment_values))))
+            t_stat = (treatment_mean - control_mean) / (
+                pooled_std * np.sqrt(2 / min(len(control_values), len(treatment_values)))
+            )
             p_value = 2 * (1 - 0.975) if abs(t_stat) > 1.96 else 0.5  # Simplified
         else:
             p_value = 1.0
@@ -317,19 +295,16 @@ class EmbeddingExperimentFramework:
         significant = p_value < 0.05
 
         return {
-            'metric_name': metric_name,
-            'control_mean': control_mean,
-            'treatment_mean': treatment_mean,
-            'lift': lift,
-            'p_value': p_value,
-            'significant': significant
+            "metric_name": metric_name,
+            "control_mean": control_mean,
+            "treatment_mean": treatment_mean,
+            "lift": lift,
+            "p_value": p_value,
+            "significant": significant,
         }
 
     def _generate_recommendation(
-        self,
-        primary_result: Dict,
-        secondary_results: Dict,
-        adequate_sample: bool
+        self, primary_result: Dict, secondary_results: Dict, adequate_sample: bool
     ) -> str:
         """
         Generate recommendation based on results
@@ -344,22 +319,22 @@ class EmbeddingExperimentFramework:
         if not adequate_sample:
             return "continue"
 
-        if primary_result['significant']:
-            if primary_result['lift'] > 0.02:  # >2% lift
+        if primary_result["significant"]:
+            if primary_result["lift"] > 0.02:  # >2% lift
                 return "ship"
-            elif primary_result['lift'] < -0.01:  # >1% degradation
+            elif primary_result["lift"] < -0.01:  # >1% degradation
                 return "abandon"
 
         # Check secondary metrics for positive signals
         positive_secondaries = sum(
-            1 for r in secondary_results.values()
-            if r.get('significant') and r.get('lift', 0) > 0
+            1 for r in secondary_results.values() if r.get("significant") and r.get("lift", 0) > 0
         )
 
         if positive_secondaries >= 2:
             return "iterate"  # Some positive signals, needs more work
 
         return "abandon"  # No significant improvement
+
 
 # Example: A/B test for product recommendation embeddings
 def product_recommendation_ab_test():
@@ -390,7 +365,7 @@ def product_recommendation_ab_test():
         secondary_metrics=["click_through_rate", "session_length_minutes", "revenue_per_session"],
         minimum_sample_size=10000,  # 10K users minimum
         maximum_duration_days=14,
-        start_time=datetime.now()
+        start_time=datetime.now(),
     )
 
     framework.create_experiment(config)
@@ -422,7 +397,9 @@ def product_recommendation_ab_test():
     results = framework.analyze_experiment(config.experiment_id)
 
     print(f"\nExperiment: {results['experiment_id']}")
-    print(f"Sample size: Control={results['sample_size']['control']}, Treatment={results['sample_size']['treatment']}")
+    print(
+        f"Sample size: Control={results['sample_size']['control']}, Treatment={results['sample_size']['treatment']}"
+    )
     print(f"\nPrimary Metric ({results['primary_metric']['metric_name']}):")
     print(f"  Control: {results['primary_metric']['control_mean']:.3f}")
     print(f"  Treatment: {results['primary_metric']['treatment_mean']:.3f}")
@@ -430,6 +407,7 @@ def product_recommendation_ab_test():
     print(f"  P-value: {results['primary_metric']['p_value']:.4f}")
     print(f"  Significant: {results['primary_metric']['significant']}")
     print(f"\nRecommendation: {results['recommendation'].upper()}")
+
 
 # Uncomment to run:
 # product_recommendation_ab_test()

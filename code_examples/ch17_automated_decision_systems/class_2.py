@@ -30,6 +30,7 @@ Techniques:
 - Explainable: SHAP values for risk drivers
 """
 
+
 @dataclass
 class RiskEntity:
     """
@@ -43,6 +44,7 @@ class RiskEntity:
         risk_factors: Explanation of risk score
         embedding: Learned entity embedding
     """
+
     entity_id: str
     entity_type: str
     features: Dict[str, Any]
@@ -55,6 +57,7 @@ class RiskEntity:
             self.features = {}
         if self.risk_factors is None:
             self.risk_factors = []
+
 
 class RiskEncoder(nn.Module):
     """
@@ -77,7 +80,7 @@ class RiskEncoder(nn.Module):
             nn.Linear(256, 128),
             nn.ReLU(),
             nn.Dropout(0.3),
-            nn.Linear(128, embedding_dim)
+            nn.Linear(128, embedding_dim),
         )
 
     def forward(self, features: torch.Tensor) -> torch.Tensor:
@@ -93,6 +96,7 @@ class RiskEncoder(nn.Module):
         risk_emb = self.encoder(features)
         risk_emb = F.normalize(risk_emb, p=2, dim=1)
         return risk_emb
+
 
 class RiskScoringModel(nn.Module):
     """
@@ -117,7 +121,7 @@ class RiskScoringModel(nn.Module):
             nn.ReLU(),
             nn.Dropout(0.3),
             nn.Linear(64, 1),
-            nn.Sigmoid()
+            nn.Sigmoid(),
         )
 
     def forward(self, embeddings: torch.Tensor) -> torch.Tensor:
@@ -132,6 +136,7 @@ class RiskScoringModel(nn.Module):
         """
         risk_scores = self.risk_head(embeddings)
         return risk_scores
+
 
 # Example: Credit underwriting
 def risk_scoring_example():
@@ -196,6 +201,7 @@ def risk_scoring_example():
     print("Embedding risk score: 0.12 (12% default probability)")
     print("  → Embedding learned that gig workers have higher volatility risk")
     print("  → Traditional model doesn't distinguish W2 vs gig income")
+
 
 # Uncomment to run:
 # risk_scoring_example()

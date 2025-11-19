@@ -3,6 +3,7 @@ import numpy as np
 # Code from Chapter 04
 # Book: Embeddings at Scale
 
+
 class BinaryEmbeddings:
     """
     Ultra-compressed binary embeddings for massive scale

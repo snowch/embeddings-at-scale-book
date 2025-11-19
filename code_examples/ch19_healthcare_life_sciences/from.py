@@ -51,6 +51,7 @@ class Molecule:
         toxicity: Toxicity measurements
         embedding: Learned molecular embedding
     """
+
     molecule_id: str
     smiles: str
     name: Optional[str] = None
@@ -69,6 +70,7 @@ class Molecule:
         if self.toxicity is None:
             self.toxicity = {}
 
+
 @dataclass
 class Protein:
     """
@@ -84,6 +86,7 @@ class Protein:
         known_ligands: Known binding molecules
         embedding: Learned protein embedding
     """
+
     protein_id: str
     name: str
     sequence: str
@@ -96,6 +99,7 @@ class Protein:
     def __post_init__(self):
         if self.known_ligands is None:
             self.known_ligands = []
+
 
 @dataclass
 class DrugCandidate:
@@ -113,6 +117,7 @@ class DrugCandidate:
         confidence: Model confidence in predictions
         explanation: Key structural features
     """
+
     molecule: Molecule
     target: Protein
     binding_affinity: float
@@ -122,6 +127,7 @@ class DrugCandidate:
     synthesis_difficulty: float
     confidence: float
     explanation: str
+
 
 class MolecularEncoder(nn.Module):
     """
@@ -144,47 +150,35 @@ class MolecularEncoder(nn.Module):
         embedding_dim: int = 256,
         num_atom_features: int = 128,
         num_bond_features: int = 32,
-        num_gnn_layers: int = 4
+        num_gnn_layers: int = 4,
     ):
         super().__init__()
         self.embedding_dim = embedding_dim
 
         # Atom and bond feature encoders
         self.atom_encoder = nn.Sequential(
-            nn.Linear(num_atom_features, 256),
-            nn.ReLU(),
-            nn.Linear(256, 256)
+            nn.Linear(num_atom_features, 256), nn.ReLU(), nn.Linear(256, 256)
         )
 
         self.bond_encoder = nn.Sequential(
-            nn.Linear(num_bond_features, 128),
-            nn.ReLU(),
-            nn.Linear(128, 128)
+            nn.Linear(num_bond_features, 128), nn.ReLU(), nn.Linear(128, 128)
         )
 
         # Graph neural network layers (message passing)
-        self.gnn_layers = nn.ModuleList([
-            nn.TransformerEncoderLayer(
-                d_model=256,
-                nhead=8,
-                dim_feedforward=1024,
-                dropout=0.1,
-                batch_first=True
-            ) for _ in range(num_gnn_layers)
-        ])
-
-        # Graph pooling
-        self.pool = nn.Sequential(
-            nn.Linear(256, 256),
-            nn.ReLU(),
-            nn.Linear(256, embedding_dim)
+        self.gnn_layers = nn.ModuleList(
+            [
+                nn.TransformerEncoderLayer(
+                    d_model=256, nhead=8, dim_feedforward=1024, dropout=0.1, batch_first=True
+                )
+                for _ in range(num_gnn_layers)
+            ]
         )
 
+        # Graph pooling
+        self.pool = nn.Sequential(nn.Linear(256, 256), nn.ReLU(), nn.Linear(256, embedding_dim))
+
     def forward(
-        self,
-        atom_features: torch.Tensor,
-        bond_features: torch.Tensor,
-        atom_mask: torch.Tensor
+        self, atom_features: torch.Tensor, bond_features: torch.Tensor, atom_mask: torch.Tensor
     ) -> torch.Tensor:
         """Encode molecules to embeddings"""
         atom_emb = self.atom_encoder(atom_features)
@@ -199,6 +193,7 @@ class MolecularEncoder(nn.Module):
 
         mol_emb = self.pool(mol_emb)
         return F.normalize(mol_emb, p=2, dim=-1)
+
 
 class ProteinEncoder(nn.Module):
     """
@@ -216,10 +211,7 @@ class ProteinEncoder(nn.Module):
     """
 
     def __init__(
-        self,
-        embedding_dim: int = 256,
-        num_amino_acids: int = 21,
-        sequence_length: int = 2048
+        self, embedding_dim: int = 256, num_amino_acids: int = 21, sequence_length: int = 2048
     ):
         super().__init__()
         self.embedding_dim = embedding_dim
@@ -227,31 +219,20 @@ class ProteinEncoder(nn.Module):
         self.aa_embedding = nn.Embedding(num_amino_acids, 128)
 
         encoder_layer = nn.TransformerEncoderLayer(
-            d_model=128,
-            nhead=8,
-            dim_feedforward=512,
-            dropout=0.1,
-            batch_first=True
+            d_model=128, nhead=8, dim_feedforward=512, dropout=0.1, batch_first=True
         )
         self.sequence_encoder = nn.TransformerEncoder(encoder_layer, num_layers=6)
 
         self.binding_attention = nn.MultiheadAttention(
-            embed_dim=128,
-            num_heads=8,
-            dropout=0.1,
-            batch_first=True
+            embed_dim=128, num_heads=8, dropout=0.1, batch_first=True
         )
 
         self.projection = nn.Sequential(
-            nn.Linear(128, 256),
-            nn.ReLU(),
-            nn.Linear(256, embedding_dim)
+            nn.Linear(128, 256), nn.ReLU(), nn.Linear(256, embedding_dim)
         )
 
     def forward(
-        self,
-        sequence: torch.Tensor,
-        binding_site_mask: Optional[torch.Tensor] = None
+        self, sequence: torch.Tensor, binding_site_mask: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
         """Encode proteins to embeddings"""
         aa_emb = self.aa_embedding(sequence)
@@ -259,10 +240,7 @@ class ProteinEncoder(nn.Module):
 
         if binding_site_mask is not None:
             binding_emb, _ = self.binding_attention(
-                query=seq_emb,
-                key=seq_emb,
-                value=seq_emb,
-                key_padding_mask=~binding_site_mask
+                query=seq_emb, key=seq_emb, value=seq_emb, key_padding_mask=~binding_site_mask
             )
             protein_emb = binding_emb.mean(dim=1)
         else:
@@ -271,10 +249,11 @@ class ProteinEncoder(nn.Module):
         protein_emb = self.projection(protein_emb)
         return F.normalize(protein_emb, p=2, dim=-1)
 
+
 class DrugDiscoverySystem:
     """Complete drug discovery system with embeddings"""
 
-    def __init__(self, embedding_dim: int = 256, device: str = 'cpu'):
+    def __init__(self, embedding_dim: int = 256, device: str = "cpu"):
         self.embedding_dim = embedding_dim
         self.device = device
 
@@ -288,7 +267,7 @@ class DrugDiscoverySystem:
             nn.Linear(512, 256),
             nn.ReLU(),
             nn.Dropout(0.2),
-            nn.Linear(256, 1)
+            nn.Linear(256, 1),
         ).to(device)
 
         self.toxicity_predictor = nn.Sequential(
@@ -297,7 +276,7 @@ class DrugDiscoverySystem:
             nn.Linear(256, 128),
             nn.ReLU(),
             nn.Linear(128, 1),
-            nn.Sigmoid()
+            nn.Sigmoid(),
         ).to(device)
 
         self.solubility_predictor = nn.Sequential(
@@ -305,16 +284,14 @@ class DrugDiscoverySystem:
             nn.ReLU(),
             nn.Linear(256, 128),
             nn.ReLU(),
-            nn.Linear(128, 1)
+            nn.Linear(128, 1),
         ).to(device)
 
         self.molecule_database = {}
         self.protein_database = {}
 
     def predict_binding_affinity(
-        self,
-        molecule_embedding: np.ndarray,
-        protein_embedding: np.ndarray
+        self, molecule_embedding: np.ndarray, protein_embedding: np.ndarray
     ) -> float:
         """Predict binding affinity between molecule and protein"""
         mol_emb = torch.tensor(molecule_embedding, dtype=torch.float32).to(self.device)
@@ -328,10 +305,7 @@ class DrugDiscoverySystem:
 
         return float(affinity.cpu().item())
 
-    def predict_properties(
-        self,
-        molecule_embedding: np.ndarray
-    ) -> Dict[str, float]:
+    def predict_properties(self, molecule_embedding: np.ndarray) -> Dict[str, float]:
         """Predict ADMET properties"""
         mol_emb = torch.tensor(molecule_embedding, dtype=torch.float32).to(self.device).unsqueeze(0)
 
@@ -343,15 +317,12 @@ class DrugDiscoverySystem:
             solubility = self.solubility_predictor(mol_emb)
 
         return {
-            'toxicity': float(toxicity.cpu().item()),
-            'solubility': float(solubility.cpu().item())
+            "toxicity": float(toxicity.cpu().item()),
+            "solubility": float(solubility.cpu().item()),
         }
 
     def screen_candidates(
-        self,
-        molecules: List[Molecule],
-        target: Protein,
-        top_k: int = 100
+        self, molecules: List[Molecule], target: Protein, top_k: int = 100
     ) -> List[DrugCandidate]:
         """Virtual screening: rank molecules by predicted activity"""
         print(f"Screening {len(molecules)} molecules against {target.name}...")
@@ -369,29 +340,32 @@ class DrugDiscoverySystem:
             properties = self.predict_properties(mol_emb)
 
             efficacy_score = (
-                binding_affinity * 0.5 +
-                (1 - properties['toxicity']) * 0.3 +
-                max(0, properties['solubility']) * 0.2
+                binding_affinity * 0.5
+                + (1 - properties["toxicity"]) * 0.3
+                + max(0, properties["solubility"]) * 0.2
             )
 
             selectivity = random.uniform(0.5, 0.95)
             synthesis_difficulty = random.uniform(0.2, 0.8)
             confidence = random.uniform(0.6, 0.95)
 
-            candidates.append(DrugCandidate(
-                molecule=molecule,
-                target=target,
-                binding_affinity=binding_affinity,
-                efficacy_score=efficacy_score,
-                toxicity_score=properties['toxicity'],
-                selectivity=selectivity,
-                synthesis_difficulty=synthesis_difficulty,
-                confidence=confidence,
-                explanation=f"Strong binding to {target.name} active site, favorable ADMET profile"
-            ))
+            candidates.append(
+                DrugCandidate(
+                    molecule=molecule,
+                    target=target,
+                    binding_affinity=binding_affinity,
+                    efficacy_score=efficacy_score,
+                    toxicity_score=properties["toxicity"],
+                    selectivity=selectivity,
+                    synthesis_difficulty=synthesis_difficulty,
+                    confidence=confidence,
+                    explanation=f"Strong binding to {target.name} active site, favorable ADMET profile",
+                )
+            )
 
         candidates.sort(key=lambda x: x.efficacy_score, reverse=True)
         return candidates[:top_k]
+
 
 def drug_discovery_example():
     """Example: Virtual screening for cancer drug"""
@@ -401,7 +375,7 @@ def drug_discovery_example():
         protein_id="KINASE_ABC",
         name="Tyrosine Kinase ABC",
         sequence="MKTAYIAKQRQISFVKSHFSRQDILDL...",
-        disease="Non-small cell lung cancer"
+        disease="Non-small cell lung cancer",
     )
 
     print(f"Target: {target.name}")
@@ -409,12 +383,14 @@ def drug_discovery_example():
 
     library = []
     for i in range(1000):
-        library.append(Molecule(
-            molecule_id=f"MOL_{i:04d}",
-            smiles=f"CC(C)NCC(O)COC{i}",
-            name=f"Compound {i}",
-            molecular_weight=250.0 + random.uniform(-50, 50)
-        ))
+        library.append(
+            Molecule(
+                molecule_id=f"MOL_{i:04d}",
+                smiles=f"CC(C)NCC(O)COC{i}",
+                name=f"Compound {i}",
+                molecular_weight=250.0 + random.uniform(-50, 50),
+            )
+        )
 
     print(f"\nMolecular library: {len(library)} compounds")
 
@@ -434,6 +410,7 @@ def drug_discovery_example():
     print("Traditional: 6-12 months, $500K-$2M, 1-5% hit rate")
     print("Embedding-based: 1-2 weeks, $10K-$50K, 15-30% hit rate")
     print("→ 100x faster, 20x cheaper, 10x higher success rate")
+
 
 # Uncomment to run:
 # drug_discovery_example()

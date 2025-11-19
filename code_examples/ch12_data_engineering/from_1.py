@@ -34,12 +34,14 @@ class QualityIssue:
         description: Human-readable description
         metadata: Additional context
     """
+
     issue_type: str
     severity: str  # 'critical', 'warning', 'info'
     record_id: str
     field: Optional[str] = None
     description: str = ""
     metadata: Dict = None
+
 
 # Placeholder class - see from.py for full implementation
 from dataclasses import dataclass
@@ -49,10 +51,12 @@ from typing import Any, Dict
 @dataclass
 class EmbeddingFeatures:
     """Placeholder for EmbeddingFeatures."""
+
     record_id: str
     text_content: str = ""
     structured_features: Dict[str, Any] = None
     metadata: Dict[str, Any] = None
+
 
 class EmbeddingDataQualityValidator:
     """
@@ -72,10 +76,7 @@ class EmbeddingDataQualityValidator:
     """
 
     def __init__(
-        self,
-        required_fields: List[str],
-        numeric_fields: List[str],
-        categorical_fields: List[str]
+        self, required_fields: List[str], numeric_fields: List[str], categorical_fields: List[str]
     ):
         """
         Args:
@@ -100,8 +101,7 @@ class EmbeddingDataQualityValidator:
         print(f"  Categorical fields: {len(categorical_fields)}")
 
     def validate(
-        self,
-        records: List[EmbeddingFeatures]
+        self, records: List[EmbeddingFeatures]
     ) -> Tuple[List[EmbeddingFeatures], List[QualityIssue]]:
         """
         Validate data quality and return clean records
@@ -121,9 +121,11 @@ class EmbeddingDataQualityValidator:
             self.records_validated += 1
 
             # Run all validations
-            if self._validate_schema(record) and \
-               self._validate_values(record) and \
-               self._validate_semantic(record):
+            if (
+                self._validate_schema(record)
+                and self._validate_values(record)
+                and self._validate_semantic(record)
+            ):
                 clean_records.append(record)
 
         # Global validations (across all records)
@@ -131,11 +133,11 @@ class EmbeddingDataQualityValidator:
         self._detect_drift(records)
 
         # Summary
-        critical = sum(1 for i in self.issues if i.severity == 'critical')
-        warnings = sum(1 for i in self.issues if i.severity == 'warning')
+        critical = sum(1 for i in self.issues if i.severity == "critical")
+        warnings = sum(1 for i in self.issues if i.severity == "warning")
 
         print("✓ Validation complete")
-        print(f"  Clean records: {len(clean_records):,} ({len(clean_records)/len(records):.1%})")
+        print(f"  Clean records: {len(clean_records):,} ({len(clean_records) / len(records):.1%})")
         print(f"  Issues found: {len(self.issues)}")
         print(f"    Critical: {critical}")
         print(f"    Warnings: {warnings}")
@@ -154,12 +156,14 @@ class EmbeddingDataQualityValidator:
         """
         # Check required fields
         if not record.text_features and not record.structured_features:
-            self.issues.append(QualityIssue(
-                issue_type='missing_features',
-                severity='critical',
-                record_id=record.record_id,
-                description="Record has no text or structured features"
-            ))
+            self.issues.append(
+                QualityIssue(
+                    issue_type="missing_features",
+                    severity="critical",
+                    record_id=record.record_id,
+                    description="Record has no text or structured features",
+                )
+            )
             return False
 
         # Validate structured features types
@@ -167,13 +171,15 @@ class EmbeddingDataQualityValidator:
             for field, value in record.structured_features.items():
                 if field in self.numeric_fields:
                     if not isinstance(value, (int, float)):
-                        self.issues.append(QualityIssue(
-                            issue_type='type_mismatch',
-                            severity='critical',
-                            record_id=record.record_id,
-                            field=field,
-                            description=f"Expected numeric, got {type(value).__name__}"
-                        ))
+                        self.issues.append(
+                            QualityIssue(
+                                issue_type="type_mismatch",
+                                severity="critical",
+                                record_id=record.record_id,
+                                field=field,
+                                description=f"Expected numeric, got {type(value).__name__}",
+                            )
+                        )
                         return False
 
         return True
@@ -194,26 +200,30 @@ class EmbeddingDataQualityValidator:
         for field, value in record.structured_features.items():
             # Check for invalid numbers
             if not np.isfinite(value):
-                self.issues.append(QualityIssue(
-                    issue_type='invalid_value',
-                    severity='critical',
-                    record_id=record.record_id,
-                    field=field,
-                    description=f"Invalid numeric value: {value}"
-                ))
+                self.issues.append(
+                    QualityIssue(
+                        issue_type="invalid_value",
+                        severity="critical",
+                        record_id=record.record_id,
+                        field=field,
+                        description=f"Invalid numeric value: {value}",
+                    )
+                )
                 return False
 
             # Check for extreme outliers (>6 sigma from mean)
             # In production: Use learned statistics from training set
             if abs(value) > 1e6:
-                self.issues.append(QualityIssue(
-                    issue_type='outlier',
-                    severity='warning',
-                    record_id=record.record_id,
-                    field=field,
-                    description=f"Extreme value: {value}",
-                    metadata={'value': value}
-                ))
+                self.issues.append(
+                    QualityIssue(
+                        issue_type="outlier",
+                        severity="warning",
+                        record_id=record.record_id,
+                        field=field,
+                        description=f"Extreme value: {value}",
+                        metadata={"value": value},
+                    )
+                )
 
         return True
 
@@ -232,25 +242,29 @@ class EmbeddingDataQualityValidator:
 
             # Must have minimum length
             if len(text) < 10:
-                self.issues.append(QualityIssue(
-                    issue_type='text_too_short',
-                    severity='warning',
-                    record_id=record.record_id,
-                    field='text_features',
-                    description=f"Text too short: {len(text)} chars"
-                ))
+                self.issues.append(
+                    QualityIssue(
+                        issue_type="text_too_short",
+                        severity="warning",
+                        record_id=record.record_id,
+                        field="text_features",
+                        description=f"Text too short: {len(text)} chars",
+                    )
+                )
                 return False
 
             # Check for gibberish (high ratio of non-alphanumeric)
             alphanumeric = sum(c.isalnum() for c in text)
             if alphanumeric / len(text) < 0.5:
-                self.issues.append(QualityIssue(
-                    issue_type='gibberish',
-                    severity='warning',
-                    record_id=record.record_id,
-                    field='text_features',
-                    description=f"Low alphanumeric ratio: {alphanumeric/len(text):.2f}"
-                ))
+                self.issues.append(
+                    QualityIssue(
+                        issue_type="gibberish",
+                        severity="warning",
+                        record_id=record.record_id,
+                        field="text_features",
+                        description=f"Low alphanumeric ratio: {alphanumeric / len(text):.2f}",
+                    )
+                )
                 return False
 
         return True
@@ -272,13 +286,15 @@ class EmbeddingDataQualityValidator:
         for record in records:
             if record.data_hash:
                 if record.data_hash in seen_hashes:
-                    self.issues.append(QualityIssue(
-                        issue_type='exact_duplicate',
-                        severity='critical',
-                        record_id=record.record_id,
-                        description=f"Duplicate of {seen_hashes[record.data_hash]}",
-                        metadata={'duplicate_of': seen_hashes[record.data_hash]}
-                    ))
+                    self.issues.append(
+                        QualityIssue(
+                            issue_type="exact_duplicate",
+                            severity="critical",
+                            record_id=record.record_id,
+                            description=f"Duplicate of {seen_hashes[record.data_hash]}",
+                            metadata={"duplicate_of": seen_hashes[record.data_hash]},
+                        )
+                    )
                 else:
                     seen_hashes[record.data_hash] = record.record_id
 
@@ -308,32 +324,31 @@ class EmbeddingDataQualityValidator:
             if field not in current_stats or field not in self.baseline_stats:
                 continue
 
-            baseline_mean = self.baseline_stats[field]['mean']
-            baseline_std = self.baseline_stats[field]['std']
-            current_mean = current_stats[field]['mean']
+            baseline_mean = self.baseline_stats[field]["mean"]
+            baseline_std = self.baseline_stats[field]["std"]
+            current_mean = current_stats[field]["mean"]
 
             # Detect significant mean shift
             if baseline_std > 0:
                 z_score = abs(current_mean - baseline_mean) / baseline_std
 
                 if z_score > 3:
-                    self.issues.append(QualityIssue(
-                        issue_type='distribution_drift',
-                        severity='warning',
-                        record_id='<global>',
-                        field=field,
-                        description=f"Mean shifted by {z_score:.1f} sigma",
-                        metadata={
-                            'baseline_mean': baseline_mean,
-                            'current_mean': current_mean,
-                            'z_score': z_score
-                        }
-                    ))
+                    self.issues.append(
+                        QualityIssue(
+                            issue_type="distribution_drift",
+                            severity="warning",
+                            record_id="<global>",
+                            field=field,
+                            description=f"Mean shifted by {z_score:.1f} sigma",
+                            metadata={
+                                "baseline_mean": baseline_mean,
+                                "current_mean": current_mean,
+                                "z_score": z_score,
+                            },
+                        )
+                    )
 
-    def _compute_statistics(
-        self,
-        records: List[EmbeddingFeatures]
-    ) -> Dict[str, Dict]:
+    def _compute_statistics(self, records: List[EmbeddingFeatures]) -> Dict[str, Dict]:
         """
         Compute statistics for numeric fields
 
@@ -357,13 +372,13 @@ class EmbeddingDataQualityValidator:
         for field, values in field_values.items():
             if values:
                 stats[field] = {
-                    'mean': np.mean(values),
-                    'std': np.std(values),
-                    'min': np.min(values),
-                    'max': np.max(values),
-                    'p25': np.percentile(values, 25),
-                    'p50': np.percentile(values, 50),
-                    'p75': np.percentile(values, 75)
+                    "mean": np.mean(values),
+                    "std": np.std(values),
+                    "min": np.min(values),
+                    "max": np.max(values),
+                    "p25": np.percentile(values, 25),
+                    "p50": np.percentile(values, 50),
+                    "p75": np.percentile(values, 75),
                 }
 
         return stats
@@ -380,13 +395,14 @@ class EmbeddingDataQualityValidator:
             issue_counts[issue.issue_type] += 1
 
         return {
-            'records_validated': self.records_validated,
-            'total_issues': len(self.issues),
-            'critical_issues': sum(1 for i in self.issues if i.severity == 'critical'),
-            'warnings': sum(1 for i in self.issues if i.severity == 'warning'),
-            'issue_breakdown': dict(issue_counts),
-            'quality_score': 1 - (len(self.issues) / max(1, self.records_validated))
+            "records_validated": self.records_validated,
+            "total_issues": len(self.issues),
+            "critical_issues": sum(1 for i in self.issues if i.severity == "critical"),
+            "warnings": sum(1 for i in self.issues if i.severity == "warning"),
+            "issue_breakdown": dict(issue_counts),
+            "quality_score": 1 - (len(self.issues) / max(1, self.records_validated)),
         }
+
 
 # Example: Validate product data quality
 def data_quality_example():
@@ -407,21 +423,23 @@ def data_quality_example():
             if i > 0 and np.random.random() < 0.1:
                 # Duplicate previous record
                 dup_record = records[-1]
-                records.append(EmbeddingFeatures(
-                    record_id=f"product_{i}",
-                    text_features=dup_record.text_features,
-                    structured_features=dup_record.structured_features,
-                    data_hash=dup_record.data_hash
-                ))
+                records.append(
+                    EmbeddingFeatures(
+                        record_id=f"product_{i}",
+                        text_features=dup_record.text_features,
+                        structured_features=dup_record.structured_features,
+                        data_hash=dup_record.data_hash,
+                    )
+                )
                 continue
 
             # 5% missing features
             if np.random.random() < 0.05:
-                records.append(EmbeddingFeatures(
-                    record_id=f"product_{i}",
-                    text_features=None,
-                    structured_features=None
-                ))
+                records.append(
+                    EmbeddingFeatures(
+                        record_id=f"product_{i}", text_features=None, structured_features=None
+                    )
+                )
                 continue
 
             # 2% outliers
@@ -436,11 +454,8 @@ def data_quality_example():
             record = EmbeddingFeatures(
                 record_id=f"product_{i}",
                 text_features=text,
-                structured_features={
-                    'price': price,
-                    'rating': 3.0 + (i % 5) * 0.5
-                },
-                data_hash=hashlib.md5(text.encode()).hexdigest()
+                structured_features={"price": price, "rating": 3.0 + (i % 5) * 0.5},
+                data_hash=hashlib.md5(text.encode()).hexdigest(),
             )
             records.append(record)
 
@@ -451,9 +466,7 @@ def data_quality_example():
 
     # Initialize validator
     validator = EmbeddingDataQualityValidator(
-        required_fields=['text_features'],
-        numeric_fields=['price', 'rating'],
-        categorical_fields=[]
+        required_fields=["text_features"], numeric_fields=["price", "rating"], categorical_fields=[]
     )
 
     # Validate
@@ -468,13 +481,14 @@ def data_quality_example():
     print(f"  Critical: {report['critical_issues']}")
     print(f"  Warnings: {report['warnings']}")
     print("\nIssue breakdown:")
-    for issue_type, count in report['issue_breakdown'].items():
+    for issue_type, count in report["issue_breakdown"].items():
         print(f"  {issue_type}: {count}")
 
     # Print sample issues
     print("\nSample issues:")
     for issue in issues[:5]:
         print(f"  [{issue.severity.upper()}] {issue.issue_type}: {issue.description}")
+
 
 # Uncomment to run:
 # data_quality_example()

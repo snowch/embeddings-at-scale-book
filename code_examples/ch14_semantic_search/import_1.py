@@ -41,10 +41,12 @@ class Entity:
         attributes: Entity attributes
         embedding: Learned entity embedding
     """
+
     entity_id: str
     entity_type: str
     attributes: Dict = None
     embedding: Optional[np.ndarray] = None
+
 
 @dataclass
 class Relation:
@@ -57,10 +59,12 @@ class Relation:
         object: Object entity ID
         confidence: Confidence score (0-1)
     """
+
     subject: str
     predicate: str
     object: str
     confidence: float = 1.0
+
 
 class KnowledgeGraphEmbedding:
     """
@@ -79,11 +83,7 @@ class KnowledgeGraphEmbedding:
     - Graph completion: Predict missing edges
     """
 
-    def __init__(
-        self,
-        embedding_dim: int = 128,
-        margin: float = 1.0
-    ):
+    def __init__(self, embedding_dim: int = 128, margin: float = 1.0):
         """
         Args:
             embedding_dim: Dimension of entity/relation embeddings
@@ -148,12 +148,7 @@ class KnowledgeGraphEmbedding:
             self.incoming_edges[relation.object] = []
         self.incoming_edges[relation.object].append(relation)
 
-    def score_triple(
-        self,
-        subject_id: str,
-        predicate: str,
-        object_id: str
-    ) -> float:
+    def score_triple(self, subject_id: str, predicate: str, object_id: str) -> float:
         """
         Score a triple using TransE scoring function
 
@@ -168,11 +163,11 @@ class KnowledgeGraphEmbedding:
             Score (higher = more likely)
         """
         if subject_id not in self.entity_embeddings:
-            return -float('inf')
+            return -float("inf")
         if object_id not in self.entity_embeddings:
-            return -float('inf')
+            return -float("inf")
         if predicate not in self.relation_embeddings:
-            return -float('inf')
+            return -float("inf")
 
         h = self.entity_embeddings[subject_id]
         r = self.relation_embeddings[predicate]
@@ -184,10 +179,7 @@ class KnowledgeGraphEmbedding:
         return score
 
     def predict_tail(
-        self,
-        subject_id: str,
-        predicate: str,
-        top_k: int = 10
+        self, subject_id: str, predicate: str, top_k: int = 10
     ) -> List[Tuple[str, float]]:
         """
         Predict tail entity given head and relation
@@ -217,10 +209,7 @@ class KnowledgeGraphEmbedding:
         return scores[:top_k]
 
     def predict_relation(
-        self,
-        subject_id: str,
-        object_id: str,
-        top_k: int = 5
+        self, subject_id: str, object_id: str, top_k: int = 5
     ) -> List[Tuple[str, float]]:
         """
         Predict relation given subject and object
@@ -247,10 +236,7 @@ class KnowledgeGraphEmbedding:
         return scores[:top_k]
 
     def find_similar_entities(
-        self,
-        entity_id: str,
-        top_k: int = 10,
-        entity_type_filter: Optional[str] = None
+        self, entity_id: str, top_k: int = 10, entity_type_filter: Optional[str] = None
     ) -> List[Tuple[Entity, float]]:
         """
         Find entities similar to given entity
@@ -291,17 +277,13 @@ class KnowledgeGraphEmbedding:
 
         # Get entities
         results = [
-            (self.entities[eid], sim)
-            for eid, sim in similarities[:top_k]
-            if eid in self.entities
+            (self.entities[eid], sim) for eid, sim in similarities[:top_k] if eid in self.entities
         ]
 
         return results
 
     def get_neighbors(
-        self,
-        entity_id: str,
-        relation_type: Optional[str] = None
+        self, entity_id: str, relation_type: Optional[str] = None
     ) -> List[Tuple[str, str, str]]:
         """
         Get neighboring entities (1-hop neighborhood)
@@ -319,15 +301,16 @@ class KnowledgeGraphEmbedding:
         if entity_id in self.outgoing_edges:
             for rel in self.outgoing_edges[entity_id]:
                 if relation_type is None or rel.predicate == relation_type:
-                    neighbors.append((rel.predicate, 'outgoing', rel.object))
+                    neighbors.append((rel.predicate, "outgoing", rel.object))
 
         # Incoming edges
         if entity_id in self.incoming_edges:
             for rel in self.incoming_edges[entity_id]:
                 if relation_type is None or rel.predicate == relation_type:
-                    neighbors.append((rel.predicate, 'incoming', rel.subject))
+                    neighbors.append((rel.predicate, "incoming", rel.subject))
 
         return neighbors
+
 
 # Example: Enterprise knowledge graph
 def knowledge_graph_example():
@@ -347,15 +330,15 @@ def knowledge_graph_example():
 
     # Add entities
     customers = [
-        Entity('customer_1', 'customer', {'name': 'Alice'}),
-        Entity('customer_2', 'customer', {'name': 'Bob'}),
-        Entity('customer_3', 'customer', {'name': 'Charlie'})
+        Entity("customer_1", "customer", {"name": "Alice"}),
+        Entity("customer_2", "customer", {"name": "Bob"}),
+        Entity("customer_3", "customer", {"name": "Charlie"}),
     ]
 
     products = [
-        Entity('product_1', 'product', {'name': 'Laptop'}),
-        Entity('product_2', 'product', {'name': 'Mouse'}),
-        Entity('product_3', 'product', {'name': 'Keyboard'})
+        Entity("product_1", "product", {"name": "Laptop"}),
+        Entity("product_2", "product", {"name": "Mouse"}),
+        Entity("product_3", "product", {"name": "Keyboard"}),
     ]
 
     for entity in customers + products:
@@ -363,13 +346,13 @@ def knowledge_graph_example():
 
     # Add relations
     relations = [
-        Relation('customer_1', 'purchased', 'product_1'),
-        Relation('customer_1', 'purchased', 'product_2'),
-        Relation('customer_2', 'purchased', 'product_1'),
-        Relation('customer_2', 'purchased', 'product_3'),
-        Relation('customer_3', 'purchased', 'product_2'),
-        Relation('product_2', 'accessory_for', 'product_1'),
-        Relation('product_3', 'accessory_for', 'product_1')
+        Relation("customer_1", "purchased", "product_1"),
+        Relation("customer_1", "purchased", "product_2"),
+        Relation("customer_2", "purchased", "product_1"),
+        Relation("customer_2", "purchased", "product_3"),
+        Relation("customer_3", "purchased", "product_2"),
+        Relation("product_2", "accessory_for", "product_1"),
+        Relation("product_3", "accessory_for", "product_1"),
     ]
 
     for relation in relations:
@@ -382,28 +365,29 @@ def knowledge_graph_example():
 
     # Link prediction: What might customer_3 purchase?
     print("\n=== Link Prediction: What might customer_3 purchase? ===")
-    predictions = kg.predict_tail('customer_3', 'purchased', top_k=3)
+    predictions = kg.predict_tail("customer_3", "purchased", top_k=3)
 
     for entity_id, score in predictions:
         entity = kg.entities.get(entity_id)
-        if entity and entity.entity_type == 'product':
+        if entity and entity.entity_type == "product":
             print(f"{entity.attributes.get('name')}: score = {score:.3f}")
 
     # Find similar customers
     print("\n=== Similar Customers to customer_1 ===")
-    similar = kg.find_similar_entities('customer_1', top_k=2, entity_type_filter='customer')
+    similar = kg.find_similar_entities("customer_1", top_k=2, entity_type_filter="customer")
 
     for entity, similarity in similar:
         print(f"{entity.attributes.get('name')}: similarity = {similarity:.3f}")
 
     # Get neighbors
     print("\n=== Neighbors of product_1 (Laptop) ===")
-    neighbors = kg.get_neighbors('product_1')
+    neighbors = kg.get_neighbors("product_1")
 
     for relation, direction, neighbor_id in neighbors:
         neighbor = kg.entities.get(neighbor_id)
         if neighbor:
             print(f"{relation} ({direction}): {neighbor.attributes.get('name')}")
+
 
 # Uncomment to run:
 # knowledge_graph_example()

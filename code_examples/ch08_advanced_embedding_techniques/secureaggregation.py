@@ -3,6 +3,7 @@ import torch
 # Code from Chapter 08
 # Book: Embeddings at Scale
 
+
 class SecureAggregation:
     """
     Secure aggregation protocol for federated learning

@@ -50,6 +50,7 @@ class SecurityEvent:
         features: Event-specific features
         is_malicious: Ground truth label (if available)
     """
+
     event_id: str
     event_type: str
     user_id: str
@@ -57,6 +58,7 @@ class SecurityEvent:
     timestamp: float
     features: Dict[str, any]
     is_malicious: Optional[bool] = None
+
 
 class UserBehaviorModel(nn.Module):
     """
@@ -77,12 +79,7 @@ class UserBehaviorModel(nn.Module):
     - Large deviation = anomaly
     """
 
-    def __init__(
-        self,
-        event_dim: int = 64,
-        hidden_dim: int = 128,
-        num_event_types: int = 20
-    ):
+    def __init__(self, event_dim: int = 64, hidden_dim: int = 128, num_event_types: int = 20):
         super().__init__()
 
         # Event type embedding
@@ -90,10 +87,7 @@ class UserBehaviorModel(nn.Module):
 
         # LSTM for sequential modeling
         self.lstm = nn.LSTM(
-            input_size=event_dim,
-            hidden_size=hidden_dim,
-            num_layers=2,
-            batch_first=True
+            input_size=event_dim, hidden_size=hidden_dim, num_layers=2, batch_first=True
         )
 
         # Attention
@@ -102,10 +96,7 @@ class UserBehaviorModel(nn.Module):
         # Output projection
         self.output_projection = nn.Linear(hidden_dim, event_dim)
 
-    def forward(
-        self,
-        event_sequences: torch.Tensor
-    ) -> torch.Tensor:
+    def forward(self, event_sequences: torch.Tensor) -> torch.Tensor:
         """
         Encode user behavior from event sequence
 
@@ -136,6 +127,7 @@ class UserBehaviorModel(nn.Module):
 
         return behavior_emb
 
+
 class ThreatHuntingSystem:
     """
     Cybersecurity threat hunting system
@@ -153,11 +145,7 @@ class ThreatHuntingSystem:
     - Investigation workflow
     """
 
-    def __init__(
-        self,
-        event_dim: int = 64,
-        anomaly_threshold: float = 0.90
-    ):
+    def __init__(self, event_dim: int = 64, anomaly_threshold: float = 0.90):
         """
         Args:
             event_dim: Event embedding dimension
@@ -184,25 +172,21 @@ class ThreatHuntingSystem:
 
         # Event type mapping
         self.event_type_to_idx = {
-            'login_success': 0,
-            'login_failure': 1,
-            'file_read': 2,
-            'file_write': 3,
-            'file_delete': 4,
-            'network_connection': 5,
-            'process_start': 6,
-            'process_terminate': 7
+            "login_success": 0,
+            "login_failure": 1,
+            "file_read": 2,
+            "file_write": 3,
+            "file_delete": 4,
+            "network_connection": 5,
+            "process_start": 6,
+            "process_terminate": 7,
         }
 
         print("Initialized Threat Hunting System")
         print(f"  Event dimension: {event_dim}")
         print(f"  Anomaly threshold: {anomaly_threshold}")
 
-    def build_user_baseline(
-        self,
-        user_id: str,
-        events: List[SecurityEvent]
-    ):
+    def build_user_baseline(self, user_id: str, events: List[SecurityEvent]):
         """
         Build behavioral baseline for user
 
@@ -211,10 +195,7 @@ class ThreatHuntingSystem:
             events: Historical events for user (normal behavior)
         """
         # Extract event types
-        event_types = [
-            self.event_type_to_idx.get(event.event_type, 0)
-            for event in events
-        ]
+        event_types = [self.event_type_to_idx.get(event.event_type, 0) for event in events]
 
         # Encode event sequence
         event_seq = torch.tensor([event_types], dtype=torch.long)
@@ -223,11 +204,7 @@ class ThreatHuntingSystem:
             baseline_emb = self.behavior_model(event_seq)
             self.user_baselines[user_id] = baseline_emb.numpy()[0]
 
-    def detect_threat(
-        self,
-        user_id: str,
-        recent_events: List[SecurityEvent]
-    ) -> Tuple[bool, float]:
+    def detect_threat(self, user_id: str, recent_events: List[SecurityEvent]) -> Tuple[bool, float]:
         """
         Detect threats based on deviation from user baseline
 
@@ -246,10 +223,7 @@ class ThreatHuntingSystem:
         baseline_emb = self.user_baselines[user_id]
 
         # Encode recent events
-        event_types = [
-            self.event_type_to_idx.get(event.event_type, 0)
-            for event in recent_events
-        ]
+        event_types = [self.event_type_to_idx.get(event.event_type, 0) for event in recent_events]
         event_seq = torch.tensor([event_types], dtype=torch.long)
 
         with torch.no_grad():
@@ -263,6 +237,7 @@ class ThreatHuntingSystem:
         is_threat = distance > 0.5  # Placeholder threshold
 
         return is_threat, float(distance)
+
 
 # Example: Insider threat detection
 def threat_hunting_example():
@@ -283,12 +258,12 @@ def threat_hunting_example():
     # Build baseline for normal user
     normal_events = [
         SecurityEvent(
-            event_id=f'event_{i}',
-            event_type='login_success',
-            user_id='employee_123',
-            device_id='laptop_456',
+            event_id=f"event_{i}",
+            event_type="login_success",
+            user_id="employee_123",
+            device_id="laptop_456",
             timestamp=time.time() - (100 - i) * 3600,
-            features={'location': 'office', 'time_of_day': 'business_hours'}
+            features={"location": "office", "time_of_day": "business_hours"},
         )
         for i in range(0, 50, 5)
     ]
@@ -297,41 +272,41 @@ def threat_hunting_example():
     for i in range(10):
         normal_events.append(
             SecurityEvent(
-                event_id=f'file_event_{i}',
-                event_type='file_read',
-                user_id='employee_123',
-                device_id='laptop_456',
+                event_id=f"file_event_{i}",
+                event_type="file_read",
+                user_id="employee_123",
+                device_id="laptop_456",
                 timestamp=time.time() - (100 - i * 5) * 3600,
-                features={'file_path': '/projects/project_a/data.xlsx'}
+                features={"file_path": "/projects/project_a/data.xlsx"},
             )
         )
 
     print("=== Building User Baseline ===")
-    system.build_user_baseline('employee_123', normal_events)
+    system.build_user_baseline("employee_123", normal_events)
     print(f"✓ Built baseline for employee_123 from {len(normal_events)} events")
 
     # Test: Normal behavior
     print("\n=== Testing Normal Behavior ===")
     test_normal = [
         SecurityEvent(
-            event_id='test_1',
-            event_type='login_success',
-            user_id='employee_123',
-            device_id='laptop_456',
+            event_id="test_1",
+            event_type="login_success",
+            user_id="employee_123",
+            device_id="laptop_456",
             timestamp=time.time(),
-            features={'location': 'office', 'time_of_day': 'business_hours'}
+            features={"location": "office", "time_of_day": "business_hours"},
         ),
         SecurityEvent(
-            event_id='test_2',
-            event_type='file_read',
-            user_id='employee_123',
-            device_id='laptop_456',
+            event_id="test_2",
+            event_type="file_read",
+            user_id="employee_123",
+            device_id="laptop_456",
             timestamp=time.time() + 100,
-            features={'file_path': '/projects/project_a/report.pdf'}
-        )
+            features={"file_path": "/projects/project_a/report.pdf"},
+        ),
     ]
 
-    is_threat, score = system.detect_threat('employee_123', test_normal)
+    is_threat, score = system.detect_threat("employee_123", test_normal)
     print(f"Recent events: {len(test_normal)}")
     print(f"Anomaly score: {score:.4f}")
     print(f"Threat detected: {is_threat}")
@@ -340,35 +315,36 @@ def threat_hunting_example():
     print("\n=== Testing Anomalous Behavior ===")
     test_anomaly = [
         SecurityEvent(
-            event_id='test_3',
-            event_type='login_success',
-            user_id='employee_123',
-            device_id='laptop_456',
+            event_id="test_3",
+            event_type="login_success",
+            user_id="employee_123",
+            device_id="laptop_456",
             timestamp=time.time(),
-            features={'location': 'home', 'time_of_day': '2am'}  # Unusual time/location
+            features={"location": "home", "time_of_day": "2am"},  # Unusual time/location
         ),
         SecurityEvent(
-            event_id='test_4',
-            event_type='file_read',
-            user_id='employee_123',
-            device_id='laptop_456',
+            event_id="test_4",
+            event_type="file_read",
+            user_id="employee_123",
+            device_id="laptop_456",
             timestamp=time.time() + 100,
-            features={'file_path': '/hr/salaries.xlsx'}  # Sensitive file
+            features={"file_path": "/hr/salaries.xlsx"},  # Sensitive file
         ),
         SecurityEvent(
-            event_id='test_5',
-            event_type='network_connection',
-            user_id='employee_123',
-            device_id='laptop_456',
+            event_id="test_5",
+            event_type="network_connection",
+            user_id="employee_123",
+            device_id="laptop_456",
             timestamp=time.time() + 200,
-            features={'destination': 'personal_cloud_storage', 'bytes': 500000000}  # Large upload
-        )
+            features={"destination": "personal_cloud_storage", "bytes": 500000000},  # Large upload
+        ),
     ]
 
-    is_threat, score = system.detect_threat('employee_123', test_anomaly)
+    is_threat, score = system.detect_threat("employee_123", test_anomaly)
     print(f"Recent events: {len(test_anomaly)}")
     print(f"Anomaly score: {score:.4f}")
     print(f"Threat detected: {is_threat}")
+
 
 # Uncomment to run:
 # threat_hunting_example()

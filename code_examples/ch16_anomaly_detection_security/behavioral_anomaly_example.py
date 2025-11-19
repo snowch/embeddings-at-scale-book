@@ -17,6 +17,7 @@ Use cases:
 - Privilege escalation detection
 """
 
+
 # Example: Account takeover detection
 def behavioral_anomaly_example():
     """
@@ -65,6 +66,7 @@ def behavioral_anomaly_example():
     print("Actions: View dashboard, edit documents")
     print("Velocity: 12 pages")
     print("→ Anomaly score: 0.25 (MONITOR: New location, but normal actions)")
+
 
 # Uncomment to run:
 # behavioral_anomaly_example()

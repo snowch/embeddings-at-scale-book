@@ -5,6 +5,7 @@ import torch.nn.functional as F
 # Code from Chapter 06
 # Book: Embeddings at Scale
 
+
 class ContrastiveLoss(nn.Module):
     """
     Contrastive loss for Siamese networks
@@ -62,14 +63,18 @@ class ContrastiveLoss(nn.Module):
             predictions = (euclidean_distance < threshold).long()
             accuracy = (predictions == (1 - label)).float().mean()
 
-            similar_mask = (label == 0)
-            dissimilar_mask = (label == 1)
+            similar_mask = label == 0
+            dissimilar_mask = label == 1
 
             metrics = {
-                'loss': loss.item(),
-                'accuracy': accuracy.item(),
-                'mean_similar_distance': euclidean_distance[similar_mask].mean().item() if similar_mask.any() else 0,
-                'mean_dissimilar_distance': euclidean_distance[dissimilar_mask].mean().item() if dissimilar_mask.any() else 0,
+                "loss": loss.item(),
+                "accuracy": accuracy.item(),
+                "mean_similar_distance": euclidean_distance[similar_mask].mean().item()
+                if similar_mask.any()
+                else 0,
+                "mean_dissimilar_distance": euclidean_distance[dissimilar_mask].mean().item()
+                if dissimilar_mask.any()
+                else 0,
             }
 
         return loss, metrics

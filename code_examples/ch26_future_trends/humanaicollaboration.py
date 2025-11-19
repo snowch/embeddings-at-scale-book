@@ -11,29 +11,37 @@ import torch.nn as nn
 
 class AGIEmbeddingSystem:
     """Placeholder for AGIEmbeddingSystem."""
+
     def __init__(self):
         pass
 
     def encode(self, data):
         import torch
+
         return torch.randn(768)
+
 
 class DynamicEmbeddingContext:
     """Placeholder for DynamicEmbeddingContext."""
+
     def __init__(self):
         self.context = {}
 
     def update(self, key, value):
         self.context[key] = value
 
+
 class ContextualEmbedding(nn.Module):
     """Placeholder for ContextualEmbedding."""
+
     def __init__(self):
         super().__init__()
 
     def forward(self, x, context):
         import torch
+
         return torch.randn(768)
+
 
 class HumanAICollaboration:
     """
@@ -52,11 +60,7 @@ class HumanAICollaboration:
         self.user_model: Dict[str, Any] = {}
         self.interaction_history: List[Dict] = []
 
-    def process_user_input(
-        self,
-        user_input: str,
-        modality: str = "text"
-    ) -> Dict[str, Any]:
+    def process_user_input(self, user_input: str, modality: str = "text") -> Dict[str, Any]:
         """
         Process user input and generate AI response
 
@@ -77,27 +81,20 @@ class HumanAICollaboration:
         context = self._build_context(user_input, intent)
 
         # Generate AI response
-        response_embedding = self.agi_system.embed_with_context(
-            {'text': input_embedding},
-            context
-        )
+        response_embedding = self.agi_system.embed_with_context({"text": input_embedding}, context)
 
         # Generate natural language response
-        response_text = self._generate_response(
-            response_embedding,
-            intent,
-            context
-        )
+        response_text = self._generate_response(response_embedding, intent, context)
 
         # Update user model
         self._update_user_model(user_input, response_text, intent)
 
         return {
-            'response': response_text,
-            'intent': intent,
-            'confidence': response_embedding.confidence,
-            'explanation': response_embedding.explanation,
-            'alternatives': self._format_alternatives(response_embedding.alternatives)
+            "response": response_text,
+            "intent": intent,
+            "confidence": response_embedding.confidence,
+            "explanation": response_embedding.explanation,
+            "alternatives": self._format_alternatives(response_embedding.alternatives),
         }
 
     def _encode_input(self, text: str, modality: str) -> np.ndarray:
@@ -111,56 +108,47 @@ class HumanAICollaboration:
         # Intent categories
 
         return {
-            'primary_intent': 'question',
-            'confidence': 0.85,
-            'specificity': 'high',
-            'urgency': 'normal'
+            "primary_intent": "question",
+            "confidence": 0.85,
+            "specificity": "high",
+            "urgency": "normal",
         }
 
     def _build_context(self, user_input: str, intent: Dict) -> DynamicEmbeddingContext:
         """Build rich context for AI processing"""
         return DynamicEmbeddingContext(
-            conversation_history=[h['user_input'] for h in self.interaction_history[-5:]],
+            conversation_history=[h["user_input"] for h in self.interaction_history[-5:]],
             task_description=f"Respond to user {intent['primary_intent']}",
-            user_preferences=self.user_model.get('preferences', {}),
-            environmental_state={'session_length': len(self.interaction_history)},
-            timestamp=datetime.now()
+            user_preferences=self.user_model.get("preferences", {}),
+            environmental_state={"session_length": len(self.interaction_history)},
+            timestamp=datetime.now(),
         )
 
     def _generate_response(
-        self,
-        embedding: ContextualEmbedding,
-        intent: Dict,
-        context: DynamicEmbeddingContext
+        self, embedding: ContextualEmbedding, intent: Dict, context: DynamicEmbeddingContext
     ) -> str:
         """Generate natural language response"""
         # In practice: use language generation model
         return "Based on your question, here's my understanding..."
 
-    def _update_user_model(
-        self,
-        user_input: str,
-        ai_response: str,
-        intent: Dict
-    ):
+    def _update_user_model(self, user_input: str, ai_response: str, intent: Dict):
         """Update user model based on interaction"""
-        self.interaction_history.append({
-            'user_input': user_input,
-            'ai_response': ai_response,
-            'intent': intent,
-            'timestamp': datetime.now()
-        })
+        self.interaction_history.append(
+            {
+                "user_input": user_input,
+                "ai_response": ai_response,
+                "intent": intent,
+                "timestamp": datetime.now(),
+            }
+        )
 
         # Update user preferences
-        if 'preferences' not in self.user_model:
-            self.user_model['preferences'] = {}
+        if "preferences" not in self.user_model:
+            self.user_model["preferences"] = {}
 
-    def _format_alternatives(
-        self,
-        alternatives: List[Tuple[np.ndarray, float]]
-    ) -> List[str]:
+    def _format_alternatives(self, alternatives: List[Tuple[np.ndarray, float]]) -> List[str]:
         """Format alternative responses for user"""
         return [
-            f"Alternative {i+1} (probability: {prob:.2f})"
+            f"Alternative {i + 1} (probability: {prob:.2f})"
             for i, (_, prob) in enumerate(alternatives)
         ]

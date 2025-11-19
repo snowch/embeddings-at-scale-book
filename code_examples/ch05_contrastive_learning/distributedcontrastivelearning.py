@@ -11,7 +11,8 @@ from torch.utils.data import Dataset
 # Placeholder classes
 class SimCLRTextEmbedding(nn.Module):
     """Placeholder for SimCLRTextEmbedding."""
-    def __init__(self, base_model='bert-base-uncased', projection_dim=128):
+
+    def __init__(self, base_model="bert-base-uncased", projection_dim=128):
         super().__init__()
         self.base_model = base_model
         self.projection_dim = projection_dim
@@ -19,8 +20,10 @@ class SimCLRTextEmbedding(nn.Module):
     def forward(self, x):
         return torch.randn(self.projection_dim)
 
+
 class ContrastiveDataset(Dataset):
     """Placeholder for ContrastiveDataset."""
+
     def __init__(self, *args, **kwargs):
         self.data = []
 
@@ -29,6 +32,7 @@ class ContrastiveDataset(Dataset):
 
     def __getitem__(self, idx):
         return torch.randn(768)
+
 
 # Placeholder variable
 num_epochs = 10
@@ -41,7 +45,7 @@ class DistributedContrastiveLearning:
     Key challenge: Gathering embeddings from all GPUs for negative mining
     """
 
-    def __init__(self, model, world_size, rank, backend='nccl'):
+    def __init__(self, model, world_size, rank, backend="nccl"):
         """
         Args:
             model: Embedding model
@@ -55,17 +59,11 @@ class DistributedContrastiveLearning:
 
         # Initialize process group
         if not dist.is_initialized():
-            dist.init_process_group(
-                backend=backend,
-                rank=rank,
-                world_size=world_size
-            )
+            dist.init_process_group(backend=backend, rank=rank, world_size=world_size)
 
         # Wrap model in DistributedDataParallel
         self.model = torch.nn.parallel.DistributedDataParallel(
-            model,
-            device_ids=[rank],
-            output_device=rank
+            model, device_ids=[rank], output_device=rank
         )
 
     def gather_embeddings(self, local_embeddings):
@@ -85,10 +83,7 @@ class DistributedContrastiveLearning:
         local_embeddings.shape[1]
 
         # Create list of tensors to receive gathered embeddings
-        gathered_embeddings = [
-            torch.zeros_like(local_embeddings)
-            for _ in range(world_size)
-        ]
+        gathered_embeddings = [torch.zeros_like(local_embeddings) for _ in range(world_size)]
 
         # All-gather: each GPU gets embeddings from all GPUs
         dist.all_gather(gathered_embeddings, local_embeddings)
@@ -99,8 +94,7 @@ class DistributedContrastiveLearning:
 
         return all_embeddings
 
-    def compute_distributed_contrastive_loss(self, anchor_emb, positive_emb,
-                                            temperature=0.07):
+    def compute_distributed_contrastive_loss(self, anchor_emb, positive_emb, temperature=0.07):
         """
         Compute contrastive loss using embeddings from all GPUs
 
@@ -138,10 +132,7 @@ class DistributedContrastiveLearning:
         all_embeddings = torch.cat([all_anchors, all_positives], dim=0)
 
         # Similarity: (local_batch, 2 × global_batch)
-        similarity_matrix = torch.matmul(
-            local_anchors_norm,
-            all_embeddings.T
-        ) / temperature
+        similarity_matrix = torch.matmul(local_anchors_norm, all_embeddings.T) / temperature
 
         # Create labels: positive for each anchor is at specific global index
         # Local anchor i corresponds to global anchor (rank × local_batch + i)
@@ -149,7 +140,7 @@ class DistributedContrastiveLearning:
         global_indices = torch.arange(
             self.rank * local_batch_size,
             (self.rank + 1) * local_batch_size,
-            device=anchor_emb.device
+            device=anchor_emb.device,
         )
 
         # Positive is in second half of all_embeddings (all_positives)
@@ -164,10 +155,7 @@ class DistributedContrastiveLearning:
             accuracy = (predictions == labels).float().mean()
 
             # Positive similarities
-            positive_sim = similarity_matrix[
-                torch.arange(local_batch_size),
-                labels
-            ].mean()
+            positive_sim = similarity_matrix[torch.arange(local_batch_size), labels].mean()
 
             # Negative similarities (excluding positive)
             mask = torch.ones_like(similarity_matrix, dtype=torch.bool)
@@ -175,16 +163,16 @@ class DistributedContrastiveLearning:
             negative_sim = similarity_matrix[mask].mean()
 
         metrics = {
-            'accuracy': accuracy.item(),
-            'positive_similarity': positive_sim.item(),
-            'negative_similarity': negative_sim.item(),
-            'effective_batch_size': global_batch_size
+            "accuracy": accuracy.item(),
+            "positive_similarity": positive_sim.item(),
+            "negative_similarity": negative_sim.item(),
+            "effective_batch_size": global_batch_size,
         }
 
         return loss, metrics
 
 
-def launch_distributed_training(world_size, backend='nccl'):
+def launch_distributed_training(world_size, backend="nccl"):
     """
     Launch distributed training across multiple GPUs
 
@@ -200,40 +188,30 @@ def launch_distributed_training(world_size, backend='nccl'):
         """
         # Set device
         torch.cuda.set_device(rank)
-        device = torch.device(f'cuda:{rank}')
+        device = torch.device(f"cuda:{rank}")
 
         # Initialize distributed backend
         dist.init_process_group(
-            backend=backend,
-            init_method='tcp://localhost:23456',
-            world_size=world_size,
-            rank=rank
+            backend=backend, init_method="tcp://localhost:23456", world_size=world_size, rank=rank
         )
 
         # Create model
-        model = SimCLRTextEmbedding(
-            base_model='bert-base-uncased',
-            projection_dim=128
-        ).to(device)
+        model = SimCLRTextEmbedding(base_model="bert-base-uncased", projection_dim=128).to(device)
 
         # Wrap in distributed trainer
-        distributed_trainer = DistributedContrastiveLearning(
-            model, world_size, rank
-        )
+        distributed_trainer = DistributedContrastiveLearning(model, world_size, rank)
 
         # Create distributed dataset and loader
         dataset = ContrastiveDataset(...)  # Your dataset
         sampler = torch.utils.data.distributed.DistributedSampler(
-            dataset,
-            num_replicas=world_size,
-            rank=rank
+            dataset, num_replicas=world_size, rank=rank
         )
 
         dataloader = torch.utils.data.DataLoader(
             dataset,
             batch_size=512,  # Per-GPU batch size
             sampler=sampler,
-            num_workers=4
+            num_workers=4,
         )
 
         optimizer = torch.optim.AdamW(model.parameters(), lr=2e-5)
@@ -245,12 +223,10 @@ def launch_distributed_training(world_size, backend='nccl'):
             for batch in dataloader:
                 # Encode
                 anchor_emb, _ = model(
-                    batch['anchor_ids'].to(device),
-                    batch['anchor_mask'].to(device)
+                    batch["anchor_ids"].to(device), batch["anchor_mask"].to(device)
                 )
                 positive_emb, _ = model(
-                    batch['positive_ids'].to(device),
-                    batch['positive_mask'].to(device)
+                    batch["positive_ids"].to(device), batch["positive_mask"].to(device)
                 )
 
                 # Compute distributed loss
@@ -264,19 +240,16 @@ def launch_distributed_training(world_size, backend='nccl'):
                 optimizer.step()
 
                 if rank == 0:  # Only print from master process
-                    print(f"Epoch {epoch}, Loss: {loss.item():.4f}, "
-                          f"Effective batch: {metrics['effective_batch_size']}")
+                    print(
+                        f"Epoch {epoch}, Loss: {loss.item():.4f}, "
+                        f"Effective batch: {metrics['effective_batch_size']}"
+                    )
 
         # Cleanup
         dist.destroy_process_group()
 
     # Spawn processes for each GPU
-    mp.spawn(
-        train_worker,
-        args=(world_size,),
-        nprocs=world_size,
-        join=True
-    )
+    mp.spawn(train_worker, args=(world_size,), nprocs=world_size, join=True)
 
 
 # Launch training on 8 GPUs

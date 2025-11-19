@@ -34,21 +34,26 @@ from typing import Dict, List, Optional, Set
 
 class Region(Enum):
     """Deployment regions"""
+
     US_EAST = "us-east-1"
     US_WEST = "us-west-2"
     EU_WEST = "eu-west-1"
     ASIA_PACIFIC = "ap-southeast-1"
 
+
 class TenantType(Enum):
     """Tenant types for multi-tenancy"""
+
     ENTERPRISE = "enterprise"
     DEPARTMENT = "department"
     APPLICATION = "application"
     DEVELOPMENT = "development"
 
+
 @dataclass
 class ResourceQuota:
     """Resource quotas for tenant"""
+
     max_vectors: int
     max_qps: int
     max_storage_gb: int
@@ -63,24 +68,32 @@ class ResourceQuota:
     def is_within_quota(self) -> bool:
         """Check if usage within quota"""
         return (
-            self.current_vectors <= self.max_vectors and
-            self.current_qps <= self.max_qps and
-            self.current_storage_gb <= self.max_storage_gb and
-            self.current_monthly_cost <= self.max_monthly_cost
+            self.current_vectors <= self.max_vectors
+            and self.current_qps <= self.max_qps
+            and self.current_storage_gb <= self.max_storage_gb
+            and self.current_monthly_cost <= self.max_monthly_cost
         )
 
     def utilization_percentage(self) -> Dict[str, float]:
         """Calculate resource utilization percentages"""
         return {
-            "vectors": (self.current_vectors / self.max_vectors * 100) if self.max_vectors > 0 else 0,
+            "vectors": (self.current_vectors / self.max_vectors * 100)
+            if self.max_vectors > 0
+            else 0,
             "qps": (self.current_qps / self.max_qps * 100) if self.max_qps > 0 else 0,
-            "storage": (self.current_storage_gb / self.max_storage_gb * 100) if self.max_storage_gb > 0 else 0,
-            "cost": (self.current_monthly_cost / self.max_monthly_cost * 100) if self.max_monthly_cost > 0 else 0
+            "storage": (self.current_storage_gb / self.max_storage_gb * 100)
+            if self.max_storage_gb > 0
+            else 0,
+            "cost": (self.current_monthly_cost / self.max_monthly_cost * 100)
+            if self.max_monthly_cost > 0
+            else 0,
         }
+
 
 @dataclass
 class Tenant:
     """Multi-tenant configuration"""
+
     tenant_id: str
     tenant_name: str
     tenant_type: TenantType
@@ -103,9 +116,11 @@ class Tenant:
     created_at: datetime = field(default_factory=datetime.now)
     status: str = "active"  # active, suspended, archived
 
+
 @dataclass
 class ScalingPolicy:
     """Auto-scaling policy configuration"""
+
     name: str
     metric_name: str  # cpu_utilization, qps, queue_depth
     target_value: float
@@ -126,6 +141,7 @@ class ScalingPolicy:
             self.scale_up_threshold = self.target_value * 1.2
         if self.scale_down_threshold == 0.0:
             self.scale_down_threshold = self.target_value * 0.5
+
 
 class EnterpriseDeployment:
     """
@@ -164,7 +180,7 @@ class EnterpriseDeployment:
         vectors: Optional[int] = None,
         qps: Optional[float] = None,
         storage_gb: Optional[float] = None,
-        cost: Optional[float] = None
+        cost: Optional[float] = None,
     ) -> None:
         """Update tenant resource usage"""
         if tenant_id not in self.tenants:
@@ -189,10 +205,7 @@ class EnterpriseDeployment:
         """Handle tenant exceeding quota"""
         utilization = tenant.quotas.utilization_percentage()
 
-        violations = [
-            resource for resource, pct in utilization.items()
-            if pct > 100
-        ]
+        violations = [resource for resource, pct in utilization.items() if pct > 100]
 
         print(f"QUOTA VIOLATION: Tenant {tenant.tenant_name}")
         print(f"  Exceeded: {violations}")
@@ -208,12 +221,7 @@ class EnterpriseDeployment:
 
     def calculate_total_cost(self) -> Dict[str, float]:
         """Calculate total platform cost breakdown"""
-        cost_breakdown = {
-            "compute": 0.0,
-            "storage": 0.0,
-            "network": 0.0,
-            "api_calls": 0.0
-        }
+        cost_breakdown = {"compute": 0.0, "storage": 0.0, "network": 0.0, "api_calls": 0.0}
 
         for tenant in self.tenants.values():
             # Simplified cost model
@@ -291,8 +299,8 @@ def example_enterprise_deployment():
             max_vectors=1_000_000_000,  # 1B vectors
             max_qps=10000,
             max_storage_gb=5000,  # 5TB
-            max_monthly_cost=50000
-        )
+            max_monthly_cost=50000,
+        ),
     )
     deployment.add_tenant(search_tenant)
 
@@ -310,8 +318,8 @@ def example_enterprise_deployment():
             max_vectors=100_000_000,  # 100M vectors
             max_qps=5000,
             max_storage_gb=500,
-            max_monthly_cost=10000
-        )
+            max_monthly_cost=10000,
+        ),
     )
     deployment.add_tenant(recs_tenant)
 
@@ -329,27 +337,31 @@ def example_enterprise_deployment():
             max_vectors=10_000_000,  # 10M vectors
             max_qps=100,
             max_storage_gb=50,
-            max_monthly_cost=1000
-        )
+            max_monthly_cost=1000,
+        ),
     )
     deployment.add_tenant(dev_tenant)
 
     # Configure auto-scaling
-    deployment.add_scaling_policy(ScalingPolicy(
-        name="Vector DB Auto-scaling",
-        metric_name="cpu_utilization",
-        target_value=70.0,  # 70% CPU
-        min_instances=3,
-        max_instances=20
-    ))
+    deployment.add_scaling_policy(
+        ScalingPolicy(
+            name="Vector DB Auto-scaling",
+            metric_name="cpu_utilization",
+            target_value=70.0,  # 70% CPU
+            min_instances=3,
+            max_instances=20,
+        )
+    )
 
-    deployment.add_scaling_policy(ScalingPolicy(
-        name="QPS-based Scaling",
-        metric_name="qps",
-        target_value=5000,  # 5K QPS per instance
-        min_instances=3,
-        max_instances=20
-    ))
+    deployment.add_scaling_policy(
+        ScalingPolicy(
+            name="QPS-based Scaling",
+            metric_name="qps",
+            target_value=5000,  # 5K QPS per instance
+            min_instances=3,
+            max_instances=20,
+        )
+    )
 
     # Simulate usage
     deployment.update_tenant_usage(
@@ -357,7 +369,7 @@ def example_enterprise_deployment():
         vectors=850_000_000,  # 85% of quota
         qps=8500,  # 85% of quota
         storage_gb=4200,  # 84% of quota
-        cost=42000  # 84% of budget
+        cost=42000,  # 84% of budget
     )
 
     deployment.update_tenant_usage(
@@ -365,7 +377,7 @@ def example_enterprise_deployment():
         vectors=75_000_000,  # 75% of quota
         qps=3500,  # 70% of quota
         storage_gb=400,  # 80% of quota
-        cost=8000  # 80% of budget
+        cost=8000,  # 80% of budget
     )
 
     # Generate report

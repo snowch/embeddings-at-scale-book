@@ -28,13 +28,11 @@ class MemoryEfficientContrastive(nn.Module):
         self.encoder = base_model
 
         # Enable gradient checkpointing for encoder
-        if hasattr(self.encoder, 'gradient_checkpointing_enable'):
+        if hasattr(self.encoder, "gradient_checkpointing_enable"):
             self.encoder.gradient_checkpointing_enable()
 
         self.projection = nn.Sequential(
-            nn.Linear(768, 512),
-            nn.ReLU(),
-            nn.Linear(512, projection_dim)
+            nn.Linear(768, 512), nn.ReLU(), nn.Linear(512, projection_dim)
         )
 
     def forward(self, input_ids, attention_mask):

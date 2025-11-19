@@ -31,6 +31,7 @@ Techniques:
 - Multi-modal: Combine sensors + images + audio
 """
 
+
 @dataclass
 class EquipmentReading:
     """
@@ -44,6 +45,7 @@ class EquipmentReading:
         maintenance_history: Past maintenance events
         failure_time: Time until failure (if known, for training)
     """
+
     equipment_id: str
     timestamp: float
     sensors: Dict[str, float]
@@ -57,6 +59,7 @@ class EquipmentReading:
         if self.maintenance_history is None:
             self.maintenance_history = []
 
+
 class EquipmentEncoder(nn.Module):
     """
     Encode equipment state from multi-modal data
@@ -68,29 +71,17 @@ class EquipmentEncoder(nn.Module):
     - Fusion: Combine modalities
     """
 
-    def __init__(
-        self,
-        embedding_dim: int = 128,
-        num_sensors: int = 10,
-        sequence_length: int = 100
-    ):
+    def __init__(self, embedding_dim: int = 128, num_sensors: int = 10, sequence_length: int = 100):
         super().__init__()
 
         # Sensor time-series encoder (LSTM)
         self.sensor_encoder = nn.LSTM(
-            input_size=num_sensors,
-            hidden_size=64,
-            num_layers=2,
-            batch_first=True,
-            dropout=0.2
+            input_size=num_sensors, hidden_size=64, num_layers=2, batch_first=True, dropout=0.2
         )
 
         # Fusion layer
         self.fusion = nn.Sequential(
-            nn.Linear(64, 128),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(128, embedding_dim)
+            nn.Linear(64, 128), nn.ReLU(), nn.Dropout(0.2), nn.Linear(128, embedding_dim)
         )
 
     def forward(self, sensor_data: torch.Tensor) -> torch.Tensor:
@@ -115,6 +106,7 @@ class EquipmentEncoder(nn.Module):
 
         return equipment_emb
 
+
 class FailurePredictionModel(nn.Module):
     """
     Predict equipment failure from embedding
@@ -134,7 +126,7 @@ class FailurePredictionModel(nn.Module):
             nn.ReLU(),
             nn.Dropout(0.3),
             nn.Linear(128, 1),
-            nn.Sigmoid()
+            nn.Sigmoid(),
         )
 
         # Time to failure head
@@ -143,7 +135,7 @@ class FailurePredictionModel(nn.Module):
             nn.ReLU(),
             nn.Dropout(0.3),
             nn.Linear(128, 1),
-            nn.ReLU()  # Positive time
+            nn.ReLU(),  # Positive time
         )
 
     def forward(self, embeddings: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -160,6 +152,7 @@ class FailurePredictionModel(nn.Module):
         time_to_failure = self.time_to_failure_head(embeddings)
 
         return failure_prob, time_to_failure
+
 
 # Example: Predictive maintenance
 def predictive_maintenance_example():
@@ -256,6 +249,7 @@ def predictive_maintenance_example():
     print("Average cost per machine: $3K/year")
     print("ROI: 10x (vs reactive) 3x (vs preventive)")
     print("\n→ Embedding-based approach optimizes maintenance timing")
+
 
 # Uncomment to run:
 # predictive_maintenance_example()

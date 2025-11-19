@@ -33,18 +33,22 @@ import numpy as np
 
 class DeviceType(Enum):
     """Edge device types"""
+
     SMARTPHONE = "smartphone"
     IOTDEVICE = "iot_device"
     WEARABLE = "wearable"
     GATEWAY = "gateway"
     EDGE_SERVER = "edge_server"
 
+
 class QuantizationMode(Enum):
     """Quantization precision"""
+
     INT8 = "int8"
     INT4 = "int4"
     BINARY = "binary"
     MIXED = "mixed_precision"
+
 
 @dataclass
 class EdgeDeviceConfig:
@@ -62,6 +66,7 @@ class EdgeDeviceConfig:
         cache_size: Number of embeddings to cache
         offload_threshold: Latency threshold for cloud offload
     """
+
     device_type: DeviceType = DeviceType.SMARTPHONE
     max_model_size_mb: float = 10.0
     max_memory_mb: float = 100.0
@@ -72,15 +77,18 @@ class EdgeDeviceConfig:
     cache_size: int = 1000
     offload_threshold_ms: float = 50.0
 
+
 @dataclass
 class EdgeEmbeddingModel:
     """Compressed embedding model for edge deployment"""
+
     weights: Dict[str, np.ndarray]
     quantization_params: Dict[str, Dict]
     input_dim: int
     output_dim: int
     model_size_mb: float
     compression_ratio: float
+
 
 class ModelCompressor:
     """
@@ -100,7 +108,7 @@ class ModelCompressor:
         self,
         model_weights: Dict[str, np.ndarray],
         target_size_mb: float,
-        prune_threshold: float = 0.01
+        prune_threshold: float = 0.01,
     ) -> EdgeEmbeddingModel:
         """
         Compress model to target size
@@ -140,23 +148,16 @@ class ModelCompressor:
             quantization_params=quantization_params,
             input_dim=input_dim,
             output_dim=output_dim,
-            model_size_mb=compressed_size / (1024 ** 2),
-            compression_ratio=original_size / compressed_size
+            model_size_mb=compressed_size / (1024**2),
+            compression_ratio=original_size / compressed_size,
         )
 
-    def _prune_weights(
-        self,
-        weights: np.ndarray,
-        threshold: float
-    ) -> np.ndarray:
+    def _prune_weights(self, weights: np.ndarray, threshold: float) -> np.ndarray:
         """Prune weights below threshold"""
         mask = np.abs(weights) > threshold
         return weights * mask
 
-    def _quantize_weights(
-        self,
-        weights: np.ndarray
-    ) -> Tuple[np.ndarray, Dict]:
+    def _quantize_weights(self, weights: np.ndarray) -> Tuple[np.ndarray, Dict]:
         """
         Quantize weights to lower precision
 
@@ -173,11 +174,7 @@ class ModelCompressor:
 
             quantized = np.round((weights - zero_point) / scale).astype(np.int8)
 
-            params = {
-                'scale': scale,
-                'zero_point': zero_point,
-                'dtype': 'int8'
-            }
+            params = {"scale": scale, "zero_point": zero_point, "dtype": "int8"}
 
             return quantized, params
 
@@ -190,30 +187,23 @@ class ModelCompressor:
             quantized = np.round((weights - zero_point) / scale).astype(np.int8)
             quantized = np.clip(quantized, 0, 15)
 
-            params = {
-                'scale': scale,
-                'zero_point': zero_point,
-                'dtype': 'int4'
-            }
+            params = {"scale": scale, "zero_point": zero_point, "dtype": "int4"}
 
             return quantized, params
 
         else:
             # No quantization
-            return weights, {'dtype': 'float32'}
+            return weights, {"dtype": "float32"}
 
-    def dequantize_weights(
-        self,
-        quantized: np.ndarray,
-        params: Dict
-    ) -> np.ndarray:
+    def dequantize_weights(self, quantized: np.ndarray, params: Dict) -> np.ndarray:
         """Dequantize weights for inference"""
-        if params['dtype'] == 'int8' or params['dtype'] == 'int4':
-            scale = params['scale']
-            zero_point = params['zero_point']
+        if params["dtype"] == "int8" or params["dtype"] == "int4":
+            scale = params["scale"]
+            zero_point = params["zero_point"]
             return quantized.astype(np.float32) * scale + zero_point
         else:
             return quantized
+
 
 class EdgeEmbeddingInference:
     """
@@ -226,17 +216,14 @@ class EdgeEmbeddingInference:
     - Batch processing when possible
     """
 
-    def __init__(
-        self,
-        model: EdgeEmbeddingModel,
-        config: EdgeDeviceConfig
-    ):
+    def __init__(self, model: EdgeEmbeddingModel, config: EdgeDeviceConfig):
         self.model = model
         self.config = config
         self.compressor = ModelCompressor(config.quantization)
 
         # Cache for frequent embeddings
         from collections import OrderedDict
+
         self.cache: OrderedDict = OrderedDict()
         self.cache_hits = 0
         self.cache_misses = 0
@@ -247,11 +234,7 @@ class EdgeEmbeddingInference:
         self.total_latency_ms = 0
         self.total_energy_mj = 0
 
-    def infer(
-        self,
-        input_data: np.ndarray,
-        allow_offload: bool = True
-    ) -> Dict[str, Any]:
+    def infer(self, input_data: np.ndarray, allow_offload: bool = True) -> Dict[str, Any]:
         """
         Generate embedding on edge device
 
@@ -276,12 +259,7 @@ class EdgeEmbeddingInference:
             # Move to end (LRU)
             self.cache.move_to_end(cache_key)
 
-            return {
-                'embedding': embedding,
-                'source': 'cache',
-                'latency_ms': 0.1,
-                'energy_mj': 0.0
-            }
+            return {"embedding": embedding, "source": "cache", "latency_ms": 0.1, "energy_mj": 0.0}
 
         self.cache_misses += 1
 
@@ -292,23 +270,23 @@ class EdgeEmbeddingInference:
         if estimated_latency_ms <= self.config.offload_threshold_ms or not allow_offload:
             # Local inference
             result = self._local_inference(input_data)
-            result['source'] = 'local'
+            result["source"] = "local"
         else:
             # Offload to cloud
             result = self._cloud_offload(input_data)
-            result['source'] = 'cloud'
+            result["source"] = "cloud"
 
         # Cache result
-        self._add_to_cache(cache_key, result['embedding'])
+        self._add_to_cache(cache_key, result["embedding"])
 
         # Update statistics
-        if result['source'] == 'local':
+        if result["source"] == "local":
             self.local_inferences += 1
         else:
             self.cloud_offloads += 1
 
-        self.total_latency_ms += result['latency_ms']
-        self.total_energy_mj += result['energy_mj']
+        self.total_latency_ms += result["latency_ms"]
+        self.total_energy_mj += result["energy_mj"]
 
         return result
 
@@ -339,7 +317,7 @@ class EdgeEmbeddingInference:
         # Simple 2-layer network for demonstration
         hidden = input_data
 
-        for layer_name in ['layer1', 'layer2']:
+        for layer_name in ["layer1", "layer2"]:
             if layer_name in self.model.weights:
                 weights_quantized = self.model.weights[layer_name]
                 params = self.model.quantization_params[layer_name]
@@ -355,7 +333,7 @@ class EdgeEmbeddingInference:
                 hidden = np.maximum(0, hidden)
 
         # Normalize
-        embedding = hidden[:self.model.output_dim]
+        embedding = hidden[: self.model.output_dim]
         embedding = embedding / (np.linalg.norm(embedding) + 1e-10)
 
         latency_ms = (time.time() - start) * 1000
@@ -364,11 +342,7 @@ class EdgeEmbeddingInference:
         # Modern mobile NPUs: ~0.1 mJ per inference for small models
         energy_mj = 0.1 if self.config.use_accelerator else 1.0
 
-        return {
-            'embedding': embedding,
-            'latency_ms': latency_ms,
-            'energy_mj': energy_mj
-        }
+        return {"embedding": embedding, "latency_ms": latency_ms, "energy_mj": energy_mj}
 
     def _cloud_offload(self, input_data: np.ndarray) -> Dict[str, Any]:
         """Offload inference to cloud"""
@@ -390,11 +364,7 @@ class EdgeEmbeddingInference:
         embedding = np.random.randn(self.model.output_dim)
         embedding = embedding / np.linalg.norm(embedding)
 
-        return {
-            'embedding': embedding,
-            'latency_ms': total_latency,
-            'energy_mj': energy_mj
-        }
+        return {"embedding": embedding, "latency_ms": total_latency, "energy_mj": energy_mj}
 
     def _add_to_cache(self, key: str, embedding: np.ndarray):
         """Add embedding to LRU cache"""
@@ -413,13 +383,13 @@ class EdgeEmbeddingInference:
             return {}
 
         return {
-            'total_inferences': total_inferences,
-            'local_inferences': self.local_inferences,
-            'cloud_offloads': self.cloud_offloads,
-            'local_percentage': self.local_inferences / total_inferences * 100,
-            'cache_hit_rate': self.cache_hits / (self.cache_hits + self.cache_misses) * 100,
-            'avg_latency_ms': self.total_latency_ms / total_inferences,
-            'avg_energy_mj': self.total_energy_mj / total_inferences
+            "total_inferences": total_inferences,
+            "local_inferences": self.local_inferences,
+            "cloud_offloads": self.cloud_offloads,
+            "local_percentage": self.local_inferences / total_inferences * 100,
+            "cache_hit_rate": self.cache_hits / (self.cache_hits + self.cache_misses) * 100,
+            "avg_latency_ms": self.total_latency_ms / total_inferences,
+            "avg_energy_mj": self.total_energy_mj / total_inferences,
         }
 
 

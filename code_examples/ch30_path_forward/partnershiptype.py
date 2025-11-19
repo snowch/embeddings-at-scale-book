@@ -36,6 +36,7 @@ from typing import Dict, List, Set
 
 class PartnershipType(Enum):
     """Types of strategic partnerships"""
+
     VENDOR = "vendor"  # Technology provider
     ACADEMIC = "academic"  # Research institution
     OPEN_SOURCE = "open_source"  # Community project
@@ -44,8 +45,10 @@ class PartnershipType(Enum):
     STARTUP = "startup"  # Emerging technology
     INTEGRATION = "integration"  # Complementary product
 
+
 class PartnershipValue(Enum):
     """Value contribution categories"""
+
     TECHNOLOGY_ACCESS = "technology_access"
     COST_REDUCTION = "cost_reduction"
     TIME_TO_MARKET = "time_to_market"
@@ -54,9 +57,11 @@ class PartnershipValue(Enum):
     TALENT_ACCESS = "talent_access"
     INNOVATION_ACCELERATION = "innovation_acceleration"
 
+
 @dataclass
 class Partnership:
     """Strategic partnership tracking"""
+
     partner_name: str
     partnership_type: PartnershipType
     start_date: datetime
@@ -97,9 +102,11 @@ class Partnership:
     notes: str = ""
     metadata: Dict[str, any] = field(default_factory=dict)
 
+
 @dataclass
 class OpenSourceContribution:
     """Open source project contributions tracking"""
+
     project_name: str
     project_url: str
     contribution_type: str  # "code", "documentation", "maintenance", "funding"
@@ -125,9 +132,11 @@ class OpenSourceContribution:
 
     maintenance: Dict[str, any] = field(default_factory=dict)
 
+
 @dataclass
 class AcademicPartnership:
     """Academic research partnership"""
+
     institution_name: str
     research_group: str
     principal_investigators: List[str]
@@ -155,6 +164,7 @@ class AcademicPartnership:
 
     relationship_status: str = "active"
 
+
 class PartnershipPortfolio:
     """Managing portfolio of strategic partnerships"""
 
@@ -164,11 +174,7 @@ class PartnershipPortfolio:
         self.academic: Dict[str, AcademicPartnership] = {}
 
     def assess_vendor_partnership(
-        self,
-        vendor: str,
-        capabilities: List[str],
-        cost_annual: float,
-        lock_in_risk: float
+        self, vendor: str, capabilities: List[str], cost_annual: float, lock_in_risk: float
     ) -> Dict[str, any]:
         """Evaluate potential vendor partnership"""
 
@@ -202,7 +208,7 @@ class PartnershipPortfolio:
             "competitive_risk": competitive_risk,
             "net_value": net_value,
             "lock_in_risk": lock_in_risk,
-            "recommendation": recommendation
+            "recommendation": recommendation,
         }
 
     def _estimate_build_cost(self, capability: str) -> float:
@@ -234,9 +240,7 @@ class PartnershipPortfolio:
             return 50_000  # Low risk - commodity infrastructure
 
     def optimize_partnership_portfolio(
-        self,
-        budget: float,
-        strategic_priorities: Dict[str, float]
+        self, budget: float, strategic_priorities: Dict[str, float]
     ) -> Dict[str, any]:
         """Optimize allocation across partnership opportunities"""
 
@@ -244,31 +248,30 @@ class PartnershipPortfolio:
         scored_partnerships = []
         for _pid, partnership in self.partnerships.items():
             alignment_score = sum(
-                strategic_priorities.get(area, 0)
-                for area in partnership.collaboration_areas
+                strategic_priorities.get(area, 0) for area in partnership.collaboration_areas
             )
 
-            value_score = (
-                sum(partnership.benefits_realized.values()) /
-                max(partnership.financial_commitment, 1)
+            value_score = sum(partnership.benefits_realized.values()) / max(
+                partnership.financial_commitment, 1
             )
 
             risk_score = 1 - (
-                partnership.dependency_level * 0.5 +
-                partnership.competitive_risk * 0.5
+                partnership.dependency_level * 0.5 + partnership.competitive_risk * 0.5
             )
 
             overall_score = alignment_score * value_score * risk_score
 
-            scored_partnerships.append({
-                "partner": partnership.partner_name,
-                "type": partnership.partnership_type,
-                "current_investment": partnership.financial_commitment,
-                "score": overall_score,
-                "alignment": alignment_score,
-                "value": value_score,
-                "risk": risk_score
-            })
+            scored_partnerships.append(
+                {
+                    "partner": partnership.partner_name,
+                    "type": partnership.partnership_type,
+                    "current_investment": partnership.financial_commitment,
+                    "score": overall_score,
+                    "alignment": alignment_score,
+                    "value": value_score,
+                    "risk": risk_score,
+                }
+            )
 
         # Sort by score
         scored_partnerships.sort(key=lambda x: x["score"], reverse=True)
@@ -293,14 +296,11 @@ class PartnershipPortfolio:
             "allocated": sum(allocation.values()),
             "partnerships_funded": len(allocation),
             "allocation": allocation,
-            "prioritized_list": scored_partnerships
+            "prioritized_list": scored_partnerships,
         }
 
     def assess_open_source_strategy(
-        self,
-        internal_capability: float,
-        community_maturity: float,
-        strategic_importance: float
+        self, internal_capability: float, community_maturity: float, strategic_importance: float
     ) -> str:
         """Determine appropriate open source engagement level"""
 
@@ -325,11 +325,10 @@ class PartnershipPortfolio:
             else:
                 return "EVALUATE: Consider alternatives or building internally"
 
+
 # Example strategic partnership design
 def design_partnership_strategy(
-    organization_maturity: str,
-    annual_partnership_budget: float,
-    strategic_focus: List[str]
+    organization_maturity: str, annual_partnership_budget: float, strategic_focus: List[str]
 ) -> Dict[str, any]:
     """Design comprehensive partnership strategy"""
 
@@ -339,18 +338,18 @@ def design_partnership_strategy(
         "vector_db_provider": {
             "cost": 300_000,
             "value": "Managed infrastructure, faster scaling",
-            "priority": 0.9 if "scale" in strategic_focus else 0.6
+            "priority": 0.9 if "scale" in strategic_focus else 0.6,
         },
         "embedding_api": {
             "cost": 200_000,
             "value": "Pre-trained models, faster development",
-            "priority": 0.8 if "speed" in strategic_focus else 0.5
+            "priority": 0.8 if "speed" in strategic_focus else 0.5,
         },
         "ml_platform": {
             "cost": 500_000,
             "value": "Training infrastructure, experiment management",
-            "priority": 0.9 if "innovation" in strategic_focus else 0.7
-        }
+            "priority": 0.9 if "innovation" in strategic_focus else 0.7,
+        },
     }
 
     # Academic partnership allocation (15-20% of budget)
@@ -359,13 +358,13 @@ def design_partnership_strategy(
         "research_sponsorship": {
             "cost": 100_000,
             "value": "Access to cutting-edge research",
-            "priority": 0.8 if "innovation" in strategic_focus else 0.4
+            "priority": 0.8 if "innovation" in strategic_focus else 0.4,
         },
         "internship_program": {
             "cost": 150_000,
             "value": "Talent pipeline and fresh perspectives",
-            "priority": 0.7
-        }
+            "priority": 0.7,
+        },
     }
 
     # Open source contribution (10-15% of budget)
@@ -374,28 +373,24 @@ def design_partnership_strategy(
         "core_infrastructure": {
             "projects": ["vector databases", "ml frameworks"],
             "engagement": "active contributor",
-            "allocation": open_source_budget * 0.6
+            "allocation": open_source_budget * 0.6,
         },
         "specialized_tools": {
             "projects": ["embedding libraries", "evaluation tools"],
             "engagement": "occasional contributor",
-            "allocation": open_source_budget * 0.4
-        }
+            "allocation": open_source_budget * 0.4,
+        },
     }
 
     # Industry consortium participation (10-15% of budget)
     consortium_budget = annual_partnership_budget * 0.125
     consortiums = {
-        "ml_standards": {
-            "cost": 50_000,
-            "value": "Shape industry standards",
-            "priority": 0.6
-        },
+        "ml_standards": {"cost": 50_000, "value": "Shape industry standards", "priority": 0.6},
         "benchmark_initiatives": {
             "cost": 75_000,
             "value": "Fair competition and credibility",
-            "priority": 0.7
-        }
+            "priority": 0.7,
+        },
     }
 
     return {
@@ -404,7 +399,7 @@ def design_partnership_strategy(
             "vendor_partnerships": vendor_budget,
             "academic_programs": academic_budget,
             "open_source": open_source_budget,
-            "industry_consortiums": consortium_budget
+            "industry_consortiums": consortium_budget,
         },
         "vendor_strategy": key_vendors,
         "academic_strategy": academic_programs,
@@ -417,6 +412,6 @@ def design_partnership_strategy(
             "Maintain multi-vendor optionality",
             "Build strategic relationships, not just transactions",
             "Contribute proportionally to value received",
-            "Protect proprietary advantages while embracing openness"
-        ]
+            "Protect proprietary advantages while embracing openness",
+        ],
     }

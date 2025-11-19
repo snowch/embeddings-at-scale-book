@@ -34,9 +34,7 @@ class CheckpointedTransformerLayer(nn.Module):
         super().__init__()
         self.attention = nn.MultiheadAttention(hidden_dim, num_heads)
         self.ffn = nn.Sequential(
-            nn.Linear(hidden_dim, hidden_dim * 4),
-            nn.ReLU(),
-            nn.Linear(hidden_dim * 4, hidden_dim)
+            nn.Linear(hidden_dim, hidden_dim * 4), nn.ReLU(), nn.Linear(hidden_dim * 4, hidden_dim)
         )
         self.norm1 = nn.LayerNorm(hidden_dim)
         self.norm2 = nn.LayerNorm(hidden_dim)
@@ -49,6 +47,7 @@ class CheckpointedTransformerLayer(nn.Module):
         - Attention block
         - FFN block
         """
+
         # Checkpoint attention
         def attention_forward(x):
             attn_out, _ = self.attention(x, x, x)
@@ -63,6 +62,7 @@ class CheckpointedTransformerLayer(nn.Module):
         x = checkpoint(ffn_forward, x)
 
         return x
+
 
 class MemoryEfficientEmbeddingModel(nn.Module):
     """
@@ -83,21 +83,16 @@ class MemoryEfficientEmbeddingModel(nn.Module):
     """
 
     def __init__(
-        self,
-        vocab_size: int,
-        embedding_dim: int = 512,
-        num_layers: int = 12,
-        num_heads: int = 8
+        self, vocab_size: int, embedding_dim: int = 512, num_layers: int = 12, num_heads: int = 8
     ):
         super().__init__()
 
         self.embeddings = nn.Embedding(vocab_size, embedding_dim)
 
         # Transformer layers with checkpointing
-        self.layers = nn.ModuleList([
-            CheckpointedTransformerLayer(embedding_dim, num_heads)
-            for _ in range(num_layers)
-        ])
+        self.layers = nn.ModuleList(
+            [CheckpointedTransformerLayer(embedding_dim, num_heads) for _ in range(num_layers)]
+        )
 
         self.projection = nn.Linear(embedding_dim, embedding_dim)
 

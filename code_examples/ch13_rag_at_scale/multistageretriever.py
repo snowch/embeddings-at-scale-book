@@ -30,21 +30,25 @@ import numpy as np
 @dataclass
 class Document:
     """Placeholder for Document."""
+
     doc_id: str
     content: str
     metadata: Dict[str, Any]
     embedding: Optional[np.ndarray] = None
     score: float = 0.0
 
+
 @dataclass
 class Query:
     """Placeholder for Query."""
+
     query_id: str
     text: str
     intent: Optional[str] = None
     entities: List[str] = None
     expanded_queries: List[str] = None
     filters: Dict[str, Any] = None
+
 
 class MultiStageRetriever:
     """
@@ -70,7 +74,7 @@ class MultiStageRetriever:
         stage1_k: int = 1000,
         stage2_k: int = 500,
         stage3_k: int = 20,
-        stage4_k: int = 10
+        stage4_k: int = 10,
     ):
         """
         Args:
@@ -153,12 +157,7 @@ class MultiStageRetriever:
         # Placeholder
         return np.random.randn(768).astype(np.float32)
 
-    def _keyword_filter(
-        self,
-        query: Query,
-        documents: List[Document],
-        k: int
-    ) -> List[Document]:
+    def _keyword_filter(self, query: Query, documents: List[Document], k: int) -> List[Document]:
         """
         Filter documents by keyword presence
 
@@ -201,8 +200,25 @@ class MultiStageRetriever:
             Set of keywords
         """
         # Simple: Lowercase words, remove stopwords
-        stopwords = {'the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been',
-                     'how', 'what', 'where', 'when', 'why', 'do', 'does', 'did'}
+        stopwords = {
+            "the",
+            "a",
+            "an",
+            "is",
+            "are",
+            "was",
+            "were",
+            "be",
+            "been",
+            "how",
+            "what",
+            "where",
+            "when",
+            "why",
+            "do",
+            "does",
+            "did",
+        }
 
         words = text.lower().split()
         keywords = {w for w in words if w not in stopwords and len(w) > 3}
@@ -224,11 +240,7 @@ class MultiStageRetriever:
         overlap = len(query_terms & doc_terms)
         return overlap / len(query_terms) if query_terms else 0.0
 
-    def _diversity_filter(
-        self,
-        documents: List[Document],
-        k: int
-    ) -> List[Document]:
+    def _diversity_filter(self, documents: List[Document], k: int) -> List[Document]:
         """
         Filter for diversity in results
 
@@ -261,8 +273,7 @@ class MultiStageRetriever:
 
                 # Diversity (dissimilarity to selected)
                 max_similarity = max(
-                    self._similarity(doc, selected_doc)
-                    for selected_doc in selected
+                    self._similarity(doc, selected_doc) for selected_doc in selected
                 )
                 diversity = 1 - max_similarity
 
@@ -301,6 +312,7 @@ class MultiStageRetriever:
 
         return overlap / union if union > 0 else 0.0
 
+
 # Example: Multi-stage retrieval
 def multi_stage_retrieval_example():
     """
@@ -317,8 +329,8 @@ def multi_stage_retrieval_example():
                 doc = Document(
                     doc_id=f"doc_{i}",
                     content=f"Document {i} about technical topic with relevant information and keywords.",
-                    metadata={'title': f'Doc {i}'},
-                    score=1.0 - (i * 0.001)
+                    metadata={"title": f"Doc {i}"},
+                    score=1.0 - (i * 0.001),
                 )
                 docs.append(doc)
             return docs
@@ -342,23 +354,21 @@ def multi_stage_retrieval_example():
         stage1_k=1000,
         stage2_k=500,
         stage3_k=20,
-        stage4_k=10
+        stage4_k=10,
     )
 
     # Query
-    query = Query(
-        query_id="q1",
-        text="How do I configure authentication for the API using OAuth2?"
-    )
+    query = Query(query_id="q1", text="How do I configure authentication for the API using OAuth2?")
 
     # Retrieve
     results = retriever.retrieve(query)
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"Final Results ({len(results)} documents):")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     for i, doc in enumerate(results):
-        print(f"{i+1}. {doc.doc_id} (score: {doc.score:.4f})")
+        print(f"{i + 1}. {doc.doc_id} (score: {doc.score:.4f})")
+
 
 # Uncomment to run:
 # multi_stage_retrieval_example()

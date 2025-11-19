@@ -48,6 +48,7 @@ class BusinessCase:
         timestamp: When decision occurred
         embedding: Learned entity embedding
     """
+
     case_id: str
     entity_type: str
     entity_id: str
@@ -60,6 +61,7 @@ class BusinessCase:
     def __post_init__(self):
         if self.context is None:
             self.context = {}
+
 
 @dataclass
 class DecisionRequest:
@@ -74,6 +76,7 @@ class DecisionRequest:
         required_confidence: Minimum confidence for auto-decision
         human_review: Whether to force human review
     """
+
     request_id: str
     entity_type: str
     entity_id: str
@@ -84,6 +87,7 @@ class DecisionRequest:
     def __post_init__(self):
         if self.context is None:
             self.context = {}
+
 
 class EntityEncoder(nn.Module):
     """
@@ -105,37 +109,29 @@ class EntityEncoder(nn.Module):
         self,
         embedding_dim: int = 128,
         num_categorical_features: int = 10,
-        num_numerical_features: int = 20
+        num_numerical_features: int = 20,
     ):
         super().__init__()
         self.embedding_dim = embedding_dim
 
         # Categorical feature embeddings
-        self.categorical_embeddings = nn.ModuleList([
-            nn.Embedding(1000, 16) for _ in range(num_categorical_features)
-        ])
+        self.categorical_embeddings = nn.ModuleList(
+            [nn.Embedding(1000, 16) for _ in range(num_categorical_features)]
+        )
 
         # Numerical feature encoder
         self.numerical_encoder = nn.Sequential(
-            nn.Linear(num_numerical_features, 64),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(64, 64)
+            nn.Linear(num_numerical_features, 64), nn.ReLU(), nn.Dropout(0.2), nn.Linear(64, 64)
         )
 
         # Combined encoder
         feature_dim = num_categorical_features * 16 + 64
         self.feature_encoder = nn.Sequential(
-            nn.Linear(feature_dim, 256),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(256, embedding_dim)
+            nn.Linear(feature_dim, 256), nn.ReLU(), nn.Dropout(0.2), nn.Linear(256, embedding_dim)
         )
 
     def forward(
-        self,
-        categorical_features: torch.Tensor,
-        numerical_features: torch.Tensor
+        self, categorical_features: torch.Tensor, numerical_features: torch.Tensor
     ) -> torch.Tensor:
         """
         Encode entities to embeddings
@@ -167,6 +163,7 @@ class EntityEncoder(nn.Module):
 
         return entity_emb
 
+
 class DecisionModel(nn.Module):
     """
     Predict decision outcomes from embeddings
@@ -183,10 +180,7 @@ class DecisionModel(nn.Module):
     """
 
     def __init__(
-        self,
-        embedding_dim: int = 128,
-        num_outcomes: int = 2,
-        task: str = 'classification'
+        self, embedding_dim: int = 128, num_outcomes: int = 2, task: str = "classification"
     ):
         super().__init__()
         self.task = task
@@ -198,7 +192,7 @@ class DecisionModel(nn.Module):
             nn.Linear(256, 128),
             nn.ReLU(),
             nn.Dropout(0.3),
-            nn.Linear(128, num_outcomes)
+            nn.Linear(128, num_outcomes),
         )
 
     def forward(self, embeddings: torch.Tensor) -> torch.Tensor:
@@ -213,10 +207,11 @@ class DecisionModel(nn.Module):
         """
         logits = self.decision_head(embeddings)
 
-        if self.task == 'classification':
+        if self.task == "classification":
             return F.softmax(logits, dim=1)
         else:
             return logits
+
 
 class CaseBasedReasoning:
     """
@@ -237,12 +232,7 @@ class CaseBasedReasoning:
     - No retraining: Just add cases to database
     """
 
-    def __init__(
-        self,
-        encoder: EntityEncoder,
-        embedding_dim: int = 128,
-        k_neighbors: int = 10
-    ):
+    def __init__(self, encoder: EntityEncoder, embedding_dim: int = 128, k_neighbors: int = 10):
         self.encoder = encoder
         self.embedding_dim = embedding_dim
         self.k_neighbors = k_neighbors
@@ -251,11 +241,7 @@ class CaseBasedReasoning:
         self.cases: List[BusinessCase] = []
         self.case_embeddings: Optional[np.ndarray] = None
 
-    def add_case(
-        self,
-        case: BusinessCase,
-        embedding: np.ndarray
-    ):
+    def add_case(self, case: BusinessCase, embedding: np.ndarray):
         """
         Add historical case to database
 
@@ -270,15 +256,10 @@ class CaseBasedReasoning:
         if self.case_embeddings is None:
             self.case_embeddings = embedding.reshape(1, -1)
         else:
-            self.case_embeddings = np.vstack([
-                self.case_embeddings,
-                embedding.reshape(1, -1)
-            ])
+            self.case_embeddings = np.vstack([self.case_embeddings, embedding.reshape(1, -1)])
 
     def retrieve_similar_cases(
-        self,
-        query_embedding: np.ndarray,
-        k: Optional[int] = None
+        self, query_embedding: np.ndarray, k: Optional[int] = None
     ) -> List[Tuple[BusinessCase, float]]:
         """
         Retrieve k most similar historical cases
@@ -303,17 +284,12 @@ class CaseBasedReasoning:
         # Get top k
         top_indices = np.argsort(similarities)[-k:][::-1]
 
-        similar_cases = [
-            (self.cases[idx], similarities[idx])
-            for idx in top_indices
-        ]
+        similar_cases = [(self.cases[idx], similarities[idx]) for idx in top_indices]
 
         return similar_cases
 
     def make_decision(
-        self,
-        request: DecisionRequest,
-        request_embedding: np.ndarray
+        self, request: DecisionRequest, request_embedding: np.ndarray
     ) -> Tuple[Any, float, List[BusinessCase]]:
         """
         Make decision based on similar cases
@@ -367,6 +343,7 @@ class CaseBasedReasoning:
 
         return decision, confidence, supporting_cases
 
+
 class HybridDecisionSystem:
     """
     Combine embedding-based decisions with rule-based constraints
@@ -387,16 +364,13 @@ class HybridDecisionSystem:
         self,
         encoder: EntityEncoder,
         decision_model: DecisionModel,
-        rules: Optional[Dict[str, Any]] = None
+        rules: Optional[Dict[str, Any]] = None,
     ):
         self.encoder = encoder
         self.decision_model = decision_model
         self.rules = rules or {}
 
-    def check_rules(
-        self,
-        request: DecisionRequest
-    ) -> Tuple[bool, List[str]]:
+    def check_rules(self, request: DecisionRequest) -> Tuple[bool, List[str]]:
         """
         Check hard constraint rules
 
@@ -409,25 +383,23 @@ class HybridDecisionSystem:
         violated_rules = []
 
         # Example rules
-        if 'minimum_age' in self.rules:
-            if request.context.get('age', 0) < self.rules['minimum_age']:
+        if "minimum_age" in self.rules:
+            if request.context.get("age", 0) < self.rules["minimum_age"]:
                 violated_rules.append(f"Age below minimum ({self.rules['minimum_age']})")
 
-        if 'maximum_amount' in self.rules:
-            if request.context.get('amount', 0) > self.rules['maximum_amount']:
+        if "maximum_amount" in self.rules:
+            if request.context.get("amount", 0) > self.rules["maximum_amount"]:
                 violated_rules.append(f"Amount exceeds maximum ({self.rules['maximum_amount']})")
 
-        if 'required_fields' in self.rules:
-            for field in self.rules['required_fields']:
+        if "required_fields" in self.rules:
+            for field in self.rules["required_fields"]:
                 if field not in request.context:
                     violated_rules.append(f"Missing required field: {field}")
 
         return len(violated_rules) == 0, violated_rules
 
     def make_decision(
-        self,
-        request: DecisionRequest,
-        request_embedding: torch.Tensor
+        self, request: DecisionRequest, request_embedding: torch.Tensor
     ) -> Dict[str, Any]:
         """
         Make decision combining model and rules
@@ -444,11 +416,11 @@ class HybridDecisionSystem:
 
         if not rules_passed:
             return {
-                'decision': 'reject',
-                'confidence': 1.0,
-                'reason': 'rule_violation',
-                'violated_rules': violated_rules,
-                'model_prediction': None
+                "decision": "reject",
+                "confidence": 1.0,
+                "reason": "rule_violation",
+                "violated_rules": violated_rules,
+                "model_prediction": None,
             }
 
         # Get model prediction
@@ -457,8 +429,8 @@ class HybridDecisionSystem:
             prediction = prediction.squeeze(0).cpu().numpy()
 
         # Interpret prediction
-        if self.decision_model.task == 'classification':
-            decision = 'approve' if prediction[1] > 0.5 else 'reject'
+        if self.decision_model.task == "classification":
+            decision = "approve" if prediction[1] > 0.5 else "reject"
             confidence = max(prediction)
         else:
             decision = float(prediction[0])
@@ -467,20 +439,21 @@ class HybridDecisionSystem:
         # Check confidence threshold
         if confidence < request.required_confidence:
             return {
-                'decision': 'human_review',
-                'confidence': confidence,
-                'reason': 'low_confidence',
-                'model_prediction': decision,
-                'violated_rules': []
+                "decision": "human_review",
+                "confidence": confidence,
+                "reason": "low_confidence",
+                "model_prediction": decision,
+                "violated_rules": [],
             }
 
         return {
-            'decision': decision,
-            'confidence': confidence,
-            'reason': 'model_prediction',
-            'model_prediction': decision,
-            'violated_rules': []
+            "decision": decision,
+            "confidence": confidence,
+            "reason": "model_prediction",
+            "model_prediction": decision,
+            "violated_rules": [],
         }
+
 
 # Example: Credit approval system
 def credit_approval_example():
@@ -548,6 +521,7 @@ def credit_approval_example():
     print("  Model prediction: Approve")
     print("  Hard rule: Minimum age 18")
     print("  → Rules override model for regulatory compliance")
+
 
 # Uncomment to run:
 # credit_approval_example()

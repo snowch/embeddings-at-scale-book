@@ -3,6 +3,7 @@ import numpy as np
 # Code from Chapter 08
 # Book: Embeddings at Scale
 
+
 class HierarchicalProductRecommender:
     """
     Product recommendations that respect category structure

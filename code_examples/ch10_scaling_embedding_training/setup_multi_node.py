@@ -31,21 +31,18 @@ def setup_multi_node(rank: int, world_size: int, master_addr: str, master_port: 
     """
 
     # Set environment variables
-    os.environ['MASTER_ADDR'] = master_addr
-    os.environ['MASTER_PORT'] = master_port
+    os.environ["MASTER_ADDR"] = master_addr
+    os.environ["MASTER_PORT"] = master_port
 
     # Local rank (GPU on this node)
     local_rank = rank % torch.cuda.device_count()
     torch.cuda.set_device(local_rank)
 
     # Initialize process group
-    dist.init_process_group(
-        backend='nccl',
-        world_size=world_size,
-        rank=rank
-    )
+    dist.init_process_group(backend="nccl", world_size=world_size, rank=rank)
 
     print(f"Initialized rank {rank}/{world_size} on device {local_rank}")
+
 
 def train_multi_node():
     """

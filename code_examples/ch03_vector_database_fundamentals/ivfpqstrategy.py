@@ -4,6 +4,7 @@ from sklearn.cluster import KMeans
 # Code from Chapter 03
 # Book: Embeddings at Scale
 
+
 class IVFPQStrategy:
     """IVF with Product Quantization for memory efficiency"""
 
@@ -62,7 +63,7 @@ class IVFPQStrategy:
             subvectors = vectors[:, start:end]
 
             # Train KMeans on this subvector
-            num_clusters = 2 ** self.bits_per_sq  # 256 for 8 bits
+            num_clusters = 2**self.bits_per_sq  # 256 for 8 bits
             kmeans = KMeans(n_clusters=num_clusters, max_iter=20)
             kmeans.fit(subvectors)
 
@@ -81,10 +82,7 @@ class IVFPQStrategy:
         code = self.encode_pq(residual)
 
         # Add to inverted list
-        self.inverted_lists[centroid_id].append({
-            'vector_id': vector_id,
-            'code': code
-        })
+        self.inverted_lists[centroid_id].append({"vector_id": vector_id, "code": code})
 
     def encode_pq(self, vector):
         """Encode vector using product quantization"""
@@ -113,8 +111,7 @@ class IVFPQStrategy:
 
         # Find n_probe nearest centroids
         centroid_distances = [
-            (i, np.linalg.norm(query - centroid))
-            for i, centroid in enumerate(self.centroids)
+            (i, np.linalg.norm(query - centroid)) for i, centroid in enumerate(self.centroids)
         ]
         centroid_distances.sort(key=lambda x: x[1])
         nearest_centroids = [c[0] for c in centroid_distances[:n_probe]]
@@ -127,11 +124,8 @@ class IVFPQStrategy:
 
             # Asymmetric distance computation (query vs compressed vectors)
             for item in self.inverted_lists.get(centroid_id, []):
-                distance = self.compute_asymmetric_distance(
-                    residual_query,
-                    item['code']
-                )
-                candidates.append((item['vector_id'], distance))
+                distance = self.compute_asymmetric_distance(residual_query, item["code"])
+                candidates.append((item["vector_id"], distance))
 
         # Return top-k
         candidates.sort(key=lambda x: x[1])
@@ -156,7 +150,7 @@ class IVFPQStrategy:
 
             # Add squared distance
             diff = query_subvector - quantized_subvector
-            total_distance_sq += np.sum(diff ** 2)
+            total_distance_sq += np.sum(diff**2)
 
         return np.sqrt(total_distance_sq)
 
@@ -174,11 +168,12 @@ class IVFPQStrategy:
         compression_ratio = uncompressed_bytes / compressed_bytes
 
         return {
-            'uncompressed_gb': uncompressed_bytes / (1024**3),
-            'compressed_gb': compressed_bytes / (1024**3),
-            'compression_ratio': f'{compression_ratio:.1f}x',
-            'savings_pct': f'{(1 - compressed_bytes/uncompressed_bytes) * 100:.1f}%'
+            "uncompressed_gb": uncompressed_bytes / (1024**3),
+            "compressed_gb": compressed_bytes / (1024**3),
+            "compression_ratio": f"{compression_ratio:.1f}x",
+            "savings_pct": f"{(1 - compressed_bytes / uncompressed_bytes) * 100:.1f}%",
         }
+
 
 # Example: 100B vectors, 768-dim
 ivf_pq = IVFPQStrategy(num_centroids=65536, num_subquantizers=96, bits_per_sq=8)

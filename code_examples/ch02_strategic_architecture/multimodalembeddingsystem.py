@@ -6,20 +6,26 @@ from transformers import CLIPVisionModel, Wav2Vec2Model
 # Code from Chapter 02
 # Book: Embeddings at Scale
 
+
 # Placeholder classes for video and structured encoders
 class TimeSformerModel:
     """Placeholder for TimeSformer model. Replace with actual implementation."""
+
     @staticmethod
     def from_pretrained(model_name):
         class DummyModel:
             def __call__(self, video_frames):
                 class Output:
                     last_hidden_state = torch.randn(1, 10, 768)
+
                 return Output()
+
         return DummyModel()
+
 
 class StructuredDataEncoder:
     """Placeholder for structured data encoder. Replace with actual implementation."""
+
     def __init__(self, categorical_dims=None, numerical_features=None):
         self.categorical_dims = categorical_dims or {}
         self.numerical_features = numerical_features or []
@@ -27,26 +33,27 @@ class StructuredDataEncoder:
     def encode(self, structured_data):
         return torch.randn(128)
 
+
 class MultiModalEmbeddingSystem:
     """Production multi-modal embedding architecture"""
 
     def __init__(self):
         # Text encoder (e.g., BERT, RoBERTa, Sentence Transformers)
-        self.text_encoder = SentenceTransformer('all-mpnet-base-v2')
+        self.text_encoder = SentenceTransformer("all-mpnet-base-v2")
 
         # Image encoder (e.g., ResNet, ViT, CLIP)
-        self.image_encoder = CLIPVisionModel.from_pretrained('openai/clip-vit-base-patch32')
+        self.image_encoder = CLIPVisionModel.from_pretrained("openai/clip-vit-base-patch32")
 
         # Audio encoder (e.g., Wav2Vec, HuBERT)
-        self.audio_encoder = Wav2Vec2Model.from_pretrained('facebook/wav2vec2-base')
+        self.audio_encoder = Wav2Vec2Model.from_pretrained("facebook/wav2vec2-base")
 
         # Video encoder (e.g., VideoMAE, TimeSformer)
-        self.video_encoder = TimeSformerModel.from_pretrained('facebook/timesformer-base')
+        self.video_encoder = TimeSformerModel.from_pretrained("facebook/timesformer-base")
 
         # Structured data encoder (custom, handles tabular/categorical data)
         self.structured_encoder = StructuredDataEncoder(
-            categorical_dims={'category': 500, 'brand': 10000},
-            numerical_features=['price', 'rating', 'num_reviews']
+            categorical_dims={"category": 500, "brand": 10000},
+            numerical_features=["price", "rating", "num_reviews"],
         )
 
         # Projection layers to unified dimension

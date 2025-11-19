@@ -49,6 +49,7 @@ class DigitalTwinState:
         predicted_sensors: Model's sensor predictions
         prediction_error: Difference between predicted and actual
     """
+
     timestamp: datetime
     asset_id: str
     sensor_values: Dict[str, float]
@@ -56,6 +57,7 @@ class DigitalTwinState:
     latent_state: Optional[np.ndarray] = None
     predicted_sensors: Optional[Dict[str, float]] = None
     prediction_error: float = 0.0
+
 
 @dataclass
 class SimulationScenario:
@@ -72,6 +74,7 @@ class SimulationScenario:
         constraints: Hard constraints (safety limits)
         results: Simulation outcomes
     """
+
     scenario_id: str
     description: str
     initial_state: DigitalTwinState
@@ -81,6 +84,7 @@ class SimulationScenario:
     constraints: Dict[str, Tuple[float, float]] = field(default_factory=dict)
     results: Optional[Dict[str, Any]] = None
 
+
 class StateEncoder(nn.Module):
     """
     Encode physical system observations to latent state
@@ -88,12 +92,9 @@ class StateEncoder(nn.Module):
     Maps high-dimensional sensor readings to compact
     state representation capturing system dynamics.
     """
+
     def __init__(
-        self,
-        num_sensors: int,
-        state_dim: int = 128,
-        hidden_dim: int = 256,
-        dropout: float = 0.1
+        self, num_sensors: int, state_dim: int = 128, hidden_dim: int = 256, dropout: float = 0.1
     ):
         super().__init__()
 
@@ -104,7 +105,7 @@ class StateEncoder(nn.Module):
             nn.Linear(hidden_dim, hidden_dim),
             nn.ReLU(),
             nn.Dropout(dropout),
-            nn.Linear(hidden_dim, state_dim * 2)  # mean and log_var
+            nn.Linear(hidden_dim, state_dim * 2),  # mean and log_var
         )
 
         self.state_dim = state_dim
@@ -118,8 +119,8 @@ class StateEncoder(nn.Module):
             state_log_var: [batch, state_dim]
         """
         encoded = self.encoder(observations)
-        state_mean = encoded[:, :self.state_dim]
-        state_log_var = encoded[:, self.state_dim:]
+        state_mean = encoded[:, : self.state_dim]
+        state_log_var = encoded[:, self.state_dim :]
         return state_mean, state_log_var
 
     def sample(self, mean: torch.Tensor, log_var: torch.Tensor) -> torch.Tensor:
@@ -128,6 +129,7 @@ class StateEncoder(nn.Module):
         eps = torch.randn_like(std)
         return mean + eps * std
 
+
 class TransitionModel(nn.Module):
     """
     Learn state transition dynamics
@@ -135,12 +137,13 @@ class TransitionModel(nn.Module):
     Predicts next state from current state and action:
     s_{t+1} = f(s_t, a_t)
     """
+
     def __init__(
         self,
         state_dim: int = 128,
         action_dim: int = 10,
         hidden_dim: int = 256,
-        dropout: float = 0.1
+        dropout: float = 0.1,
     ):
         super().__init__()
 
@@ -151,18 +154,14 @@ class TransitionModel(nn.Module):
             nn.Dropout(dropout),
             nn.Linear(hidden_dim, hidden_dim),
             nn.ReLU(),
-            nn.Dropout(dropout)
+            nn.Dropout(dropout),
         )
 
         # Stochastic component (for uncertainty)
-        self.stochastic = nn.Sequential(
-            nn.Linear(hidden_dim, state_dim * 2)
-        )
+        self.stochastic = nn.Sequential(nn.Linear(hidden_dim, state_dim * 2))
 
     def forward(
-        self,
-        state: torch.Tensor,
-        action: torch.Tensor
+        self, state: torch.Tensor, action: torch.Tensor
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Args:
@@ -180,10 +179,11 @@ class TransitionModel(nn.Module):
 
         # Predict next state distribution
         stochastic_out = self.stochastic(h)
-        next_state_mean = stochastic_out[:, :state.shape[-1]]
-        next_state_log_var = stochastic_out[:, state.shape[-1]:]
+        next_state_mean = stochastic_out[:, : state.shape[-1]]
+        next_state_log_var = stochastic_out[:, state.shape[-1] :]
 
         return next_state_mean, next_state_log_var
+
 
 class ObservationDecoder(nn.Module):
     """
@@ -191,12 +191,13 @@ class ObservationDecoder(nn.Module):
 
     Predicts sensor values from state embedding.
     """
+
     def __init__(
         self,
         state_dim: int = 128,
         num_sensors: int = 50,
         hidden_dim: int = 256,
-        dropout: float = 0.1
+        dropout: float = 0.1,
     ):
         super().__init__()
 
@@ -207,7 +208,7 @@ class ObservationDecoder(nn.Module):
             nn.Linear(hidden_dim, hidden_dim),
             nn.ReLU(),
             nn.Dropout(dropout),
-            nn.Linear(hidden_dim, num_sensors)
+            nn.Linear(hidden_dim, num_sensors),
         )
 
     def forward(self, state: torch.Tensor) -> torch.Tensor:
@@ -219,19 +220,21 @@ class ObservationDecoder(nn.Module):
         """
         return self.decoder(state)
 
+
 class RewardPredictor(nn.Module):
     """
     Predict outcomes from state-action pairs
 
     Estimates quality, throughput, energy consumption, etc.
     """
+
     def __init__(
         self,
         state_dim: int = 128,
         action_dim: int = 10,
         num_objectives: int = 5,
         hidden_dim: int = 256,
-        dropout: float = 0.1
+        dropout: float = 0.1,
     ):
         super().__init__()
 
@@ -242,14 +245,10 @@ class RewardPredictor(nn.Module):
             nn.Linear(hidden_dim, hidden_dim),
             nn.ReLU(),
             nn.Dropout(dropout),
-            nn.Linear(hidden_dim, num_objectives)
+            nn.Linear(hidden_dim, num_objectives),
         )
 
-    def forward(
-        self,
-        state: torch.Tensor,
-        action: torch.Tensor
-    ) -> torch.Tensor:
+    def forward(self, state: torch.Tensor, action: torch.Tensor) -> torch.Tensor:
         """
         Args:
             state: [batch, state_dim]
@@ -259,6 +258,7 @@ class RewardPredictor(nn.Module):
         """
         state_action = torch.cat([state, action], dim=-1)
         return self.predictor(state_action)
+
 
 class DigitalTwinSystem:
     """
@@ -271,6 +271,7 @@ class DigitalTwinSystem:
     - Action optimization through model-based planning
     - Anomaly detection via prediction errors
     """
+
     def __init__(
         self,
         state_encoder: StateEncoder,
@@ -280,7 +281,7 @@ class DigitalTwinSystem:
         num_sensors: int = 50,
         state_dim: int = 128,
         action_dim: int = 10,
-        device: str = 'cuda'
+        device: str = "cuda",
     ):
         self.state_encoder = state_encoder.to(device)
         self.transition_model = transition_model.to(device)
@@ -301,7 +302,7 @@ class DigitalTwinSystem:
         asset_id: str,
         sensor_values: Dict[str, float],
         control_inputs: Dict[str, float],
-        timestamp: datetime
+        timestamp: datetime,
     ) -> DigitalTwinState:
         """
         Update digital twin state from real sensor measurements
@@ -309,7 +310,7 @@ class DigitalTwinSystem:
         Infers latent state and compares predictions to reality
         """
         # Convert to tensor
-        sensor_array = np.array([sensor_values[f'sensor_{i}'] for i in range(self.num_sensors)])
+        sensor_array = np.array([sensor_values[f"sensor_{i}"] for i in range(self.num_sensors)])
         sensor_tensor = torch.FloatTensor(sensor_array).unsqueeze(0).to(self.device)
 
         # Encode to latent state
@@ -322,15 +323,16 @@ class DigitalTwinSystem:
 
         # Convert to dict
         predicted_sensors = {
-            f'sensor_{i}': float(predicted_sensors_tensor[0, i])
-            for i in range(self.num_sensors)
+            f"sensor_{i}": float(predicted_sensors_tensor[0, i]) for i in range(self.num_sensors)
         }
 
         # Calculate prediction error
-        prediction_error = np.mean([
-            abs(sensor_values[k] - predicted_sensors[k]) / (abs(sensor_values[k]) + 1e-6)
-            for k in sensor_values
-        ])
+        prediction_error = np.mean(
+            [
+                abs(sensor_values[k] - predicted_sensors[k]) / (abs(sensor_values[k]) + 1e-6)
+                for k in sensor_values
+            ]
+        )
 
         # Create state object
         state = DigitalTwinState(
@@ -340,7 +342,7 @@ class DigitalTwinSystem:
             control_inputs=control_inputs,
             latent_state=latent_state.cpu().numpy()[0],
             predicted_sensors=predicted_sensors,
-            prediction_error=prediction_error
+            prediction_error=prediction_error,
         )
 
         # Update tracking
@@ -360,7 +362,7 @@ class DigitalTwinSystem:
         self,
         asset_id: str,
         actions: List[Dict[str, float]],
-        initial_state: Optional[torch.Tensor] = None
+        initial_state: Optional[torch.Tensor] = None,
     ) -> Tuple[List[torch.Tensor], List[Dict[str, float]], List[torch.Tensor]]:
         """
         Simulate forward trajectory given action sequence
@@ -384,18 +386,21 @@ class DigitalTwinSystem:
         with torch.no_grad():
             for action_dict in actions:
                 # Convert action to tensor
-                action_array = np.array([action_dict.get(f'action_{i}', 0.0) for i in range(self.action_dim)])
+                action_array = np.array(
+                    [action_dict.get(f"action_{i}", 0.0) for i in range(self.action_dim)]
+                )
                 action_tensor = torch.FloatTensor(action_array).unsqueeze(0).to(self.device)
 
                 # Predict next state
-                next_state_mean, next_state_log_var = self.transition_model(current_state, action_tensor)
+                next_state_mean, next_state_log_var = self.transition_model(
+                    current_state, action_tensor
+                )
                 next_state = self.state_encoder.sample(next_state_mean, next_state_log_var)
 
                 # Decode to observations
                 predicted_obs = self.observation_decoder(next_state)
                 obs_dict = {
-                    f'sensor_{i}': float(predicted_obs[0, i])
-                    for i in range(self.num_sensors)
+                    f"sensor_{i}": float(predicted_obs[0, i]) for i in range(self.num_sensors)
                 }
 
                 # Predict rewards
@@ -415,7 +420,7 @@ class DigitalTwinSystem:
         time_horizon: int,
         objectives: List[str],
         constraints: Dict[str, Tuple[float, float]],
-        num_samples: int = 100
+        num_samples: int = 100,
     ) -> List[Dict[str, float]]:
         """
         Find optimal action sequence using model predictive control
@@ -442,13 +447,11 @@ class DigitalTwinSystem:
 
             # Clip to constraints
             for action_idx in range(self.action_dim):
-                action_name = f'action_{action_idx}'
+                action_name = f"action_{action_idx}"
                 if action_name in constraints:
                     min_val, max_val = constraints[action_name]
                     action_sequences[:, :, action_idx] = torch.clamp(
-                        action_sequences[:, :, action_idx],
-                        min_val,
-                        max_val
+                        action_sequences[:, :, action_idx], min_val, max_val
                     )
 
             # Evaluate each sequence
@@ -489,18 +492,13 @@ class DigitalTwinSystem:
         # Convert best action sequence to list of dicts
         best_actions = []
         for t in range(time_horizon):
-            action_dict = {
-                f'action_{i}': float(action_mean[t, i])
-                for i in range(self.action_dim)
-            }
+            action_dict = {f"action_{i}": float(action_mean[t, i]) for i in range(self.action_dim)}
             best_actions.append(action_dict)
 
         return best_actions
 
     def detect_anomalies(
-        self,
-        asset_id: str,
-        threshold: float = 0.15
+        self, asset_id: str, threshold: float = 0.15
     ) -> List[Tuple[datetime, float]]:
         """
         Detect anomalies based on prediction errors
@@ -516,6 +514,7 @@ class DigitalTwinSystem:
                 anomalies.append((state.timestamp, state.prediction_error))
 
         return anomalies
+
 
 def digital_twin_example():
     """
@@ -549,7 +548,7 @@ def digital_twin_example():
         num_sensors=num_sensors,
         state_dim=state_dim,
         action_dim=action_dim,
-        device='cpu'
+        device="cpu",
     )
 
     print("Digital twin initialized:")
@@ -567,15 +566,9 @@ def digital_twin_example():
 
     for t in range(10):
         # Mock sensor readings
-        sensor_values = {
-            f'sensor_{i}': np.random.randn() * 5 + 50
-            for i in range(num_sensors)
-        }
+        sensor_values = {f"sensor_{i}": np.random.randn() * 5 + 50 for i in range(num_sensors)}
 
-        control_inputs = {
-            f'action_{i}': np.random.randn() * 0.5
-            for i in range(action_dim)
-        }
+        control_inputs = {f"action_{i}": np.random.randn() * 0.5 for i in range(action_dim)}
 
         timestamp = datetime.now() + timedelta(seconds=t)
 
@@ -584,7 +577,7 @@ def digital_twin_example():
             asset_id=asset_id,
             sensor_values=sensor_values,
             control_inputs=control_inputs,
-            timestamp=timestamp
+            timestamp=timestamp,
         )
 
         if t < 3:  # Show first few updates
@@ -611,15 +604,14 @@ def digital_twin_example():
     actions = []
     for _t in range(time_horizon):
         action_dict = {
-            f'action_{i}': np.random.randn() * 0.6  # 20% increase
+            f"action_{i}": np.random.randn() * 0.6  # 20% increase
             for i in range(action_dim)
         }
         actions.append(action_dict)
 
     # Simulate
     states, observations, rewards = twin_system.simulate_trajectory(
-        asset_id=asset_id,
-        actions=actions
+        asset_id=asset_id, actions=actions
     )
 
     print(f"Simulated {time_horizon} steps in <0.1 seconds")
@@ -644,17 +636,14 @@ def digital_twin_example():
     print("Objectives: Minimize cycle time, maximize quality, minimize energy")
     print()
 
-    constraints = {
-        f'action_{i}': (-1.0, 1.0)
-        for i in range(action_dim)
-    }
+    constraints = {f"action_{i}": (-1.0, 1.0) for i in range(action_dim)}
 
     optimized_actions = twin_system.optimize_actions(
         asset_id=asset_id,
         time_horizon=10,
-        objectives=['cycle_time', 'quality', 'energy'],
+        objectives=["cycle_time", "quality", "energy"],
         constraints=constraints,
-        num_samples=50  # Reduced for speed
+        num_samples=50,  # Reduced for speed
     )
 
     print("Optimization complete:")
@@ -663,7 +652,9 @@ def digital_twin_example():
     print()
     print("Optimized actions (first 3 steps):")
     for t in range(3):
-        print(f"  Step {t+1}: {', '.join([f'{k}={v:.2f}' for k, v in list(optimized_actions[t].items())[:3]])}...")
+        print(
+            f"  Step {t + 1}: {', '.join([f'{k}={v:.2f}' for k, v in list(optimized_actions[t].items())[:3]])}..."
+        )
     print()
     print("Expected improvement:")
     print("  - Cycle time: -12%")
@@ -720,6 +711,7 @@ def digital_twin_example():
     print("  - Throughput improvement: +19% from optimized parameters")
     print()
     print("→ Digital twins enable risk-free optimization and rapid innovation")
+
 
 # Uncomment to run:
 # digital_twin_example()

@@ -1,8 +1,8 @@
 # Code from Chapter 01
 # Book: Embeddings at Scale
 
-def calculate_efficiency_roi(process_name, current_time, target_time,
-                            annual_volume, hourly_cost):
+
+def calculate_efficiency_roi(process_name, current_time, target_time, annual_volume, hourly_cost):
     """
     Calculate ROI from process automation/augmentation
 
@@ -21,8 +21,8 @@ def calculate_efficiency_roi(process_name, current_time, target_time,
     rework_savings = annual_volume * current_time * 0.05 * hourly_cost
 
     return {
-        'annual_hours_saved': annual_hours_saved,
-        'direct_savings': annual_savings,
-        'quality_savings': rework_savings,
-        'total_annual_benefit': annual_savings + rework_savings
+        "annual_hours_saved": annual_hours_saved,
+        "direct_savings": annual_savings,
+        "quality_savings": rework_savings,
+        "total_annual_benefit": annual_savings + rework_savings,
     }

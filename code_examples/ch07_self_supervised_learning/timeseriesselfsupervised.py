@@ -6,6 +6,7 @@ import torch.nn.functional as F
 # Code from Chapter 07
 # Book: Embeddings at Scale
 
+
 class TimeSeriesSelfSupervised(nn.Module):
     """
     Self-supervised learning for time-series data
@@ -23,13 +24,7 @@ class TimeSeriesSelfSupervised(nn.Module):
     - Healthcare monitoring: Learn from vital signs
     """
 
-    def __init__(
-        self,
-        input_dim,
-        hidden_dim=256,
-        num_layers=4,
-        pretext_task='forecasting'
-    ):
+    def __init__(self, input_dim, hidden_dim=256, num_layers=4, pretext_task="forecasting"):
         """
         Args:
             input_dim: Dimension of time-series features
@@ -45,10 +40,7 @@ class TimeSeriesSelfSupervised(nn.Module):
 
         # Encoder (Transformer or LSTM)
         encoder_layer = nn.TransformerEncoderLayer(
-            d_model=hidden_dim,
-            nhead=8,
-            dim_feedforward=hidden_dim * 4,
-            batch_first=True
+            d_model=hidden_dim, nhead=8, dim_feedforward=hidden_dim * 4, batch_first=True
         )
         self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
 
@@ -59,15 +51,13 @@ class TimeSeriesSelfSupervised(nn.Module):
         self.pos_encoder = PositionalEncoding(hidden_dim)
 
         # Task-specific heads
-        if pretext_task == 'forecasting':
+        if pretext_task == "forecasting":
             self.forecast_head = nn.Linear(hidden_dim, input_dim)
-        elif pretext_task == 'masked':
+        elif pretext_task == "masked":
             self.reconstruction_head = nn.Linear(hidden_dim, input_dim)
-        elif pretext_task == 'contrastive':
+        elif pretext_task == "contrastive":
             self.projection_head = nn.Sequential(
-                nn.Linear(hidden_dim, hidden_dim),
-                nn.ReLU(),
-                nn.Linear(hidden_dim, 128)
+                nn.Linear(hidden_dim, hidden_dim), nn.ReLU(), nn.Linear(hidden_dim, 128)
             )
 
     def forward(self, x):
@@ -179,7 +169,7 @@ class TimeSeriesSelfSupervised(nn.Module):
         labels = torch.cat([labels + batch_size, labels])
 
         mask = torch.eye(2 * batch_size, dtype=torch.bool).to(z1.device)
-        similarity_matrix.masked_fill_(mask, float('-inf'))
+        similarity_matrix.masked_fill_(mask, float("-inf"))
 
         loss = F.cross_entropy(similarity_matrix, labels)
 
@@ -214,18 +204,16 @@ class PositionalEncoding(nn.Module):
 
         pe = torch.zeros(max_len, d_model)
         position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
-        div_term = torch.exp(
-            torch.arange(0, d_model, 2).float() * (-np.log(10000.0) / d_model)
-        )
+        div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-np.log(10000.0) / d_model))
 
         pe[:, 0::2] = torch.sin(position * div_term)
         pe[:, 1::2] = torch.cos(position * div_term)
         pe = pe.unsqueeze(0)
 
-        self.register_buffer('pe', pe)
+        self.register_buffer("pe", pe)
 
     def forward(self, x):
-        x = x + self.pe[:, :x.size(1), :]
+        x = x + self.pe[:, : x.size(1), :]
         return x
 
 
@@ -239,7 +227,7 @@ def example_iot_sensor_ssl():
         input_dim=32,  # 32 sensor readings
         hidden_dim=256,
         num_layers=6,
-        pretext_task='forecasting'
+        pretext_task="forecasting",
     ).cuda()
 
     # Dummy data (in production: load from time-series database)

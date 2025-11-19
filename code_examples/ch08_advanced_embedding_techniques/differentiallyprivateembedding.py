@@ -5,6 +5,7 @@ import torch.nn.functional as F
 # Code from Chapter 08
 # Book: Embeddings at Scale
 
+
 class DifferentiallyPrivateEmbedding:
     """
     Add differential privacy guarantees to embeddings
@@ -27,12 +28,7 @@ class DifferentiallyPrivateEmbedding:
         self.privacy_spent = 0.0
 
     def private_gradient_descent(
-        self,
-        data,
-        labels,
-        num_iterations=1000,
-        batch_size=64,
-        clip_norm=1.0
+        self, data, labels, num_iterations=1000, batch_size=64, clip_norm=1.0
     ):
         """
         Train with differentially private SGD
@@ -45,9 +41,7 @@ class DifferentiallyPrivateEmbedding:
         optimizer = torch.optim.SGD(self.model.parameters(), lr=0.01)
 
         # Noise scale based on privacy budget
-        noise_scale = clip_norm * np.sqrt(
-            2 * np.log(1.25 / self.delta)
-        ) / self.epsilon
+        noise_scale = clip_norm * np.sqrt(2 * np.log(1.25 / self.delta)) / self.epsilon
 
         for _iteration in range(num_iterations):
             # Sample batch
@@ -64,10 +58,7 @@ class DifferentiallyPrivateEmbedding:
             loss.backward()
 
             # Clip gradients
-            torch.nn.utils.clip_grad_norm_(
-                self.model.parameters(),
-                clip_norm
-            )
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), clip_norm)
 
             # Add noise
             for param in self.model.parameters():

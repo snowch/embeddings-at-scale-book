@@ -38,7 +38,7 @@ class DiversityOptimizer:
     def __init__(
         self,
         lambda_diversity: float = 0.3,
-        category_constraints: Optional[Dict[str, Tuple[int, int]]] = None
+        category_constraints: Optional[Dict[str, Tuple[int, int]]] = None,
     ):
         """
         Args:
@@ -55,7 +55,7 @@ class DiversityOptimizer:
         self,
         candidates: List[Tuple[str, float]],
         item_embeddings: Dict[str, np.ndarray],
-        top_k: int = 10
+        top_k: int = 10,
     ) -> List[Tuple[str, float]]:
         """
         Rerank using Maximal Marginal Relevance
@@ -79,7 +79,7 @@ class DiversityOptimizer:
 
         while len(selected) < top_k and remaining:
             best_item = None
-            best_score = -float('inf')
+            best_score = -float("inf")
             best_idx = -1
 
             for idx, (item_id, relevance) in enumerate(remaining):
@@ -95,8 +95,10 @@ class DiversityOptimizer:
                     diversity_penalty = max(similarities)
 
                 # MMR score
-                mmr_score = (self.lambda_diversity * relevance -
-                           (1 - self.lambda_diversity) * diversity_penalty)
+                mmr_score = (
+                    self.lambda_diversity * relevance
+                    - (1 - self.lambda_diversity) * diversity_penalty
+                )
 
                 if mmr_score > best_score:
                     best_score = mmr_score
@@ -120,7 +122,7 @@ class DiversityOptimizer:
         candidates: List[Tuple[str, float]],
         item_categories: Dict[str, str],
         user_category_preferences: Dict[str, float],
-        top_k: int = 10
+        top_k: int = 10,
     ) -> List[Tuple[str, float]]:
         """
         Calibrated recommendations: Match category distribution to user preferences
@@ -149,7 +151,7 @@ class DiversityOptimizer:
         if total < top_k:
             # Add remainder to largest category
             max_category = max(user_category_preferences, key=user_category_preferences.get)
-            target_counts[max_category] += (top_k - total)
+            target_counts[max_category] += top_k - total
 
         # Select items per category
         selected = []
@@ -173,12 +175,14 @@ class DiversityOptimizer:
         # If still need items, add highest-scoring remaining
         if len(selected) < top_k:
             all_selected_ids = {item_id for item_id, _ in selected}
-            remaining = [(item_id, score) for item_id, score in candidates
-                        if item_id not in all_selected_ids]
+            remaining = [
+                (item_id, score) for item_id, score in candidates if item_id not in all_selected_ids
+            ]
             remaining.sort(key=lambda x: x[1], reverse=True)
-            selected.extend(remaining[:top_k - len(selected)])
+            selected.extend(remaining[: top_k - len(selected)])
 
         return selected[:top_k]
+
 
 class FairnessMonitor:
     """
@@ -245,8 +249,9 @@ class FairnessMonitor:
 
         # Compute Gini
         np.cumsum(exposures)
-        gini = (2 * sum((i + 1) * exp for i, exp in enumerate(exposures)) /
-                (n * sum(exposures))) - (n + 1) / n
+        gini = (
+            2 * sum((i + 1) * exp for i, exp in enumerate(exposures)) / (n * sum(exposures))
+        ) - (n + 1) / n
 
         return gini
 
@@ -267,17 +272,18 @@ class FairnessMonitor:
         exposures = list(self.item_recommendation_counts.values())
 
         report = {
-            'coverage': coverage,
-            'gini_coefficient': gini,
-            'total_recommendations': self.total_recommendations,
-            'unique_items_recommended': len(self.item_recommendation_counts),
-            'mean_exposure': np.mean(exposures) if exposures else 0.0,
-            'median_exposure': np.median(exposures) if exposures else 0.0,
-            'max_exposure': max(exposures) if exposures else 0,
-            'min_exposure': min(exposures) if exposures else 0
+            "coverage": coverage,
+            "gini_coefficient": gini,
+            "total_recommendations": self.total_recommendations,
+            "unique_items_recommended": len(self.item_recommendation_counts),
+            "mean_exposure": np.mean(exposures) if exposures else 0.0,
+            "median_exposure": np.median(exposures) if exposures else 0.0,
+            "max_exposure": max(exposures) if exposures else 0,
+            "min_exposure": min(exposures) if exposures else 0,
         }
 
         return report
+
 
 # Example: Diversity optimization
 def diversity_fairness_example():
@@ -291,14 +297,11 @@ def diversity_fairness_example():
     """
 
     # Generate candidate items with relevance scores
-    candidates = [(f'item_{i}', np.random.rand()) for i in range(50)]
+    candidates = [(f"item_{i}", np.random.rand()) for i in range(50)]
     candidates.sort(key=lambda x: x[1], reverse=True)  # Sort by relevance
 
     # Generate item embeddings
-    item_embeddings = {
-        f'item_{i}': np.random.randn(128).astype(np.float32)
-        for i in range(50)
-    }
+    item_embeddings = {f"item_{i}": np.random.randn(128).astype(np.float32) for i in range(50)}
     for item_id in item_embeddings:
         item_embeddings[item_id] /= np.linalg.norm(item_embeddings[item_id])
 
@@ -314,7 +317,7 @@ def diversity_fairness_example():
     embs = [item_embeddings[item_id] for item_id, _ in top_relevance]
     similarities = []
     for i in range(len(embs)):
-        for j in range(i+1, len(embs)):
+        for j in range(i + 1, len(embs)):
             sim = np.dot(embs[i], embs[j])
             similarities.append(sim)
     avg_sim = np.mean(similarities)
@@ -330,7 +333,7 @@ def diversity_fairness_example():
     embs_div = [item_embeddings[item_id] for item_id, _ in diversified]
     similarities_div = []
     for i in range(len(embs_div)):
-        for j in range(i+1, len(embs_div)):
+        for j in range(i + 1, len(embs_div)):
             sim = np.dot(embs_div[i], embs_div[j])
             similarities_div.append(sim)
     avg_sim_div = np.mean(similarities_div)
@@ -346,10 +349,10 @@ def diversity_fairness_example():
         # Generate recommendations (biased towards popular items)
         if np.random.rand() < 0.7:
             # Popular items (top 10)
-            recs = [f'item_{i}' for i in range(10)]
+            recs = [f"item_{i}" for i in range(10)]
         else:
             # Random items
-            recs = [f'item_{np.random.randint(0, 50)}' for _ in range(10)]
+            recs = [f"item_{np.random.randint(0, 50)}" for _ in range(10)]
 
         monitor.record_recommendation(recs)
 
@@ -359,6 +362,7 @@ def diversity_fairness_example():
     print(f"Gini coefficient: {report['gini_coefficient']:.3f}")
     print(f"Mean exposure: {report['mean_exposure']:.1f}")
     print(f"Max exposure: {report['max_exposure']}")
+
 
 # Uncomment to run:
 # diversity_fairness_example()

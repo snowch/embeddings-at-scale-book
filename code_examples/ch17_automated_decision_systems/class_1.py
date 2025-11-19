@@ -30,6 +30,7 @@ Techniques:
 - Demand forecasting: Predict future demand using embeddings
 """
 
+
 @dataclass
 class Facility:
     """
@@ -43,6 +44,7 @@ class Facility:
         cost_structure: Fixed and variable costs
         embedding: Learned facility embedding
     """
+
     facility_id: str
     location: Tuple[float, float]
     capacity: float
@@ -56,6 +58,7 @@ class Facility:
         if self.cost_structure is None:
             self.cost_structure = {}
 
+
 @dataclass
 class Order:
     """
@@ -68,11 +71,13 @@ class Order:
         delivery_deadline: Latest acceptable delivery time
         priority: Order priority (standard, expedited, overnight)
     """
+
     order_id: str
     customer_location: Tuple[float, float]
     products: List[Tuple[str, int]]
     delivery_deadline: float
-    priority: str = 'standard'
+    priority: str = "standard"
+
 
 class FacilityEncoder(nn.Module):
     """
@@ -92,7 +97,7 @@ class FacilityEncoder(nn.Module):
             nn.Linear(20, 128),  # Location, capacity, costs, performance
             nn.ReLU(),
             nn.Dropout(0.2),
-            nn.Linear(128, embedding_dim)
+            nn.Linear(128, embedding_dim),
         )
 
     def forward(self, facility_features: torch.Tensor) -> torch.Tensor:
@@ -108,6 +113,7 @@ class FacilityEncoder(nn.Module):
         facility_emb = self.encoder(facility_features)
         facility_emb = F.normalize(facility_emb, p=2, dim=1)
         return facility_emb
+
 
 class RouteCostModel(nn.Module):
     """
@@ -133,14 +139,11 @@ class RouteCostModel(nn.Module):
             nn.Dropout(0.2),
             nn.Linear(256, 128),
             nn.ReLU(),
-            nn.Linear(128, 1)
+            nn.Linear(128, 1),
         )
 
     def forward(
-        self,
-        facility_emb: torch.Tensor,
-        order_emb: torch.Tensor,
-        context: torch.Tensor
+        self, facility_emb: torch.Tensor, order_emb: torch.Tensor, context: torch.Tensor
     ) -> torch.Tensor:
         """
         Predict fulfillment cost
@@ -157,6 +160,7 @@ class RouteCostModel(nn.Module):
         cost = self.cost_predictor(combined)
         return cost
 
+
 class SupplyChainOptimizer:
     """
     Optimize supply chain decisions using embeddings
@@ -168,19 +172,12 @@ class SupplyChainOptimizer:
     - Route optimization: Which route for each shipment
     """
 
-    def __init__(
-        self,
-        facility_encoder: FacilityEncoder,
-        cost_model: RouteCostModel
-    ):
+    def __init__(self, facility_encoder: FacilityEncoder, cost_model: RouteCostModel):
         self.facility_encoder = facility_encoder
         self.cost_model = cost_model
 
     def select_fulfillment_facility(
-        self,
-        order: Order,
-        facilities: List[Facility],
-        constraints: Optional[Dict[str, Any]] = None
+        self, order: Order, facilities: List[Facility], constraints: Optional[Dict[str, Any]] = None
     ) -> Tuple[str, float, Dict[str, Any]]:
         """
         Select which facility should fulfill order
@@ -200,7 +197,7 @@ class SupplyChainOptimizer:
         order_emb = torch.tensor(order_features).unsqueeze(0).float()
 
         best_facility = None
-        best_cost = float('inf')
+        best_cost = float("inf")
         facility_analysis = []
 
         with torch.no_grad():
@@ -223,24 +220,22 @@ class SupplyChainOptimizer:
                 # Compute distance
                 distance = self._compute_distance(facility.location, order.customer_location)
 
-                facility_analysis.append({
-                    'facility_id': facility.facility_id,
-                    'cost': cost,
-                    'distance': distance,
-                    'has_inventory': all(
-                        facility.inventory.get(pid, 0) >= qty
-                        for pid, qty in order.products
-                    )
-                })
+                facility_analysis.append(
+                    {
+                        "facility_id": facility.facility_id,
+                        "cost": cost,
+                        "distance": distance,
+                        "has_inventory": all(
+                            facility.inventory.get(pid, 0) >= qty for pid, qty in order.products
+                        ),
+                    }
+                )
 
                 if cost < best_cost:
                     best_cost = cost
                     best_facility = facility.facility_id
 
-        return best_facility, best_cost, {
-            'analysis': facility_analysis,
-            'order_id': order.order_id
-        }
+        return best_facility, best_cost, {"analysis": facility_analysis, "order_id": order.order_id}
 
     def _extract_order_features(self, order: Order) -> np.ndarray:
         """Extract order features for embedding"""
@@ -260,13 +255,10 @@ class SupplyChainOptimizer:
     def _compute_distance(self, loc1: Tuple[float, float], loc2: Tuple[float, float]) -> float:
         """Compute distance between locations"""
         # Simplified Euclidean distance
-        return np.sqrt((loc1[0] - loc2[0])**2 + (loc1[1] - loc2[1])**2)
+        return np.sqrt((loc1[0] - loc2[0]) ** 2 + (loc1[1] - loc2[1]) ** 2)
 
     def _check_facility_constraints(
-        self,
-        facility: Facility,
-        order: Order,
-        constraints: Dict[str, Any]
+        self, facility: Facility, order: Order, constraints: Dict[str, Any]
     ) -> bool:
         """Check if facility satisfies constraints"""
         # Check inventory availability
@@ -275,17 +267,18 @@ class SupplyChainOptimizer:
                 return False
 
         # Check capacity
-        if constraints.get('max_utilization'):
+        if constraints.get("max_utilization"):
             # Simplified capacity check
             pass
 
         # Check service level (distance)
-        if constraints.get('max_distance'):
+        if constraints.get("max_distance"):
             distance = self._compute_distance(facility.location, order.customer_location)
-            if distance > constraints['max_distance']:
+            if distance > constraints["max_distance"]:
                 return False
 
         return True
+
 
 # Example: Warehouse selection
 def supply_chain_example():
@@ -350,6 +343,7 @@ def supply_chain_example():
     print("\nDecision: Ship from East Coast")
     print("  → Save $23 by using farther warehouse with better logistics")
     print("  → Embedding learned that East has SF overnight contract")
+
 
 # Uncomment to run:
 # supply_chain_example()

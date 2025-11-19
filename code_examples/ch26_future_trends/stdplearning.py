@@ -12,26 +12,33 @@ import torch.nn as nn
 @dataclass
 class SpikeEvent:
     """Placeholder for SpikeEvent."""
+
     neuron_id: int
     time: float
     amplitude: float = 1.0
 
+
 @dataclass
 class NeuromorphicConfig:
     """Placeholder for NeuromorphicConfig."""
+
     num_neurons: int = 1000
     threshold: float = 1.0
     decay_rate: float = 0.9
 
+
 class SpikingNeuralNetwork(nn.Module):
     """Placeholder for SpikingNeuralNetwork."""
+
     def __init__(self, config):
         super().__init__()
         self.config = config
 
     def forward(self, x):
         import torch
+
         return torch.randn(768)
+
 
 class STDPLearning:
     """
@@ -52,7 +59,7 @@ class STDPLearning:
         a_plus: float = 0.01,  # LTP amplitude
         a_minus: float = 0.01,  # LTD amplitude
         w_max: float = 1.0,  # Maximum weight
-        w_min: float = -1.0  # Minimum weight
+        w_min: float = -1.0,  # Minimum weight
     ):
         self.tau_plus = tau_plus
         self.tau_minus = tau_minus
@@ -62,10 +69,7 @@ class STDPLearning:
         self.w_min = w_min
 
     def compute_weight_change(
-        self,
-        pre_spike_time: float,
-        post_spike_time: float,
-        current_weight: float
+        self, pre_spike_time: float, post_spike_time: float, current_weight: float
     ) -> float:
         """Compute weight change based on spike timing"""
         delta_t = post_spike_time - pre_spike_time
@@ -78,19 +82,12 @@ class STDPLearning:
             delta_w = -self.a_minus * np.exp(delta_t / self.tau_minus)
 
         # Update weight with bounds
-        new_weight = np.clip(
-            current_weight + delta_w,
-            self.w_min,
-            self.w_max
-        )
+        new_weight = np.clip(current_weight + delta_w, self.w_min, self.w_max)
 
         return new_weight - current_weight
 
     def update_weights(
-        self,
-        weights: np.ndarray,
-        pre_spikes: List[SpikeEvent],
-        post_spikes: List[SpikeEvent]
+        self, weights: np.ndarray, pre_spikes: List[SpikeEvent], post_spikes: List[SpikeEvent]
     ) -> np.ndarray:
         """Update weight matrix based on spike timing"""
         updated_weights = weights.copy()
@@ -104,13 +101,12 @@ class STDPLearning:
 
                 if pre_id < weights.shape[0] and post_id < weights.shape[1]:
                     delta_w = self.compute_weight_change(
-                        pre_spike.timestamp_ms,
-                        post_spike.timestamp_ms,
-                        weights[pre_id, post_id]
+                        pre_spike.timestamp_ms, post_spike.timestamp_ms, weights[pre_id, post_id]
                     )
                     updated_weights[pre_id, post_id] += delta_w
 
         return updated_weights
+
 
 class AdaptiveNeuromorphicEmbedding:
     """
@@ -120,26 +116,20 @@ class AdaptiveNeuromorphicEmbedding:
     to new patterns without explicit retraining
     """
 
-    def __init__(
-        self,
-        embedding_dim: int,
-        config: NeuromorphicConfig
-    ):
+    def __init__(self, embedding_dim: int, config: NeuromorphicConfig):
         self.embedding_dim = embedding_dim
         self.config = config
         self.snn = SpikingNeuralNetwork(
             input_dim=embedding_dim,
             hidden_dims=[embedding_dim // 2],
             output_dim=embedding_dim,
-            config=config
+            config=config,
         )
         self.stdp = STDPLearning()
         self.adaptation_history: List[Dict] = []
 
     def process_stream(
-        self,
-        embedding_stream: List[np.ndarray],
-        adapt: bool = True
+        self, embedding_stream: List[np.ndarray], adapt: bool = True
     ) -> List[np.ndarray]:
         """
         Process stream of embeddings with online adaptation
@@ -168,13 +158,15 @@ class AdaptiveNeuromorphicEmbedding:
                     self.snn.weights[layer_idx] = self.stdp.update_weights(
                         self.snn.weights[layer_idx],
                         input_spikes[0] if layer_idx == 0 else [],
-                        []  # Post spikes would be collected during forward
+                        [],  # Post spikes would be collected during forward
                     )
 
                 # Track adaptation
-                self.adaptation_history.append({
-                    'timestamp': datetime.now(),
-                    'weight_change': np.mean([np.abs(w).mean() for w in self.snn.weights])
-                })
+                self.adaptation_history.append(
+                    {
+                        "timestamp": datetime.now(),
+                        "weight_change": np.mean([np.abs(w).mean() for w in self.snn.weights]),
+                    }
+                )
 
         return outputs

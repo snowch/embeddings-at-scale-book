@@ -23,12 +23,7 @@ class ProbabilisticEmbedding(nn.Module):
     - Trustworthy AI systems
     """
 
-    def __init__(
-        self,
-        num_items,
-        embedding_dim=256,
-        uncertainty_type='diagonal'
-    ):
+    def __init__(self, num_items, embedding_dim=256, uncertainty_type="diagonal"):
         """
         Args:
             num_items: Number of items to embed
@@ -41,17 +36,15 @@ class ProbabilisticEmbedding(nn.Module):
         self.uncertainty_type = uncertainty_type
 
         # Mean embeddings (expected value)
-        self.mean_embeddings = nn.Parameter(
-            torch.randn(num_items, embedding_dim) * 0.01
-        )
+        self.mean_embeddings = nn.Parameter(torch.randn(num_items, embedding_dim) * 0.01)
 
         # Uncertainty embeddings (variance)
-        if uncertainty_type == 'diagonal':
+        if uncertainty_type == "diagonal":
             # Diagonal covariance (independent dimensions)
             self.log_var_embeddings = nn.Parameter(
                 torch.zeros(num_items, embedding_dim)  # Start with low uncertainty
             )
-        elif uncertainty_type == 'full':
+        elif uncertainty_type == "full":
             # Full covariance matrix (correlated dimensions)
             # Parameterize as L @ L^T where L is lower triangular
             self.cholesky_embeddings = nn.Parameter(
@@ -74,7 +67,7 @@ class ProbabilisticEmbedding(nn.Module):
 
         if not return_uncertainty:
             # Sample from distribution
-            if self.uncertainty_type == 'diagonal':
+            if self.uncertainty_type == "diagonal":
                 log_var = self.log_var_embeddings[indices]
                 std = torch.exp(0.5 * log_var)
                 eps = torch.randn_like(mean)
@@ -87,7 +80,7 @@ class ProbabilisticEmbedding(nn.Module):
                 return sample
         else:
             # Return mean and variance
-            if self.uncertainty_type == 'diagonal':
+            if self.uncertainty_type == "diagonal":
                 variance = torch.exp(self.log_var_embeddings[indices])
                 return mean, variance
             else:
@@ -105,14 +98,11 @@ class ProbabilisticEmbedding(nn.Module):
         """
         mean = self.mean_embeddings[indices]
 
-        if self.uncertainty_type == 'diagonal':
+        if self.uncertainty_type == "diagonal":
             log_var = self.log_var_embeddings[indices]
 
             # KL(N(μ, σ²) || N(0, 1))
-            kl = -0.5 * torch.sum(
-                1 + log_var - mean.pow(2) - log_var.exp(),
-                dim=-1
-            )
+            kl = -0.5 * torch.sum(1 + log_var - mean.pow(2) - log_var.exp(), dim=-1)
         else:
             # Full covariance KL divergence
             L = self.cholesky_embeddings[indices]
@@ -121,11 +111,14 @@ class ProbabilisticEmbedding(nn.Module):
             # Simplified approximation here
             trace_term = torch.diagonal(L @ L.transpose(-2, -1), dim1=-2, dim2=-1).sum(-1)
             kl = 0.5 * (
-                trace_term + (mean ** 2).sum(-1) - self.embedding_dim
+                trace_term
+                + (mean**2).sum(-1)
+                - self.embedding_dim
                 - torch.logdet(L @ L.transpose(-2, -1))
             )
 
         return kl.mean()
+
 
 class UncertaintyAwareSimilarity:
     """
@@ -193,12 +186,7 @@ class UncertaintyAwareSimilarity:
 
         return wasserstein_dist
 
-    def uncertainty_aware_search(
-        self,
-        query_idx,
-        candidate_indices,
-        confidence_threshold=0.8
-    ):
+    def uncertainty_aware_search(self, query_idx, candidate_indices, confidence_threshold=0.8):
         """
         Retrieve similar items, filtering by confidence
 
@@ -217,25 +205,25 @@ class UncertaintyAwareSimilarity:
 
         for candidate_idx in candidate_indices:
             # Compute expected similarity and uncertainty
-            expected_sim, uncertainty = self.expected_similarity(
-                query_idx,
-                candidate_idx
-            )
+            expected_sim, uncertainty = self.expected_similarity(query_idx, candidate_idx)
 
             # Confidence = 1 - normalized_uncertainty
             confidence = 1 - torch.clamp(uncertainty / expected_sim.abs(), 0, 1)
 
             if confidence >= confidence_threshold:
-                results.append({
-                    'candidate': candidate_idx,
-                    'similarity': expected_sim.item(),
-                    'confidence': confidence.item()
-                })
+                results.append(
+                    {
+                        "candidate": candidate_idx,
+                        "similarity": expected_sim.item(),
+                        "confidence": confidence.item(),
+                    }
+                )
 
         # Sort by similarity
-        results.sort(key=lambda x: x['similarity'], reverse=True)
+        results.sort(key=lambda x: x["similarity"], reverse=True)
 
         return results
+
 
 class BayesianEmbeddingNetwork(nn.Module):
     """
@@ -257,12 +245,10 @@ class BayesianEmbeddingNetwork(nn.Module):
             nn.Linear(input_dim, 512),
             nn.ReLU(),
             nn.Dropout(dropout_rate),
-
             nn.Linear(512, 512),
             nn.ReLU(),
             nn.Dropout(dropout_rate),
-
-            nn.Linear(512, embedding_dim)
+            nn.Linear(512, embedding_dim),
         )
 
         self.dropout_rate = dropout_rate
@@ -316,6 +302,7 @@ class BayesianEmbeddingNetwork(nn.Module):
 
         return is_ood, uncertainty_score
 
+
 # Example: Medical image retrieval with uncertainty
 def medical_uncertainty_example():
     """
@@ -333,7 +320,7 @@ def medical_uncertainty_example():
     model = ProbabilisticEmbedding(
         num_items=100000,  # 100K medical images
         embedding_dim=512,
-        uncertainty_type='diagonal'
+        uncertainty_type="diagonal",
     )
 
     # Similarity search
@@ -349,17 +336,20 @@ def medical_uncertainty_example():
     results = search.uncertainty_aware_search(
         query_idx,
         candidates,
-        confidence_threshold=0.85  # High threshold for medical applications
+        confidence_threshold=0.85,  # High threshold for medical applications
     )
 
     print(f"Found {len(results)} high-confidence matches:")
     for result in results[:5]:
-        print(f"  Case {result['candidate']}: "
-              f"Similarity = {result['similarity']:.3f}, "
-              f"Confidence = {result['confidence']:.3f}")
+        print(
+            f"  Case {result['candidate']}: "
+            f"Similarity = {result['similarity']:.3f}, "
+            f"Confidence = {result['confidence']:.3f}"
+        )
 
     if len(results) == 0:
         print("  No confident matches found → Defer to specialist")
+
 
 # Uncomment to run:
 # medical_uncertainty_example()

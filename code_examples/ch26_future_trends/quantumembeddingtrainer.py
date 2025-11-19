@@ -3,6 +3,7 @@ import numpy as np
 # Code from Chapter 26
 # Book: Embeddings at Scale
 
+
 class QuantumEmbeddingTrainer:
     """
     Variational quantum algorithm for embedding training
@@ -11,13 +12,7 @@ class QuantumEmbeddingTrainer:
     trained with classical optimization of circuit parameters
     """
 
-    def __init__(
-        self,
-        input_dim: int,
-        output_dim: int,
-        num_qubits: int,
-        num_layers: int
-    ):
+    def __init__(self, input_dim: int, output_dim: int, num_qubits: int, num_layers: int):
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.num_qubits = num_qubits
@@ -30,11 +25,7 @@ class QuantumEmbeddingTrainer:
         num_params = self.num_qubits * 3 * self.num_layers
         return np.random.randn(num_params) * 0.1
 
-    def quantum_circuit(
-        self,
-        x: np.ndarray,
-        params: np.ndarray
-    ) -> np.ndarray:
+    def quantum_circuit(self, x: np.ndarray, params: np.ndarray) -> np.ndarray:
         """
         Parameterized quantum circuit
 
@@ -64,27 +55,24 @@ class QuantumEmbeddingTrainer:
                     rz = params[param_idx + 2]
 
                     # Simple simulation of rotation effect
-                    state[qubit] *= np.cos(rx/2) * np.cos(ry/2) * np.cos(rz/2)
+                    state[qubit] *= np.cos(rx / 2) * np.cos(ry / 2) * np.cos(rz / 2)
                     param_idx += 3
 
             # Entanglement (CNOT gates) - simulated as correlation
             if len(state) > 1:
-                for i in range(0, len(state)-1, 2):
+                for i in range(0, len(state) - 1, 2):
                     # CNOT effect approximation
-                    state[i] = 0.7 * state[i] + 0.3 * state[i+1]
-                    state[i+1] = 0.3 * state[i] + 0.7 * state[i+1]
+                    state[i] = 0.7 * state[i] + 0.3 * state[i + 1]
+                    state[i + 1] = 0.3 * state[i] + 0.7 * state[i + 1]
 
         # Measurement: extract embedding
-        embedding = state[:self.output_dim]
+        embedding = state[: self.output_dim]
         embedding = embedding / (np.linalg.norm(embedding) + 1e-10)
 
         return embedding
 
     def train_step(
-        self,
-        x_batch: np.ndarray,
-        y_batch: np.ndarray,
-        learning_rate: float = 0.01
+        self, x_batch: np.ndarray, y_batch: np.ndarray, learning_rate: float = 0.01
     ) -> float:
         """
         Training step using parameter-shift rule for gradients
@@ -97,10 +85,7 @@ class QuantumEmbeddingTrainer:
         len(x_batch)
 
         # Forward pass
-        embeddings = np.array([
-            self.quantum_circuit(x, self.params)
-            for x in x_batch
-        ])
+        embeddings = np.array([self.quantum_circuit(x, self.params) for x in x_batch])
 
         # Compute loss (contrastive or supervised)
         loss = self._compute_loss(embeddings, y_batch)
@@ -113,19 +98,13 @@ class QuantumEmbeddingTrainer:
             # Shift parameter up
             params_plus = self.params.copy()
             params_plus[i] += shift
-            embeddings_plus = np.array([
-                self.quantum_circuit(x, params_plus)
-                for x in x_batch
-            ])
+            embeddings_plus = np.array([self.quantum_circuit(x, params_plus) for x in x_batch])
             loss_plus = self._compute_loss(embeddings_plus, y_batch)
 
             # Shift parameter down
             params_minus = self.params.copy()
             params_minus[i] -= shift
-            embeddings_minus = np.array([
-                self.quantum_circuit(x, params_minus)
-                for x in x_batch
-            ])
+            embeddings_minus = np.array([self.quantum_circuit(x, params_minus) for x in x_batch])
             loss_minus = self._compute_loss(embeddings_minus, y_batch)
 
             # Gradient via parameter-shift rule
@@ -136,18 +115,14 @@ class QuantumEmbeddingTrainer:
 
         return loss
 
-    def _compute_loss(
-        self,
-        embeddings: np.ndarray,
-        labels: np.ndarray
-    ) -> float:
+    def _compute_loss(self, embeddings: np.ndarray, labels: np.ndarray) -> float:
         """Compute contrastive loss"""
         # Simplified contrastive loss
         batch_size = len(embeddings)
         loss = 0
 
         for i in range(batch_size):
-            for j in range(i+1, batch_size):
+            for j in range(i + 1, batch_size):
                 similarity = np.dot(embeddings[i], embeddings[j])
 
                 if labels[i] == labels[j]:
@@ -158,6 +133,7 @@ class QuantumEmbeddingTrainer:
                     loss += max(0, similarity) ** 2
 
         return loss / (batch_size * (batch_size - 1) / 2)
+
 
 # Example: Quantum kernel for similarity computation
 class QuantumKernel:
@@ -199,7 +175,7 @@ class QuantumKernel:
         # Inner product in feature space
         overlap = np.abs(np.dot(phi1, phi2))
 
-        return overlap ** 2
+        return overlap**2
 
     def kernel_matrix(self, X: np.ndarray) -> np.ndarray:
         """Compute kernel matrix for all pairs"""

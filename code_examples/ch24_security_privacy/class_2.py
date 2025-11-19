@@ -57,6 +57,7 @@ class DPTrainingConfig:
         sampling_probability: Probability of including example
         accounting_mode: Privacy accounting method (rdp, gdp, glw)
     """
+
     target_epsilon: float = 1.0
     target_delta: float = 1e-5
     max_grad_norm: float = 1.0
@@ -66,6 +67,7 @@ class DPTrainingConfig:
     learning_rate: float = 0.001
     sampling_probability: Optional[float] = None  # Computed from batch_size
     accounting_mode: str = "rdp"  # "rdp", "gdp", "glw"
+
 
 @dataclass
 class PrivacyAccountant:
@@ -79,11 +81,13 @@ class PrivacyAccountant:
         composition_method: How to compose privacy guarantees
         history: History of privacy loss per step
     """
+
     epsilon_spent: float = 0.0
     delta_spent: float = 0.0
     steps: int = 0
     composition_method: str = "rdp"
     history: List[Tuple[float, float]] = field(default_factory=list)
+
 
 class DPEmbeddingModel(nn.Module):
     """
@@ -97,11 +101,7 @@ class DPEmbeddingModel(nn.Module):
     """
 
     def __init__(
-        self,
-        vocab_size: int,
-        embedding_dim: int,
-        hidden_dim: int = 512,
-        num_layers: int = 2
+        self, vocab_size: int, embedding_dim: int, hidden_dim: int = 512, num_layers: int = 2
     ):
         super().__init__()
 
@@ -111,11 +111,7 @@ class DPEmbeddingModel(nn.Module):
         layers = []
         in_dim = embedding_dim
         for _ in range(num_layers - 1):
-            layers.extend([
-                nn.Linear(in_dim, hidden_dim),
-                nn.ReLU(),
-                nn.LayerNorm(hidden_dim)
-            ])
+            layers.extend([nn.Linear(in_dim, hidden_dim), nn.ReLU(), nn.LayerNorm(hidden_dim)])
             in_dim = hidden_dim
 
         layers.append(nn.Linear(in_dim, embedding_dim))
@@ -148,6 +144,7 @@ class DPEmbeddingModel(nn.Module):
 
         return F.normalize(output, p=2, dim=1)
 
+
 class DPSGDOptimizer:
     """
     Differentially Private SGD optimizer
@@ -159,24 +156,15 @@ class DPSGDOptimizer:
     4. Average and apply update
     """
 
-    def __init__(
-        self,
-        model: nn.Module,
-        config: DPTrainingConfig
-    ):
+    def __init__(self, model: nn.Module, config: DPTrainingConfig):
         self.model = model
         self.config = config
 
         # Standard optimizer for parameter updates
-        self.optimizer = torch.optim.Adam(
-            model.parameters(),
-            lr=config.learning_rate
-        )
+        self.optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
 
         # Privacy accountant
-        self.accountant = PrivacyAccountant(
-            composition_method=config.accounting_mode
-        )
+        self.accountant = PrivacyAccountant(composition_method=config.accounting_mode)
 
         # Compute noise multiplier if not provided
         if config.noise_multiplier == 1.0:
@@ -212,9 +200,7 @@ class DPSGDOptimizer:
         return sigma
 
     def compute_per_example_gradients(
-        self,
-        loss: torch.Tensor,
-        inputs: torch.Tensor
+        self, loss: torch.Tensor, inputs: torch.Tensor
     ) -> Dict[str, torch.Tensor]:
         """
         Compute gradients for each example in batch
@@ -239,21 +225,13 @@ class DPSGDOptimizer:
             if param.requires_grad:
                 # Get per-example gradient
                 # This is simplified; production uses proper per-sample gradient
-                grad = torch.autograd.grad(
-                    loss,
-                    param,
-                    retain_graph=True,
-                    create_graph=False
-                )[0]
+                grad = torch.autograd.grad(loss, param, retain_graph=True, create_graph=False)[0]
 
                 per_example_grads[name] = grad
 
         return per_example_grads
 
-    def clip_gradients(
-        self,
-        gradients: Dict[str, torch.Tensor]
-    ) -> Dict[str, torch.Tensor]:
+    def clip_gradients(self, gradients: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         """
         Clip per-example gradients to max_grad_norm
 
@@ -274,18 +252,14 @@ class DPSGDOptimizer:
 
             # Clip if needed
             if grad_norm > self.config.max_grad_norm:
-                clipped_grads[name] = grad * (
-                    self.config.max_grad_norm / grad_norm
-                )
+                clipped_grads[name] = grad * (self.config.max_grad_norm / grad_norm)
             else:
                 clipped_grads[name] = grad
 
         return clipped_grads
 
     def add_noise(
-        self,
-        gradients: Dict[str, torch.Tensor],
-        batch_size: int
+        self, gradients: Dict[str, torch.Tensor], batch_size: int
     ) -> Dict[str, torch.Tensor]:
         """
         Add Gaussian noise to gradients for privacy
@@ -312,11 +286,7 @@ class DPSGDOptimizer:
 
         return noisy_grads
 
-    def step(
-        self,
-        loss: torch.Tensor,
-        inputs: torch.Tensor
-    ):
+    def step(self, loss: torch.Tensor, inputs: torch.Tensor):
         """
         Perform one DP-SGD optimization step
 
@@ -343,16 +313,10 @@ class DPSGDOptimizer:
                 # Clip gradient
                 grad_norm = torch.norm(param.grad)
                 if grad_norm > self.config.max_grad_norm:
-                    param.grad = param.grad * (
-                        self.config.max_grad_norm / grad_norm
-                    )
+                    param.grad = param.grad * (self.config.max_grad_norm / grad_norm)
 
                 # Add noise
-                noise_scale = (
-                    self.config.noise_multiplier *
-                    self.config.max_grad_norm /
-                    batch_size
-                )
+                noise_scale = self.config.noise_multiplier * self.config.max_grad_norm / batch_size
                 noise = torch.randn_like(param.grad) * noise_scale
                 param.grad = param.grad + noise
 
@@ -377,18 +341,12 @@ class DPSGDOptimizer:
         sampling_prob = self.config.batch_size / 60000  # Assume 60k dataset
 
         # RDP accounting (simplified)
-        step_epsilon = (
-            2 * sampling_prob * self.accountant.steps /
-            (self.config.noise_multiplier ** 2)
-        )
+        step_epsilon = 2 * sampling_prob * self.accountant.steps / (self.config.noise_multiplier**2)
 
         self.accountant.epsilon_spent = step_epsilon
         self.accountant.delta_spent = self.config.target_delta
 
-        self.accountant.history.append((
-            self.accountant.epsilon_spent,
-            self.accountant.delta_spent
-        ))
+        self.accountant.history.append((self.accountant.epsilon_spent, self.accountant.delta_spent))
 
     def get_privacy_spent(self) -> Tuple[float, float]:
         """
@@ -397,10 +355,8 @@ class DPSGDOptimizer:
         Returns:
             (epsilon, delta) tuple
         """
-        return (
-            self.accountant.epsilon_spent,
-            self.accountant.delta_spent
-        )
+        return (self.accountant.epsilon_spent, self.accountant.delta_spent)
+
 
 class PrivateAggregationOfTeacherEnsembles:
     """
@@ -422,12 +378,7 @@ class PrivateAggregationOfTeacherEnsembles:
     - Multiple model training overhead
     """
 
-    def __init__(
-        self,
-        num_teachers: int,
-        embedding_dim: int,
-        privacy_config: DPTrainingConfig
-    ):
+    def __init__(self, num_teachers: int, embedding_dim: int, privacy_config: DPTrainingConfig):
         self.num_teachers = num_teachers
         self.embedding_dim = embedding_dim
         self.privacy_config = privacy_config
@@ -441,9 +392,7 @@ class PrivateAggregationOfTeacherEnsembles:
         print(f"PATE initialized with {num_teachers} teachers")
 
     def noisy_aggregation(
-        self,
-        teacher_predictions: List[torch.Tensor],
-        epsilon: float = 1.0
+        self, teacher_predictions: List[torch.Tensor], epsilon: float = 1.0
     ) -> torch.Tensor:
         """
         Aggregate teacher predictions with differential privacy
@@ -471,9 +420,7 @@ class PrivateAggregationOfTeacherEnsembles:
         sensitivity = 2.0 / self.num_teachers  # Bounded by averaging
         noise_scale = sensitivity / epsilon
 
-        noise = torch.from_numpy(
-            np.random.laplace(0, noise_scale, size=consensus.shape)
-        ).float()
+        noise = torch.from_numpy(np.random.laplace(0, noise_scale, size=consensus.shape)).float()
 
         noisy_consensus = consensus + noise
 
@@ -483,11 +430,7 @@ class PrivateAggregationOfTeacherEnsembles:
 
         return noisy_consensus
 
-    def train_student(
-        self,
-        public_data: torch.Tensor,
-        student_model: nn.Module
-    ) -> nn.Module:
+    def train_student(self, public_data: torch.Tensor, student_model: nn.Module) -> nn.Module:
         """
         Train student model on privately labeled public data
 
@@ -504,15 +447,11 @@ class PrivateAggregationOfTeacherEnsembles:
         labels = []
         for example in public_data:
             # Each teacher predicts
-            teacher_preds = [
-                teacher(example.unsqueeze(0))
-                for teacher in self.teachers
-            ]
+            teacher_preds = [teacher(example.unsqueeze(0)) for teacher in self.teachers]
 
             # Noisy aggregation
             label = self.noisy_aggregation(
-                teacher_preds,
-                epsilon=self.privacy_config.target_epsilon / len(public_data)
+                teacher_preds, epsilon=self.privacy_config.target_epsilon / len(public_data)
             )
             labels.append(label)
 
@@ -535,6 +474,7 @@ class PrivateAggregationOfTeacherEnsembles:
 
         return student_model
 
+
 # Example usage
 def dp_embedding_training_example():
     """
@@ -550,7 +490,7 @@ def dp_embedding_training_example():
         max_grad_norm=1.0,
         batch_size=256,
         num_epochs=5,
-        learning_rate=0.001
+        learning_rate=0.001,
     )
 
     # Initialize model
@@ -558,10 +498,7 @@ def dp_embedding_training_example():
     embedding_dim = 256
 
     model = DPEmbeddingModel(
-        vocab_size=vocab_size,
-        embedding_dim=embedding_dim,
-        hidden_dim=512,
-        num_layers=2
+        vocab_size=vocab_size, embedding_dim=embedding_dim, hidden_dim=512, num_layers=2
     )
 
     # Initialize DP optimizer
@@ -578,10 +515,7 @@ def dp_embedding_training_example():
 
         for _batch_idx in range(num_batches):
             # Simulate batch
-            batch_ids = torch.randint(
-                0, vocab_size,
-                (dp_config.batch_size, 20)
-            )
+            batch_ids = torch.randint(0, vocab_size, (dp_config.batch_size, 20))
 
             # Forward pass
             embeddings = model(batch_ids)
@@ -605,7 +539,7 @@ def dp_embedding_training_example():
         epsilon_spent, delta_spent = dp_optimizer.get_privacy_spent()
 
         avg_loss = epoch_loss / num_batches
-        print(f"Epoch {epoch+1}/{dp_config.num_epochs}")
+        print(f"Epoch {epoch + 1}/{dp_config.num_epochs}")
         print(f"  Loss: {avg_loss:.4f}")
         print(f"  Privacy spent: ε={epsilon_spent:.4f}, δ={delta_spent:.2e}")
 
@@ -618,6 +552,7 @@ def dp_embedding_training_example():
     print("Training complete!")
     final_eps, final_delta = dp_optimizer.get_privacy_spent()
     print(f"Final privacy guarantee: (ε={final_eps:.2f}, δ={final_delta:.2e})")
+
 
 if __name__ == "__main__":
     dp_embedding_training_example()

@@ -48,6 +48,7 @@ class CodeSnippet:
         file_path: Source file path
         embedding: Cached embedding
     """
+
     code_id: str
     code: str
     language: str
@@ -56,17 +57,21 @@ class CodeSnippet:
     file_path: Optional[str] = None
     embedding: Optional[np.ndarray] = None
 
+
 # Placeholder class
 
 
 class TextEncoder(nn.Module):
     """Placeholder for TextEncoder."""
+
     def __init__(self):
         super().__init__()
 
     def encode(self, text):
         import torch
+
         return torch.randn(768)
+
 
 class CodeEncoder(nn.Module):
     """
@@ -85,7 +90,7 @@ class CodeEncoder(nn.Module):
         vocab_size: int = 50000,
         embedding_dim: int = 512,
         hidden_dim: int = 768,
-        num_layers: int = 6
+        num_layers: int = 6,
     ):
         super().__init__()
         self.embedding_dim = embedding_dim
@@ -95,10 +100,7 @@ class CodeEncoder(nn.Module):
 
         # Transformer encoder
         encoder_layer = nn.TransformerEncoderLayer(
-            d_model=hidden_dim,
-            nhead=8,
-            dim_feedforward=hidden_dim * 4,
-            batch_first=True
+            d_model=hidden_dim, nhead=8, dim_feedforward=hidden_dim * 4, batch_first=True
         )
         self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
 
@@ -132,6 +134,7 @@ class CodeEncoder(nn.Module):
 
         return x
 
+
 class CodeSearchEngine:
     """
     Semantic code search engine
@@ -153,18 +156,14 @@ class CodeSearchEngine:
     - Incremental indexing (new code added continuously)
     """
 
-    def __init__(
-        self,
-        embedding_dim: int = 512,
-        device: str = 'cuda'
-    ):
+    def __init__(self, embedding_dim: int = 512, device: str = "cuda"):
         """
         Args:
             embedding_dim: Embedding dimension
             device: Device for computation
         """
         self.embedding_dim = embedding_dim
-        self.device = device if torch.cuda.is_available() else 'cpu'
+        self.device = device if torch.cuda.is_available() else "cpu"
 
         # Initialize encoders
         self.code_encoder = CodeEncoder(embedding_dim=embedding_dim).to(self.device)
@@ -206,8 +205,8 @@ class CodeSearchEngine:
         # In production: Use tree-sitter or language-specific parsers
 
         # Replace operators with spaces
-        operators = r'[+\-*/%=<>!&|^~(){}\[\];:,.]'
-        code_spaced = re.sub(operators, ' ', code)
+        operators = r"[+\-*/%=<>!&|^~(){}\[\];:,.]"
+        code_spaced = re.sub(operators, " ", code)
 
         # Split on whitespace
         tokens = code_spaced.split()
@@ -217,7 +216,7 @@ class CodeSearchEngine:
 
         return tokens
 
-    def extract_functions(self, code: str, language: str = 'python') -> List[CodeSnippet]:
+    def extract_functions(self, code: str, language: str = "python") -> List[CodeSnippet]:
         """
         Extract functions from source code
 
@@ -232,7 +231,7 @@ class CodeSearchEngine:
         """
         snippets = []
 
-        if language == 'python':
+        if language == "python":
             try:
                 tree = ast.parse(code)
 
@@ -248,27 +247,19 @@ class CodeSearchEngine:
                         snippet = CodeSnippet(
                             code_id=f"func_{node.name}_{node.lineno}",
                             code=function_code,
-                            language='python',
+                            language="python",
                             docstring=docstring,
-                            function_name=node.name
+                            function_name=node.name,
                         )
                         snippets.append(snippet)
 
             except SyntaxError:
                 # If parsing fails, treat entire code as one snippet
-                snippet = CodeSnippet(
-                    code_id='code_0',
-                    code=code,
-                    language=language
-                )
+                snippet = CodeSnippet(code_id="code_0", code=code, language=language)
                 snippets.append(snippet)
         else:
             # For other languages, treat as single snippet
-            snippet = CodeSnippet(
-                code_id='code_0',
-                code=code,
-                language=language
-            )
+            snippet = CodeSnippet(code_id="code_0", code=code, language=language)
             snippets.append(snippet)
 
         return snippets
@@ -360,10 +351,7 @@ class CodeSearchEngine:
         print(f"  Total index size: {len(self.code_ids)}")
 
     def search(
-        self,
-        query: str,
-        top_k: int = 10,
-        language_filter: Optional[str] = None
+        self, query: str, top_k: int = 10, language_filter: Optional[str] = None
     ) -> List[Tuple[CodeSnippet, float]]:
         """
         Search for code using natural language query
@@ -402,6 +390,7 @@ class CodeSearchEngine:
                 break
 
         return results
+
 
 # Example: Code search for Python repository
 def code_search_example():
@@ -456,20 +445,20 @@ def binary_search(arr, target):
         else:
             right = mid - 1
     return -1
-'''
+''',
     ]
 
     # Extract and index functions
     all_snippets = []
     for code in sample_code:
-        snippets = engine.extract_functions(code, language='python')
+        snippets = engine.extract_functions(code, language="python")
         all_snippets.extend(snippets)
 
     engine.index_code(all_snippets)
 
     # Search: Find sorting implementations
     print("\n=== Query: 'sort a list' ===")
-    results = engine.search('sort a list', top_k=3)
+    results = engine.search("sort a list", top_k=3)
 
     for snippet, score in results:
         print(f"\nFunction: {snippet.function_name} (score: {score:.3f})")
@@ -478,12 +467,13 @@ def binary_search(arr, target):
 
     # Search: Find search algorithms
     print("\n\n=== Query: 'find an element in array' ===")
-    results = engine.search('find an element in array', top_k=3)
+    results = engine.search("find an element in array", top_k=3)
 
     for snippet, score in results:
         print(f"\nFunction: {snippet.function_name} (score: {score:.3f})")
         print(f"Docstring: {snippet.docstring}")
         print(f"Code preview: {snippet.code[:100]}...")
+
 
 # Uncomment to run:
 # code_search_example()

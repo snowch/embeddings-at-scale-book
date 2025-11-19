@@ -4,6 +4,7 @@ import torch.nn.functional as F
 # Code from Chapter 05
 # Book: Embeddings at Scale
 
+
 class NTXentLoss:
     """
     NT-Xent loss from SimCLR paper
@@ -42,8 +43,8 @@ class NTXentLoss:
 
         for i in range(batch_size):
             # (2i, 2i+1) are a positive pair
-            mask[2*i, 2*i+1] = True
-            mask[2*i+1, 2*i] = True
+            mask[2 * i, 2 * i + 1] = True
+            mask[2 * i + 1, 2 * i] = True
 
         # Remove self-similarities (diagonal)
         mask.fill_diagonal_(False)
@@ -60,7 +61,9 @@ class NTXentLoss:
 
             # Get similarities to all except self
             all_similarities = similarity_matrix[i]
-            all_similarities = all_similarities[~torch.eye(2*batch_size, dtype=torch.bool, device=embeddings.device)[i]]
+            all_similarities = all_similarities[
+                ~torch.eye(2 * batch_size, dtype=torch.bool, device=embeddings.device)[i]
+            ]
 
             # Numerator: exp(positive similarity)
             numerator = torch.exp(positive_sim)

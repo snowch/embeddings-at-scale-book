@@ -38,6 +38,7 @@ class EmbeddingModelMetadata:
     - Audit trails for compliance
     - Impact analysis for changes
     """
+
     model_id: str  # Unique identifier (e.g., "user-embeddings-v1.2.3")
     model_version: str  # Semantic version
     training_date: datetime
@@ -60,21 +61,26 @@ class EmbeddingModelMetadata:
     def to_dict(self) -> Dict:
         """Serialize for storage in model registry"""
         return {
-            'model_id': self.model_id,
-            'model_version': self.model_version,
-            'training_date': self.training_date.isoformat(),
-            'training_data_hash': self.training_data_hash,
-            'hyperparameters': self.hyperparameters,
-            'performance_metrics': self.performance_metrics,
-            'embedding_dimension': self.embedding_dimension,
-            'input_features': self.input_features,
-            'preprocessing_config': self.preprocessing_config,
-            'deployed_to_staging': self.deployed_to_staging.isoformat() if self.deployed_to_staging else None,
-            'deployed_to_production': self.deployed_to_production.isoformat() if self.deployed_to_production else None,
-            'rollback_model_id': self.rollback_model_id,
-            'parent_model_id': self.parent_model_id,
-            'training_commit_hash': self.training_commit_hash
+            "model_id": self.model_id,
+            "model_version": self.model_version,
+            "training_date": self.training_date.isoformat(),
+            "training_data_hash": self.training_data_hash,
+            "hyperparameters": self.hyperparameters,
+            "performance_metrics": self.performance_metrics,
+            "embedding_dimension": self.embedding_dimension,
+            "input_features": self.input_features,
+            "preprocessing_config": self.preprocessing_config,
+            "deployed_to_staging": self.deployed_to_staging.isoformat()
+            if self.deployed_to_staging
+            else None,
+            "deployed_to_production": self.deployed_to_production.isoformat()
+            if self.deployed_to_production
+            else None,
+            "rollback_model_id": self.rollback_model_id,
+            "parent_model_id": self.parent_model_id,
+            "training_commit_hash": self.training_commit_hash,
         }
+
 
 class EmbeddingModelRegistry:
     """
@@ -99,10 +105,7 @@ class EmbeddingModelRegistry:
         self.models: Dict[str, EmbeddingModelMetadata] = {}
 
     def register_model(
-        self,
-        model: nn.Module,
-        metadata: EmbeddingModelMetadata,
-        artifacts: Optional[Dict] = None
+        self, model: nn.Module, metadata: EmbeddingModelMetadata, artifacts: Optional[Dict] = None
     ) -> str:
         """
         Register a trained embedding model
@@ -137,9 +140,7 @@ class EmbeddingModelRegistry:
         return metadata.model_id
 
     def load_model(
-        self,
-        model_id: str,
-        device: str = 'cpu'
+        self, model_id: str, device: str = "cpu"
     ) -> tuple[nn.Module, EmbeddingModelMetadata]:
         """
         Load model and metadata from registry
@@ -168,11 +169,7 @@ class EmbeddingModelRegistry:
 
         return model, metadata
 
-    def promote_to_production(
-        self,
-        model_id: str,
-        validation_results: Dict
-    ) -> bool:
+    def promote_to_production(self, model_id: str, validation_results: Dict) -> bool:
         """
         Promote model from staging to production
 
@@ -197,14 +194,16 @@ class EmbeddingModelRegistry:
             raise ValueError("Model must be deployed to staging before production")
 
         # Check performance thresholds
-        required_metrics = ['retrieval_recall@10', 'embedding_quality_score']
+        required_metrics = ["retrieval_recall@10", "embedding_quality_score"]
         for metric in required_metrics:
             if metric not in validation_results:
                 raise ValueError(f"Missing required validation metric: {metric}")
 
         # Example thresholds (customize per use case)
-        if validation_results['retrieval_recall@10'] < 0.85:
-            print(f"✗ Promotion failed: recall@10 ({validation_results['retrieval_recall@10']}) < 0.85")
+        if validation_results["retrieval_recall@10"] < 0.85:
+            print(
+                f"✗ Promotion failed: recall@10 ({validation_results['retrieval_recall@10']}) < 0.85"
+            )
             return False
 
         # Find current production model for rollback
@@ -274,14 +273,14 @@ class EmbeddingModelRegistry:
     def _store_artifacts(self, artifacts: Dict, model_id: str) -> str:
         """Store additional artifacts"""
         path = f"models/{model_id}/artifacts.json"
-        with open(path, 'w') as f:
+        with open(path, "w") as f:
             json.dump(artifacts, f)
         return path
 
     def _persist_metadata(self, metadata: EmbeddingModelMetadata):
         """Persist metadata to storage"""
         path = f"models/{metadata.model_id}/metadata.json"
-        with open(path, 'w') as f:
+        with open(path, "w") as f:
             json.dump(metadata.to_dict(), f, indent=2)
 
     def _load_metadata(self, model_id: str) -> Optional[EmbeddingModelMetadata]:
@@ -290,10 +289,7 @@ class EmbeddingModelRegistry:
         return None
 
     def _load_model_weights(
-        self,
-        model_id: str,
-        metadata: EmbeddingModelMetadata,
-        device: str
+        self, model_id: str, metadata: EmbeddingModelMetadata, device: str
     ) -> nn.Module:
         """Load model weights from storage"""
         # In production: Download from S3/GCS
@@ -309,31 +305,24 @@ class EmbeddingModelRegistry:
 
     def _reconstruct_model_architecture(self, metadata: EmbeddingModelMetadata) -> nn.Module:
         """Reconstruct model architecture from metadata"""
+
         # Simplified example - real implementation would use config files
         class SimpleEmbedding(nn.Module):
             def __init__(self, input_dim, output_dim):
                 super().__init__()
                 self.encoder = nn.Sequential(
-                    nn.Linear(input_dim, 512),
-                    nn.ReLU(),
-                    nn.Linear(512, output_dim)
+                    nn.Linear(input_dim, 512), nn.ReLU(), nn.Linear(512, output_dim)
                 )
 
             def forward(self, x):
                 return self.encoder(x)
 
-        return SimpleEmbedding(
-            len(metadata.input_features),
-            metadata.embedding_dimension
-        )
+        return SimpleEmbedding(len(metadata.input_features), metadata.embedding_dimension)
 
     def _get_current_production_model(self) -> Optional[EmbeddingModelMetadata]:
         """Get current production model"""
         # In production: Read from production pointer file/database
-        prod_models = [
-            m for m in self.models.values()
-            if m.deployed_to_production is not None
-        ]
+        prod_models = [m for m in self.models.values() if m.deployed_to_production is not None]
         if not prod_models:
             return None
         return max(prod_models, key=lambda m: m.deployed_to_production)
@@ -343,8 +332,9 @@ class EmbeddingModelRegistry:
         # In production: Update pointer file in S3, or database entry
         # This is what serving layer reads to determine which model to use
         pointer_path = "production/current_model.txt"
-        with open(pointer_path, 'w') as f:
+        with open(pointer_path, "w") as f:
             f.write(model_id)
+
 
 class EmbeddingInferencePipeline:
     """
@@ -369,7 +359,7 @@ class EmbeddingInferencePipeline:
         model_id: str,
         batch_size: int = 1024,
         num_workers: int = 4,
-        device: str = 'cuda' if torch.cuda.is_available() else 'cpu'
+        device: str = "cuda" if torch.cuda.is_available() else "cpu",
     ):
         """
         Args:
@@ -393,12 +383,7 @@ class EmbeddingInferencePipeline:
         self.processed_count = 0
         self.start_time = None
 
-    def process_batch(
-        self,
-        data_iterator,
-        output_writer,
-        checkpoint_every: int = 100000
-    ):
+    def process_batch(self, data_iterator, output_writer, checkpoint_every: int = 100000):
         """
         Process large dataset in batches
 
@@ -447,13 +432,13 @@ class EmbeddingInferencePipeline:
     def _save_checkpoint(self, batch_idx: int):
         """Save checkpoint for fault tolerance"""
         checkpoint = {
-            'model_id': self.model_id,
-            'processed_count': self.processed_count,
-            'batch_idx': batch_idx,
-            'timestamp': datetime.now().isoformat()
+            "model_id": self.model_id,
+            "processed_count": self.processed_count,
+            "batch_idx": batch_idx,
+            "timestamp": datetime.now().isoformat(),
         }
         # In production: Save to persistent storage
-        with open('checkpoint.json', 'w') as f:
+        with open("checkpoint.json", "w") as f:
             json.dump(checkpoint, f)
 
     def _log_progress(self, final: bool = False):
@@ -467,8 +452,10 @@ class EmbeddingInferencePipeline:
             print(f"  Elapsed time: {elapsed:.1f}s")
             print(f"  Throughput: {throughput:,.0f} embeddings/second")
         else:
-            print(f"  Progress: {self.processed_count:,} embeddings "
-                  f"({throughput:,.0f}/sec)", end='\r')
+            print(
+                f"  Progress: {self.processed_count:,} embeddings ({throughput:,.0f}/sec)", end="\r"
+            )
+
 
 # Example: Complete MLOps workflow
 def embedding_mlops_example():
@@ -490,9 +477,7 @@ def embedding_mlops_example():
         def __init__(self, input_dim, embedding_dim):
             super().__init__()
             self.encoder = nn.Sequential(
-                nn.Linear(input_dim, 512),
-                nn.ReLU(),
-                nn.Linear(512, embedding_dim)
+                nn.Linear(input_dim, 512), nn.ReLU(), nn.Linear(512, embedding_dim)
             )
 
         def forward(self, x):
@@ -506,23 +491,16 @@ def embedding_mlops_example():
         model_version="1.0.0",
         training_date=datetime.now(),
         training_data_hash="abc123",
-        hyperparameters={
-            'embedding_dim': 256,
-            'learning_rate': 0.001,
-            'batch_size': 512
-        },
-        performance_metrics={
-            'retrieval_recall@10': 0.89,
-            'embedding_quality_score': 0.92
-        },
+        hyperparameters={"embedding_dim": 256, "learning_rate": 0.001, "batch_size": 512},
+        performance_metrics={"retrieval_recall@10": 0.89, "embedding_quality_score": 0.92},
         embedding_dimension=256,
-        input_features=['feature_' + str(i) for i in range(100)],
-        preprocessing_config={'normalization': 'standard'},
-        training_commit_hash="def456"
+        input_features=["feature_" + str(i) for i in range(100)],
+        preprocessing_config={"normalization": "standard"},
+        training_commit_hash="def456",
     )
 
     # 3. Register model
-    registry = EmbeddingModelRegistry(storage_backend='local')
+    registry = EmbeddingModelRegistry(storage_backend="local")
     model_id = registry.register_model(model, metadata)
 
     # 4. Deploy to staging
@@ -532,9 +510,9 @@ def embedding_mlops_example():
 
     # 5. Validate in staging
     staging_validation_results = {
-        'retrieval_recall@10': 0.89,
-        'embedding_quality_score': 0.92,
-        'latency_p99_ms': 15
+        "retrieval_recall@10": 0.89,
+        "embedding_quality_score": 0.92,
+        "latency_p99_ms": 15,
     }
 
     # 6. Promote to production
@@ -542,14 +520,11 @@ def embedding_mlops_example():
 
     if success:
         # 7. Run batch inference
-        EmbeddingInferencePipeline(
-            model_registry=registry,
-            model_id=model_id,
-            batch_size=1024
-        )
+        EmbeddingInferencePipeline(model_registry=registry, model_id=model_id, batch_size=1024)
 
         print("\n✓ MLOps workflow complete")
         print(f"  Model in production: {model_id}")
+
 
 # Uncomment to run:
 # embedding_mlops_example()

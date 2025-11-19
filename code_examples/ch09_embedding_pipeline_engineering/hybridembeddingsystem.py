@@ -13,6 +13,7 @@ import torch
 # Placeholder class for embedding model registry
 class EmbeddingModelRegistry:
     """Placeholder for embedding model registry. Replace with actual implementation."""
+
     def __init__(self):
         self.models = {}
 
@@ -44,7 +45,7 @@ class HybridEmbeddingSystem:
         model_registry,
         model_id: str,
         cache_size: int = 100000,
-        real_time_threshold_ms: int = 50
+        real_time_threshold_ms: int = 50,
     ):
         """
         Args:
@@ -53,7 +54,7 @@ class HybridEmbeddingSystem:
             cache_size: Number of embeddings to cache
             real_time_threshold_ms: Max latency for real-time generation
         """
-        self.model, self.metadata = model_registry.load_model(model_id, 'cuda')
+        self.model, self.metadata = model_registry.load_model(model_id, "cuda")
         self.model.eval()
 
         # Batch embedding storage (in production: vector database)
@@ -75,7 +76,7 @@ class HybridEmbeddingSystem:
         entity_id: str,
         entity_type: str,
         features: Optional[torch.Tensor] = None,
-        max_staleness: Optional[timedelta] = None
+        max_staleness: Optional[timedelta] = None,
     ) -> np.ndarray:
         """
         Get embedding using appropriate strategy
@@ -90,11 +91,11 @@ class HybridEmbeddingSystem:
             embedding: Vector representation
         """
         # Route based on entity type
-        if entity_type in ['query', 'session']:
+        if entity_type in ["query", "session"]:
             # Always generate real-time for transient entities
             return self._generate_realtime(entity_id, features)
 
-        elif entity_type in ['product', 'document']:
+        elif entity_type in ["product", "document"]:
             # Prefer batch, fallback to real-time
             batch_emb = self._lookup_batch(entity_id, max_staleness)
             if batch_emb is not None:
@@ -102,7 +103,7 @@ class HybridEmbeddingSystem:
             else:
                 return self._generate_realtime(entity_id, features)
 
-        elif entity_type == 'user':
+        elif entity_type == "user":
             # Hybrid: batch base + real-time personalization
             base_emb = self._lookup_batch(entity_id, max_staleness)
             if base_emb is None:
@@ -116,9 +117,7 @@ class HybridEmbeddingSystem:
             raise ValueError(f"Unknown entity type: {entity_type}")
 
     def _lookup_batch(
-        self,
-        entity_id: str,
-        max_staleness: Optional[timedelta]
+        self, entity_id: str, max_staleness: Optional[timedelta]
     ) -> Optional[np.ndarray]:
         """
         Lookup pre-computed batch embedding
@@ -140,11 +139,7 @@ class HybridEmbeddingSystem:
         self.batch_lookups += 1
         return self.batch_embeddings[entity_id]
 
-    def _generate_realtime(
-        self,
-        entity_id: str,
-        features: torch.Tensor
-    ) -> np.ndarray:
+    def _generate_realtime(self, entity_id: str, features: torch.Tensor) -> np.ndarray:
         """
         Generate embedding in real-time
 
@@ -162,7 +157,7 @@ class HybridEmbeddingSystem:
         start_time = datetime.now()
 
         with torch.no_grad():
-            features = features.to('cuda')
+            features = features.to("cuda")
             embedding = self.model(features).cpu().numpy()
 
         latency_ms = (datetime.now() - start_time).total_seconds() * 1000
@@ -174,9 +169,7 @@ class HybridEmbeddingSystem:
         return embedding
 
     def _personalize_embedding(
-        self,
-        base_embedding: np.ndarray,
-        session_features: torch.Tensor
+        self, base_embedding: np.ndarray, session_features: torch.Tensor
     ) -> np.ndarray:
         """
         Personalize base embedding with real-time session context
@@ -188,7 +181,7 @@ class HybridEmbeddingSystem:
         """
         # Simple additive personalization
         with torch.no_grad():
-            session_features = session_features.to('cuda')
+            session_features = session_features.to("cuda")
             session_vector = self.model(session_features).cpu().numpy()
 
         # Weighted combination (80% base, 20% session)
@@ -211,11 +204,7 @@ class HybridEmbeddingSystem:
         self.embedding_cache[entity_id] = embedding
         self.cache_access_times.append(entity_id)
 
-    def batch_update(
-        self,
-        entity_ids: List[str],
-        embeddings: List[np.ndarray]
-    ):
+    def batch_update(self, entity_ids: List[str], embeddings: List[np.ndarray]):
         """
         Update batch embeddings (called by batch processing job)
 
@@ -246,17 +235,24 @@ class HybridEmbeddingSystem:
         - Average latency per strategy
         """
         total_requests = self.batch_lookups + self.realtime_generations
-        cache_hit_rate = self.cache_hits / (self.cache_hits + self.cache_misses) if (self.cache_hits + self.cache_misses) > 0 else 0
+        cache_hit_rate = (
+            self.cache_hits / (self.cache_hits + self.cache_misses)
+            if (self.cache_hits + self.cache_misses) > 0
+            else 0
+        )
 
         return {
-            'total_requests': total_requests,
-            'batch_lookups': self.batch_lookups,
-            'batch_ratio': self.batch_lookups / total_requests if total_requests > 0 else 0,
-            'realtime_generations': self.realtime_generations,
-            'realtime_ratio': self.realtime_generations / total_requests if total_requests > 0 else 0,
-            'cache_hit_rate': cache_hit_rate,
-            'cache_size': len(self.embedding_cache)
+            "total_requests": total_requests,
+            "batch_lookups": self.batch_lookups,
+            "batch_ratio": self.batch_lookups / total_requests if total_requests > 0 else 0,
+            "realtime_generations": self.realtime_generations,
+            "realtime_ratio": self.realtime_generations / total_requests
+            if total_requests > 0
+            else 0,
+            "cache_hit_rate": cache_hit_rate,
+            "cache_size": len(self.embedding_cache),
         }
+
 
 class StreamingEmbeddingPipeline:
     """
@@ -275,12 +271,7 @@ class StreamingEmbeddingPipeline:
     - Log events (event → embed → queryable)
     """
 
-    def __init__(
-        self,
-        model,
-        batch_window_seconds: int = 30,
-        max_batch_size: int = 500
-    ):
+    def __init__(self, model, batch_window_seconds: int = 30, max_batch_size: int = 500):
         """
         Args:
             model: Embedding model
@@ -314,8 +305,8 @@ class StreamingEmbeddingPipeline:
 
             # Flush if buffer full or time window expired
             should_flush = (
-                len(self.buffer) >= self.max_batch_size or
-                (datetime.now() - self.last_flush) >= self.batch_window
+                len(self.buffer) >= self.max_batch_size
+                or (datetime.now() - self.last_flush) >= self.batch_window
             )
 
             if should_flush:
@@ -340,10 +331,10 @@ class StreamingEmbeddingPipeline:
 
         # Generate embeddings (batched)
         with torch.no_grad():
-            embeddings = self.model(features.to('cuda')).cpu().numpy()
+            embeddings = self.model(features.to("cuda")).cpu().numpy()
 
         # Update vector index
-        entity_ids = [event['entity_id'] for event in self.buffer]
+        entity_ids = [event["entity_id"] for event in self.buffer]
         await self._update_index(entity_ids, embeddings)
 
         # Metrics
@@ -371,6 +362,7 @@ class StreamingEmbeddingPipeline:
         await asyncio.sleep(0.01)  # Simulate async update
         pass
 
+
 # Example: E-commerce product embeddings
 def ecommerce_hybrid_example():
     """
@@ -397,25 +389,19 @@ def ecommerce_hybrid_example():
     registry = EmbeddingModelRegistry()
     # Assume model is registered
     hybrid_system = HybridEmbeddingSystem(
-        model_registry=registry,
-        model_id="ecommerce-v1.0.0",
-        cache_size=100000
+        model_registry=registry, model_id="ecommerce-v1.0.0", cache_size=100000
     )
 
     # Scenario 1: Product lookup (batch)
     product_embedding = hybrid_system.get_embedding(
-        entity_id="product_12345",
-        entity_type="product",
-        max_staleness=timedelta(days=1)
+        entity_id="product_12345", entity_type="product", max_staleness=timedelta(days=1)
     )
     print(f"Product embedding: {product_embedding.shape}")
 
     # Scenario 2: User query (real-time)
     query_features = torch.randn(1, 100)
     query_embedding = hybrid_system.get_embedding(
-        entity_id="query_unique_789",
-        entity_type="query",
-        features=query_features
+        entity_id="query_unique_789", entity_type="query", features=query_features
     )
     print(f"Query embedding: {query_embedding.shape}")
 
@@ -425,7 +411,7 @@ def ecommerce_hybrid_example():
         entity_id="user_456",
         entity_type="user",
         features=user_session_features,
-        max_staleness=timedelta(days=7)
+        max_staleness=timedelta(days=7),
     )
     print(f"User embedding: {user_embedding.shape}")
 
@@ -435,6 +421,7 @@ def ecommerce_hybrid_example():
     print(f"  Batch ratio: {metrics['batch_ratio']:.2%}")
     print(f"  Real-time ratio: {metrics['realtime_ratio']:.2%}")
     print(f"  Cache hit rate: {metrics['cache_hit_rate']:.2%}")
+
 
 # Uncomment to run:
 # ecommerce_hybrid_example()

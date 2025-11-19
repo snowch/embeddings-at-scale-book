@@ -23,11 +23,7 @@ class SelfSupervisedEmbeddingFramework:
     """
 
     def __init__(
-        self,
-        encoder_model,
-        pretext_task='masked',
-        embedding_dim=768,
-        mask_probability=0.15
+        self, encoder_model, pretext_task="masked", embedding_dim=768, mask_probability=0.15
     ):
         """
         Args:
@@ -42,17 +38,15 @@ class SelfSupervisedEmbeddingFramework:
         self.mask_probability = mask_probability
 
         # Prediction head depends on pretext task
-        if pretext_task == 'masked':
+        if pretext_task == "masked":
             # For masked prediction: predict original tokens
             self.prediction_head = nn.Linear(embedding_dim, embedding_dim)
-        elif pretext_task == 'contrastive':
+        elif pretext_task == "contrastive":
             # For contrastive learning: projection head
             self.projection_head = nn.Sequential(
-                nn.Linear(embedding_dim, embedding_dim),
-                nn.ReLU(),
-                nn.Linear(embedding_dim, 128)
+                nn.Linear(embedding_dim, embedding_dim), nn.ReLU(), nn.Linear(embedding_dim, 128)
             )
-        elif pretext_task == 'reconstruction':
+        elif pretext_task == "reconstruction":
             # For reconstruction: decoder network
             self.decoder = self._build_decoder(embedding_dim)
 
@@ -63,7 +57,7 @@ class SelfSupervisedEmbeddingFramework:
             nn.ReLU(),
             nn.Linear(embedding_dim * 2, embedding_dim * 4),
             nn.ReLU(),
-            nn.Linear(embedding_dim * 4, embedding_dim)
+            nn.Linear(embedding_dim * 4, embedding_dim),
         )
 
     def create_pretext_task(self, batch):
@@ -78,11 +72,11 @@ class SelfSupervisedEmbeddingFramework:
             targets: Targets for pretext task
             mask: Positions to predict (for masked tasks)
         """
-        if self.pretext_task == 'masked':
+        if self.pretext_task == "masked":
             return self._create_masked_task(batch)
-        elif self.pretext_task == 'contrastive':
+        elif self.pretext_task == "contrastive":
             return self._create_contrastive_task(batch)
-        elif self.pretext_task == 'reconstruction':
+        elif self.pretext_task == "reconstruction":
             return self._create_reconstruction_task(batch)
 
     def _create_masked_task(self, batch):
@@ -168,11 +162,11 @@ class SelfSupervisedEmbeddingFramework:
             loss: Scalar loss
             metrics: Dict of training metrics
         """
-        if self.pretext_task == 'masked':
+        if self.pretext_task == "masked":
             return self._compute_masked_loss(inputs, targets, mask)
-        elif self.pretext_task == 'contrastive':
+        elif self.pretext_task == "contrastive":
             return self._compute_contrastive_loss(inputs)
-        elif self.pretext_task == 'reconstruction':
+        elif self.pretext_task == "reconstruction":
             return self._compute_reconstruction_loss(inputs, targets)
 
     def _compute_masked_loss(self, inputs, targets, mask):
@@ -184,19 +178,16 @@ class SelfSupervisedEmbeddingFramework:
         predictions = self.prediction_head(embeddings)
 
         # Compute loss only at masked positions
-        loss = F.mse_loss(
-            predictions[mask],
-            targets[mask]
-        )
+        loss = F.mse_loss(predictions[mask], targets[mask])
 
         with torch.no_grad():
             # Compute accuracy
             accuracy = ((predictions[mask] - targets[mask]).abs() < 0.1).float().mean()
 
         return loss, {
-            'loss': loss.item(),
-            'accuracy': accuracy.item(),
-            'masked_positions': mask.sum().item()
+            "loss": loss.item(),
+            "accuracy": accuracy.item(),
+            "masked_positions": mask.sum().item(),
         }
 
     def _compute_contrastive_loss(self, views):
@@ -230,7 +221,7 @@ class SelfSupervisedEmbeddingFramework:
 
         # Mask out self-similarity
         mask = torch.eye(2 * batch_size, dtype=torch.bool).to(z1.device)
-        similarity_matrix.masked_fill_(mask, float('-inf'))
+        similarity_matrix.masked_fill_(mask, float("-inf"))
 
         # Cross entropy loss
         loss = F.cross_entropy(similarity_matrix, labels)
@@ -240,10 +231,7 @@ class SelfSupervisedEmbeddingFramework:
             predictions = similarity_matrix.argmax(dim=1)
             accuracy = (predictions == labels).float().mean()
 
-        return loss, {
-            'loss': loss.item(),
-            'accuracy': accuracy.item()
-        }
+        return loss, {"loss": loss.item(), "accuracy": accuracy.item()}
 
     def _compute_reconstruction_loss(self, noisy_inputs, clean_targets):
         """Compute reconstruction loss"""
@@ -261,19 +249,10 @@ class SelfSupervisedEmbeddingFramework:
             mse = ((reconstructions - clean_targets) ** 2).mean()
             psnr = 10 * torch.log10(1.0 / mse)
 
-        return loss, {
-            'loss': loss.item(),
-            'psnr': psnr.item()
-        }
+        return loss, {"loss": loss.item(), "psnr": psnr.item()}
 
 
-def train_self_supervised(
-    model,
-    dataloader,
-    optimizer,
-    device,
-    num_epochs=10
-):
+def train_self_supervised(model, dataloader, optimizer, device, num_epochs=10):
     """
     Train self-supervised model
 
@@ -305,9 +284,9 @@ def train_self_supervised(
             loss.backward()
             optimizer.step()
 
-            total_loss += metrics['loss']
-            if 'accuracy' in metrics:
-                total_accuracy += metrics['accuracy']
+            total_loss += metrics["loss"]
+            if "accuracy" in metrics:
+                total_accuracy += metrics["accuracy"]
 
             if batch_idx % 100 == 0:
                 print(f"Epoch {epoch}, Batch {batch_idx}, Loss: {metrics['loss']:.4f}")

@@ -44,6 +44,7 @@ from sklearn.decomposition import PCA
 @dataclass
 class DriftSignal:
     """Single drift detection signal"""
+
     timestamp: datetime
     signal_type: str  # "statistical", "semantic", "performance", "business"
     metric_name: str
@@ -54,14 +55,17 @@ class DriftSignal:
     confidence: str = "medium"  # "low", "medium", "high"
     description: str = ""
 
+
 @dataclass
 class DriftAlert:
     """Drift alert with multiple supporting signals"""
+
     timestamp: datetime
     severity: str  # "warning", "critical"
     signals: List[DriftSignal]
     recommended_action: str
     drift_score: float  # Aggregate drift score
+
 
 class EmbeddingDriftDetector:
     """
@@ -77,7 +81,7 @@ class EmbeddingDriftDetector:
         baseline_labels: Optional[np.ndarray] = None,
         drift_thresholds: Optional[Dict[str, float]] = None,
         alert_callback: Optional[Callable] = None,
-        history_window: int = 100
+        history_window: int = 100,
     ):
         """
         Initialize drift detector
@@ -107,13 +111,13 @@ class EmbeddingDriftDetector:
         """Default drift detection thresholds"""
         return {
             "ks_test_p_value": 0.01,  # p < 0.01 indicates drift
-            "mmd_threshold": 0.05,     # MMD > 0.05 indicates drift
+            "mmd_threshold": 0.05,  # MMD > 0.05 indicates drift
             "cluster_stability": 0.85,  # Correlation < 0.85 indicates drift
-            "mean_shift": 0.1,          # L2 distance of means
-            "variance_ratio": 0.8,      # Variance ratio <0.8 or >1.2 indicates drift
+            "mean_shift": 0.1,  # L2 distance of means
+            "variance_ratio": 0.8,  # Variance ratio <0.8 or >1.2 indicates drift
             "dimensionality_change": 0.1,  # >10% change in effective dims
             "downstream_accuracy_drop": 0.05,  # >5% accuracy drop
-            "business_metric_drop": 0.10  # >10% business metric drop
+            "business_metric_drop": 0.10,  # >10% business metric drop
         }
 
     def _compute_embedding_statistics(self, embeddings: np.ndarray) -> Dict[str, Any]:
@@ -127,7 +131,7 @@ class EmbeddingDriftDetector:
             "variance": np.var(embeddings, axis=0),
             "total_variance": np.sum(np.var(embeddings, axis=0)),
             "l2_norm_mean": np.mean(np.linalg.norm(embeddings, axis=1)),
-            "l2_norm_std": np.std(np.linalg.norm(embeddings, axis=1))
+            "l2_norm_std": np.std(np.linalg.norm(embeddings, axis=1)),
         }
 
         # Dimension importance
@@ -148,9 +152,7 @@ class EmbeddingDriftDetector:
         return stats
 
     def _compute_cluster_centroids(
-        self,
-        embeddings: np.ndarray,
-        n_clusters: int = 20
+        self, embeddings: np.ndarray, n_clusters: int = 20
     ) -> np.ndarray:
         """Compute cluster centroids for semantic drift detection"""
         n_samples = min(10000, len(embeddings))
@@ -169,7 +171,7 @@ class EmbeddingDriftDetector:
         current_embeddings: np.ndarray,
         current_labels: Optional[np.ndarray] = None,
         downstream_accuracy: Optional[float] = None,
-        business_metrics: Optional[Dict[str, float]] = None
+        business_metrics: Optional[Dict[str, float]] = None,
     ) -> Tuple[bool, List[DriftSignal], Optional[DriftAlert]]:
         """
         Detect drift in current embeddings compared to baseline
@@ -218,8 +220,7 @@ class EmbeddingDriftDetector:
         for dim in range(min(50, n_dims)):  # Sample dimensions to avoid excessive computation
             dim_idx = dim * (n_dims // 50) if n_dims > 50 else dim
             ks_stat, p_value = ks_2samp(
-                self.baseline_embeddings[:, dim_idx],
-                current_embeddings[:, dim_idx]
+                self.baseline_embeddings[:, dim_idx], current_embeddings[:, dim_idx]
             )
             ks_p_values.append(p_value)
 
@@ -227,86 +228,100 @@ class EmbeddingDriftDetector:
         min_ks_p = np.min(ks_p_values)
 
         if min_ks_p < self.drift_thresholds["ks_test_p_value"]:
-            signals.append(DriftSignal(
-                timestamp=datetime.now(),
-                signal_type="statistical",
-                metric_name="ks_test",
-                baseline_value=1.0,  # p=1.0 means no drift
-                current_value=min_ks_p,
-                drift_score=1.0 - min_ks_p,
-                p_value=min_ks_p,
-                confidence="high",
-                description=f"KS test detected distribution shift (p={min_ks_p:.4f})"
-            ))
+            signals.append(
+                DriftSignal(
+                    timestamp=datetime.now(),
+                    signal_type="statistical",
+                    metric_name="ks_test",
+                    baseline_value=1.0,  # p=1.0 means no drift
+                    current_value=min_ks_p,
+                    drift_score=1.0 - min_ks_p,
+                    p_value=min_ks_p,
+                    confidence="high",
+                    description=f"KS test detected distribution shift (p={min_ks_p:.4f})",
+                )
+            )
 
         # 2. Mean shift
-        mean_distance = euclidean(
-            self.baseline_stats["mean"],
-            current_stats["mean"]
-        )
+        mean_distance = euclidean(self.baseline_stats["mean"], current_stats["mean"])
         baseline_mean_norm = np.linalg.norm(self.baseline_stats["mean"])
         normalized_mean_shift = mean_distance / max(baseline_mean_norm, 1e-6)
 
         if normalized_mean_shift > self.drift_thresholds["mean_shift"]:
-            signals.append(DriftSignal(
-                timestamp=datetime.now(),
-                signal_type="statistical",
-                metric_name="mean_shift",
-                baseline_value=0.0,
-                current_value=normalized_mean_shift,
-                drift_score=min(1.0, normalized_mean_shift / self.drift_thresholds["mean_shift"]),
-                confidence="high",
-                description=f"Embedding mean shifted by {normalized_mean_shift:.3f}"
-            ))
+            signals.append(
+                DriftSignal(
+                    timestamp=datetime.now(),
+                    signal_type="statistical",
+                    metric_name="mean_shift",
+                    baseline_value=0.0,
+                    current_value=normalized_mean_shift,
+                    drift_score=min(
+                        1.0, normalized_mean_shift / self.drift_thresholds["mean_shift"]
+                    ),
+                    confidence="high",
+                    description=f"Embedding mean shifted by {normalized_mean_shift:.3f}",
+                )
+            )
 
         # 3. Variance ratio
         variance_ratio = current_stats["total_variance"] / self.baseline_stats["total_variance"]
 
-        if variance_ratio < self.drift_thresholds["variance_ratio"] or variance_ratio > (1 / self.drift_thresholds["variance_ratio"]):
-            signals.append(DriftSignal(
-                timestamp=datetime.now(),
-                signal_type="statistical",
-                metric_name="variance_ratio",
-                baseline_value=1.0,
-                current_value=variance_ratio,
-                drift_score=abs(1.0 - variance_ratio),
-                confidence="medium",
-                description=f"Embedding variance changed by {(variance_ratio - 1) * 100:.1f}%"
-            ))
+        if variance_ratio < self.drift_thresholds["variance_ratio"] or variance_ratio > (
+            1 / self.drift_thresholds["variance_ratio"]
+        ):
+            signals.append(
+                DriftSignal(
+                    timestamp=datetime.now(),
+                    signal_type="statistical",
+                    metric_name="variance_ratio",
+                    baseline_value=1.0,
+                    current_value=variance_ratio,
+                    drift_score=abs(1.0 - variance_ratio),
+                    confidence="medium",
+                    description=f"Embedding variance changed by {(variance_ratio - 1) * 100:.1f}%",
+                )
+            )
 
         # 4. Dimensionality change
-        dim_change_ratio = abs(current_stats["effective_dims"] - self.baseline_stats["effective_dims"]) / self.baseline_stats["effective_dims"]
+        dim_change_ratio = (
+            abs(current_stats["effective_dims"] - self.baseline_stats["effective_dims"])
+            / self.baseline_stats["effective_dims"]
+        )
 
         if dim_change_ratio > self.drift_thresholds["dimensionality_change"]:
-            signals.append(DriftSignal(
-                timestamp=datetime.now(),
-                signal_type="statistical",
-                metric_name="dimensionality_change",
-                baseline_value=self.baseline_stats["effective_dims"],
-                current_value=current_stats["effective_dims"],
-                drift_score=dim_change_ratio,
-                confidence="medium",
-                description=f"Effective dimensions changed from {self.baseline_stats['effective_dims']} to {current_stats['effective_dims']}"
-            ))
+            signals.append(
+                DriftSignal(
+                    timestamp=datetime.now(),
+                    signal_type="statistical",
+                    metric_name="dimensionality_change",
+                    baseline_value=self.baseline_stats["effective_dims"],
+                    current_value=current_stats["effective_dims"],
+                    drift_score=dim_change_ratio,
+                    confidence="medium",
+                    description=f"Effective dimensions changed from {self.baseline_stats['effective_dims']} to {current_stats['effective_dims']}",
+                )
+            )
 
         # 5. Jensen-Shannon divergence on dimension importance
         try:
             js_div = jensenshannon(
                 self.baseline_stats["dim_importance"] + 1e-10,
-                current_stats["dim_importance"] + 1e-10
+                current_stats["dim_importance"] + 1e-10,
             )
 
             if js_div > 0.1:  # Threshold for JS divergence
-                signals.append(DriftSignal(
-                    timestamp=datetime.now(),
-                    signal_type="statistical",
-                    metric_name="dimension_importance_shift",
-                    baseline_value=0.0,
-                    current_value=js_div,
-                    drift_score=min(1.0, js_div / 0.3),  # Normalize to 0-1
-                    confidence="medium",
-                    description=f"Dimension importance distribution shifted (JS={js_div:.3f})"
-                ))
+                signals.append(
+                    DriftSignal(
+                        timestamp=datetime.now(),
+                        signal_type="statistical",
+                        metric_name="dimension_importance_shift",
+                        baseline_value=0.0,
+                        current_value=js_div,
+                        drift_score=min(1.0, js_div / 0.3),  # Normalize to 0-1
+                        confidence="medium",
+                        description=f"Dimension importance distribution shifted (JS={js_div:.3f})",
+                    )
+                )
         except Exception:
             pass
 
@@ -324,7 +339,7 @@ class EmbeddingDriftDetector:
         from scipy.spatial.distance import cdist
 
         # Compute distance matrix between baseline and current clusters
-        dist_matrix = cdist(self.baseline_clusters, current_clusters, metric='cosine')
+        dist_matrix = cdist(self.baseline_clusters, current_clusters, metric="cosine")
 
         # Find optimal alignment
         row_ind, col_ind = linear_sum_assignment(dist_matrix)
@@ -334,16 +349,18 @@ class EmbeddingDriftDetector:
         cluster_stability = np.mean(aligned_similarities)
 
         if cluster_stability < self.drift_thresholds["cluster_stability"]:
-            signals.append(DriftSignal(
-                timestamp=datetime.now(),
-                signal_type="semantic",
-                metric_name="cluster_stability",
-                baseline_value=1.0,
-                current_value=cluster_stability,
-                drift_score=1.0 - cluster_stability,
-                confidence="high",
-                description=f"Cluster structure shifted (stability={cluster_stability:.3f})"
-            ))
+            signals.append(
+                DriftSignal(
+                    timestamp=datetime.now(),
+                    signal_type="semantic",
+                    metric_name="cluster_stability",
+                    baseline_value=1.0,
+                    current_value=cluster_stability,
+                    drift_score=1.0 - cluster_stability,
+                    confidence="high",
+                    description=f"Cluster structure shifted (stability={cluster_stability:.3f})",
+                )
+            )
 
         # Compute intra-cluster vs inter-cluster similarity
         # This detects if clusters are becoming more or less separated
@@ -356,21 +373,23 @@ class EmbeddingDriftDetector:
 
         # Assume baseline accuracy is stored or provided
         # In practice, this should be tracked from baseline period
-        baseline_accuracy = getattr(self, 'baseline_accuracy', 0.90)
+        baseline_accuracy = getattr(self, "baseline_accuracy", 0.90)
 
         accuracy_drop = baseline_accuracy - current_accuracy
 
         if accuracy_drop > self.drift_thresholds["downstream_accuracy_drop"]:
-            signals.append(DriftSignal(
-                timestamp=datetime.now(),
-                signal_type="performance",
-                metric_name="downstream_accuracy",
-                baseline_value=baseline_accuracy,
-                current_value=current_accuracy,
-                drift_score=accuracy_drop / self.drift_thresholds["downstream_accuracy_drop"],
-                confidence="high",
-                description=f"Downstream accuracy dropped {accuracy_drop*100:.1f}% ({baseline_accuracy:.3f} → {current_accuracy:.3f})"
-            ))
+            signals.append(
+                DriftSignal(
+                    timestamp=datetime.now(),
+                    signal_type="performance",
+                    metric_name="downstream_accuracy",
+                    baseline_value=baseline_accuracy,
+                    current_value=current_accuracy,
+                    drift_score=accuracy_drop / self.drift_thresholds["downstream_accuracy_drop"],
+                    confidence="high",
+                    description=f"Downstream accuracy dropped {accuracy_drop * 100:.1f}% ({baseline_accuracy:.3f} → {current_accuracy:.3f})",
+                )
+            )
 
         return signals
 
@@ -380,7 +399,7 @@ class EmbeddingDriftDetector:
 
         # Assume baseline metrics are stored
         # In practice, these should be tracked from baseline period
-        baseline_metrics = getattr(self, 'baseline_business_metrics', {})
+        baseline_metrics = getattr(self, "baseline_business_metrics", {})
 
         for metric_name, current_value in business_metrics.items():
             if metric_name not in baseline_metrics:
@@ -390,22 +409,23 @@ class EmbeddingDriftDetector:
             relative_drop = (baseline_value - current_value) / baseline_value
 
             if relative_drop > self.drift_thresholds["business_metric_drop"]:
-                signals.append(DriftSignal(
-                    timestamp=datetime.now(),
-                    signal_type="business",
-                    metric_name=metric_name,
-                    baseline_value=baseline_value,
-                    current_value=current_value,
-                    drift_score=relative_drop / self.drift_thresholds["business_metric_drop"],
-                    confidence="high",
-                    description=f"{metric_name} dropped {relative_drop*100:.1f}% ({baseline_value:.3f} → {current_value:.3f})"
-                ))
+                signals.append(
+                    DriftSignal(
+                        timestamp=datetime.now(),
+                        signal_type="business",
+                        metric_name=metric_name,
+                        baseline_value=baseline_value,
+                        current_value=current_value,
+                        drift_score=relative_drop / self.drift_thresholds["business_metric_drop"],
+                        confidence="high",
+                        description=f"{metric_name} dropped {relative_drop * 100:.1f}% ({baseline_value:.3f} → {current_value:.3f})",
+                    )
+                )
 
         return signals
 
     def _evaluate_drift_signals(
-        self,
-        signals: List[DriftSignal]
+        self, signals: List[DriftSignal]
     ) -> Tuple[bool, Optional[DriftAlert]]:
         """
         Evaluate drift signals and determine if alert needed
@@ -426,24 +446,32 @@ class EmbeddingDriftDetector:
                 high_confidence_signals.append(signal)
 
         # Aggregate drift score
-        aggregate_drift = np.mean([s.drift_score for s in high_confidence_signals]) if high_confidence_signals else 0.0
+        aggregate_drift = (
+            np.mean([s.drift_score for s in high_confidence_signals])
+            if high_confidence_signals
+            else 0.0
+        )
 
         # Alert conditions:
         # - Multiple statistical signals OR
         # - Any semantic signal with statistical support OR
         # - Performance/business signals
         has_drift = (
-            signal_counts["statistical"] >= 2 or
-            (signal_counts["semantic"] >= 1 and signal_counts["statistical"] >= 1) or
-            signal_counts["performance"] >= 1 or
-            signal_counts["business"] >= 1
+            signal_counts["statistical"] >= 2
+            or (signal_counts["semantic"] >= 1 and signal_counts["statistical"] >= 1)
+            or signal_counts["performance"] >= 1
+            or signal_counts["business"] >= 1
         )
 
         if not has_drift:
             return False, None
 
         # Determine severity
-        if signal_counts["performance"] >= 1 or signal_counts["business"] >= 1 or aggregate_drift > 0.5:
+        if (
+            signal_counts["performance"] >= 1
+            or signal_counts["business"] >= 1
+            or aggregate_drift > 0.5
+        ):
             severity = "critical"
             recommended_action = "Immediate model retraining or rollback recommended"
         else:
@@ -455,12 +483,14 @@ class EmbeddingDriftDetector:
             severity=severity,
             signals=high_confidence_signals,
             recommended_action=recommended_action,
-            drift_score=aggregate_drift
+            drift_score=aggregate_drift,
         )
 
         return True, alert
 
-    def generate_drift_report(self, signals: List[DriftSignal], alert: Optional[DriftAlert] = None) -> str:
+    def generate_drift_report(
+        self, signals: List[DriftSignal], alert: Optional[DriftAlert] = None
+    ) -> str:
         """Generate human-readable drift report"""
         report = f"""
 Embedding Drift Detection Report
@@ -512,10 +542,7 @@ if __name__ == "__main__":
         print(f"Action: {alert.recommended_action}")
         print(f"Signals: {len(alert.signals)}")
 
-    detector = EmbeddingDriftDetector(
-        baseline_embeddings=baseline,
-        alert_callback=alert_handler
-    )
+    detector = EmbeddingDriftDetector(baseline_embeddings=baseline, alert_callback=alert_handler)
     detector.baseline_accuracy = 0.90
     detector.baseline_business_metrics = {"ctr": 0.15, "conversion": 0.05}
 
@@ -543,6 +570,6 @@ if __name__ == "__main__":
     has_drift, signals, alert = detector.detect_drift(
         current_perf_drop,
         downstream_accuracy=0.82,  # 8% drop
-        business_metrics={"ctr": 0.12, "conversion": 0.04}  # 20% drops
+        business_metrics={"ctr": 0.12, "conversion": 0.04},  # 20% drops
     )
     print(detector.generate_drift_report(signals, alert))

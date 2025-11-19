@@ -35,7 +35,8 @@ class BalancedBatchSampler(Sampler):
 
         # Remove classes with too few samples
         self.valid_classes = [
-            c for c, indices in self.class_to_indices.items()
+            c
+            for c, indices in self.class_to_indices.items()
             if len(indices) >= self.n_samples_per_class
         ]
 
@@ -47,7 +48,7 @@ class BalancedBatchSampler(Sampler):
         classes = np.random.permutation(self.valid_classes)
 
         for i in range(0, len(classes), self.n_classes_per_batch):
-            batch_classes = classes[i:i + self.n_classes_per_batch]
+            batch_classes = classes[i : i + self.n_classes_per_batch]
 
             batch_indices = []
             for class_id in batch_classes:
@@ -56,7 +57,7 @@ class BalancedBatchSampler(Sampler):
                 sampled = np.random.choice(
                     class_indices,
                     size=self.n_samples_per_class,
-                    replace=len(class_indices) < self.n_samples_per_class
+                    replace=len(class_indices) < self.n_samples_per_class,
                 )
                 batch_indices.extend(sampled)
 
@@ -81,17 +82,10 @@ def create_triplet_dataloader(dataset, batch_size=50, num_workers=4):
     labels = [dataset[i][1] for i in range(len(dataset))]
 
     # Configure sampler: 10 classes × 5 samples = 50 per batch
-    sampler = BalancedBatchSampler(
-        labels=labels,
-        n_classes_per_batch=10,
-        n_samples_per_class=5
-    )
+    sampler = BalancedBatchSampler(labels=labels, n_classes_per_batch=10, n_samples_per_class=5)
 
     dataloader = torch.utils.data.DataLoader(
-        dataset,
-        batch_sampler=sampler,
-        num_workers=num_workers,
-        pin_memory=True
+        dataset, batch_sampler=sampler, num_workers=num_workers, pin_memory=True
     )
 
     return dataloader

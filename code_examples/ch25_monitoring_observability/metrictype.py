@@ -39,19 +39,23 @@ import numpy as np
 
 class MetricType(Enum):
     """Types of metrics to track"""
-    COUNTER = "counter"        # Monotonically increasing (total queries)
-    GAUGE = "gauge"           # Point-in-time value (current QPS, memory usage)
-    HISTOGRAM = "histogram"   # Distribution of values (latency percentiles)
-    SUMMARY = "summary"       # Similar to histogram but client-side aggregation
+
+    COUNTER = "counter"  # Monotonically increasing (total queries)
+    GAUGE = "gauge"  # Point-in-time value (current QPS, memory usage)
+    HISTOGRAM = "histogram"  # Distribution of values (latency percentiles)
+    SUMMARY = "summary"  # Similar to histogram but client-side aggregation
+
 
 @dataclass
 class MetricValue:
     """Single metric observation"""
+
     name: str
     value: float
     timestamp: datetime
     labels: Dict[str, str] = field(default_factory=dict)
     metric_type: MetricType = MetricType.GAUGE
+
 
 @dataclass
 class PerformanceSnapshot:
@@ -60,6 +64,7 @@ class PerformanceSnapshot:
 
     Captures all key metrics for dashboard display
     """
+
     timestamp: datetime
 
     # Query metrics
@@ -97,6 +102,7 @@ class PerformanceSnapshot:
     quality_score: float
     drift_score: float
 
+
 class PerformanceMonitor:
     """
     Real-time performance monitoring system
@@ -107,7 +113,7 @@ class PerformanceMonitor:
     def __init__(
         self,
         window_size_seconds: int = 300,  # 5 minute window
-        retention_hours: int = 24
+        retention_hours: int = 24,
     ):
         """
         Initialize performance monitor
@@ -141,7 +147,7 @@ class PerformanceMonitor:
         name: str,
         value: float,
         labels: Optional[Dict[str, str]] = None,
-        metric_type: MetricType = MetricType.GAUGE
+        metric_type: MetricType = MetricType.GAUGE,
     ):
         """Record a metric observation"""
         metric = MetricValue(
@@ -149,7 +155,7 @@ class PerformanceMonitor:
             value=value,
             timestamp=datetime.now(),
             labels=labels or {},
-            metric_type=metric_type
+            metric_type=metric_type,
         )
 
         with self.lock:
@@ -167,30 +173,43 @@ class PerformanceMonitor:
         timed_out: bool,
         cache_hit: bool,
         candidates_scanned: int,
-        index_name: str = "default"
+        index_name: str = "default",
     ):
         """Convenience method to record query metrics"""
-        self.record_metric("query_latency_ms", latency_ms,
-                          labels={"index": index_name}, metric_type=MetricType.HISTOGRAM)
-        self.record_metric("query_count", 1,
-                          labels={"index": index_name, "success": str(success)},
-                          metric_type=MetricType.COUNTER)
+        self.record_metric(
+            "query_latency_ms",
+            latency_ms,
+            labels={"index": index_name},
+            metric_type=MetricType.HISTOGRAM,
+        )
+        self.record_metric(
+            "query_count",
+            1,
+            labels={"index": index_name, "success": str(success)},
+            metric_type=MetricType.COUNTER,
+        )
 
         if timed_out:
-            self.record_metric("query_timeout", 1,
-                              labels={"index": index_name}, metric_type=MetricType.COUNTER)
+            self.record_metric(
+                "query_timeout", 1, labels={"index": index_name}, metric_type=MetricType.COUNTER
+            )
 
         if not success:
-            self.record_metric("query_error", 1,
-                              labels={"index": index_name}, metric_type=MetricType.COUNTER)
+            self.record_metric(
+                "query_error", 1, labels={"index": index_name}, metric_type=MetricType.COUNTER
+            )
 
         if cache_hit:
             self.record_metric("cache_hit", 1, metric_type=MetricType.COUNTER)
         else:
             self.record_metric("cache_miss", 1, metric_type=MetricType.COUNTER)
 
-        self.record_metric("candidates_scanned", candidates_scanned,
-                          labels={"index": index_name}, metric_type=MetricType.HISTOGRAM)
+        self.record_metric(
+            "candidates_scanned",
+            candidates_scanned,
+            labels={"index": index_name},
+            metric_type=MetricType.HISTOGRAM,
+        )
 
     def record_resource_usage(
         self,
@@ -198,7 +217,7 @@ class PerformanceMonitor:
         memory_gb: float,
         gpu_percent: Optional[float] = None,
         disk_iops: Optional[float] = None,
-        network_mbps: Optional[float] = None
+        network_mbps: Optional[float] = None,
     ):
         """Record resource utilization metrics"""
         self.record_metric("cpu_utilization", cpu_percent, metric_type=MetricType.GAUGE)
@@ -218,10 +237,14 @@ class PerformanceMonitor:
 
         with self.lock:
             # Query metrics
-            latencies = [m.value for m in self.metrics.get("query_latency_ms", [])
-                        if m.timestamp >= window_start]
-            query_counts = [m for m in self.metrics.get("query_count", [])
-                           if m.timestamp >= window_start]
+            latencies = [
+                m.value
+                for m in self.metrics.get("query_latency_ms", [])
+                if m.timestamp >= window_start
+            ]
+            query_counts = [
+                m for m in self.metrics.get("query_count", []) if m.timestamp >= window_start
+            ]
 
             # Calculate QPS
             if query_counts:
@@ -242,26 +265,33 @@ class PerformanceMonitor:
                 avg_latency = p50 = p90 = p99 = p999 = 0.0
 
             # Error and timeout rates
-            error_counts = sum(m.value for m in self.metrics.get("query_error", [])
-                              if m.timestamp >= window_start)
-            timeout_counts = sum(m.value for m in self.metrics.get("query_timeout", [])
-                                if m.timestamp >= window_start)
+            error_counts = sum(
+                m.value for m in self.metrics.get("query_error", []) if m.timestamp >= window_start
+            )
+            timeout_counts = sum(
+                m.value
+                for m in self.metrics.get("query_timeout", [])
+                if m.timestamp >= window_start
+            )
             total_queries = sum(m.value for m in query_counts)
 
             error_rate = error_counts / max(total_queries, 1)
             timeout_rate = timeout_counts / max(total_queries, 1)
 
             # Cache metrics
-            cache_hits = sum(m.value for m in self.metrics.get("cache_hit", [])
-                            if m.timestamp >= window_start)
-            cache_misses = sum(m.value for m in self.metrics.get("cache_miss", [])
-                              if m.timestamp >= window_start)
+            cache_hits = sum(
+                m.value for m in self.metrics.get("cache_hit", []) if m.timestamp >= window_start
+            )
+            cache_misses = sum(
+                m.value for m in self.metrics.get("cache_miss", []) if m.timestamp >= window_start
+            )
             cache_hit_rate = cache_hits / max(cache_hits + cache_misses, 1)
 
             # Get latest gauge values
             def get_latest_gauge(name: str, default: float = 0.0) -> float:
-                values = [m.value for m in self.metrics.get(name, [])
-                         if m.timestamp >= window_start]
+                values = [
+                    m.value for m in self.metrics.get(name, []) if m.timestamp >= window_start
+                ]
                 return values[-1] if values else default
 
             snapshot = PerformanceSnapshot(
@@ -276,8 +306,16 @@ class PerformanceMonitor:
                 error_rate=error_rate,
                 index_memory_gb=get_latest_gauge("index_memory_gb"),
                 index_query_accuracy=get_latest_gauge("index_query_accuracy", 0.95),
-                candidates_scanned_avg=int(np.mean([m.value for m in self.metrics.get("candidates_scanned", [])
-                                                     if m.timestamp >= window_start]) or 0),
+                candidates_scanned_avg=int(
+                    np.mean(
+                        [
+                            m.value
+                            for m in self.metrics.get("candidates_scanned", [])
+                            if m.timestamp >= window_start
+                        ]
+                    )
+                    or 0
+                ),
                 cache_hit_rate=cache_hit_rate,
                 cache_memory_gb=get_latest_gauge("cache_memory_gb"),
                 cache_eviction_rate=get_latest_gauge("cache_eviction_rate"),
@@ -289,7 +327,7 @@ class PerformanceMonitor:
                 cost_per_query_usd=get_latest_gauge("cost_per_query_usd"),
                 total_cost_hourly_usd=get_latest_gauge("total_cost_hourly_usd"),
                 quality_score=get_latest_gauge("quality_score", 85.0),
-                drift_score=get_latest_gauge("drift_score")
+                drift_score=get_latest_gauge("drift_score"),
             )
 
         return snapshot
@@ -321,15 +359,15 @@ class PerformanceMonitor:
 
         # High error rate
         if snapshot.error_rate > 0.01:  # >1%
-            alerts.append(f"High error rate: {snapshot.error_rate*100:.2f}% > 1%")
+            alerts.append(f"High error rate: {snapshot.error_rate * 100:.2f}% > 1%")
 
         # High timeout rate
         if snapshot.timeout_rate > 0.005:  # >0.5%
-            alerts.append(f"High timeout rate: {snapshot.timeout_rate*100:.2f}% > 0.5%")
+            alerts.append(f"High timeout rate: {snapshot.timeout_rate * 100:.2f}% > 0.5%")
 
         # Low cache hit rate
         if snapshot.cache_hit_rate < 0.5:  # <50%
-            alerts.append(f"Low cache hit rate: {snapshot.cache_hit_rate*100:.1f}% < 50%")
+            alerts.append(f"Low cache hit rate: {snapshot.cache_hit_rate * 100:.1f}% < 50%")
 
         # High resource utilization
         if snapshot.cpu_utilization > 90:
@@ -379,7 +417,7 @@ class PerformanceMonitor:
                 "cache_hit_rate": [s.cache_hit_rate * 100 for s in recent_snapshots],
                 "cpu_utilization": [s.cpu_utilization for s in recent_snapshots],
                 "quality_score": [s.quality_score for s in recent_snapshots],
-                "drift_score": [s.drift_score for s in recent_snapshots]
+                "drift_score": [s.drift_score for s in recent_snapshots],
             },
             "summary": {
                 "avg_qps": np.mean([s.queries_per_second for s in recent_snapshots]),
@@ -387,8 +425,9 @@ class PerformanceMonitor:
                 "max_latency": max([s.p99_latency_ms for s in recent_snapshots]),
                 "avg_error_rate": np.mean([s.error_rate for s in recent_snapshots]),
                 "avg_cache_hit_rate": np.mean([s.cache_hit_rate for s in recent_snapshots]),
-                "total_cost": sum([s.total_cost_hourly_usd for s in recent_snapshots]) * (hours / len(recent_snapshots))
-            }
+                "total_cost": sum([s.total_cost_hourly_usd for s in recent_snapshots])
+                * (hours / len(recent_snapshots)),
+            },
         }
 
     def _snapshot_to_dict(self, snapshot: PerformanceSnapshot) -> Dict[str, Any]:
@@ -401,32 +440,26 @@ class PerformanceMonitor:
                 "p50": snapshot.p50_latency_ms,
                 "p90": snapshot.p90_latency_ms,
                 "p99": snapshot.p99_latency_ms,
-                "p999": snapshot.p999_latency_ms
+                "p999": snapshot.p999_latency_ms,
             },
-            "errors": {
-                "error_rate": snapshot.error_rate,
-                "timeout_rate": snapshot.timeout_rate
-            },
+            "errors": {"error_rate": snapshot.error_rate, "timeout_rate": snapshot.timeout_rate},
             "cache": {
                 "hit_rate": snapshot.cache_hit_rate,
                 "memory_gb": snapshot.cache_memory_gb,
-                "eviction_rate": snapshot.cache_eviction_rate
+                "eviction_rate": snapshot.cache_eviction_rate,
             },
             "resources": {
                 "cpu": snapshot.cpu_utilization,
                 "memory_gb": snapshot.memory_utilization,
                 "gpu": snapshot.gpu_utilization,
                 "disk_iops": snapshot.disk_iops,
-                "network_mbps": snapshot.network_mbps
+                "network_mbps": snapshot.network_mbps,
             },
             "costs": {
                 "per_query_usd": snapshot.cost_per_query_usd,
-                "hourly_usd": snapshot.total_cost_hourly_usd
+                "hourly_usd": snapshot.total_cost_hourly_usd,
             },
-            "quality": {
-                "score": snapshot.quality_score,
-                "drift": snapshot.drift_score
-            }
+            "quality": {"score": snapshot.quality_score, "drift": snapshot.drift_score},
         }
 
     def generate_dashboard_html(self, hours: int = 1) -> str:
@@ -467,49 +500,49 @@ class PerformanceMonitor:
     <div class="container">
         <div class="header">
             <h1>Embedding System Performance Dashboard</h1>
-            <p>Last updated: {current['timestamp']}</p>
+            <p>Last updated: {current["timestamp"]}</p>
         </div>
 
         <div class="metrics-grid">
             <div class="metric-card">
                 <div class="metric-label">Queries Per Second</div>
-                <div class="metric-value {'good' if current['qps'] > 100 else 'warning' if current['qps'] > 10 else 'bad'}">
-                    {current['qps']:.1f} <span class="metric-unit">QPS</span>
+                <div class="metric-value {"good" if current["qps"] > 100 else "warning" if current["qps"] > 10 else "bad"}">
+                    {current["qps"]:.1f} <span class="metric-unit">QPS</span>
                 </div>
             </div>
 
             <div class="metric-card">
                 <div class="metric-label">P99 Latency</div>
-                <div class="metric-value {'good' if current['latency']['p99'] < 50 else 'warning' if current['latency']['p99'] < 100 else 'bad'}">
-                    {current['latency']['p99']:.1f} <span class="metric-unit">ms</span>
+                <div class="metric-value {"good" if current["latency"]["p99"] < 50 else "warning" if current["latency"]["p99"] < 100 else "bad"}">
+                    {current["latency"]["p99"]:.1f} <span class="metric-unit">ms</span>
                 </div>
             </div>
 
             <div class="metric-card">
                 <div class="metric-label">Error Rate</div>
-                <div class="metric-value {'good' if current['errors']['error_rate'] < 0.01 else 'warning' if current['errors']['error_rate'] < 0.05 else 'bad'}">
-                    {current['errors']['error_rate']*100:.2f} <span class="metric-unit">%</span>
+                <div class="metric-value {"good" if current["errors"]["error_rate"] < 0.01 else "warning" if current["errors"]["error_rate"] < 0.05 else "bad"}">
+                    {current["errors"]["error_rate"] * 100:.2f} <span class="metric-unit">%</span>
                 </div>
             </div>
 
             <div class="metric-card">
                 <div class="metric-label">Cache Hit Rate</div>
-                <div class="metric-value {'good' if current['cache']['hit_rate'] > 0.7 else 'warning' if current['cache']['hit_rate'] > 0.5 else 'bad'}">
-                    {current['cache']['hit_rate']*100:.1f} <span class="metric-unit">%</span>
+                <div class="metric-value {"good" if current["cache"]["hit_rate"] > 0.7 else "warning" if current["cache"]["hit_rate"] > 0.5 else "bad"}">
+                    {current["cache"]["hit_rate"] * 100:.1f} <span class="metric-unit">%</span>
                 </div>
             </div>
 
             <div class="metric-card">
                 <div class="metric-label">Quality Score</div>
-                <div class="metric-value {'good' if current['quality']['score'] > 80 else 'warning' if current['quality']['score'] > 70 else 'bad'}">
-                    {current['quality']['score']:.1f} <span class="metric-unit">/100</span>
+                <div class="metric-value {"good" if current["quality"]["score"] > 80 else "warning" if current["quality"]["score"] > 70 else "bad"}">
+                    {current["quality"]["score"]:.1f} <span class="metric-unit">/100</span>
                 </div>
             </div>
 
             <div class="metric-card">
                 <div class="metric-label">Hourly Cost</div>
                 <div class="metric-value">
-                    ${current['costs']['hourly_usd']:.2f} <span class="metric-unit">USD/hr</span>
+                    ${current["costs"]["hourly_usd"]:.2f} <span class="metric-unit">USD/hr</span>
                 </div>
             </div>
         </div>
@@ -524,30 +557,30 @@ class PerformanceMonitor:
                 </tr>
                 <tr>
                     <td>P50</td>
-                    <td>{current['latency']['p50']:.1f}</td>
-                    <td class="{'good' if current['latency']['p50'] < 20 else 'warning' if current['latency']['p50'] < 50 else 'bad'}">
-                        {'✓ Good' if current['latency']['p50'] < 20 else '⚠ OK' if current['latency']['p50'] < 50 else '✗ Slow'}
+                    <td>{current["latency"]["p50"]:.1f}</td>
+                    <td class="{"good" if current["latency"]["p50"] < 20 else "warning" if current["latency"]["p50"] < 50 else "bad"}">
+                        {"✓ Good" if current["latency"]["p50"] < 20 else "⚠ OK" if current["latency"]["p50"] < 50 else "✗ Slow"}
                     </td>
                 </tr>
                 <tr>
                     <td>P90</td>
-                    <td>{current['latency']['p90']:.1f}</td>
-                    <td class="{'good' if current['latency']['p90'] < 50 else 'warning' if current['latency']['p90'] < 100 else 'bad'}">
-                        {'✓ Good' if current['latency']['p90'] < 50 else '⚠ OK' if current['latency']['p90'] < 100 else '✗ Slow'}
+                    <td>{current["latency"]["p90"]:.1f}</td>
+                    <td class="{"good" if current["latency"]["p90"] < 50 else "warning" if current["latency"]["p90"] < 100 else "bad"}">
+                        {"✓ Good" if current["latency"]["p90"] < 50 else "⚠ OK" if current["latency"]["p90"] < 100 else "✗ Slow"}
                     </td>
                 </tr>
                 <tr>
                     <td>P99</td>
-                    <td>{current['latency']['p99']:.1f}</td>
-                    <td class="{'good' if current['latency']['p99'] < 100 else 'warning' if current['latency']['p99'] < 200 else 'bad'}">
-                        {'✓ Good' if current['latency']['p99'] < 100 else '⚠ OK' if current['latency']['p99'] < 200 else '✗ Slow'}
+                    <td>{current["latency"]["p99"]:.1f}</td>
+                    <td class="{"good" if current["latency"]["p99"] < 100 else "warning" if current["latency"]["p99"] < 200 else "bad"}">
+                        {"✓ Good" if current["latency"]["p99"] < 100 else "⚠ OK" if current["latency"]["p99"] < 200 else "✗ Slow"}
                     </td>
                 </tr>
                 <tr>
                     <td>P99.9</td>
-                    <td>{current['latency']['p999']:.1f}</td>
-                    <td class="{'good' if current['latency']['p999'] < 200 else 'warning' if current['latency']['p999'] < 500 else 'bad'}">
-                        {'✓ Good' if current['latency']['p999'] < 200 else '⚠ OK' if current['latency']['p999'] < 500 else '✗ Slow'}
+                    <td>{current["latency"]["p999"]:.1f}</td>
+                    <td class="{"good" if current["latency"]["p999"] < 200 else "warning" if current["latency"]["p999"] < 500 else "bad"}">
+                        {"✓ Good" if current["latency"]["p999"] < 200 else "⚠ OK" if current["latency"]["p999"] < 500 else "✗ Slow"}
                     </td>
                 </tr>
             </table>
@@ -563,30 +596,30 @@ class PerformanceMonitor:
                 </tr>
                 <tr>
                     <td>CPU</td>
-                    <td>{current['resources']['cpu']:.1f}%</td>
-                    <td class="{'good' if current['resources']['cpu'] < 70 else 'warning' if current['resources']['cpu'] < 90 else 'bad'}">
-                        {'✓ Normal' if current['resources']['cpu'] < 70 else '⚠ High' if current['resources']['cpu'] < 90 else '✗ Critical'}
+                    <td>{current["resources"]["cpu"]:.1f}%</td>
+                    <td class="{"good" if current["resources"]["cpu"] < 70 else "warning" if current["resources"]["cpu"] < 90 else "bad"}">
+                        {"✓ Normal" if current["resources"]["cpu"] < 70 else "⚠ High" if current["resources"]["cpu"] < 90 else "✗ Critical"}
                     </td>
                 </tr>
                 <tr>
                     <td>Memory</td>
-                    <td>{current['resources']['memory_gb']:.1f} GB</td>
-                    <td class="{'good' if current['resources']['memory_gb'] < 24 else 'warning' if current['resources']['memory_gb'] < 32 else 'bad'}">
-                        {'✓ Normal' if current['resources']['memory_gb'] < 24 else '⚠ High' if current['resources']['memory_gb'] < 32 else '✗ Critical'}
+                    <td>{current["resources"]["memory_gb"]:.1f} GB</td>
+                    <td class="{"good" if current["resources"]["memory_gb"] < 24 else "warning" if current["resources"]["memory_gb"] < 32 else "bad"}">
+                        {"✓ Normal" if current["resources"]["memory_gb"] < 24 else "⚠ High" if current["resources"]["memory_gb"] < 32 else "✗ Critical"}
                     </td>
                 </tr>
                 <tr>
                     <td>GPU</td>
-                    <td>{current['resources']['gpu']:.1f}%</td>
-                    <td class="{'good' if current['resources']['gpu'] < 80 else 'warning' if current['resources']['gpu'] < 95 else 'bad'}">
-                        {'✓ Normal' if current['resources']['gpu'] < 80 else '⚠ High' if current['resources']['gpu'] < 95 else '✗ Critical'}
+                    <td>{current["resources"]["gpu"]:.1f}%</td>
+                    <td class="{"good" if current["resources"]["gpu"] < 80 else "warning" if current["resources"]["gpu"] < 95 else "bad"}">
+                        {"✓ Normal" if current["resources"]["gpu"] < 80 else "⚠ High" if current["resources"]["gpu"] < 95 else "✗ Critical"}
                     </td>
                 </tr>
             </table>
         </div>
 
         <div class="section">
-            <div class="section-title">Summary (Last {hours} hour{'s' if hours != 1 else ''})</div>
+            <div class="section-title">Summary (Last {hours} hour{"s" if hours != 1 else ""})</div>
             <table>
                 <tr>
                     <th>Metric</th>
@@ -594,27 +627,27 @@ class PerformanceMonitor:
                 </tr>
                 <tr>
                     <td>Average QPS</td>
-                    <td>{summary['avg_qps']:.1f}</td>
+                    <td>{summary["avg_qps"]:.1f}</td>
                 </tr>
                 <tr>
                     <td>Average Latency</td>
-                    <td>{summary['avg_latency']:.1f} ms</td>
+                    <td>{summary["avg_latency"]:.1f} ms</td>
                 </tr>
                 <tr>
                     <td>Max P99 Latency</td>
-                    <td>{summary['max_latency']:.1f} ms</td>
+                    <td>{summary["max_latency"]:.1f} ms</td>
                 </tr>
                 <tr>
                     <td>Average Error Rate</td>
-                    <td>{summary['avg_error_rate']*100:.2f}%</td>
+                    <td>{summary["avg_error_rate"] * 100:.2f}%</td>
                 </tr>
                 <tr>
                     <td>Average Cache Hit Rate</td>
-                    <td>{summary['avg_cache_hit_rate']*100:.1f}%</td>
+                    <td>{summary["avg_cache_hit_rate"] * 100:.1f}%</td>
                 </tr>
                 <tr>
                     <td>Total Cost</td>
-                    <td>${summary['total_cost']:.2f}</td>
+                    <td>${summary["total_cost"]:.2f}</td>
                 </tr>
             </table>
         </div>
@@ -667,7 +700,7 @@ if __name__ == "__main__":
             success=success,
             timed_out=timed_out,
             cache_hit=cache_hit,
-            candidates_scanned=random.randint(100, 10000)
+            candidates_scanned=random.randint(100, 10000),
         )
 
         # Simulate resource usage
@@ -677,7 +710,7 @@ if __name__ == "__main__":
                 memory_gb=random.gauss(16, 3),
                 gpu_percent=random.gauss(45, 10),
                 disk_iops=random.gauss(1000, 200),
-                network_mbps=random.gauss(500, 100)
+                network_mbps=random.gauss(500, 100),
             )
 
             # Record cost and quality
@@ -694,8 +727,8 @@ if __name__ == "__main__":
     print(f"  QPS: {snapshot.queries_per_second:.1f}")
     print(f"  P50 latency: {snapshot.p50_latency_ms:.1f}ms")
     print(f"  P99 latency: {snapshot.p99_latency_ms:.1f}ms")
-    print(f"  Error rate: {snapshot.error_rate*100:.2f}%")
-    print(f"  Cache hit rate: {snapshot.cache_hit_rate*100:.1f}%")
+    print(f"  Error rate: {snapshot.error_rate * 100:.2f}%")
+    print(f"  Cache hit rate: {snapshot.cache_hit_rate * 100:.1f}%")
     print(f"  Quality score: {snapshot.quality_score:.1f}")
 
     # Generate dashboard

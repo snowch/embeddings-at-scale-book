@@ -5,6 +5,7 @@ import torch.nn.functional as F
 # Code from Chapter 05
 # Book: Embeddings at Scale
 
+
 class AlignmentUniformityAnalysis:
     """
     Analyze embedding quality via alignment and uniformity metrics
@@ -78,11 +79,7 @@ class AlignmentUniformityAnalysis:
             alignment = self.compute_alignment(emb1, emb2)
             uniformity = self.compute_uniformity(all_emb)
 
-            results.append({
-                'epoch': epoch,
-                'alignment': alignment,
-                'uniformity': uniformity
-            })
+            results.append({"epoch": epoch, "alignment": alignment, "uniformity": uniformity})
 
         return pd.DataFrame(results)
 

@@ -35,6 +35,7 @@ class Claim:
         date: When claim was made
         confidence: Model confidence in extraction
     """
+
     text: str
     doc_id: str
     entity: str
@@ -42,6 +43,7 @@ class Claim:
     value: str
     date: Optional[datetime] = None
     confidence: float = 1.0
+
 
 @dataclass
 class Contradiction:
@@ -54,10 +56,12 @@ class Contradiction:
         contradiction_type: Type of contradiction
         confidence: Confidence in contradiction detection
     """
+
     claim1: Claim
     claim2: Claim
     contradiction_type: str  # 'temporal', 'source', 'perspective'
     confidence: float
+
 
 # Placeholder classes - see from.py for full implementation
 from dataclasses import dataclass
@@ -69,21 +73,25 @@ import numpy as np
 @dataclass
 class Document:
     """Placeholder for Document."""
+
     doc_id: str
     content: str
     metadata: Dict[str, Any]
     embedding: Optional[np.ndarray] = None
     score: float = 0.0
 
+
 @dataclass
 class Query:
     """Placeholder for Query."""
+
     query_id: str
     text: str
     intent: Optional[str] = None
     entities: List[str] = None
     expanded_queries: List[str] = None
     filters: Dict[str, Any] = None
+
 
 class ContradictionDetector:
     """
@@ -104,10 +112,7 @@ class ContradictionDetector:
         """Initialize contradiction detector"""
         print("Initialized Contradiction Detector")
 
-    def detect(
-        self,
-        documents: List[Document]
-    ) -> List[Contradiction]:
+    def detect(self, documents: List[Document]) -> List[Contradiction]:
         """
         Detect contradictions across documents
 
@@ -160,23 +165,22 @@ class ContradictionDetector:
         # Real implementation would use NER + relation extraction
 
         # Mock claim for demo
-        if 'price' in document.content.lower():
-            claims.append(Claim(
-                text="Product price is $99",
-                doc_id=document.doc_id,
-                entity="Product",
-                attribute="price",
-                value="$99",
-                date=document.metadata.get('date'),
-                confidence=0.9
-            ))
+        if "price" in document.content.lower():
+            claims.append(
+                Claim(
+                    text="Product price is $99",
+                    doc_id=document.doc_id,
+                    entity="Product",
+                    attribute="price",
+                    value="$99",
+                    date=document.metadata.get("date"),
+                    confidence=0.9,
+                )
+            )
 
         return claims
 
-    def _group_claims(
-        self,
-        claims: List[Claim]
-    ) -> Dict[Tuple[str, str], List[Claim]]:
+    def _group_claims(self, claims: List[Claim]) -> Dict[Tuple[str, str], List[Claim]]:
         """
         Group claims by entity and attribute
 
@@ -196,10 +200,7 @@ class ContradictionDetector:
 
         return groups
 
-    def _find_conflicts(
-        self,
-        claims: List[Claim]
-    ) -> List[Contradiction]:
+    def _find_conflicts(self, claims: List[Claim]) -> List[Contradiction]:
         """
         Find contradictions among claims
 
@@ -213,17 +214,19 @@ class ContradictionDetector:
 
         # Compare all pairs
         for i, claim1 in enumerate(claims):
-            for claim2 in claims[i+1:]:
+            for claim2 in claims[i + 1 :]:
                 if self._are_contradictory(claim1, claim2):
                     # Determine contradiction type
                     contra_type = self._classify_contradiction(claim1, claim2)
 
-                    contradictions.append(Contradiction(
-                        claim1=claim1,
-                        claim2=claim2,
-                        contradiction_type=contra_type,
-                        confidence=0.8
-                    ))
+                    contradictions.append(
+                        Contradiction(
+                            claim1=claim1,
+                            claim2=claim2,
+                            contradiction_type=contra_type,
+                            confidence=0.8,
+                        )
+                    )
 
         return contradictions
 
@@ -243,11 +246,7 @@ class ContradictionDetector:
         # Simple: Different values for same entity + attribute
         return claim1.value != claim2.value
 
-    def _classify_contradiction(
-        self,
-        claim1: Claim,
-        claim2: Claim
-    ) -> str:
+    def _classify_contradiction(self, claim1: Claim, claim2: Claim) -> str:
         """
         Classify type of contradiction
 
@@ -260,14 +259,15 @@ class ContradictionDetector:
         """
         # Temporal: Different dates
         if claim1.date and claim2.date and claim1.date != claim2.date:
-            return 'temporal'
+            return "temporal"
 
         # Source: Different documents
         if claim1.doc_id != claim2.doc_id:
-            return 'source'
+            return "source"
 
         # Perspective (default)
-        return 'perspective'
+        return "perspective"
+
 
 class ContradictionResolver:
     """
@@ -280,10 +280,7 @@ class ContradictionResolver:
     4. Present multiple: Show disagreement to user
     """
 
-    def __init__(
-        self,
-        source_credibility: Optional[Dict[str, float]] = None
-    ):
+    def __init__(self, source_credibility: Optional[Dict[str, float]] = None):
         """
         Args:
             source_credibility: Map of source → credibility score
@@ -291,10 +288,7 @@ class ContradictionResolver:
         self.source_credibility = source_credibility or {}
         print("Initialized Contradiction Resolver")
 
-    def resolve(
-        self,
-        contradiction: Contradiction
-    ) -> Claim:
+    def resolve(self, contradiction: Contradiction) -> Claim:
         """
         Resolve contradiction by selecting best claim
 
@@ -304,9 +298,9 @@ class ContradictionResolver:
         Returns:
             Resolved claim
         """
-        if contradiction.contradiction_type == 'temporal':
+        if contradiction.contradiction_type == "temporal":
             return self._resolve_temporal(contradiction)
-        elif contradiction.contradiction_type == 'source':
+        elif contradiction.contradiction_type == "source":
             return self._resolve_by_authority(contradiction)
         else:
             return self._resolve_by_confidence(contradiction)
@@ -369,10 +363,7 @@ class ContradictionResolver:
         else:
             return contradiction.claim2
 
-    def format_multiple_perspectives(
-        self,
-        contradictions: List[Contradiction]
-    ) -> str:
+    def format_multiple_perspectives(self, contradictions: List[Contradiction]) -> str:
         """
         Format contradictions for user presentation
 
@@ -396,6 +387,7 @@ class ContradictionResolver:
 
         return output
 
+
 # Example: Contradiction handling
 def contradiction_handling_example():
     """
@@ -408,19 +400,19 @@ def contradiction_handling_example():
     doc1 = Document(
         doc_id="catalog_2023",
         content="The Premium Laptop is priced at $999 and includes 16GB RAM.",
-        metadata={'date': datetime(2023, 6, 1), 'source': 'catalog'}
+        metadata={"date": datetime(2023, 6, 1), "source": "catalog"},
     )
 
     doc2 = Document(
         doc_id="website_2024",
         content="The Premium Laptop now costs $1299 with upgraded 32GB RAM.",
-        metadata={'date': datetime(2024, 1, 15), 'source': 'website'}
+        metadata={"date": datetime(2024, 1, 15), "source": "website"},
     )
 
     doc3 = Document(
         doc_id="review_2024",
         content="The Premium Laptop at $1299 offers excellent performance.",
-        metadata={'date': datetime(2024, 2, 1), 'source': 'review'}
+        metadata={"date": datetime(2024, 2, 1), "source": "review"},
     )
 
     documents = [doc1, doc2, doc3]
@@ -432,15 +424,15 @@ def contradiction_handling_example():
     # Resolve contradictions
     resolver = ContradictionResolver(
         source_credibility={
-            'catalog_2023': 0.9,
-            'website_2024': 0.95,  # Most authoritative
-            'review_2024': 0.7
+            "catalog_2023": 0.9,
+            "website_2024": 0.95,  # Most authoritative
+            "review_2024": 0.7,
         }
     )
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("Contradiction Analysis")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     for i, contra in enumerate(contradictions, 1):
         print(f"\nContradiction {i}: {contra.contradiction_type}")
@@ -450,13 +442,16 @@ def contradiction_handling_example():
         # Resolve
         resolved = resolver.resolve(contra)
         print(f"  → Resolved: {resolved.text} (from {resolved.doc_id})")
-        print(f"  → Reasoning: {contra.contradiction_type} → {'most recent' if contra.contradiction_type == 'temporal' else 'most credible'}")
+        print(
+            f"  → Reasoning: {contra.contradiction_type} → {'most recent' if contra.contradiction_type == 'temporal' else 'most credible'}"
+        )
 
     # Alternative: Present multiple perspectives
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("Alternative: Multiple Perspectives")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(resolver.format_multiple_perspectives(contradictions))
+
 
 # Uncomment to run:
 # contradiction_handling_example()

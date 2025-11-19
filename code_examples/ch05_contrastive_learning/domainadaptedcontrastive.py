@@ -4,6 +4,7 @@ import torch.nn.functional as F
 # Code from Chapter 05
 # Book: Embeddings at Scale
 
+
 class DomainAdaptedContrastive:
     """
     Domain-specific adaptations for enterprise use cases
@@ -39,9 +40,9 @@ class DomainAdaptedContrastive:
             for j in range(batch_size):
                 if i == j:
                     weights[i, j] = 0  # Self
-                elif hierarchical_labels[i]['child_id'] == hierarchical_labels[j]['child_id']:
+                elif hierarchical_labels[i]["child_id"] == hierarchical_labels[j]["child_id"]:
                     weights[i, j] = 1.0  # Same leaf node
-                elif hierarchical_labels[i]['parent_id'] == hierarchical_labels[j]['parent_id']:
+                elif hierarchical_labels[i]["parent_id"] == hierarchical_labels[j]["parent_id"]:
                     weights[i, j] = 0.5  # Same parent, different child
                 else:
                     weights[i, j] = -1.0  # Different hierarchy
@@ -88,18 +89,15 @@ class DomainAdaptedContrastive:
         len(embeddings)
 
         # Compute temporal distances (in days)
-        time_diff_matrix = torch.abs(
-            timestamps.unsqueeze(1) - timestamps.unsqueeze(0)
-        ) / (60 * 60 * 24)  # Convert to days
+        time_diff_matrix = torch.abs(timestamps.unsqueeze(1) - timestamps.unsqueeze(0)) / (
+            60 * 60 * 24
+        )  # Convert to days
 
         # Temporal similarity: exponential decay
         temporal_similarity = torch.exp(-time_diff_matrix / decay_halflife)
 
         # Compute embedding similarities
-        emb_sim = torch.matmul(
-            F.normalize(embeddings, dim=1),
-            F.normalize(embeddings, dim=1).T
-        )
+        emb_sim = torch.matmul(F.normalize(embeddings, dim=1), F.normalize(embeddings, dim=1).T)
 
         # Loss: embedding similarity should match temporal similarity
         # Recent items should have similar embeddings

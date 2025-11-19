@@ -29,21 +29,21 @@ import numpy as np
 @dataclass
 class SearchResult:
     """Placeholder for SearchResult."""
+
     indices: np.ndarray
     scores: np.ndarray
     latency_ms: float
 
+
 class OptimizedExactSearch:
     """Placeholder for OptimizedExactSearch."""
+
     def __init__(self):
         pass
 
     def search(self, query_vector, k=10):
-        return SearchResult(
-            indices=np.array([0]),
-            scores=np.array([1.0]),
-            latency_ms=0.1
-        )
+        return SearchResult(indices=np.array([0]), scores=np.array([1.0]), latency_ms=0.1)
+
 
 class MemoryMappedVectorStore:
     """
@@ -70,12 +70,7 @@ class MemoryMappedVectorStore:
     - Rest paged from SSD as needed
     """
 
-    def __init__(
-        self,
-        file_path: str,
-        dim: int,
-        mode: str = 'r'
-    ):
+    def __init__(self, file_path: str, dim: int, mode: str = "r"):
         """
         Args:
             file_path: Path to memory-mapped file
@@ -89,11 +84,7 @@ class MemoryMappedVectorStore:
         # Memory-map file
         if self.file_path.exists():
             # Load existing file
-            self.mmap = np.memmap(
-                str(self.file_path),
-                dtype=np.float32,
-                mode=mode
-            )
+            self.mmap = np.memmap(str(self.file_path), dtype=np.float32, mode=mode)
 
             # Infer number of vectors
             self.num_vectors = len(self.mmap) // dim
@@ -119,7 +110,7 @@ class MemoryMappedVectorStore:
         Args:
             vectors: Vectors to append (N, d)
         """
-        if self.mode == 'r':
+        if self.mode == "r":
             raise ValueError("Cannot append to read-only store")
 
         # Flatten vectors
@@ -128,10 +119,7 @@ class MemoryMappedVectorStore:
         if self.mmap is None:
             # Create new file
             self.mmap = np.memmap(
-                str(self.file_path),
-                dtype=np.float32,
-                mode='w+',
-                shape=(len(flat_vectors),)
+                str(self.file_path), dtype=np.float32, mode="w+", shape=(len(flat_vectors),)
             )
             self.mmap[:] = flat_vectors
             self.num_vectors = len(vectors)
@@ -143,10 +131,7 @@ class MemoryMappedVectorStore:
             # Resize memory map
             self.mmap.flush()
             self.mmap = np.memmap(
-                str(self.file_path),
-                dtype=np.float32,
-                mode='r+',
-                shape=(new_size,)
+                str(self.file_path), dtype=np.float32, mode="r+", shape=(new_size,)
             )
 
             # Append new vectors
@@ -190,12 +175,7 @@ class MemoryMappedVectorStore:
         """
         return self.vectors[indices].copy()
 
-    def scan(
-        self,
-        query: np.ndarray,
-        k: int = 10,
-        batch_size: int = 10000
-    ) -> SearchResult:
+    def scan(self, query: np.ndarray, k: int = 10, batch_size: int = 10000) -> SearchResult:
         """
         Sequential scan for nearest neighbors
 
@@ -258,11 +238,7 @@ class MemoryMappedVectorStore:
 
         latency_ms = (time.time() - start_time) * 1000
 
-        return SearchResult(
-            indices=top_indices,
-            scores=top_scores,
-            latency_ms=latency_ms
-        )
+        return SearchResult(indices=top_indices, scores=top_scores, latency_ms=latency_ms)
 
     def close(self):
         """Flush and close memory-mapped file"""
@@ -270,6 +246,7 @@ class MemoryMappedVectorStore:
             self.mmap.flush()
             del self.mmap
             del self.vectors
+
 
 class TieredVectorStore:
     """
@@ -292,11 +269,7 @@ class TieredVectorStore:
     Speedup: 10× vs. all-disk, 90% reduction vs. all-RAM cost
     """
 
-    def __init__(
-        self,
-        disk_store: MemoryMappedVectorStore,
-        ram_cache_size: int = 100000
-    ):
+    def __init__(self, disk_store: MemoryMappedVectorStore, ram_cache_size: int = 100000):
         """
         Args:
             disk_store: Memory-mapped disk store
@@ -313,7 +286,9 @@ class TieredVectorStore:
 
         print("Initialized tiered vector store")
         print(f"  Total vectors: {disk_store.num_vectors:,}")
-        print(f"  RAM cache size: {ram_cache_size:,} ({ram_cache_size / disk_store.num_vectors:.1%})")
+        print(
+            f"  RAM cache size: {ram_cache_size:,} ({ram_cache_size / disk_store.num_vectors:.1%})"
+        )
 
     def get_vector(self, idx: int) -> np.ndarray:
         """
@@ -361,18 +336,18 @@ class TieredVectorStore:
         """Get cache statistics"""
         total_accesses = sum(self.access_counts.values())
         cached_accesses = sum(
-            count for idx, count in self.access_counts.items()
-            if idx in self.ram_cache
+            count for idx, count in self.access_counts.items() if idx in self.ram_cache
         )
 
         hit_rate = cached_accesses / total_accesses if total_accesses > 0 else 0
 
         return {
-            'cache_size': len(self.ram_cache),
-            'cache_capacity': self.ram_cache_size,
-            'total_accesses': total_accesses,
-            'cache_hit_rate': hit_rate
+            "cache_size": len(self.ram_cache),
+            "cache_capacity": self.ram_cache_size,
+            "total_accesses": total_accesses,
+            "cache_hit_rate": hit_rate,
         }
+
 
 # Example: Memory-mapped storage
 def memory_mapped_example():
@@ -387,7 +362,7 @@ def memory_mapped_example():
 
     # Create store
     print("Creating memory-mapped store...")
-    store = MemoryMappedVectorStore(file_path, dim=dim, mode='w+')
+    store = MemoryMappedVectorStore(file_path, dim=dim, mode="w+")
 
     # Append vectors in batches (simulating large-scale ingestion)
     batch_size = 100000
@@ -401,7 +376,7 @@ def memory_mapped_example():
 
     # Reopen for reading
     print("\nReopening store...")
-    store = MemoryMappedVectorStore(file_path, dim=dim, mode='r')
+    store = MemoryMappedVectorStore(file_path, dim=dim, mode="r")
 
     # Random access
     print("\nRandom access test...")
@@ -412,7 +387,7 @@ def memory_mapped_example():
         store.get_vector(idx)
     elapsed = time.time() - start_time
 
-    print(f"Random access: {elapsed:.3f}s for 100 vectors ({elapsed/100*1000:.2f} ms/vector)")
+    print(f"Random access: {elapsed:.3f}s for 100 vectors ({elapsed / 100 * 1000:.2f} ms/vector)")
 
     # Sequential scan search
     print("\nSequential scan search...")
@@ -426,6 +401,7 @@ def memory_mapped_example():
     store.close()
     os.remove(file_path)
     print(f"\nCleaned up {file_path}")
+
 
 # Uncomment to run:
 # memory_mapped_example()

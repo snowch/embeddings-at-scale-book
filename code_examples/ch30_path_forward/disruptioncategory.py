@@ -37,29 +37,36 @@ Preparedness dimensions:
 
 class DisruptionCategory(Enum):
     """Types of potential disruptions"""
+
     TECHNOLOGY = "technology"  # New techniques, architectures
     COMPETITIVE = "competitive"  # New entrants, business models
     REGULATORY = "regulatory"  # Laws, compliance requirements
     MARKET = "market"  # Customer needs, use cases
     ECONOMIC = "economic"  # Recession, funding, costs
 
+
 class DisruptionLikelihood(Enum):
     """Probability assessment"""
+
     LOW = "low"  # <20% probability in 3 years
     MEDIUM = "medium"  # 20-50% probability
     HIGH = "high"  # >50% probability
     IMMINENT = "imminent"  # Already beginning
 
+
 class DisruptionImpact(Enum):
     """Severity of impact"""
+
     MINOR = "minor"  # <10% business impact
     MODERATE = "moderate"  # 10-30% impact
     MAJOR = "major"  # 30-70% impact
     EXISTENTIAL = "existential"  # >70% impact, survival threat
 
+
 @dataclass
 class DisruptionScenario:
     """Potential disruption scenario"""
+
     scenario_name: str
     category: DisruptionCategory
     description: str
@@ -94,9 +101,11 @@ class DisruptionScenario:
 
     metadata: Dict[str, any] = field(default_factory=dict)
 
+
 @dataclass
 class DisruptionIndicator:
     """Signal that could indicate emerging disruption"""
+
     indicator_name: str
     category: DisruptionCategory
     data_source: str  # Where we track this
@@ -143,6 +152,7 @@ class DisruptionIndicator:
         else:
             return "NORMAL: Continue monitoring"
 
+
 class DisruptionPreparedness:
     """System for tracking and preparing for disruptions"""
 
@@ -152,212 +162,208 @@ class DisruptionPreparedness:
         self.response_playbooks: Dict[str, Dict] = {}
 
     def develop_scenarios(
-        self,
-        current_position: Dict[str, any],
-        time_horizon_years: int = 3
+        self, current_position: Dict[str, any], time_horizon_years: int = 3
     ) -> List[DisruptionScenario]:
         """Generate comprehensive disruption scenarios"""
 
         scenarios = []
 
         # Technology disruption scenarios
-        scenarios.append(DisruptionScenario(
-            scenario_name="Quantum Embeddings",
-            category=DisruptionCategory.TECHNOLOGY,
-            description="Quantum computing enables 1000× larger embedding dimensions with exponentially better similarity search",
-            likelihood=DisruptionLikelihood.LOW,
-            impact=DisruptionImpact.MAJOR,
-            time_horizon="3-5 years",
-            key_assumptions=[
-                "Quantum computers achieve sufficient stability",
-                "Quantum algorithms for similarity search mature",
-                "Cost becomes competitive with classical"
-            ],
-            triggering_events=[
-                "Major quantum computer achieving 1000+ stable qubits",
-                "Published quantum algorithm with proven advantage",
-                "Tech giant announces quantum embedding service"
-            ],
-            early_warning_signals=[
-                "Quantum computing research papers on similarity search",
-                "Startups in quantum ML raising significant funding",
-                "Patents filed for quantum embedding techniques"
-            ],
-            affected_capabilities={"vector_search", "embedding_generation"},
-            affected_revenue_streams={"search", "recommendation"},
-            required_adaptations=[
-                "Develop quantum-ready architecture",
-                "Partner with quantum computing providers",
-                "Hire quantum ML expertise"
-            ],
-            adaptation_cost=5_000_000,
-            adaptation_timeline=timedelta(days=365),
-            response_plan="Monitor quantum developments, maintain architecture flexibility, build partnerships",
-            contingency_actions=[
-                "Evaluate quantum cloud providers",
-                "Prototype quantum embedding algorithms",
-                "Design hybrid classical-quantum systems"
-            ],
-            required_investments={
-                "quantum_research": 500_000,
-                "quantum_partnerships": 1_000_000,
-                "architecture_refactoring": 2_000_000
-            },
-            success_metrics={
-                "quantum_readiness_score": 0.7,
-                "adaptation_speed_months": 6
-            }
-        ))
+        scenarios.append(
+            DisruptionScenario(
+                scenario_name="Quantum Embeddings",
+                category=DisruptionCategory.TECHNOLOGY,
+                description="Quantum computing enables 1000× larger embedding dimensions with exponentially better similarity search",
+                likelihood=DisruptionLikelihood.LOW,
+                impact=DisruptionImpact.MAJOR,
+                time_horizon="3-5 years",
+                key_assumptions=[
+                    "Quantum computers achieve sufficient stability",
+                    "Quantum algorithms for similarity search mature",
+                    "Cost becomes competitive with classical",
+                ],
+                triggering_events=[
+                    "Major quantum computer achieving 1000+ stable qubits",
+                    "Published quantum algorithm with proven advantage",
+                    "Tech giant announces quantum embedding service",
+                ],
+                early_warning_signals=[
+                    "Quantum computing research papers on similarity search",
+                    "Startups in quantum ML raising significant funding",
+                    "Patents filed for quantum embedding techniques",
+                ],
+                affected_capabilities={"vector_search", "embedding_generation"},
+                affected_revenue_streams={"search", "recommendation"},
+                required_adaptations=[
+                    "Develop quantum-ready architecture",
+                    "Partner with quantum computing providers",
+                    "Hire quantum ML expertise",
+                ],
+                adaptation_cost=5_000_000,
+                adaptation_timeline=timedelta(days=365),
+                response_plan="Monitor quantum developments, maintain architecture flexibility, build partnerships",
+                contingency_actions=[
+                    "Evaluate quantum cloud providers",
+                    "Prototype quantum embedding algorithms",
+                    "Design hybrid classical-quantum systems",
+                ],
+                required_investments={
+                    "quantum_research": 500_000,
+                    "quantum_partnerships": 1_000_000,
+                    "architecture_refactoring": 2_000_000,
+                },
+                success_metrics={"quantum_readiness_score": 0.7, "adaptation_speed_months": 6},
+            )
+        )
 
-        scenarios.append(DisruptionScenario(
-            scenario_name="Embedding Commoditization",
-            category=DisruptionCategory.COMPETITIVE,
-            description="Major cloud providers offer free or near-free embedding APIs with excellent quality, commoditizing basic embeddings",
-            likelihood=DisruptionLikelihood.HIGH,
-            impact=DisruptionImpact.MODERATE,
-            time_horizon="1-2 years",
-            key_assumptions=[
-                "Cloud providers see embeddings as customer acquisition",
-                "Costs of serving embeddings drop 10×",
-                "Open source models match commercial quality"
-            ],
-            triggering_events=[
-                "AWS/Google/Azure announce free embedding tier",
-                "Open source model achieves SOTA on benchmarks",
-                "Pricing war between embedding providers"
-            ],
-            early_warning_signals=[
-                "Cloud providers lowering embedding prices",
-                "Open source models improving rapidly",
-                "Startups pivoting from embeddings to applications"
-            ],
-            affected_capabilities={"basic_embeddings"},
-            affected_revenue_streams={"embedding_api_revenue"},
-            required_adaptations=[
-                "Shift to specialized/domain-specific embeddings",
-                "Focus on proprietary data advantages",
-                "Move up stack to applications"
-            ],
-            adaptation_cost=2_000_000,
-            adaptation_timeline=timedelta(days=180),
-            response_plan="Accelerate specialization, deepen domain expertise, strengthen data moats",
-            contingency_actions=[
-                "Develop proprietary training approaches",
-                "Build domain-specific evaluation",
-                "Create application layer differentiation"
-            ],
-            required_investments={
-                "domain_specialization": 1_000_000,
-                "data_collection": 500_000,
-                "application_development": 500_000
-            },
-            success_metrics={
-                "specialized_model_advantage": 0.3,
-                "application_revenue_percentage": 0.6
-            }
-        ))
+        scenarios.append(
+            DisruptionScenario(
+                scenario_name="Embedding Commoditization",
+                category=DisruptionCategory.COMPETITIVE,
+                description="Major cloud providers offer free or near-free embedding APIs with excellent quality, commoditizing basic embeddings",
+                likelihood=DisruptionLikelihood.HIGH,
+                impact=DisruptionImpact.MODERATE,
+                time_horizon="1-2 years",
+                key_assumptions=[
+                    "Cloud providers see embeddings as customer acquisition",
+                    "Costs of serving embeddings drop 10×",
+                    "Open source models match commercial quality",
+                ],
+                triggering_events=[
+                    "AWS/Google/Azure announce free embedding tier",
+                    "Open source model achieves SOTA on benchmarks",
+                    "Pricing war between embedding providers",
+                ],
+                early_warning_signals=[
+                    "Cloud providers lowering embedding prices",
+                    "Open source models improving rapidly",
+                    "Startups pivoting from embeddings to applications",
+                ],
+                affected_capabilities={"basic_embeddings"},
+                affected_revenue_streams={"embedding_api_revenue"},
+                required_adaptations=[
+                    "Shift to specialized/domain-specific embeddings",
+                    "Focus on proprietary data advantages",
+                    "Move up stack to applications",
+                ],
+                adaptation_cost=2_000_000,
+                adaptation_timeline=timedelta(days=180),
+                response_plan="Accelerate specialization, deepen domain expertise, strengthen data moats",
+                contingency_actions=[
+                    "Develop proprietary training approaches",
+                    "Build domain-specific evaluation",
+                    "Create application layer differentiation",
+                ],
+                required_investments={
+                    "domain_specialization": 1_000_000,
+                    "data_collection": 500_000,
+                    "application_development": 500_000,
+                },
+                success_metrics={
+                    "specialized_model_advantage": 0.3,
+                    "application_revenue_percentage": 0.6,
+                },
+            )
+        )
 
-        scenarios.append(DisruptionScenario(
-            scenario_name="Privacy Regulation",
-            category=DisruptionCategory.REGULATORY,
-            description="Strict data privacy laws require on-device embeddings, prohibit centralized vector databases",
-            likelihood=DisruptionLikelihood.MEDIUM,
-            impact=DisruptionImpact.MAJOR,
-            time_horizon="2-3 years",
-            key_assumptions=[
-                "Privacy concerns reach critical political mass",
-                "Technology enables efficient on-device inference",
-                "Enforcement is strict and global"
-            ],
-            triggering_events=[
-                "Major data breach involving embeddings",
-                "EU/US pass strict embedding data laws",
-                "High-profile lawsuits over embedding privacy"
-            ],
-            early_warning_signals=[
-                "Privacy advocacy groups targeting embeddings",
-                "Regulatory consultations on AI data",
-                "Court cases on embedding data ownership"
-            ],
-            affected_capabilities={"centralized_storage", "cross_user_learning"},
-            affected_revenue_streams={"all_privacy_sensitive"},
-            required_adaptations=[
-                "Develop federated learning systems",
-                "Build on-device embedding generation",
-                "Implement differential privacy"
-            ],
-            adaptation_cost=10_000_000,
-            adaptation_timeline=timedelta(days=545),
-            response_plan="Proactive privacy engineering, influence standards, build compliant architecture",
-            contingency_actions=[
-                "Architect privacy-first systems",
-                "Develop edge deployment capabilities",
-                "Engage in regulatory discussions"
-            ],
-            required_investments={
-                "privacy_engineering": 5_000_000,
-                "federated_learning": 3_000_000,
-                "compliance_infrastructure": 2_000_000
-            },
-            success_metrics={
-                "privacy_compliance_score": 0.95,
-                "on_device_capability": 0.8
-            }
-        ))
+        scenarios.append(
+            DisruptionScenario(
+                scenario_name="Privacy Regulation",
+                category=DisruptionCategory.REGULATORY,
+                description="Strict data privacy laws require on-device embeddings, prohibit centralized vector databases",
+                likelihood=DisruptionLikelihood.MEDIUM,
+                impact=DisruptionImpact.MAJOR,
+                time_horizon="2-3 years",
+                key_assumptions=[
+                    "Privacy concerns reach critical political mass",
+                    "Technology enables efficient on-device inference",
+                    "Enforcement is strict and global",
+                ],
+                triggering_events=[
+                    "Major data breach involving embeddings",
+                    "EU/US pass strict embedding data laws",
+                    "High-profile lawsuits over embedding privacy",
+                ],
+                early_warning_signals=[
+                    "Privacy advocacy groups targeting embeddings",
+                    "Regulatory consultations on AI data",
+                    "Court cases on embedding data ownership",
+                ],
+                affected_capabilities={"centralized_storage", "cross_user_learning"},
+                affected_revenue_streams={"all_privacy_sensitive"},
+                required_adaptations=[
+                    "Develop federated learning systems",
+                    "Build on-device embedding generation",
+                    "Implement differential privacy",
+                ],
+                adaptation_cost=10_000_000,
+                adaptation_timeline=timedelta(days=545),
+                response_plan="Proactive privacy engineering, influence standards, build compliant architecture",
+                contingency_actions=[
+                    "Architect privacy-first systems",
+                    "Develop edge deployment capabilities",
+                    "Engage in regulatory discussions",
+                ],
+                required_investments={
+                    "privacy_engineering": 5_000_000,
+                    "federated_learning": 3_000_000,
+                    "compliance_infrastructure": 2_000_000,
+                },
+                success_metrics={"privacy_compliance_score": 0.95, "on_device_capability": 0.8},
+            )
+        )
 
-        scenarios.append(DisruptionScenario(
-            scenario_name="Multimodal Convergence",
-            category=DisruptionCategory.TECHNOLOGY,
-            description="Single unified embedding space for text, images, video, audio, code becomes standard, replacing specialized embeddings",
-            likelihood=DisruptionLikelihood.HIGH,
-            impact=DisruptionImpact.MODERATE,
-            time_horizon="1-2 years",
-            key_assumptions=[
-                "Multimodal training scales effectively",
-                "Unified embeddings match specialized quality",
-                "Computational costs remain acceptable"
-            ],
-            triggering_events=[
-                "OpenAI/Google release production multimodal embeddings",
-                "Research shows unified > specialized embeddings",
-                "Major applications adopt multimodal"
-            ],
-            early_warning_signals=[
-                "Multimodal papers showing strong results",
-                "Embedding providers announcing multimodal",
-                "Customers requesting multimodal support"
-            ],
-            affected_capabilities={"specialized_embeddings"},
-            affected_revenue_streams={"modality_specific_products"},
-            required_adaptations=[
-                "Develop multimodal training capabilities",
-                "Refactor pipeline for unified embeddings",
-                "Retrain applications for multimodal"
-            ],
-            adaptation_cost=3_000_000,
-            adaptation_timeline=timedelta(days=270),
-            response_plan="Early experimentation, flexible architecture, gradual migration",
-            contingency_actions=[
-                "Prototype multimodal embeddings",
-                "Design migration path",
-                "Test application compatibility"
-            ],
-            required_investments={
-                "multimodal_research": 1_000_000,
-                "training_infrastructure": 1_500_000,
-                "application_migration": 500_000
-            },
-            success_metrics={
-                "multimodal_quality_ratio": 1.1,
-                "migration_completion": 0.8
-            }
-        ))
+        scenarios.append(
+            DisruptionScenario(
+                scenario_name="Multimodal Convergence",
+                category=DisruptionCategory.TECHNOLOGY,
+                description="Single unified embedding space for text, images, video, audio, code becomes standard, replacing specialized embeddings",
+                likelihood=DisruptionLikelihood.HIGH,
+                impact=DisruptionImpact.MODERATE,
+                time_horizon="1-2 years",
+                key_assumptions=[
+                    "Multimodal training scales effectively",
+                    "Unified embeddings match specialized quality",
+                    "Computational costs remain acceptable",
+                ],
+                triggering_events=[
+                    "OpenAI/Google release production multimodal embeddings",
+                    "Research shows unified > specialized embeddings",
+                    "Major applications adopt multimodal",
+                ],
+                early_warning_signals=[
+                    "Multimodal papers showing strong results",
+                    "Embedding providers announcing multimodal",
+                    "Customers requesting multimodal support",
+                ],
+                affected_capabilities={"specialized_embeddings"},
+                affected_revenue_streams={"modality_specific_products"},
+                required_adaptations=[
+                    "Develop multimodal training capabilities",
+                    "Refactor pipeline for unified embeddings",
+                    "Retrain applications for multimodal",
+                ],
+                adaptation_cost=3_000_000,
+                adaptation_timeline=timedelta(days=270),
+                response_plan="Early experimentation, flexible architecture, gradual migration",
+                contingency_actions=[
+                    "Prototype multimodal embeddings",
+                    "Design migration path",
+                    "Test application compatibility",
+                ],
+                required_investments={
+                    "multimodal_research": 1_000_000,
+                    "training_infrastructure": 1_500_000,
+                    "application_migration": 500_000,
+                },
+                success_metrics={"multimodal_quality_ratio": 1.1, "migration_completion": 0.8},
+            )
+        )
 
         return scenarios
 
     def prioritize_scenarios(
-        self,
-        scenarios: List[DisruptionScenario]
+        self, scenarios: List[DisruptionScenario]
     ) -> List[Tuple[DisruptionScenario, float]]:
         """Prioritize scenarios by urgency and impact"""
 
@@ -369,21 +375,27 @@ class DisruptionPreparedness:
                 DisruptionLikelihood.LOW: 0.2,
                 DisruptionLikelihood.MEDIUM: 0.5,
                 DisruptionLikelihood.HIGH: 0.8,
-                DisruptionLikelihood.IMMINENT: 1.0
+                DisruptionLikelihood.IMMINENT: 1.0,
             }
 
             impact_scores = {
                 DisruptionImpact.MINOR: 0.2,
                 DisruptionImpact.MODERATE: 0.5,
                 DisruptionImpact.MAJOR: 0.8,
-                DisruptionImpact.EXISTENTIAL: 1.0
+                DisruptionImpact.EXISTENTIAL: 1.0,
             }
 
             likelihood_score = likelihood_scores[scenario.likelihood]
             impact_score = impact_scores[scenario.impact]
 
             # Priority = likelihood × impact × (1 / time_horizon)
-            time_factor = 1.0 if "1-2" in scenario.time_horizon else 0.7 if "2-3" in scenario.time_horizon else 0.4
+            time_factor = (
+                1.0
+                if "1-2" in scenario.time_horizon
+                else 0.7
+                if "2-3" in scenario.time_horizon
+                else 0.4
+            )
 
             priority = likelihood_score * impact_score * time_factor
 
@@ -394,27 +406,26 @@ class DisruptionPreparedness:
 
         return scored_scenarios
 
-    def design_indicators(
-        self,
-        scenario: DisruptionScenario
-    ) -> List[DisruptionIndicator]:
+    def design_indicators(self, scenario: DisruptionScenario) -> List[DisruptionIndicator]:
         """Design monitoring indicators for scenario"""
 
         indicators = []
 
         # Create indicator for each warning signal
         for i, signal in enumerate(scenario.early_warning_signals):
-            indicators.append(DisruptionIndicator(
-                indicator_name=f"{scenario.scenario_name}_signal_{i+1}",
-                category=scenario.category,
-                data_source=self._infer_data_source(signal),
-                current_value=0.0,
-                threshold_warning=0.5,
-                threshold_critical=0.8,
-                related_scenarios=[scenario.scenario_name],
-                monitoring_frequency="monthly",
-                owner="strategy_team"
-            ))
+            indicators.append(
+                DisruptionIndicator(
+                    indicator_name=f"{scenario.scenario_name}_signal_{i + 1}",
+                    category=scenario.category,
+                    data_source=self._infer_data_source(signal),
+                    current_value=0.0,
+                    threshold_warning=0.5,
+                    threshold_critical=0.8,
+                    related_scenarios=[scenario.scenario_name],
+                    monitoring_frequency="monthly",
+                    owner="strategy_team",
+                )
+            )
 
         return indicators
 
@@ -432,9 +443,7 @@ class DisruptionPreparedness:
             return "news_aggregator"
 
     def assess_preparedness(
-        self,
-        scenario: DisruptionScenario,
-        current_capabilities: Dict[str, float]
+        self, scenario: DisruptionScenario, current_capabilities: Dict[str, float]
     ) -> Dict[str, any]:
         """Assess how prepared organization is for scenario"""
 
@@ -472,14 +481,17 @@ class DisruptionPreparedness:
             "time_pressure": time_pressure,
             "readiness_level": readiness,
             "recommended_actions": scenario.contingency_actions[:3],
-            "investment_priority": "HIGH" if time_pressure > 1.0 and avg_gap > 0.4 else "MEDIUM" if avg_gap > 0.3 else "LOW"
+            "investment_priority": "HIGH"
+            if time_pressure > 1.0 and avg_gap > 0.4
+            else "MEDIUM"
+            if avg_gap > 0.3
+            else "LOW",
         }
+
 
 # Example usage for disruption planning
 def build_disruption_response_strategy(
-    organization_profile: Dict[str, any],
-    risk_tolerance: str,
-    planning_horizon_years: int
+    organization_profile: Dict[str, any], risk_tolerance: str, planning_horizon_years: int
 ) -> Dict[str, any]:
     """Develop comprehensive disruption response strategy"""
 
@@ -487,8 +499,7 @@ def build_disruption_response_strategy(
 
     # Generate scenarios
     scenarios = preparedness.develop_scenarios(
-        current_position=organization_profile,
-        time_horizon_years=planning_horizon_years
+        current_position=organization_profile, time_horizon_years=planning_horizon_years
     )
 
     # Prioritize
@@ -498,8 +509,7 @@ def build_disruption_response_strategy(
     assessments = []
     for scenario, priority in prioritized[:5]:  # Top 5
         assessment = preparedness.assess_preparedness(
-            scenario,
-            organization_profile.get("capabilities", {})
+            scenario, organization_profile.get("capabilities", {})
         )
         assessment["priority_score"] = priority
         assessments.append(assessment)
@@ -535,7 +545,7 @@ def build_disruption_response_strategy(
                 "priority": s[1],
                 "likelihood": s[0].likelihood.value,
                 "impact": s[0].impact.value,
-                "time_horizon": s[0].time_horizon
+                "time_horizon": s[0].time_horizon,
             }
             for s in prioritized[:5]
         ],
@@ -549,6 +559,6 @@ def build_disruption_response_strategy(
             "Invest in top 3-5 most likely/impactful scenarios",
             "Monitor indicators monthly, review scenarios quarterly",
             "Build organizational agility for fast decision-making",
-            "Preserve strategic optionality through multi-vendor approaches"
-        ]
+            "Preserve strategic optionality through multi-vendor approaches",
+        ],
     }

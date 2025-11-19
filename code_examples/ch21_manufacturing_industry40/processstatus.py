@@ -38,19 +38,23 @@ import torch.nn as nn
 
 class ProcessStatus(Enum):
     """Process operation status"""
+
     RUNNING = "running"
     IDLE = "idle"
     BLOCKED = "blocked"
     STARVED = "starved"
     FAILED = "failed"
 
+
 class DeviationType(Enum):
     """Types of process deviations"""
+
     PARAMETER_DRIFT = "parameter_drift"
     MATERIAL_VARIATION = "material_variation"
     EQUIPMENT_DEGRADATION = "equipment_degradation"
     OPERATOR_ERROR = "operator_error"
     UPSTREAM_ISSUE = "upstream_issue"
+
 
 @dataclass
 class ProcessStep:
@@ -70,6 +74,7 @@ class ProcessStep:
         quality_checks: Quality measurements performed
         dependencies: Upstream steps that must complete first
     """
+
     step_id: str
     step_name: str
     workstation: str
@@ -81,6 +86,7 @@ class ProcessStep:
     setup_time: float = 0.0
     quality_checks: List[str] = field(default_factory=list)
     dependencies: List[str] = field(default_factory=list)
+
 
 @dataclass
 class ProcessExecution:
@@ -102,6 +108,7 @@ class ProcessExecution:
         issues: Issues encountered
         embedding: Learned execution embedding
     """
+
     execution_id: str
     work_order_id: str
     step_id: str
@@ -115,6 +122,7 @@ class ProcessExecution:
     operator_id: Optional[str] = None
     issues: List[str] = field(default_factory=list)
     embedding: Optional[np.ndarray] = None
+
 
 @dataclass
 class Bottleneck:
@@ -132,6 +140,7 @@ class Bottleneck:
         recommendations: Suggested improvements
         estimated_impact: Potential throughput improvement
     """
+
     step_id: str
     detection_time: datetime
     severity: str
@@ -141,6 +150,7 @@ class Bottleneck:
     root_causes: List[str] = field(default_factory=list)
     recommendations: List[str] = field(default_factory=list)
     estimated_impact: float = 0.0  # % throughput improvement
+
 
 @dataclass
 class ProcessDeviation:
@@ -157,14 +167,18 @@ class ProcessDeviation:
         recommended_actions: Corrective actions
         confidence: Detection confidence
     """
+
     execution_id: str
     detection_time: datetime
     deviation_type: DeviationType
     severity: str
-    affected_parameters: List[Tuple[str, float, float]] = field(default_factory=list)  # (param, actual, nominal)
+    affected_parameters: List[Tuple[str, float, float]] = field(
+        default_factory=list
+    )  # (param, actual, nominal)
     predicted_quality_impact: float = 0.0  # 0-1 probability of defect
     recommended_actions: List[str] = field(default_factory=list)
     confidence: float = 0.0
+
 
 class ProcessStateEncoder(nn.Module):
     """
@@ -173,13 +187,14 @@ class ProcessStateEncoder(nn.Module):
     Combines process parameters, sensor readings, material properties,
     and contextual information (time of day, operator, etc.).
     """
+
     def __init__(
         self,
         num_parameters: int,
         num_sensors: int,
         hidden_dim: int = 256,
         embedding_dim: int = 512,
-        dropout: float = 0.1
+        dropout: float = 0.1,
     ):
         super().__init__()
 
@@ -189,7 +204,7 @@ class ProcessStateEncoder(nn.Module):
             nn.ReLU(),
             nn.Dropout(dropout),
             nn.Linear(hidden_dim, hidden_dim),
-            nn.ReLU()
+            nn.ReLU(),
         )
 
         # Sensor time-series encoder
@@ -198,7 +213,7 @@ class ProcessStateEncoder(nn.Module):
             hidden_size=hidden_dim,
             num_layers=2,
             batch_first=True,
-            dropout=dropout
+            dropout=dropout,
         )
 
         # Context encoder (categorical: operator, shift, material batch, etc.)
@@ -210,14 +225,11 @@ class ProcessStateEncoder(nn.Module):
             nn.ReLU(),
             nn.Dropout(dropout),
             nn.Linear(hidden_dim, embedding_dim),
-            nn.LayerNorm(embedding_dim)
+            nn.LayerNorm(embedding_dim),
         )
 
     def forward(
-        self,
-        parameters: torch.Tensor,
-        sensor_data: torch.Tensor,
-        context_ids: torch.Tensor
+        self, parameters: torch.Tensor, sensor_data: torch.Tensor, context_ids: torch.Tensor
     ) -> torch.Tensor:
         """
         Args:
@@ -243,18 +255,16 @@ class ProcessStateEncoder(nn.Module):
 
         return embeddings
 
+
 class WorkflowEncoder(nn.Module):
     """
     Encode sequential process workflow to trajectory embeddings
 
     Models dependencies between process steps and temporal patterns.
     """
+
     def __init__(
-        self,
-        state_dim: int = 512,
-        hidden_dim: int = 512,
-        num_layers: int = 3,
-        dropout: float = 0.1
+        self, state_dim: int = 512, hidden_dim: int = 512, num_layers: int = 3, dropout: float = 0.1
     ):
         super().__init__()
 
@@ -265,15 +275,12 @@ class WorkflowEncoder(nn.Module):
             num_layers=num_layers,
             batch_first=True,
             dropout=dropout,
-            bidirectional=True
+            bidirectional=True,
         )
 
         # Attention over process steps
         self.attention = nn.MultiheadAttention(
-            embed_dim=hidden_dim * 2,
-            num_heads=8,
-            dropout=dropout,
-            batch_first=True
+            embed_dim=hidden_dim * 2, num_heads=8, dropout=dropout, batch_first=True
         )
 
         # Final projection
@@ -282,13 +289,11 @@ class WorkflowEncoder(nn.Module):
             nn.ReLU(),
             nn.Dropout(dropout),
             nn.Linear(hidden_dim, state_dim),
-            nn.LayerNorm(state_dim)
+            nn.LayerNorm(state_dim),
         )
 
     def forward(
-        self,
-        step_embeddings: torch.Tensor,
-        mask: Optional[torch.Tensor] = None
+        self, step_embeddings: torch.Tensor, mask: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
         """
         Args:
@@ -302,22 +307,22 @@ class WorkflowEncoder(nn.Module):
 
         # Self-attention over steps
         attn_out, _ = self.attention(
-            workflow_repr,
-            workflow_repr,
-            workflow_repr,
-            key_padding_mask=mask
+            workflow_repr, workflow_repr, workflow_repr, key_padding_mask=mask
         )
 
         # Global pooling
         if mask is not None:
             mask_expanded = mask.unsqueeze(-1).float()
-            workflow_summary = (attn_out * (1 - mask_expanded)).sum(dim=1) / (1 - mask_expanded).sum(dim=1)
+            workflow_summary = (attn_out * (1 - mask_expanded)).sum(dim=1) / (
+                1 - mask_expanded
+            ).sum(dim=1)
         else:
             workflow_summary = attn_out.mean(dim=1)
 
         # Project to embedding
         embedding = self.projection(workflow_summary)
         return embedding
+
 
 class BottleneckDetector(nn.Module):
     """
@@ -326,11 +331,12 @@ class BottleneckDetector(nn.Module):
     Analyzes utilization, queue lengths, wait times to pinpoint
     constraining operations.
     """
+
     def __init__(
         self,
         embedding_dim: int = 512,
         num_steps: int = 50,  # max process steps
-        hidden_dim: int = 512
+        hidden_dim: int = 512,
     ):
         super().__init__()
 
@@ -344,13 +350,10 @@ class BottleneckDetector(nn.Module):
             nn.Linear(hidden_dim, hidden_dim),
             nn.ReLU(),
             nn.Dropout(0.1),
-            nn.Linear(hidden_dim, 1)
+            nn.Linear(hidden_dim, 1),
         )
 
-    def forward(
-        self,
-        step_embeddings: torch.Tensor
-    ) -> torch.Tensor:
+    def forward(self, step_embeddings: torch.Tensor) -> torch.Tensor:
         """
         Args:
             step_embeddings: [batch, num_steps, embedding_dim]
@@ -361,6 +364,7 @@ class BottleneckDetector(nn.Module):
         bottleneck_scores = torch.sigmoid(scores)
         return bottleneck_scores
 
+
 class ParameterOptimizer(nn.Module):
     """
     Optimize process parameters using reinforcement learning
@@ -369,12 +373,8 @@ class ParameterOptimizer(nn.Module):
     Action: Parameter adjustments
     Reward: Quality, throughput, cost improvements
     """
-    def __init__(
-        self,
-        state_dim: int = 512,
-        num_parameters: int = 10,
-        hidden_dim: int = 512
-    ):
+
+    def __init__(self, state_dim: int = 512, num_parameters: int = 10, hidden_dim: int = 512):
         super().__init__()
 
         # Actor (policy): Suggests parameter adjustments
@@ -386,7 +386,7 @@ class ParameterOptimizer(nn.Module):
             nn.ReLU(),
             nn.Dropout(0.1),
             nn.Linear(hidden_dim, num_parameters),
-            nn.Tanh()  # Output adjustment in [-1, 1]
+            nn.Tanh(),  # Output adjustment in [-1, 1]
         )
 
         # Critic (value): Estimates expected reward
@@ -394,13 +394,10 @@ class ParameterOptimizer(nn.Module):
             nn.Linear(state_dim + num_parameters, hidden_dim),
             nn.ReLU(),
             nn.Dropout(0.1),
-            nn.Linear(hidden_dim, 1)
+            nn.Linear(hidden_dim, 1),
         )
 
-    def forward(
-        self,
-        state: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, state: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Args:
             state: [batch, state_dim]
@@ -416,6 +413,7 @@ class ParameterOptimizer(nn.Module):
 
         return adjustments, value
 
+
 class ProcessAutomationSystem:
     """
     Production process automation system
@@ -427,13 +425,14 @@ class ProcessAutomationSystem:
     - Deviation prediction and alerting
     - Workflow analysis and improvement
     """
+
     def __init__(
         self,
         state_encoder: ProcessStateEncoder,
         workflow_encoder: WorkflowEncoder,
         bottleneck_detector: BottleneckDetector,
         param_optimizer: ParameterOptimizer,
-        device: str = 'cuda'
+        device: str = "cuda",
     ):
         self.state_encoder = state_encoder.to(device)
         self.workflow_encoder = workflow_encoder.to(device)
@@ -459,10 +458,7 @@ class ProcessAutomationSystem:
         self.active_executions[execution.execution_id] = execution
 
     def update_execution(
-        self,
-        execution_id: str,
-        sensor_readings: Dict[str, float],
-        timestamp: datetime
+        self, execution_id: str, sensor_readings: Dict[str, float], timestamp: datetime
     ):
         """Update execution with new sensor readings"""
         if execution_id not in self.active_executions:
@@ -477,10 +473,7 @@ class ProcessAutomationSystem:
             execution.sensor_readings[sensor_name].append(value)
 
     def complete_execution(
-        self,
-        execution_id: str,
-        end_time: datetime,
-        quality_results: Dict[str, float]
+        self, execution_id: str, end_time: datetime, quality_results: Dict[str, float]
     ):
         """Complete execution and analyze results"""
         if execution_id not in self.active_executions:
@@ -511,17 +504,15 @@ class ProcessAutomationSystem:
         # Analyze each process step
         for step_id, step in self.process_steps.items():
             # Count active executions at this step
-            active_count = sum(
-                1 for e in self.active_executions.values()
-                if e.step_id == step_id
-            )
+            active_count = sum(1 for e in self.active_executions.values() if e.step_id == step_id)
 
             # Calculate utilization (mock)
             utilization = min(active_count / 3.0, 1.0)  # Assume 3 parallel capacity
 
             # Calculate wait times from history
             recent_executions = [
-                e for e in self.execution_history[-1000:]
+                e
+                for e in self.execution_history[-1000:]
                 if e.step_id == step_id and e.cycle_time is not None
             ]
 
@@ -543,15 +534,15 @@ class ProcessAutomationSystem:
                     queue_length=active_count,
                     average_wait_time=avg_cycle_time - expected_cycle_time,
                     root_causes=[
-                        f"Utilization at {utilization*100:.0f}%",
-                        f"Cycle time {(avg_cycle_time/expected_cycle_time-1)*100:.0f}% above standard"
+                        f"Utilization at {utilization * 100:.0f}%",
+                        f"Cycle time {(avg_cycle_time / expected_cycle_time - 1) * 100:.0f}% above standard",
                     ],
                     recommendations=[
                         "Add parallel capacity",
                         "Reduce setup times",
-                        "Optimize upstream feeding"
+                        "Optimize upstream feeding",
                     ],
-                    estimated_impact=15.0  # % throughput improvement
+                    estimated_impact=15.0,  # % throughput improvement
                 )
 
                 bottlenecks.append(bottleneck)
@@ -559,10 +550,7 @@ class ProcessAutomationSystem:
 
         return bottlenecks
 
-    def detect_deviations(
-        self,
-        execution_id: str
-    ) -> Optional[ProcessDeviation]:
+    def detect_deviations(self, execution_id: str) -> Optional[ProcessDeviation]:
         """
         Detect process deviations from nominal operation
 
@@ -600,18 +588,15 @@ class ProcessAutomationSystem:
             recommended_actions=[
                 f"Adjust {deviations[0][0]} to nominal value",
                 "Inspect upstream process",
-                "Increase inspection frequency"
+                "Increase inspection frequency",
             ],
-            confidence=0.85
+            confidence=0.85,
         )
 
         self.deviation_history.append(deviation)
         return deviation
 
-    def optimize_parameters(
-        self,
-        execution_id: str
-    ) -> Dict[str, float]:
+    def optimize_parameters(self, execution_id: str) -> Dict[str, float]:
         """
         Suggest optimal parameter adjustments for execution
 
@@ -633,6 +618,7 @@ class ProcessAutomationSystem:
             optimized[param_name] = nominal_value * (1 + adjustment)
 
         return optimized
+
 
 def process_automation_example():
     """
@@ -660,7 +646,7 @@ def process_automation_example():
         workflow_encoder=workflow_encoder,
         bottleneck_detector=bottleneck_detector,
         param_optimizer=param_optimizer,
-        device='cpu'
+        device="cpu",
     )
 
     print("System initialized:")
@@ -684,7 +670,7 @@ def process_automation_example():
         ("STEP_009", "In-Circuit Testing", 12.0),
         ("STEP_010", "Programming", 5.0),
         ("STEP_011", "Final Inspection", 3.0),
-        ("STEP_012", "Packaging", 2.0)
+        ("STEP_012", "Packaging", 2.0),
     ]
 
     for step_id, step_name, cycle_time in steps_data:
@@ -692,7 +678,7 @@ def process_automation_example():
             step_id=step_id,
             step_name=step_name,
             workstation=f"WS_{step_id[-3:]}",
-            cycle_time=cycle_time
+            cycle_time=cycle_time,
         )
         automation_system.register_process_step(step)
 
@@ -706,23 +692,18 @@ def process_automation_example():
     # Start some executions
     for i in range(20):
         execution = ProcessExecution(
-            execution_id=f"EXEC_{i+1:04d}",
-            work_order_id=f"WO_{i+1:04d}",
+            execution_id=f"EXEC_{i + 1:04d}",
+            work_order_id=f"WO_{i + 1:04d}",
             step_id=steps_data[i % len(steps_data)][0],
-            start_time=datetime.now() - timedelta(minutes=i*5)
+            start_time=datetime.now() - timedelta(minutes=i * 5),
         )
         automation_system.start_execution(execution)
 
         # Simulate some sensor updates
         for t in range(10):
-            sensor_readings = {
-                f'sensor_{j}': np.random.randn() * 10 + 100
-                for j in range(30)
-            }
+            sensor_readings = {f"sensor_{j}": np.random.randn() * 10 + 100 for j in range(30)}
             automation_system.update_execution(
-                execution.execution_id,
-                sensor_readings,
-                execution.start_time + timedelta(minutes=t)
+                execution.execution_id, sensor_readings, execution.start_time + timedelta(minutes=t)
             )
 
     print(f"Active executions: {len(automation_system.active_executions)}")
@@ -741,7 +722,7 @@ def process_automation_example():
             step = automation_system.process_steps[bottleneck.step_id]
             print(f"Bottleneck: {step.step_name} ({bottleneck.step_id})")
             print(f"  Severity: {bottleneck.severity.upper()}")
-            print(f"  Utilization: {bottleneck.utilization*100:.1f}%")
+            print(f"  Utilization: {bottleneck.utilization * 100:.1f}%")
             print(f"  Queue length: {bottleneck.queue_length} units")
             print(f"  Average wait time: {bottleneck.average_wait_time:.1f} minutes")
             print("  Root causes:")
@@ -777,7 +758,9 @@ def process_automation_example():
             print(f"   Quality impact probability: {deviation.predicted_quality_impact:.1%}")
             print("   Affected parameters:")
             for param, actual, nominal in deviation.affected_parameters[:3]:
-                print(f"      - {param}: {actual:.2f} (nominal: {nominal:.2f}, {abs(actual-nominal)/nominal*100:.1f}% deviation)")
+                print(
+                    f"      - {param}: {actual:.2f} (nominal: {nominal:.2f}, {abs(actual - nominal) / nominal * 100:.1f}% deviation)"
+                )
             print("   Recommended actions:")
             for action in deviation.recommended_actions[:2]:
                 print(f"      - {action}")
@@ -833,6 +816,7 @@ def process_automation_example():
     print("  - Process engineering time: -73% (automated analysis)")
     print()
     print("→ Process automation optimizes operations continuously and autonomously")
+
 
 # Uncomment to run:
 # process_automation_example()

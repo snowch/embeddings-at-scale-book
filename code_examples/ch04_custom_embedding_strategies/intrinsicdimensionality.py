@@ -24,9 +24,9 @@ class IntrinsicDimensionality:
         n_components = np.argmax(cumsum_variance >= variance_threshold) + 1
 
         return {
-            'intrinsic_dimension': n_components,
-            'variance_captured': cumsum_variance[n_components - 1],
-            'variance_ratio_by_component': pca.explained_variance_ratio_
+            "intrinsic_dimension": n_components,
+            "variance_captured": cumsum_variance[n_components - 1],
+            "variance_ratio_by_component": pca.explained_variance_ratio_,
         }
 
     def estimate_via_mle(self, embeddings, k=10):
@@ -38,7 +38,7 @@ class IntrinsicDimensionality:
         from sklearn.neighbors import NearestNeighbors
 
         # Find k nearest neighbors for each point
-        nbrs = NearestNeighbors(n_neighbors=k+1).fit(embeddings)
+        nbrs = NearestNeighbors(n_neighbors=k + 1).fit(embeddings)
         distances, indices = nbrs.kneighbors(embeddings)
 
         # Remove self (distance 0)
@@ -58,16 +58,14 @@ class IntrinsicDimensionality:
 
         intrinsic_dim = np.median(dimensions)
 
-        return {
-            'intrinsic_dimension': int(intrinsic_dim),
-            'dimension_distribution': dimensions
-        }
+        return {"intrinsic_dimension": int(intrinsic_dim), "dimension_distribution": dimensions}
 
 
 # Placeholder function for loading embeddings
 def load_embeddings():
     """Load embeddings. Placeholder implementation."""
     return np.random.randn(1000, 768).astype(np.float32)
+
 
 # Example usage
 embeddings = load_embeddings()  # Your 768-dim embeddings
@@ -83,8 +81,5 @@ mle_result = estimator.estimate_via_mle(embeddings, k=10)
 print(f"MLE estimate: {mle_result['intrinsic_dimension']} dimensions")
 
 # Recommendation: Use max of estimates as minimum dimension
-recommended_dim = max(
-    pca_result['intrinsic_dimension'],
-    mle_result['intrinsic_dimension']
-)
+recommended_dim = max(pca_result["intrinsic_dimension"], mle_result["intrinsic_dimension"])
 print(f"\nRecommended minimum: {recommended_dim} dimensions")

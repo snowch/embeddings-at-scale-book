@@ -6,6 +6,7 @@ import torch.nn.functional as F
 # Code from Chapter 06
 # Book: Embeddings at Scale
 
+
 class SiameseEmbeddingService:
     """
     Production service for Siamese network embeddings
@@ -17,13 +18,7 @@ class SiameseEmbeddingService:
     - GPU/CPU flexibility
     """
 
-    def __init__(
-        self,
-        model,
-        cache_size=100000,
-        batch_size=256,
-        device='cuda'
-    ):
+    def __init__(self, model, cache_size=100000, batch_size=256, device="cuda"):
         self.model = model.to(device).eval()
         self.device = device
         self.batch_size = batch_size
@@ -90,7 +85,7 @@ class SiameseEmbeddingService:
 
         # Process in batches
         for i in range(0, len(items), self.batch_size):
-            batch = items[i:i + self.batch_size]
+            batch = items[i : i + self.batch_size]
 
             with torch.no_grad():
                 batch_embeddings = self.model.get_embedding(batch.to(self.device))
@@ -110,11 +105,7 @@ class SiameseEmbeddingService:
         embedding2 = self.get_embedding(item2)
 
         # Cosine similarity
-        similarity = F.cosine_similarity(
-            embedding1,
-            embedding2,
-            dim=0
-        ).item()
+        similarity = F.cosine_similarity(embedding1, embedding2, dim=0).item()
 
         return similarity
 
@@ -131,15 +122,11 @@ class SiameseEmbeddingService:
             Indices and similarities of top-k candidates
         """
         query_embedding = self.get_embedding(query)
-        candidate_embeddings = self.get_embeddings_batch(
-            torch.stack(candidates)
-        )
+        candidate_embeddings = self.get_embeddings_batch(torch.stack(candidates))
 
         # Compute similarities
         similarities = F.cosine_similarity(
-            query_embedding.unsqueeze(0),
-            candidate_embeddings,
-            dim=1
+            query_embedding.unsqueeze(0), candidate_embeddings, dim=1
         )
 
         # Get top-k
@@ -153,8 +140,8 @@ class SiameseEmbeddingService:
         hit_rate = self.cache_hits / total_requests if total_requests > 0 else 0
 
         return {
-            'cache_size': len(self.embedding_cache),
-            'cache_hits': self.cache_hits,
-            'cache_misses': self.cache_misses,
-            'hit_rate': hit_rate
+            "cache_size": len(self.embedding_cache),
+            "cache_hits": self.cache_hits,
+            "cache_misses": self.cache_misses,
+            "hit_rate": hit_rate,
         }
