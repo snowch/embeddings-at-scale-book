@@ -5,15 +5,7 @@ on:
     branches:
       - main
       - 'claude/**'
-    paths:
-      - 'code_examples/**/*.py'
-      - 'pyproject.toml'
-      - '.github/workflows/code-quality.yml'
   pull_request:
-    paths:
-      - 'code_examples/**/*.py'
-      - 'pyproject.toml'
-      - '.github/workflows/code-quality.yml'
   workflow_dispatch:
 
 jobs:
