@@ -49,7 +49,7 @@ quarto render
 
 The HTML version is automatically published to GitHub Pages on every commit to main:
 
-**[Read Online](https://snowch.github.io/embeddings-at-scale-book/)** (link will be available after first deployment)
+**[Read Online](https://snowch.github.io/embeddings-at-scale-book/)**
 
 ### Download Formats
 
