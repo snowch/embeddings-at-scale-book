@@ -47,9 +47,11 @@ The repository includes automated code quality checks via GitHub Actions:
 - **Workflow**: `.github/workflows/code-quality.yml`
 - **Triggers**: Push to main, push to claude/* branches, pull requests
 - **Checks**:
-  - Ruff linting
-  - Python syntax validation
-  - Dependencies verification
+  - **Ruff linting** (informational - doesn't block builds)
+  - **Python syntax validation** (required - must pass)
+  - **Dependencies verification** (required - must pass)
+
+**Build Policy**: For educational code, linting issues are **informational only**. The build will pass as long as syntax is valid and dependencies install. This allows gradual quality improvement without blocking development.
 
 View workflow results: Actions tab on GitHub
 
