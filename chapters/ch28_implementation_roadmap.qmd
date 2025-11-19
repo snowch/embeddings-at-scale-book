@@ -53,7 +53,8 @@ Foundation phase establishes technology baseline—embedding models, vector data
 - **Data pipeline**: Source → ETL → embedding generation → vector DB → application
 - **Monitoring**: Embedding quality metrics, query latency, system health, cost tracking
 
-```{.python include="code_examples/ch28_implementation_roadmap/technologycategory.py"}
+```python
+{{< include code_examples/ch28_implementation_roadmap/technologycategory.py >}}
 ```
 
 ### Business Value Validation
