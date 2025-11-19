@@ -1,6 +1,8 @@
+import torch
+import torch.nn.functional as F
+
 # Code from Chapter 05
 # Book: Embeddings at Scale
-
 from torch.cuda.amp import GradScaler, autocast
 
 

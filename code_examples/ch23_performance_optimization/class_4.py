@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 # Code from Chapter 23
 # Book: Embeddings at Scale
 

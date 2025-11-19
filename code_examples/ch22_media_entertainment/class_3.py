@@ -1,3 +1,5 @@
+from typing import Any
+
 # Code from Chapter 22
 # Book: Embeddings at Scale
 

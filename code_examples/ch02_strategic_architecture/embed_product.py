@@ -1,5 +1,33 @@
+import torch
+
 # Code from Chapter 02
 # Book: Embeddings at Scale
+
+# Import ModalityFusion from same directory
+# In production: from .modalityfusion import ModalityFusion
+class ModalityFusion:
+    """Placeholder for ModalityFusion. See modalityfusion.py for full implementation."""
+    @staticmethod
+    def early_fusion(modality_embeddings, weights=None):
+        if weights is None:
+            weights = [1.0 / len(modality_embeddings)] * len(modality_embeddings)
+        fused = sum(w * torch.tensor(emb) if not isinstance(emb, torch.Tensor) else w * emb
+                   for w, emb in zip(weights, modality_embeddings))
+        return fused / torch.norm(fused)
+
+# Placeholder encoder with multiple encoding methods
+class MultiModalEncoder:
+    """Placeholder multi-modal encoder. Replace with actual model."""
+    def encode_text(self, text):
+        return torch.randn(768)
+
+    def encode_image(self, image):
+        return torch.randn(768)
+
+    def encode_structured(self, data):
+        return torch.randn(768)
+
+encoder = MultiModalEncoder()
 
 def embed_product(product):
     """Create comprehensive product embedding"""

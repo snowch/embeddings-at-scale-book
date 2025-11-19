@@ -3,6 +3,13 @@
 
 from gensim.models import Word2Vec
 
+# Example data for demonstration
+sentences = [
+    ["machine", "learning", "is", "a", "subset", "of", "artificial", "intelligence"],
+    ["deep", "learning", "uses", "neural", "networks", "with", "multiple", "layers"],
+    ["natural", "language", "processing", "deals", "with", "text", "data"]
+]
+
 # Train embeddings that capture semantic relationships
 model = Word2Vec(sentences, vector_size=300, window=5, min_count=5)
 

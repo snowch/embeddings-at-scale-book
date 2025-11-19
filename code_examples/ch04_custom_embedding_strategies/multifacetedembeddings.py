@@ -1,6 +1,25 @@
 # Code from Chapter 04
 # Book: Embeddings at Scale
 
+import numpy as np
+
+
+# Placeholder encoder classes for different facets
+class VisualEncoder:
+    """Placeholder visual encoder. Replace with actual model."""
+    def encode(self, images):
+        return np.random.randn(768).astype(np.float32)
+
+class FunctionalEncoder:
+    """Placeholder functional encoder. Replace with actual model."""
+    def encode(self, description):
+        return np.random.randn(768).astype(np.float32)
+
+class AttributeEncoder:
+    """Placeholder attribute encoder. Replace with actual model."""
+    def encode(self, attributes):
+        return np.random.randn(768).astype(np.float32)
+
 class MultiFacetedEmbeddings:
     """
     Represent multiple facets of similarity in separate embedding spaces

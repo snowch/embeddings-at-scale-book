@@ -1,6 +1,7 @@
+from dataclasses import dataclass
+
 # Code from Chapter 09
 # Book: Embeddings at Scale
-
 from enum import Enum
 from typing import Dict, Optional
 

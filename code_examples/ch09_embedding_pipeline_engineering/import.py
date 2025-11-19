@@ -10,6 +10,16 @@ import torch
 import torch.nn as nn
 
 
+# Placeholder class for embedding model registry
+class EmbeddingModelRegistry:
+    """Placeholder for embedding model registry. Replace with actual implementation."""
+    def __init__(self):
+        self.models = {}
+
+    def get_model(self, model_id):
+        return None  # Placeholder
+
+
 @dataclass
 class EmbeddingQualityMetrics:
     """

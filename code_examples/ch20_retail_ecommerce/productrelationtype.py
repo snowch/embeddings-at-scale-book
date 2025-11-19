@@ -1,3 +1,5 @@
+from enum import Enum
+
 # Code from Chapter 20
 # Book: Embeddings at Scale
 

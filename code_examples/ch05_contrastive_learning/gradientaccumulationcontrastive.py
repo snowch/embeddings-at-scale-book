@@ -1,3 +1,5 @@
+import torch
+
 # Code from Chapter 05
 # Book: Embeddings at Scale
 

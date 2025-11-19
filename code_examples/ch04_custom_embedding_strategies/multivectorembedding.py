@@ -1,6 +1,34 @@
 # Code from Chapter 04
 # Book: Embeddings at Scale
 
+import numpy as np
+
+
+# Placeholder encoder classes for different vector types
+class SemanticEncoder:
+    """Placeholder semantic encoder. Replace with actual model."""
+    def __init__(self, dim=512):
+        self.dim = dim
+
+    def encode(self, text):
+        return np.random.randn(self.dim).astype(np.float32)
+
+class StructuralEncoder:
+    """Placeholder structural encoder. Replace with actual model."""
+    def __init__(self, dim=256):
+        self.dim = dim
+
+    def encode(self, attributes):
+        return np.random.randn(self.dim).astype(np.float32)
+
+class BehavioralEncoder:
+    """Placeholder behavioral encoder. Replace with actual model."""
+    def __init__(self, dim=256):
+        self.dim = dim
+
+    def encode(self, interactions):
+        return np.random.randn(self.dim).astype(np.float32)
+
 class MultiVectorEmbedding:
     """
     Represent items with multiple specialized embeddings

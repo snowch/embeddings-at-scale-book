@@ -1,3 +1,4 @@
+
 # Code from Chapter 22
 # Book: Embeddings at Scale
 
@@ -31,7 +32,7 @@ Production considerations:
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import torch

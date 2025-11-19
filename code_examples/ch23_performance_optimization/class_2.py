@@ -1,3 +1,5 @@
+import json
+
 # Code from Chapter 23
 # Book: Embeddings at Scale
 

@@ -1,3 +1,10 @@
+from dataclasses import dataclass
+from typing import Dict, Tuple
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
 # Code from Chapter 18
 # Book: Embeddings at Scale
 

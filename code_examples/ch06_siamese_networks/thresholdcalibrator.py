@@ -1,3 +1,7 @@
+import numpy as np
+import torch
+import torch.nn.functional as F
+
 # Code from Chapter 06
 # Book: Embeddings at Scale
 

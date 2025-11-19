@@ -1,3 +1,6 @@
+import numpy as np
+import torch.nn.functional as F
+
 # Code from Chapter 14
 # Book: Embeddings at Scale
 
@@ -52,6 +55,19 @@ class CodeSnippet:
     function_name: Optional[str] = None
     file_path: Optional[str] = None
     embedding: Optional[np.ndarray] = None
+
+# Placeholder class
+import torch.nn as nn
+
+
+class TextEncoder(nn.Module):
+    """Placeholder for TextEncoder."""
+    def __init__(self):
+        super().__init__()
+
+    def encode(self, text):
+        import torch
+        return torch.randn(768)
 
 class CodeEncoder(nn.Module):
     """

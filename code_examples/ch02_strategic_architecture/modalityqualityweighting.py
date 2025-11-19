@@ -1,6 +1,19 @@
 # Code from Chapter 02
 # Book: Embeddings at Scale
 
+import torch
+
+
+# ModalityFusion placeholder - see modalityfusion.py for full implementation
+class ModalityFusion:
+    """Placeholder for ModalityFusion."""
+    @staticmethod
+    def early_fusion(modality_embeddings, weights=None):
+        if weights is None:
+            weights = [1.0 / len(modality_embeddings)] * len(modality_embeddings)
+        fused = sum(w * emb for w, emb in zip(weights, modality_embeddings))
+        return fused / torch.norm(fused)
+
 class ModalityQualityWeighting:
     """Weight modalities by quality"""
 

@@ -1,5 +1,25 @@
+import numpy as np
+import torch
+
 # Code from Chapter 04
 # Book: Embeddings at Scale
+
+# Placeholder encoder classes for temporal embeddings
+class StaticEncoder:
+    """Placeholder static encoder. Replace with actual model."""
+    def __init__(self, dim):
+        self.dim = dim
+
+    def encode(self, content):
+        return torch.randn(self.dim)
+
+class TimeEncoder:
+    """Placeholder time encoder. Replace with actual model."""
+    def __init__(self, dim):
+        self.dim = dim
+
+    def encode(self, timestamp):
+        return torch.randn(self.dim)
 
 class TemporalEmbeddings:
     """

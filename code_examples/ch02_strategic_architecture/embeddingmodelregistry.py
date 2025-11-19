@@ -1,3 +1,5 @@
+from datetime import datetime
+
 # Code from Chapter 02
 # Book: Embeddings at Scale
 

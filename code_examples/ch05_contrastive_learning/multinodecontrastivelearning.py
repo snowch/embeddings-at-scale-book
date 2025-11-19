@@ -1,6 +1,7 @@
+import torch
+
 # Code from Chapter 05
 # Book: Embeddings at Scale
-
 import torch.distributed as dist
 
 

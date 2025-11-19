@@ -1,6 +1,34 @@
 # Code from Chapter 04
 # Book: Embeddings at Scale
 
+import numpy as np
+
+
+# Placeholder encoder classes for different tiers
+class HighDimEncoder:
+    """Placeholder high-dimensional encoder. Replace with actual model."""
+    def __init__(self, dim=768):
+        self.dim = dim
+
+    def encode(self, item):
+        return np.random.randn(self.dim).astype(np.float32)
+
+class MediumDimEncoder:
+    """Placeholder medium-dimensional encoder. Replace with actual model."""
+    def __init__(self, dim=384):
+        self.dim = dim
+
+    def encode(self, item):
+        return np.random.randn(self.dim).astype(np.float32)
+
+class LowDimEncoder:
+    """Placeholder low-dimensional encoder. Replace with actual model."""
+    def __init__(self, dim=128):
+        self.dim = dim
+
+    def encode(self, item):
+        return np.random.randn(self.dim).astype(np.float32)
+
 class TieredEmbeddings:
     """
     Different embedding dimensions for different data tiers

@@ -1,5 +1,25 @@
+import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
+
 # Code from Chapter 04
 # Book: Embeddings at Scale
+
+# Placeholder encoder classes
+class QueryEncoder:
+    """Placeholder query encoder. Replace with actual model."""
+    def __init__(self, embedding_dim=512):
+        self.embedding_dim = embedding_dim
+
+    def encode(self, query_text):
+        return np.random.randn(self.embedding_dim).astype(np.float32)
+
+class DocumentEncoder:
+    """Placeholder document encoder. Replace with actual model."""
+    def __init__(self, embedding_dim=512):
+        self.embedding_dim = embedding_dim
+
+    def encode(self, document_text):
+        return np.random.randn(self.embedding_dim).astype(np.float32)
 
 class AsymmetricSimilarity:
     """

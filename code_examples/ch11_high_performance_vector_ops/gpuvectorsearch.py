@@ -13,11 +13,33 @@ Techniques:
 """
 
 import time
+from dataclasses import dataclass
 from typing import Optional
 
 import numpy as np
 import torch
 import torch.nn.functional as F
+
+
+# Placeholder classes - see import.py for full implementations
+@dataclass
+class SearchResult:
+    """Placeholder for SearchResult."""
+    indices: np.ndarray
+    scores: np.ndarray
+    latency_ms: float
+
+class OptimizedExactSearch:
+    """Placeholder for OptimizedExactSearch."""
+    def __init__(self):
+        pass
+
+    def search(self, query_vector, k=10):
+        return SearchResult(
+            indices=np.array([0]),
+            scores=np.array([1.0]),
+            latency_ms=0.1
+        )
 
 
 class GPUVectorSearch:

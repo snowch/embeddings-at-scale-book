@@ -1,3 +1,4 @@
+
 # Code from Chapter 13
 # Book: Embeddings at Scale
 
@@ -22,7 +23,7 @@ Evaluation data:
 """
 
 from dataclasses import dataclass
-from typing import List, Set
+from typing import Dict, List, Set
 
 import numpy as np
 

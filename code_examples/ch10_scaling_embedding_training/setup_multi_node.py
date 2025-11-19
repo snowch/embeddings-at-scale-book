@@ -1,7 +1,9 @@
 # Code from Chapter 10
 # Book: Embeddings at Scale
-
 import os
+
+import torch
+import torch.distributed as dist
 
 
 def setup_multi_node(rank: int, world_size: int, master_addr: str, master_port: str):

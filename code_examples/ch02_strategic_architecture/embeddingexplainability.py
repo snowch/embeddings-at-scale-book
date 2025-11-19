@@ -1,3 +1,7 @@
+from datetime import datetime
+
+from sklearn.metrics.pairwise import cosine_similarity
+
 # Code from Chapter 02
 # Book: Embeddings at Scale
 

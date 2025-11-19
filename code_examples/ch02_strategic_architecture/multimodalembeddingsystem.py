@@ -1,5 +1,31 @@
+import torch
+import torch.nn as nn
+from sentence_transformers import SentenceTransformer
+from transformers import CLIPVisionModel, Wav2Vec2Model
+
 # Code from Chapter 02
 # Book: Embeddings at Scale
+
+# Placeholder classes for video and structured encoders
+class TimeSformerModel:
+    """Placeholder for TimeSformer model. Replace with actual implementation."""
+    @staticmethod
+    def from_pretrained(model_name):
+        class DummyModel:
+            def __call__(self, video_frames):
+                class Output:
+                    last_hidden_state = torch.randn(1, 10, 768)
+                return Output()
+        return DummyModel()
+
+class StructuredDataEncoder:
+    """Placeholder for structured data encoder. Replace with actual implementation."""
+    def __init__(self, categorical_dims=None, numerical_features=None):
+        self.categorical_dims = categorical_dims or {}
+        self.numerical_features = numerical_features or []
+
+    def encode(self, structured_data):
+        return torch.randn(128)
 
 class MultiModalEmbeddingSystem:
     """Production multi-modal embedding architecture"""

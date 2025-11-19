@@ -1,3 +1,5 @@
+import numpy as np
+
 # Code from Chapter 08
 # Book: Embeddings at Scale
 

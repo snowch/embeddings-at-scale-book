@@ -18,10 +18,32 @@ Challenges:
 
 import os
 import time
+
+# Placeholder classes - see import.py for full implementations
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
 
+
+@dataclass
+class SearchResult:
+    """Placeholder for SearchResult."""
+    indices: np.ndarray
+    scores: np.ndarray
+    latency_ms: float
+
+class OptimizedExactSearch:
+    """Placeholder for OptimizedExactSearch."""
+    def __init__(self):
+        pass
+
+    def search(self, query_vector, k=10):
+        return SearchResult(
+            indices=np.array([0]),
+            scores=np.array([1.0]),
+            latency_ms=0.1
+        )
 
 class MemoryMappedVectorStore:
     """
