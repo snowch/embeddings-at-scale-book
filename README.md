@@ -49,7 +49,7 @@ quarto render
 
 The HTML version is automatically published to GitHub Pages on every commit to main:
 
-**[Read Online](#)** *(link will be available after first deployment)*
+**[Read Online](https://snowch.github.io/embeddings-at-scale-book/)** (link will be available after first deployment)
 
 ### Download Formats
 
@@ -57,8 +57,8 @@ The HTML version is automatically published to GitHub Pages on every commit to m
 - **EPUB**: For e-readers and mobile devices
 
 Download links are available directly on the book's homepage, or you can access them directly:
-- PDF: `https://<your-username>.github.io/embeddings-at-scale-book/downloads/Embeddings-at-Scale.pdf`
-- EPUB: `https://<your-username>.github.io/embeddings-at-scale-book/downloads/Embeddings-at-Scale.epub`
+- PDF: https://snowch.github.io/embeddings-at-scale-book/downloads/Embeddings-at-Scale.pdf
+- EPUB: https://snowch.github.io/embeddings-at-scale-book/downloads/Embeddings-at-Scale.epub
 
 ## ✍️ Contributing / Authoring
 
