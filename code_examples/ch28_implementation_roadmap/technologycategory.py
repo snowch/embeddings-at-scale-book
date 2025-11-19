@@ -1,6 +1,3 @@
-# Code from Chapter 28
-# Book: Embeddings at Scale
-
 """
 Phase 1: Technology Selection and Architecture Baseline
 
