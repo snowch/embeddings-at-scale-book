@@ -253,9 +253,9 @@ class EmbeddingQualityMonitor:
         # 5. Cross-version stability (compare with reference)
         cross_version_stab = {}
         if self.reference_embeddings is not None:
-            cross_version_stab[self.reference_embeddings.model_version] = (
-                self._compute_cross_version_stability(batch, self.reference_embeddings)
-            )
+            cross_version_stab[
+                self.reference_embeddings.model_version
+            ] = self._compute_cross_version_stability(batch, self.reference_embeddings)
 
         # 6. Downstream metrics (if labels available)
         downstream_acc = None
