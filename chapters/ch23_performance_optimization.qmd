@@ -26,7 +26,7 @@ Production vector queries face limitations:
 **Optimization approach**: Multi-stage retrieval that progressively narrows candidates, uses approximate methods for initial filtering, exact methods for final ranking, leverages index structures (HNSW, IVF, product quantization), applies query-specific optimizations (early termination, result reranking, batch processing), and adapts strategies based on query characteristics (k value, filtering constraints, quality requirements).
 
 ```python
-{{< include code_examples/ch23_performance_optimization/class.py >}}
+{{< include /code_examples/ch23_performance_optimization/class.py >}}
 ```
 
 ### Query Planning and Optimization
@@ -111,7 +111,7 @@ Vector indexes face diverse workload characteristics:
 **Tuning approach**: Measure actual workload characteristics (query distribution, access patterns, quality requirements), benchmark index variants on representative data, optimize index parameters through systematic search or learned tuning, validate on production-like traffic, and continuously monitor and adapt as workload evolves.
 
 ```python
-{{< include code_examples/ch23_performance_optimization/class_1.py >}}
+{{< include /code_examples/ch23_performance_optimization/class_1.py >}}
 ```
 
 ### Index-Specific Tuning Guidelines
@@ -208,7 +208,7 @@ Production vector workloads exhibit skewed access patterns:
 **Caching approach**: Multi-tier cache hierarchy (L1: CPU cache, L2: RAM, L3: SSD, L4: network), adaptive replacement policies (LRU, LFU, ARC), query-aware prefetching (predict likely next queries), result caching (cache full query results, not just embeddings), and intelligent invalidation (lazy vs eager, version-based, TTL).
 
 ```python
-{{< include code_examples/ch23_performance_optimization/class_2.py >}}
+{{< include /code_examples/ch23_performance_optimization/class_2.py >}}
 ```
 
 ### Caching Best Practices
@@ -263,7 +263,7 @@ Storage costs dominate at scale:
 **Compression approach**: Product quantization (4-32× compression, <5% accuracy loss), dimensionality reduction via PCA/random projection (2-4× compression), scalar quantization (2-4× compression, minimal accuracy loss), learned compression (neural network encoders), and sparse embeddings (exploit natural sparsity in high-dimensional spaces).
 
 ```python
-{{< include code_examples/ch23_performance_optimization/class_3.py >}}
+{{< include /code_examples/ch23_performance_optimization/class_3.py >}}
 ```
 
 ### Compression Method Selection
@@ -324,7 +324,7 @@ Global embedding systems face network constraints:
 **Optimization approach**: Geo-distributed query routing (send queries to nearest datacenter with relevant data), intelligent sharding (co-locate frequently accessed embeddings), selective replication (hot data everywhere, cold data sharded), query aggregation (combine multiple queries to amortize latency), and compression (reduce bandwidth for cross-region transfers).
 
 ```python
-{{< include code_examples/ch23_performance_optimization/class_4.py >}}
+{{< include /code_examples/ch23_performance_optimization/class_4.py >}}
 ```
 
 ### Network Optimization Best Practices
