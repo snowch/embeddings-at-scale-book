@@ -1,3 +1,9 @@
+from collections import defaultdict
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from enum import Enum
+from typing import Dict, List, Optional, Set
+
 import numpy as np
 
 # Code from Chapter 30
@@ -28,12 +34,6 @@ Success metrics:
 - Business impact: 20%+ improvement in key metrics
 - Knowledge accumulation: Learnings captured even from failed experiments
 """
-
-from collections import defaultdict
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from enum import Enum
-from typing import Dict, List, Optional, Set
 
 
 class InnovationStage(Enum):

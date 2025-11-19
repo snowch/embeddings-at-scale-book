@@ -333,8 +333,6 @@ def design_partnership_strategy(
 ) -> Dict[str, any]:
     """Design comprehensive partnership strategy"""
 
-    PartnershipPortfolio()
-
     # Vendor partnership allocation (50-60% of budget)
     vendor_budget = annual_partnership_budget * 0.55
     key_vendors = {

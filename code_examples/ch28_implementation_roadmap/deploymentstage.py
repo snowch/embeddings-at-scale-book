@@ -1,4 +1,7 @@
-from typing import Tuple
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from enum import Enum
+from typing import Dict, List, Optional, Tuple
 
 # Code from Chapter 28
 # Book: Embeddings at Scale
@@ -29,11 +32,6 @@ Key components:
 - Monitoring stack (Prometheus, Grafana)
 - CI/CD pipeline (GitHub Actions, ArgoCD)
 """
-
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from enum import Enum
-from typing import Dict, List, Optional
 
 
 class DeploymentStage(Enum):
