@@ -71,13 +71,41 @@ local function snippet(cb, fh)
   cb.attributes.endLine = tostring(stop)
 end
 
+--- Resolve file path relative to source file or project root
+local function resolve_path(include_path)
+  -- First try the path as-is (relative to project root or absolute)
+  local fh = io.open(include_path)
+  if fh then
+    fh:close()
+    return include_path
+  end
+
+  -- If that fails and we have PANDOC_STATE with input files, try relative to source
+  if PANDOC_STATE and PANDOC_STATE.input_files and #PANDOC_STATE.input_files > 0 then
+    local source_file = PANDOC_STATE.input_files[1]
+    local source_dir = source_file:match("(.*/)")
+    if source_dir then
+      local resolved = source_dir .. include_path
+      fh = io.open(resolved)
+      if fh then
+        fh:close()
+        return resolved
+      end
+    end
+  end
+
+  -- Return original path if nothing worked
+  return include_path
+end
+
 --- Filter function for code blocks
 local function transclude(cb)
   if cb.attributes.include then
     local content = ""
-    local fh = io.open(cb.attributes.include)
+    local resolved_path = resolve_path(cb.attributes.include)
+    local fh = io.open(resolved_path)
     if not fh then
-      error("Cannot open file " .. cb.attributes.include .. " | Build failed due to missing include file")
+      error("Cannot open file " .. cb.attributes.include .. " (tried: " .. resolved_path .. ") | Build failed due to missing include file")
     else
       local number = 1
       local start = 1
