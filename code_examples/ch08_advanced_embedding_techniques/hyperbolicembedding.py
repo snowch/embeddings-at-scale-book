@@ -180,7 +180,7 @@ class HierarchicalEmbeddingTrainer:
             negative_samples: Random non-children
         """
         # Sample random parent-child pairs
-        pairs = [(c, p) for c, p in self.taxonomy.items()]
+        pairs = list(self.taxonomy.items())
         sampled_pairs = np.random.choice(len(pairs), size=batch_size, replace=True)
 
         parent_indices = []

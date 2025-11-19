@@ -268,9 +268,9 @@ class StreamingEmbeddingPipeline:
         try:
             # Extract text features
             text_parts = []
-            for field in ['title', 'description', 'content']:
-                if field in event.data:
-                    text_parts.append(str(event.data[field]))
+            for field_name in ['title', 'description', 'content']:
+                if field_name in event.data:
+                    text_parts.append(str(event.data[field_name]))
 
             if not text_parts:
                 return None
