@@ -56,7 +56,7 @@ class AlertSeverity(Enum):
 class Metric:
     """
     Performance metric definition
-    
+
     Attributes:
         name: Metric identifier
         category: Category (technical, operational, user, business)
@@ -85,7 +85,7 @@ class Metric:
 class MetricValue:
     """
     Metric measurement
-    
+
     Attributes:
         metric_name: Which metric this measures
         value: Measured value
@@ -103,7 +103,7 @@ class MetricValue:
 class Dashboard:
     """
     Metrics dashboard for specific audience
-    
+
     Attributes:
         name: Dashboard name
         audience: Target audience (engineers, PMs, execs)
@@ -120,7 +120,7 @@ class Dashboard:
 class MetricsFramework:
     """
     Comprehensive metrics framework for embedding systems
-    
+
     Manages metric definitions, measurements, alerting,
     and role-specific dashboards
     """
@@ -160,12 +160,12 @@ class MetricsFramework:
     ) -> Dict[str, any]:
         """
         Get summary statistics for metric over time period
-        
+
         Args:
             metric_name: Metric to summarize
             start_time: Period start
             end_time: Period end
-            
+
         Returns:
             Summary statistics
         """
@@ -207,7 +207,7 @@ class MetricsFramework:
     def identify_issues(self) -> List[Dict[str, any]]:
         """
         Identify metrics not meeting targets
-        
+
         Returns:
             List of issues requiring attention
         """
@@ -279,7 +279,7 @@ class MetricsFramework:
     def create_metric_relationships(self) -> Dict[str, List[str]]:
         """
         Map relationships between metrics (leading → lagging)
-        
+
         Returns:
             Metric dependency graph
         """

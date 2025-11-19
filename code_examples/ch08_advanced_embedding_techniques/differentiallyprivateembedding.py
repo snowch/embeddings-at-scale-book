@@ -49,7 +49,7 @@ class DifferentiallyPrivateEmbedding:
             2 * np.log(1.25 / self.delta)
         ) / self.epsilon
 
-        for iteration in range(num_iterations):
+        for _iteration in range(num_iterations):
             # Sample batch
             indices = torch.randint(0, len(data), (batch_size,))
             batch_data = data[indices]

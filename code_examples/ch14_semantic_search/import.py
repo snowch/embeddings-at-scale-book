@@ -57,7 +57,6 @@ class CodeSnippet:
     embedding: Optional[np.ndarray] = None
 
 # Placeholder class
-import torch.nn as nn
 
 
 class TextEncoder(nn.Module):

@@ -57,7 +57,7 @@ class MetricValue:
 class PerformanceSnapshot:
     """
     Point-in-time performance snapshot
-    
+
     Captures all key metrics for dashboard display
     """
     timestamp: datetime
@@ -100,7 +100,7 @@ class PerformanceSnapshot:
 class PerformanceMonitor:
     """
     Real-time performance monitoring system
-    
+
     Collects, aggregates, and exposes metrics for dashboards and alerting.
     """
 
@@ -111,7 +111,7 @@ class PerformanceMonitor:
     ):
         """
         Initialize performance monitor
-        
+
         Args:
             window_size_seconds: Time window for aggregations
             retention_hours: How long to retain detailed metrics
@@ -469,7 +469,7 @@ class PerformanceMonitor:
             <h1>Embedding System Performance Dashboard</h1>
             <p>Last updated: {current['timestamp']}</p>
         </div>
-        
+
         <div class="metrics-grid">
             <div class="metric-card">
                 <div class="metric-label">Queries Per Second</div>
@@ -477,35 +477,35 @@ class PerformanceMonitor:
                     {current['qps']:.1f} <span class="metric-unit">QPS</span>
                 </div>
             </div>
-            
+
             <div class="metric-card">
                 <div class="metric-label">P99 Latency</div>
                 <div class="metric-value {'good' if current['latency']['p99'] < 50 else 'warning' if current['latency']['p99'] < 100 else 'bad'}">
                     {current['latency']['p99']:.1f} <span class="metric-unit">ms</span>
                 </div>
             </div>
-            
+
             <div class="metric-card">
                 <div class="metric-label">Error Rate</div>
                 <div class="metric-value {'good' if current['errors']['error_rate'] < 0.01 else 'warning' if current['errors']['error_rate'] < 0.05 else 'bad'}">
                     {current['errors']['error_rate']*100:.2f} <span class="metric-unit">%</span>
                 </div>
             </div>
-            
+
             <div class="metric-card">
                 <div class="metric-label">Cache Hit Rate</div>
                 <div class="metric-value {'good' if current['cache']['hit_rate'] > 0.7 else 'warning' if current['cache']['hit_rate'] > 0.5 else 'bad'}">
                     {current['cache']['hit_rate']*100:.1f} <span class="metric-unit">%</span>
                 </div>
             </div>
-            
+
             <div class="metric-card">
                 <div class="metric-label">Quality Score</div>
                 <div class="metric-value {'good' if current['quality']['score'] > 80 else 'warning' if current['quality']['score'] > 70 else 'bad'}">
                     {current['quality']['score']:.1f} <span class="metric-unit">/100</span>
                 </div>
             </div>
-            
+
             <div class="metric-card">
                 <div class="metric-label">Hourly Cost</div>
                 <div class="metric-value">
@@ -513,7 +513,7 @@ class PerformanceMonitor:
                 </div>
             </div>
         </div>
-        
+
         <div class="section">
             <div class="section-title">Latency Distribution</div>
             <table>
@@ -552,7 +552,7 @@ class PerformanceMonitor:
                 </tr>
             </table>
         </div>
-        
+
         <div class="section">
             <div class="section-title">Resource Utilization</div>
             <table>
@@ -584,7 +584,7 @@ class PerformanceMonitor:
                 </tr>
             </table>
         </div>
-        
+
         <div class="section">
             <div class="section-title">Summary (Last {hours} hour{'s' if hours != 1 else ''})</div>
             <table>

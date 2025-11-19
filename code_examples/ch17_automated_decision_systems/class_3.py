@@ -35,7 +35,7 @@ Techniques:
 class EquipmentReading:
     """
     Equipment sensor reading
-    
+
     Attributes:
         equipment_id: Equipment identifier
         timestamp: When reading was taken
@@ -60,7 +60,7 @@ class EquipmentReading:
 class EquipmentEncoder(nn.Module):
     """
     Encode equipment state from multi-modal data
-    
+
     Architecture:
     - Sensor encoder: Time-series sensor data
     - Image encoder: Visual inspection images
@@ -96,10 +96,10 @@ class EquipmentEncoder(nn.Module):
     def forward(self, sensor_data: torch.Tensor) -> torch.Tensor:
         """
         Encode equipment state
-        
+
         Args:
             sensor_data: Sensor time series (batch_size, sequence_length, num_sensors)
-        
+
         Returns:
             Equipment embeddings (batch_size, embedding_dim)
         """
@@ -118,7 +118,7 @@ class EquipmentEncoder(nn.Module):
 class FailurePredictionModel(nn.Module):
     """
     Predict equipment failure from embedding
-    
+
     Outputs:
     - Failure probability: P(failure in next N hours)
     - Time to failure: Expected hours until failure
@@ -149,10 +149,10 @@ class FailurePredictionModel(nn.Module):
     def forward(self, embeddings: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Predict failure
-        
+
         Args:
             embeddings: Equipment embeddings (batch_size, embedding_dim)
-        
+
         Returns:
             (failure_probabilities, time_to_failure)
         """
@@ -165,17 +165,17 @@ class FailurePredictionModel(nn.Module):
 def predictive_maintenance_example():
     """
     Predictive maintenance for industrial equipment
-    
+
     Scenario:
     - Equipment: CNC machine
     - Sensors: Temperature, vibration, current, pressure
     - Goal: Predict bearing failure before it occurs
-    
+
     Traditional:
     - Reactive: Fix after failure (24 hours downtime)
     - Preventive: Replace bearing every 1000 hours (often unnecessary)
     - Threshold: Alert if vibration > 10 mm/s (misses slow degradation)
-    
+
     Embedding approach:
     - Learn normal operation embedding
     - Detect drift toward failure patterns

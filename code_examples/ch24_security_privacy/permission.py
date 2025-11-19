@@ -61,7 +61,7 @@ class ResourceType(Enum):
 class User:
     """
     User identity and attributes
-    
+
     Attributes:
         user_id: Unique identifier
         username: Human-readable name
@@ -85,7 +85,7 @@ class User:
 class Role:
     """
     Role-based access control role
-    
+
     Attributes:
         role_id: Role identifier
         name: Role name
@@ -103,7 +103,7 @@ class Role:
 class AccessPolicy:
     """
     Attribute-based access control policy
-    
+
     Attributes:
         policy_id: Policy identifier
         name: Policy name
@@ -125,7 +125,7 @@ class AccessPolicy:
 class AuditLogEntry:
     """
     Audit log entry for access tracking
-    
+
     Attributes:
         log_id: Unique log entry ID
         timestamp: When action occurred
@@ -155,7 +155,7 @@ class AuditLogEntry:
 class QueryQuota:
     """
     Query quota for rate limiting
-    
+
     Attributes:
         user_id: User identifier
         queries_per_hour: Hourly query limit
@@ -178,7 +178,7 @@ class QueryQuota:
 class AccessControlEngine:
     """
     Access control engine for embedding systems
-    
+
     Implements:
     - Authentication: Verify user identity
     - Authorization: Check permissions
@@ -218,7 +218,7 @@ class AccessControlEngine:
         self.roles["admin"] = Role(
             role_id="admin",
             name="Administrator",
-            permissions=[p for p in Permission],
+            permissions=list(Permission),
             resource_patterns=["*"],
             constraints={}
         )
@@ -266,14 +266,14 @@ class AccessControlEngine:
     ) -> User:
         """
         Create new user
-        
+
         Args:
             username: Username
             email: Email address
             roles: List of role IDs
             tenant_id: Tenant identifier
             attributes: User attributes
-            
+
         Returns:
             Created user
         """
@@ -313,17 +313,17 @@ class AccessControlEngine:
     ) -> Optional[User]:
         """
         Authenticate user via API key
-        
+
         In production:
         - Use OAuth2 tokens (JWT)
         - Verify token signature
         - Check expiration
         - Support multiple auth methods
-        
+
         Args:
             api_key: API key or token
             ip_address: Client IP address
-            
+
         Returns:
             User if authenticated, None otherwise
         """
@@ -365,20 +365,20 @@ class AccessControlEngine:
     ) -> bool:
         """
         Check if user is authorized for action on resource
-        
+
         Steps:
         1. Check user roles
         2. Check role permissions
         3. Check resource patterns
         4. Evaluate ABAC policies
         5. Apply deny policies
-        
+
         Args:
             user: User requesting access
             action: Requested permission
             resource_type: Type of resource
             resource_id: Specific resource
-            
+
         Returns:
             True if authorized, False otherwise
         """
@@ -428,16 +428,16 @@ class AccessControlEngine:
     ) -> bool:
         """
         Check if resource matches any pattern
-        
+
         Supports wildcards:
         - "*" matches anything
         - "embedding:*" matches all embeddings
         - "collection:customer_*" matches customer collections
-        
+
         Args:
             resource: Resource to check
             patterns: Allowed patterns
-            
+
         Returns:
             True if matches
         """
@@ -464,13 +464,13 @@ class AccessControlEngine:
     ) -> bool:
         """
         Evaluate ABAC policies
-        
+
         Args:
             user: User
             action: Action
             resource_type: Resource type
             resource_id: Resource ID
-            
+
         Returns:
             True if any allow policy matches
         """
@@ -508,16 +508,16 @@ class AccessControlEngine:
     ) -> bool:
         """
         Evaluate policy conditions
-        
+
         Examples:
         - "time": {"after": "09:00", "before": "17:00"}
         - "attribute": {"region": "US"}
         - "tenant": {"equals": "tenant_123"}
-        
+
         Args:
             user: User
             conditions: Condition dictionary
-            
+
         Returns:
             True if all conditions met
         """
@@ -551,11 +551,11 @@ class AccessControlEngine:
     ) -> Tuple[bool, str]:
         """
         Check if user has remaining quota
-        
+
         Args:
             user: User
             result_size: Number of results requested
-            
+
         Returns:
             (allowed, reason) tuple
         """
@@ -600,16 +600,16 @@ class AccessControlEngine:
     ) -> Dict[str, Any]:
         """
         Apply row-level security filters based on user attributes
-        
+
         Injects additional filters based on:
         - Tenant ID (multi-tenancy isolation)
         - User attributes (region, department, etc.)
         - Data classification level
-        
+
         Args:
             user: User
             query_filter: Original query filter
-            
+
         Returns:
             Modified filter with security constraints
         """
@@ -645,7 +645,7 @@ class AccessControlEngine:
     ):
         """
         Log access attempt to audit trail
-        
+
         Args:
             user_id: User ID
             action: Action performed
@@ -687,14 +687,14 @@ class AccessControlEngine:
     ) -> List[AuditLogEntry]:
         """
         Query audit log
-        
+
         Args:
             user_id: Filter by user
             action: Filter by action
             start_time: Start time
             end_time: End time
             result: Filter by result
-            
+
         Returns:
             Matching audit entries
         """

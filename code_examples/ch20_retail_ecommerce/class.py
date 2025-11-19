@@ -40,7 +40,7 @@ import torch.nn.functional as F
 class Product:
     """
     Product representation for e-commerce
-    
+
     Attributes:
         product_id: Unique SKU identifier
         title: Product name/title
@@ -76,7 +76,7 @@ class Product:
 class SearchQuery:
     """
     User search query
-    
+
     Attributes:
         query_id: Unique query identifier
         user_id: User making query
@@ -100,7 +100,7 @@ class SearchQuery:
 class SearchResult:
     """
     Search result with relevance score
-    
+
     Attributes:
         product: Retrieved product
         relevance_score: Embedding similarity score
@@ -117,13 +117,13 @@ class SearchResult:
 class ImageEncoder(nn.Module):
     """
     Encode product images to embeddings
-    
+
     Architecture:
     - Backbone: ResNet50 or Vision Transformer
     - Pre-training: ImageNet or fashion/product-specific dataset
     - Fine-tuning: Contrastive learning on product images
     - Output: 512-dim embedding per image
-    
+
     Handles multiple images per product (front, side, detail views)
     by averaging embeddings or attention pooling.
     """
@@ -160,14 +160,14 @@ class ImageEncoder(nn.Module):
 class TextEncoder(nn.Module):
     """
     Encode product text to embeddings
-    
+
     Architecture:
     - Backbone: BERT or sentence-transformers
     - Input: Title + description + specifications
     - Pre-training: General domain (Wikipedia) or domain-specific (product reviews)
     - Fine-tuning: Product search queries and clicked products
     - Output: 512-dim embedding
-    
+
     Handles structured attributes by concatenating to text:
     "Gaming Laptop, 15.6 inch, Intel i7, 16GB RAM, NVIDIA RTX 3060"
     """
@@ -215,18 +215,18 @@ class TextEncoder(nn.Module):
 class BehavioralEncoder(nn.Module):
     """
     Encode behavioral signals to embeddings
-    
+
     Behavioral signals:
     - Co-purchase: Products bought together in same order
     - Co-view: Products viewed in same session
     - View-to-purchase: Products viewed before purchase
     - Cart additions: Products added to cart (even if not purchased)
-    
+
     Architecture:
     - Matrix factorization: Products × Behavior matrices
     - Graph neural networks: Product co-occurrence graph
     - Output: 512-dim behavioral embedding
-    
+
     Captures implicit product relationships:
     - Substitutes: Competing products users compare
     - Complements: Products purchased together (camera + lens)
@@ -257,12 +257,12 @@ class BehavioralEncoder(nn.Module):
 class MultiModalProductEncoder(nn.Module):
     """
     Fuse image, text, and behavioral embeddings
-    
+
     Fusion strategies:
     1. Concatenation + MLP: [image, text, behavioral] → MLP → final embedding
     2. Attention: Learn weights for each modality based on query
     3. Cross-modal attention: Images attend to text, text attends to behavior
-    
+
     Training:
     - Contrastive: (query, clicked product) positive pair
     - Hard negatives: Products with high text similarity but different images
@@ -357,14 +357,14 @@ class MultiModalProductEncoder(nn.Module):
 class ProductSearchEngine:
     """
     End-to-end product search with embeddings
-    
+
     Pipeline:
     1. Index: Pre-compute embeddings for all products
     2. Query: Encode user query to embedding
     3. Retrieve: Find nearest neighbor products (ANN)
     4. Rank: Re-rank with personalization, business rules
     5. Explain: Generate explanations for results
-    
+
     Performance:
     - Index: 10M products, 512-dim embeddings = 20GB RAM
     - Query: <50ms p99 latency
@@ -419,12 +419,12 @@ class ProductSearchEngine:
     ) -> List[SearchResult]:
         """
         Search for products matching query
-        
+
         Args:
             query: User search query
             top_k: Number of results to return
             user_embedding: Optional user preference embedding for personalization
-        
+
         Returns:
             List of search results with relevance scores
         """
@@ -536,7 +536,7 @@ class ProductSearchEngine:
 def product_discovery_example():
     """
     Demonstration of multi-modal product search
-    
+
     Scenario: Fashion e-commerce with millions of products
     Goal: Enable semantic search that understands style, not just keywords
     """

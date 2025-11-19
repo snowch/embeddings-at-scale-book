@@ -17,7 +17,7 @@ class EcommerceVectorDBArchitecture:
         """Multi-region, sharded architecture"""
 
         # Per-region deployment
-        vectors_per_region = self.scale['total_products']  # Full catalog in each region
+        self.scale['total_products']  # Full catalog in each region
 
         # Sharding within region
         shards_per_region = 200  # 250M vectors per shard

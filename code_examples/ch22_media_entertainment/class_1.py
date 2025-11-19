@@ -42,7 +42,7 @@ import torch.nn.functional as F
 class ContentSegment:
     """
     Temporal segment of media content for analysis
-    
+
     Attributes:
         segment_id: Unique segment identifier
         content_id: Parent content
@@ -78,7 +78,7 @@ class ContentSegment:
 class TagPrediction:
     """
     Predicted tag with confidence
-    
+
     Attributes:
         tag: Tag name
         confidence: Prediction confidence (0-1)
@@ -96,7 +96,7 @@ class TagPrediction:
 class TagTaxonomy:
     """
     Hierarchical tag taxonomy
-    
+
     Attributes:
         tag: Tag name
         parent: Parent tag (None for root)
@@ -151,10 +151,10 @@ class VideoAnalysisModel(nn.Module):
     def forward(self, video_clips: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Analyze video clips
-        
+
         Args:
             video_clips: [batch, channels, frames, height, width]
-            
+
         Returns:
             concept_logits: [batch, num_concepts]
             embeddings: [batch, embedding_dim]
@@ -218,10 +218,10 @@ class AudioAnalysisModel(nn.Module):
     def forward(self, spectrograms: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Analyze audio spectrograms
-        
+
         Args:
             spectrograms: [batch, 1, time, freq]
-            
+
         Returns:
             event_logits: [batch, num_audio_events]
             embeddings: [batch, embedding_dim]
@@ -293,12 +293,12 @@ class MultiModalTagger(nn.Module):
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Generate content tags from multi-modal input
-        
+
         Args:
             video_clips: [batch, c, frames, h, w]
             audio_spectrograms: [batch, 1, time, freq]
             text_features: [batch, text_dim]
-            
+
         Returns:
             tag_logits: [batch, num_tags]
             embeddings: [batch, embedding_dim]
@@ -350,12 +350,12 @@ class HierarchicalTagPredictor:
     ) -> List[TagPrediction]:
         """
         Predict tags with hierarchy constraints
-        
+
         Args:
             logits: [num_tags] raw model outputs
             threshold: Confidence threshold
             top_k: Maximum tags to return
-            
+
         Returns:
             predictions: List of TagPrediction objects
         """

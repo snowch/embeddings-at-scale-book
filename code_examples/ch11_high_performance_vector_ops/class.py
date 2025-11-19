@@ -432,7 +432,7 @@ def parallel_processing_example():
     print("\n=== Sequential Processing ===")
     seq_start = time.time()
     for query in queries:
-        result = index.search(query.vector, k=query.k)
+        index.search(query.vector, k=query.k)
     seq_elapsed = (time.time() - seq_start) * 1000
 
     print(f"Total time: {seq_elapsed:.2f} ms")

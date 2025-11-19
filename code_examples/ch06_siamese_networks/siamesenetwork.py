@@ -62,7 +62,9 @@ class EmbeddingNet(nn.Module):
     For multimodal: Use CLIP-style architectures
     """
 
-    def __init__(self, input_dim, embedding_dim=512, hidden_dims=[1024, 512]):
+    def __init__(self, input_dim, embedding_dim=512, hidden_dims=None):
+        if hidden_dims is None:
+            hidden_dims = [1024, 512]
         super().__init__()
 
         layers = []

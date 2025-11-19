@@ -37,7 +37,7 @@ Production considerations:
 class Customer:
     """
     Customer profile
-    
+
     Attributes:
         customer_id: Unique identifier
         demographics: Age, location, income, etc.
@@ -58,14 +58,14 @@ class Customer:
 class CustomerEncoder(nn.Module):
     """
     Encode customers from behavioral data
-    
+
     Architecture:
     - Transaction encoder: LSTM over transaction history
     - Product encoder: Embeddings of held products
     - Interaction encoder: Service interaction patterns
     - Demographic encoder: Basic demographic features
     - Fusion: Combine all modalities
-    
+
     Training:
     - Churn prediction: Embedding predicts churn probability
     - Product adoption: Predict next product customer adopts
@@ -116,12 +116,12 @@ class CustomerEncoder(nn.Module):
     ) -> torch.Tensor:
         """
         Encode customers
-        
+
         Args:
             transaction_history: Transaction history (batch_size, seq_len, 20)
             product_ids: Held product IDs (batch_size, max_products)
             interaction_features: Interaction features (batch_size, 30)
-        
+
         Returns:
             Customer embeddings (batch_size, embedding_dim)
         """
@@ -149,7 +149,7 @@ class CustomerEncoder(nn.Module):
 def churn_prevention_example():
     """
     Embedding-based churn prediction and prevention
-    
+
     Demonstrates:
     1. Learning customer embeddings from behavior
     2. Identifying at-risk customers

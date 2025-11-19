@@ -38,7 +38,7 @@ class ContextualEmbedding(nn.Module):
 class HumanAICollaboration:
     """
     System for human-AI collaboration through shared embeddings
-    
+
     Enables:
     - Natural language interaction
     - Intent understanding
@@ -59,7 +59,7 @@ class HumanAICollaboration:
     ) -> Dict[str, Any]:
         """
         Process user input and generate AI response
-        
+
         Steps:
         1. Understand user intent
         2. Retrieve relevant knowledge
@@ -109,11 +109,6 @@ class HumanAICollaboration:
     def _infer_intent(self, embedding: np.ndarray, text: str) -> Dict[str, Any]:
         """Infer user intent from input"""
         # Intent categories
-        intents = {
-            'question': 0.7,
-            'request': 0.2,
-            'feedback': 0.1
-        }
 
         return {
             'primary_intent': 'question',

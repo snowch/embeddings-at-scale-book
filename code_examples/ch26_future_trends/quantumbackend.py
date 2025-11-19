@@ -57,7 +57,7 @@ class QuantumBackend(Enum):
 class QuantumConfig:
     """
     Configuration for quantum-accelerated similarity search
-    
+
     Attributes:
         backend: Quantum computing backend
         num_qubits: Number of qubits available
@@ -95,7 +95,7 @@ class QuantumSearchResult:
 class QuantumEmbeddingSearch:
     """
     Hybrid quantum-classical embedding similarity search
-    
+
     Combines classical preprocessing with quantum search algorithms
     for embeddings that exceed classical search efficiency
     """
@@ -120,7 +120,7 @@ class QuantumEmbeddingSearch:
     def build_index(self, embeddings: np.ndarray):
         """
         Build quantum-compatible index from embeddings
-        
+
         Classical preprocessing:
         1. Dimensionality reduction (if needed for qubit constraints)
         2. Normalization for quantum encoding
@@ -149,7 +149,7 @@ class QuantumEmbeddingSearch:
     def _prepare_quantum_encodings(self) -> Dict:
         """
         Prepare quantum state encodings for embeddings
-        
+
         Amplitude encoding: |ψ⟩ = Σᵢ xᵢ|i⟩ where xᵢ are normalized vector components
         Requires O(d) gates to prepare, where d is dimension
         """
@@ -180,7 +180,7 @@ class QuantumEmbeddingSearch:
     ) -> QuantumSearchResult:
         """
         Perform similarity search using hybrid quantum-classical algorithm
-        
+
         Decision logic:
         1. If N < threshold or quantum unavailable: classical search
         2. If N > threshold and quantum available: quantum search
@@ -238,14 +238,14 @@ class QuantumEmbeddingSearch:
     ) -> QuantumSearchResult:
         """
         Quantum-accelerated similarity search
-        
+
         Algorithm (Grover-based):
         1. Prepare quantum superposition of all embeddings
         2. Define oracle: marks states with similarity > threshold
         3. Apply Grover iterations: amplify marked states
         4. Measure: collapse to high-similarity candidates
         5. Classical refinement: verify and rank results
-        
+
         Theoretical complexity: O(√N) vs O(N) classical
         """
         import time
@@ -304,7 +304,7 @@ class QuantumEmbeddingSearch:
     ) -> float:
         """
         Estimate similarity threshold for top-k results
-        
+
         Sample embeddings to estimate kth-highest similarity
         """
         sample_size = min(1000, self.num_embeddings)
@@ -329,14 +329,14 @@ class QuantumEmbeddingSearch:
     ) -> np.ndarray:
         """
         Simulate Grover's algorithm for similarity search
-        
+
         Real implementation would:
         1. Encode embeddings as quantum states
         2. Prepare superposition: (1/√N) Σᵢ |i⟩
         3. Define oracle: O|x⟩ = -|x⟩ if sim(x, query) > threshold, else |x⟩
         4. Apply Grover operator: (2|s⟩⟨s| - I)O for ~√N iterations
         5. Measure: get indices with high probability
-        
+
         This simulation approximates the probability distribution
         """
         # Compute all similarities (in practice, done in quantum superposition)
@@ -383,7 +383,7 @@ class QuantumEmbeddingSearch:
     ) -> Dict:
         """
         Classical refinement of quantum search results
-        
+
         Quantum search provides candidates with high probability,
         but classical verification ensures correctness
         """

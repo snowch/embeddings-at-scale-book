@@ -110,7 +110,7 @@ class MultiSourceDataFusion:
         if source_id not in self.sources:
             raise ValueError(f"Unknown source: {source_id}")
 
-        source = self.sources[source_id]
+        self.sources[source_id]
 
         # In production: Actually extract from source
         # For now: Return mock data
@@ -157,7 +157,7 @@ class MultiSourceDataFusion:
         for field, field_type in self.canonical_schema.items():
             if field not in aligned.columns:
                 # Default values by type
-                if field_type == str:
+                if field_type is str:
                     aligned[field] = ''
                 elif field_type in (int, float):
                     aligned[field] = 0
@@ -168,9 +168,9 @@ class MultiSourceDataFusion:
         for field, field_type in self.canonical_schema.items():
             if field in aligned.columns:
                 try:
-                    if field_type == str:
+                    if field_type is str:
                         aligned[field] = aligned[field].astype(str)
-                    elif field_type == float:
+                    elif field_type is float:
                         aligned[field] = pd.to_numeric(aligned[field], errors='coerce')
                 except Exception as e:
                     print(f"⚠️  Type conversion failed for {field}: {e}")
@@ -225,7 +225,7 @@ class MultiSourceDataFusion:
         resolved = pd.DataFrame()
         resolved[self.primary_key] = merged[self.primary_key]
 
-        for field in self.canonical_schema.keys():
+        for field in self.canonical_schema:
             if field == self.primary_key:
                 continue
 
@@ -270,7 +270,7 @@ class MultiSourceDataFusion:
 
         resolved_values = []
 
-        for idx, row in merged.iterrows():
+        for _idx, row in merged.iterrows():
             # Get values and their priorities
             candidates = []
             for col in field_columns:

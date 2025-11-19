@@ -245,7 +245,7 @@ class EmbeddingETLPipeline:
         # Structured features: Extract numerical/categorical
         structured_features = {}
         for key, value in record.data.items():
-            if isinstance(value, (int, float)) or isinstance(value, bool):
+            if isinstance(value, (int, float, bool)):
                 structured_features[key] = float(value)
 
         # Context features: Metadata that provides additional signal
@@ -324,7 +324,7 @@ class EmbeddingETLPipeline:
 
         # Structured features validation
         if features.structured_features:
-            for key, value in features.structured_features.items():
+            for _key, value in features.structured_features.items():
                 # Must be valid number
                 if not np.isfinite(value):
                     return False

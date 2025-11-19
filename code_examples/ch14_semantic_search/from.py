@@ -59,9 +59,12 @@ class MultiModalQuery:
             if active_modalities > 0:
                 weight = 1.0 / active_modalities
                 self.modality_weights = {}
-                if self.text: self.modality_weights['text'] = weight
-                if self.image: self.modality_weights['image'] = weight
-                if self.audio: self.modality_weights['audio'] = weight
+                if self.text:
+                    self.modality_weights['text'] = weight
+                if self.image:
+                    self.modality_weights['image'] = weight
+                if self.audio:
+                    self.modality_weights['audio'] = weight
 
 @dataclass
 class MultiModalDocument:
@@ -397,7 +400,7 @@ class MultiModalSearchEngine:
         """
         # Convert to mel spectrograms (simplified)
         mel_specs = []
-        for audio in audio_samples:
+        for _audio in audio_samples:
             # In production: Use librosa.feature.melspectrogram
             # For demo: Create dummy mel spectrogram
             mel_spec = np.random.randn(1, 128, 100).astype(np.float32)

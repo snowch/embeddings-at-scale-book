@@ -25,8 +25,10 @@ class EfficientMultiModalEncoding:
         # Batch processing for efficiency
         self.batch_size = 128
 
-    def encode_batch(self, items, modalities=['text', 'image']):
+    def encode_batch(self, items, modalities=None):
         """Encode multiple items in batch"""
+        if modalities is None:
+            modalities = ['text', 'image']
         results = []
 
         for modality in modalities:

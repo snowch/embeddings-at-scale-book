@@ -59,8 +59,6 @@ class ReplicationStrategies:
                 'conflict_resolution': 'Last-write-wins or custom logic'
             },
 
-            'use_case': 'Multi-region deployments with writes in each region',
-
             'write_path': [
                 '1. Client writes to nearest primary',
                 '2. Primary updates local index',

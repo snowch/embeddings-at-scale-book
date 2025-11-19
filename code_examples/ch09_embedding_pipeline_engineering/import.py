@@ -419,7 +419,7 @@ def production_monitoring_example():
     print("=== Day 1: Initial Deployment ===")
     model_id = "product-embeddings-v1.0.0"
     metrics_day1 = monitor.evaluate_current_quality(model_id)
-    alerts_day1 = monitor.detect_drift(metrics_day1)
+    monitor.detect_drift(metrics_day1)
 
     # Day 30: Quality check
     print("\n=== Day 30: Regular Quality Check ===")

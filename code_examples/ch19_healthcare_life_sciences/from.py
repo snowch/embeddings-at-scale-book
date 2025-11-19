@@ -39,7 +39,7 @@ import torch.nn.functional as F
 class Molecule:
     """
     Chemical compound representation
-    
+
     Attributes:
         molecule_id: Unique identifier
         smiles: SMILES string representation
@@ -73,7 +73,7 @@ class Molecule:
 class Protein:
     """
     Protein target representation
-    
+
     Attributes:
         protein_id: UniProt or PDB identifier
         name: Protein name
@@ -101,7 +101,7 @@ class Protein:
 class DrugCandidate:
     """
     Predicted drug candidate
-    
+
     Attributes:
         molecule: Candidate molecule
         target: Target protein
@@ -126,13 +126,13 @@ class DrugCandidate:
 class MolecularEncoder(nn.Module):
     """
     Encode molecules to embeddings
-    
+
     Architecture:
     - Graph neural network: Message passing over molecular graph
     - Atom features: Element, charge, hybridization, aromaticity
     - Bond features: Bond type, conjugation, ring membership
     - Global pooling: Aggregate atom embeddings to molecule embedding
-    
+
     Training:
     - Contrastive: Molecules with similar activity close
     - Multi-task: Predict multiple properties (binding, toxicity, solubility)
@@ -203,12 +203,12 @@ class MolecularEncoder(nn.Module):
 class ProteinEncoder(nn.Module):
     """
     Encode proteins to embeddings
-    
+
     Architecture:
     - Sequence encoder: Transformer over amino acid sequence
     - Structure encoder: 3D graph neural network (if structure available)
     - Binding site attention: Focus on active site residues
-    
+
     Training:
     - Contrastive: Proteins with similar function close
     - Ligand binding prediction: Embedding predicts known ligands

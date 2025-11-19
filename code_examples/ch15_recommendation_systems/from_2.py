@@ -244,7 +244,7 @@ class FairnessMonitor:
         n = len(exposures)
 
         # Compute Gini
-        cumsum = np.cumsum(exposures)
+        np.cumsum(exposures)
         gini = (2 * sum((i + 1) * exp for i, exp in enumerate(exposures)) /
                 (n * sum(exposures))) - (n + 1) / n
 

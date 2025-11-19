@@ -42,7 +42,7 @@ import torch.nn.functional as F
 class MediaContent:
     """
     Media content representation for recommendation
-    
+
     Attributes:
         content_id: Unique content identifier
         title: Content title
@@ -90,7 +90,7 @@ class MediaContent:
 class ViewingSession:
     """
     User viewing session
-    
+
     Attributes:
         session_id: Unique session identifier
         user_id: User identifier
@@ -124,7 +124,7 @@ class ViewingSession:
 class UserProfile:
     """
     User viewing profile
-    
+
     Attributes:
         user_id: Unique user identifier
         viewing_history: List of content viewed
@@ -208,12 +208,12 @@ class MultiModalContentEncoder(nn.Module):
     ) -> torch.Tensor:
         """
         Encode multi-modal content
-        
+
         Args:
             video_features: [batch_size, video_dim]
             audio_features: [batch_size, audio_dim]
             text_features: [batch_size, text_dim]
-            
+
         Returns:
             content_embedding: [batch_size, embedding_dim]
         """
@@ -285,12 +285,12 @@ class SequentialViewerEncoder(nn.Module):
     ) -> torch.Tensor:
         """
         Encode viewing history sequence
-        
+
         Args:
             content_embeddings: [batch_size, seq_len, content_embedding_dim]
             engagement_scores: [batch_size, seq_len, 1] - watch completion, ratings
             mask: [batch_size, seq_len] - attention mask
-            
+
         Returns:
             user_embedding: [batch_size, embedding_dim]
         """
@@ -350,7 +350,7 @@ class TwoTowerRecommender(nn.Module):
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Forward pass for training
-        
+
         Returns:
             content_embeddings: [batch_size, embedding_dim]
             user_embeddings: [batch_size, embedding_dim]
@@ -379,12 +379,12 @@ class TwoTowerRecommender(nn.Module):
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Generate recommendations
-        
+
         Args:
             user_embedding: [embedding_dim]
             candidate_embeddings: [num_candidates, embedding_dim]
             top_k: Number of recommendations
-            
+
         Returns:
             top_indices: [top_k] indices into candidates
             top_scores: [top_k] similarity scores
@@ -406,14 +406,14 @@ def contrastive_loss(
 ) -> torch.Tensor:
     """
     InfoNCE contrastive loss for two-tower model
-    
+
     Positive pairs: (user_i, content_i) - actual viewing
     Negative pairs: (user_i, content_j) - other content in batch
-    
+
     Args:
         similarity_matrix: [batch_size, batch_size] similarity scores
         temperature: Temperature for scaling
-        
+
     Returns:
         loss: Scalar contrastive loss
     """

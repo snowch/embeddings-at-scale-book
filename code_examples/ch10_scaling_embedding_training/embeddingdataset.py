@@ -19,8 +19,8 @@ class DistributedContrastiveEmbedding(nn.Module):
         self.embedding = nn.Embedding(vocab_size, embedding_dim)
 
     def forward(self, anchor_ids, positive_ids):
-        anchor_emb = self.embedding(anchor_ids)
-        positive_emb = self.embedding(positive_ids)
+        self.embedding(anchor_ids)
+        self.embedding(positive_ids)
         # Return dummy loss
         return torch.tensor(0.5, requires_grad=True)
 

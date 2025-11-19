@@ -35,7 +35,7 @@ Production considerations:
 class Borrower:
     """
     Loan applicant or existing borrower
-    
+
     Attributes:
         borrower_id: Unique identifier
         credit_score: Traditional credit score (if available)
@@ -75,7 +75,7 @@ class Borrower:
 class CreditDecision:
     """
     Credit decision output
-    
+
     Attributes:
         borrower_id: Applicant identifier
         decision: Approve, reject, or manual review
@@ -98,14 +98,14 @@ class CreditDecision:
 class BorrowerEncoder(nn.Module):
     """
     Encode borrowers to embeddings
-    
+
     Architecture:
     - Credit history encoder: Payment patterns, utilization, age of accounts
     - Transaction encoder: LSTM over bank transactions
     - Alternative data encoder: Rent, utilities, employment stability
     - Network encoder: Graph neural network over relationships
     - Fusion: Attention-based combination
-    
+
     Training:
     - Default prediction: Embedding predicts default probability
     - Contrastive: Good borrowers close, bad borrowers far
@@ -161,12 +161,12 @@ class BorrowerEncoder(nn.Module):
     ) -> torch.Tensor:
         """
         Encode borrowers
-        
+
         Args:
             credit_features: Credit history (batch_size, num_credit_features)
             transaction_history: Transactions (batch_size, seq_len, 10)
             alternative_features: Alternative data (batch_size, num_alternative_features)
-        
+
         Returns:
             Borrower embeddings (batch_size, embedding_dim)
         """
@@ -192,12 +192,12 @@ class BorrowerEncoder(nn.Module):
 class CreditRiskScorer(nn.Module):
     """
     Score credit risk from borrower embeddings
-    
+
     Outputs:
     - Default probability
     - Expected loss (probability × loss given default)
     - Confidence score
-    
+
     Calibrated to produce well-calibrated probabilities
     for regulatory compliance and pricing.
     """
@@ -223,11 +223,11 @@ class CreditRiskScorer(nn.Module):
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Score credit risk
-        
+
         Args:
             borrower_emb: Borrower embeddings (batch_size, embedding_dim)
             loan_features: Loan characteristics (batch_size, 10)
-        
+
         Returns:
             Tuple of (default_prob, expected_loss, confidence)
         """
@@ -248,7 +248,7 @@ class CreditRiskScorer(nn.Module):
 def credit_risk_example():
     """
     Credit risk assessment pipeline
-    
+
     Demonstrates:
     1. Traditional credit scoring limitations
     2. Alternative data integration

@@ -34,7 +34,7 @@ Techniques:
 class RiskEntity:
     """
     Entity to assess risk for
-    
+
     Attributes:
         entity_id: Unique identifier
         entity_type: Type (customer, property, transaction)
@@ -59,7 +59,7 @@ class RiskEntity:
 class RiskEncoder(nn.Module):
     """
     Encode entities for risk assessment
-    
+
     Architecture:
     - Demographic features
     - Financial features
@@ -83,10 +83,10 @@ class RiskEncoder(nn.Module):
     def forward(self, features: torch.Tensor) -> torch.Tensor:
         """
         Encode entities for risk assessment
-        
+
         Args:
             features: Entity features (batch_size, num_features)
-        
+
         Returns:
             Risk embeddings (batch_size, embedding_dim)
         """
@@ -97,9 +97,9 @@ class RiskEncoder(nn.Module):
 class RiskScoringModel(nn.Module):
     """
     Predict risk score from embedding
-    
+
     Output: Probability of adverse event (default, claim, fraud)
-    
+
     Training:
     - Classification: Binary (default / no default)
     - Survival analysis: Time until event
@@ -123,10 +123,10 @@ class RiskScoringModel(nn.Module):
     def forward(self, embeddings: torch.Tensor) -> torch.Tensor:
         """
         Predict risk scores
-        
+
         Args:
             embeddings: Risk embeddings (batch_size, embedding_dim)
-        
+
         Returns:
             Risk scores (batch_size, 1)
         """
@@ -137,11 +137,11 @@ class RiskScoringModel(nn.Module):
 def risk_scoring_example():
     """
     Credit underwriting using embedding-based risk scoring
-    
+
     Traditional: FICO score + debt-to-income ratio
     - FICO > 700 and DTI < 40% → approve
     - Otherwise → reject
-    
+
     Embedding approach:
     - Encode applicant from all available data
     - Predict default probability

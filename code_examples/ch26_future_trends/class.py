@@ -18,7 +18,7 @@ class QuantumAnnealingConfig:
 class QuantumEmbeddingClustering:
     """
     Quantum annealing for embedding clustering
-    
+
     Formulates k-means clustering as QUBO problem:
     minimize: Σᵢⱼ (distance(xᵢ, xⱼ) * same_cluster(i,j))
     subject to: each point assigned to exactly one cluster
@@ -34,7 +34,7 @@ class QuantumEmbeddingClustering:
     ) -> Dict[str, Any]:
         """
         Quantum annealing-based clustering
-        
+
         Steps:
         1. Compute pairwise distances
         2. Formulate as QUBO problem
@@ -61,7 +61,7 @@ class QuantumEmbeddingClustering:
         quantum_solution = self._solve_qubo(qubo)
 
         # Decode to cluster assignments
-        cluster_assignments = self._decode_clustering(quantum_solution, k)
+        self._decode_clustering(quantum_solution, k)
 
         # Refine with classical k-means
         from sklearn.cluster import KMeans
@@ -88,7 +88,7 @@ class QuantumEmbeddingClustering:
     ) -> Dict[Tuple[int, int], float]:
         """
         Convert clustering problem to QUBO formulation
-        
+
         Variables: x_{i,c} = 1 if point i assigned to cluster c
         Objective: minimize Σᵢⱼ Σc distance(i,j) * x_{i,c} * x_{j,c}
         Constraints: Σc x_{i,c} = 1 (each point in exactly one cluster)
@@ -128,7 +128,7 @@ class QuantumEmbeddingClustering:
     ) -> Dict[int, int]:
         """
         Solve QUBO using quantum annealing (simulated)
-        
+
         Real implementation would use D-Wave Ocean SDK:
         from dwave.system import DWaveSampler, EmbeddingComposite
         sampler = EmbeddingComposite(DWaveSampler())
@@ -138,7 +138,7 @@ class QuantumEmbeddingClustering:
         from scipy.optimize import dual_annealing
 
         # Convert QUBO to array form
-        variables = sorted(set([v for pair in qubo.keys() for v in pair]))
+        variables = sorted({v for pair in qubo for v in pair})
         var_to_idx = {v: i for i, v in enumerate(variables)}
         n_vars = len(variables)
 
@@ -172,9 +172,8 @@ class QuantumEmbeddingClustering:
         point_to_cluster = {}
 
         for (i, c), value in solution.items():
-            if value == 1:
-                if i not in point_to_cluster:
-                    point_to_cluster[i] = c
+            if value == 1 and i not in point_to_cluster:
+                point_to_cluster[i] = c
 
         # Convert to array
         n_points = max(point_to_cluster.keys()) + 1

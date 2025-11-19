@@ -119,11 +119,11 @@ class EmbeddingModelRegistry:
         self._validate_model(model, metadata)
 
         # Store model weights
-        model_path = self._store_model_weights(model, metadata.model_id)
+        self._store_model_weights(model, metadata.model_id)
 
         # Store artifacts (preprocessing pipelines, vocabularies, etc.)
         if artifacts:
-            artifact_path = self._store_artifacts(artifacts, metadata.model_id)
+            self._store_artifacts(artifacts, metadata.model_id)
 
         # Register in metadata store
         self.models[metadata.model_id] = metadata
@@ -261,7 +261,7 @@ class EmbeddingModelRegistry:
                     f"metadata dim ({metadata.embedding_dimension})"
                 )
         except Exception as e:
-            raise ValueError(f"Model validation failed: {e}")
+            raise ValueError(f"Model validation failed: {e}") from e
 
     def _store_model_weights(self, model: nn.Module, model_id: str) -> str:
         """Store model weights to backend storage"""
@@ -542,7 +542,7 @@ def embedding_mlops_example():
 
     if success:
         # 7. Run batch inference
-        pipeline = EmbeddingInferencePipeline(
+        EmbeddingInferencePipeline(
             model_registry=registry,
             model_id=model_id,
             batch_size=1024

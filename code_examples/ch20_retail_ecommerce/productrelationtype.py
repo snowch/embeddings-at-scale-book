@@ -59,7 +59,7 @@ class TrendStatus(Enum):
 class ProductRelationship:
     """
     Relationship between two products
-    
+
     Attributes:
         product_a: First product ID
         product_b: Second product ID
@@ -79,7 +79,7 @@ class ProductRelationship:
 class ProductCollection:
     """
     Curated product collection
-    
+
     Attributes:
         collection_id: Unique identifier
         name: Collection name
@@ -105,7 +105,7 @@ class ProductCollection:
 class MerchandisingDecision:
     """
     Merchandising decision for product
-    
+
     Attributes:
         product_id: Product identifier
         action: What to do (feature, promote, discount, discontinue)
@@ -124,14 +124,14 @@ class MerchandisingDecision:
 class ProductRelationshipLearner(nn.Module):
     """
     Learn product relationships from behavioral data
-    
+
     Relationships learned from:
     - Co-purchase: Products bought together → complements
     - Co-view: Products viewed in session → substitutes or complements
     - Sequential purchase: Product A then B → upgrades, accessories
     - Cart replacement: A removed, B added → substitutes
     - Review co-mentions: Products mentioned together → alternatives
-    
+
     Output: Graph where edges = relationships, edge weights = strength
     """
 
@@ -171,12 +171,12 @@ class ProductRelationshipLearner(nn.Module):
     ) -> torch.Tensor:
         """
         Score relationship between products
-        
+
         Args:
             product_a_ids: [batch] product A indices
             relation_types: [batch] relation type indices
             product_b_ids: [batch] product B indices
-        
+
         Returns:
             scores: [batch, 1] relationship strength scores
         """
@@ -198,7 +198,7 @@ class ProductRelationshipLearner(nn.Module):
     ) -> List[Tuple[int, float]]:
         """
         Find top-k products related to given product
-        
+
         Returns: List of (product_id, relationship_strength)
         """
         with torch.no_grad():
@@ -224,14 +224,14 @@ class ProductRelationshipLearner(nn.Module):
 class TrendDetector:
     """
     Detect emerging trends and product lifecycle stages
-    
+
     Trend detection:
     - Embedding drift: Products moving in embedding space (new associations)
     - Velocity: Rate of popularity change
     - Acceleration: Trend acceleration/deceleration
     - Seasonal patterns: Recurring temporal patterns
     - Cohort analysis: Which customer segments driving trend
-    
+
     Applications:
     - Early trend detection: Stock up before mainstream
     - Clearance timing: Discount before trend fully dies
@@ -256,7 +256,7 @@ class TrendDetector:
     def detect_trend(self, product_id: str) -> Tuple[TrendStatus, float]:
         """
         Detect product trend status
-        
+
         Returns:
             status: Trend classification
             momentum: Trend momentum (-1 to 1)
@@ -298,7 +298,7 @@ class TrendDetector:
     def detect_embedding_drift(self, product_id: str) -> float:
         """
         Measure embedding drift (product associations changing)
-        
+
         High drift = product meaning/context changing
         """
         if product_id not in self.historical_embeddings:
@@ -315,14 +315,14 @@ class TrendDetector:
 class CollectionGenerator:
     """
     Automatically generate product collections
-    
+
     Collections:
     - "Complete the Look": Outfit combinations
     - "Trending Now": Hot products
     - "Summer Essentials": Seasonal curation
     - "Tech Starter Pack": Category bundles
     - "Under $50": Price-based collections
-    
+
     Optimization:
     - Coherence: Products should go well together
     - Diversity: Not too similar, maintain variety
@@ -348,13 +348,13 @@ class CollectionGenerator:
     ) -> ProductCollection:
         """
         Generate product collection around theme
-        
+
         Args:
             theme: Collection theme/name
             seed_products: Starting products
             collection_size: Target number of products
             constraints: Business constraints (price range, categories, margin)
-        
+
         Returns:
             Curated product collection
         """
@@ -415,7 +415,7 @@ class CollectionGenerator:
         # Sample pairwise similarities
         similarities = []
         for i in range(min(10, len(products)-1)):
-            for j in range(i+1, min(10, len(products))):
+            for _j in range(i+1, min(10, len(products))):
                 # Simplified similarity (random for demo)
                 sim = np.random.uniform(0.6, 0.9)
                 similarities.append(sim)
@@ -436,14 +436,14 @@ class CollectionGenerator:
 class MerchandisingOptimizer:
     """
     Optimize merchandising decisions
-    
+
     Decisions:
     - Feature: Prominently display (homepage, category top)
     - Promote: Offer discount, run promotion
     - Maintain: Keep current positioning
     - Clearance: Deep discount to clear inventory
     - Discontinue: Remove from catalog
-    
+
     Optimization considers:
     - Current performance (sales, margin)
     - Trend trajectory (growing, stable, declining)
@@ -468,12 +468,12 @@ class MerchandisingOptimizer:
     ) -> MerchandisingDecision:
         """
         Determine optimal merchandising action for product
-        
+
         Args:
             product_id: Product to optimize
             current_performance: Sales, margin, conversion metrics
             inventory: Stock level, turnover rate
-        
+
         Returns:
             Recommended merchandising decision
         """

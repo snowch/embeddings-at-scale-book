@@ -716,15 +716,6 @@ class RAGSystem:
             (answer, confidence)
         """
         # Construct prompt
-        prompt = f"""Answer the following question based on the provided context.
-Cite sources using [Document N] notation.
-
-Question: {query.text}
-
-Context:
-{context}
-
-Answer:"""
 
         # Generate (placeholder)
         # In production: Call actual LLM

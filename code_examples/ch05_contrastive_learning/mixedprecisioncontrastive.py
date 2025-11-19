@@ -77,7 +77,7 @@ class StableInfoNCELoss:
         """
         # Normalize in FP32 for stability
         anchor_norm = F.normalize(anchor_emb.float(), dim=1)
-        positive_norm = F.normalize(positive_emb.float(), dim=1)
+        F.normalize(positive_emb.float(), dim=1)
         all_norm = F.normalize(all_emb.float(), dim=1)
 
         # Similarities in FP32

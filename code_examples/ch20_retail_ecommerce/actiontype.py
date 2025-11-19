@@ -68,7 +68,7 @@ class JourneyStage(Enum):
 class UserAction:
     """
     Single user action/event
-    
+
     Attributes:
         action_id: Unique action identifier
         user_id: User performing action
@@ -96,7 +96,7 @@ class UserAction:
 class CustomerSession:
     """
     User session with action sequence
-    
+
     Attributes:
         session_id: Unique session identifier
         user_id: User identifier
@@ -126,7 +126,7 @@ class CustomerSession:
 class JourneyInsight:
     """
     Insights from journey analysis
-    
+
     Attributes:
         user_id: User identifier
         session_id: Current session
@@ -151,7 +151,7 @@ class JourneyInsight:
 class ActionEncoder(nn.Module):
     """
     Encode user actions to embeddings
-    
+
     Each action embedded as:
     - Action type (view, cart, purchase)
     - Product involved (if any)
@@ -199,7 +199,7 @@ class ActionEncoder(nn.Module):
             product_ids: [batch] product indices (0 if no product)
             temporal_features: [batch, 5] time since last action, etc.
             context_features: [batch, 10] device, channel, etc.
-        
+
         Returns:
             embeddings: [batch, embedding_dim] action embeddings
         """
@@ -217,13 +217,13 @@ class ActionEncoder(nn.Module):
 class SessionEncoder(nn.Module):
     """
     Encode session history to embedding
-    
+
     Architecture:
     - Action encoder: Map each action to embedding
     - Sequential model: LSTM/Transformer over action sequence
     - Attention: Learn which past actions matter most
     - Output: Session embedding capturing current state
-    
+
     Training:
     - Contrastive: Converting sessions closer than abandoning
     - Predictive: Embedding predicts next action, conversion
@@ -260,7 +260,7 @@ class SessionEncoder(nn.Module):
         Args:
             action_embeddings: [batch, max_seq_len, action_dim]
             sequence_lengths: [batch] actual sequence lengths
-        
+
         Returns:
             session_embeddings: [batch, embedding_dim]
         """
@@ -289,14 +289,14 @@ class SessionEncoder(nn.Module):
 class JourneyAnalyzer(nn.Module):
     """
     Analyze customer journey and predict outcomes
-    
+
     Predictions:
     1. Journey stage: Which stage is customer in?
     2. Conversion probability: Will customer purchase?
     3. Time to conversion: How long until purchase?
     4. Next action: What will customer do next?
     5. Friction detection: Is customer about to abandon?
-    
+
     Architecture:
     - Session encoder: History → current state embedding
     - Multi-head prediction: Multiple outcomes from embedding
@@ -378,14 +378,14 @@ class JourneyAnalyzer(nn.Module):
 class HyperPersonalizationEngine:
     """
     Real-time hyper-personalization based on journey analysis
-    
+
     Personalization dimensions:
     1. Content: Products, banners, copy
     2. Layout: Page structure, element prominence
     3. Pricing: Discounts, promotions
     4. Timing: When to show interventions
     5. Channel: Email, push, on-site
-    
+
     Hyper-personalization: Individual-level real-time adaptation
     based on current session state, not segment averages.
     """
@@ -431,10 +431,10 @@ class HyperPersonalizationEngine:
     ) -> JourneyInsight:
         """
         Analyze session in real-time and generate insights
-        
+
         Args:
             session: Current customer session with action history
-        
+
         Returns:
             insights: Journey insights with recommendations
         """
@@ -534,7 +534,7 @@ class HyperPersonalizationEngine:
     ) -> Dict[str, Any]:
         """
         Generate hyper-personalized experience
-        
+
         Returns: Personalized content, layout, offers
         """
         insight = self.analyze_realtime(session)

@@ -36,11 +36,11 @@ class SpikingNeuralNetwork(nn.Module):
 class STDPLearning:
     """
     Spike-Timing-Dependent Plasticity for online learning
-    
+
     Learning rule:
     - If pre-synaptic spike before post-synaptic: strengthen synapse (LTP)
     - If pre-synaptic spike after post-synaptic: weaken synapse (LTD)
-    
+
     Δw = A+ * exp(-Δt/τ+) if Δt > 0 (pre before post)
     Δw = -A- * exp(Δt/τ-) if Δt < 0 (post before pre)
     """
@@ -115,7 +115,7 @@ class STDPLearning:
 class AdaptiveNeuromorphicEmbedding:
     """
     Neuromorphic embedding system with online adaptation
-    
+
     Continuously learns from input stream, adapting embeddings
     to new patterns without explicit retraining
     """
@@ -143,7 +143,7 @@ class AdaptiveNeuromorphicEmbedding:
     ) -> List[np.ndarray]:
         """
         Process stream of embeddings with online adaptation
-        
+
         Each embedding:
         1. Encode as spikes
         2. Forward through SNN

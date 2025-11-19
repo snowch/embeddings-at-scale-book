@@ -110,7 +110,7 @@ class MaskedAutoencoderViT(nn.Module):
         Returns:
             patches: (batch_size, num_patches, patch_size^2 * channels)
         """
-        batch_size = imgs.shape[0]
+        imgs.shape[0]
 
         # Extract patches
         patches = self.patch_embed(imgs)  # (B, embed_dim, H/P, W/P)

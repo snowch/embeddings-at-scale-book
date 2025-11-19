@@ -50,7 +50,7 @@ class DemandRegime(Enum):
 class InventoryItem:
     """
     SKU with inventory details
-    
+
     Attributes:
         sku_id: Stock keeping unit identifier
         product_name: Product name
@@ -88,7 +88,7 @@ class InventoryItem:
 class Location:
     """
     Store or warehouse location
-    
+
     Attributes:
         location_id: Unique identifier
         location_type: Store, warehouse, distribution center
@@ -112,7 +112,7 @@ class Location:
 class DemandForecast:
     """
     Demand prediction for SKU-location-time
-    
+
     Attributes:
         sku_id: Product identifier
         location_id: Location identifier
@@ -137,13 +137,13 @@ class DemandForecast:
 class ProductEncoder(nn.Module):
     """
     Encode products for demand forecasting
-    
+
     Architecture:
     - Attribute encoder: Categorical + numerical features
     - Historical demand encoder: LSTM over past sales
     - Price sensitivity: Embedding includes price elasticity
     - Category hierarchy: Leverage category relationships
-    
+
     Output: Product embedding capturing demand drivers
     """
 
@@ -193,7 +193,7 @@ class ProductEncoder(nn.Module):
             brand_ids: [batch] brand indices
             numerical_features: [batch, 10] price, cost, etc.
             demand_history: [batch, seq_len] historical sales
-        
+
         Returns:
             embeddings: [batch, embedding_dim] product embeddings
         """
@@ -218,13 +218,13 @@ class ProductEncoder(nn.Module):
 class TemporalEncoder(nn.Module):
     """
     Encode time-dependent patterns
-    
+
     Captures:
     - Seasonality: Day of week, month, holidays
     - Trends: Long-term growth/decline
     - Events: Promotions, weather events, competitor actions
     - Regime changes: Sudden shifts in demand patterns
-    
+
     Architecture:
     - Cyclical encoding: sin/cos for periodic patterns
     - Trend encoder: Linear/polynomial trends
@@ -253,7 +253,7 @@ class TemporalEncoder(nn.Module):
     def encode_cyclical(self, timestamps: torch.Tensor) -> torch.Tensor:
         """
         Encode periodic patterns with sin/cos
-        
+
         Args:
             timestamps: [batch] unix timestamps
         Returns:
@@ -309,13 +309,13 @@ class TemporalEncoder(nn.Module):
 class RegionalEncoder(nn.Module):
     """
     Encode location-specific demand patterns
-    
+
     Different locations have different:
     - Demographics: Age, income, preferences
     - Climate: Weather affects product demand
     - Competition: Market saturation
     - Traffic: Foot/web traffic patterns
-    
+
     Output: Location embedding capturing regional preferences
     """
 
@@ -362,13 +362,13 @@ class RegionalEncoder(nn.Module):
 class DemandForecaster(nn.Module):
     """
     Forecast demand from product, time, and location embeddings
-    
+
     Architecture:
     - Multi-modal fusion: Product × time × location
     - Attention mechanism: Learn which factors matter when
     - Uncertainty: Predict mean and variance
     - Multi-horizon: Forecast 1-week, 4-week, 13-week simultaneously
-    
+
     Output:
     - Point forecast: Expected demand
     - Confidence interval: Uncertainty bounds
@@ -465,12 +465,12 @@ class DemandForecaster(nn.Module):
 class InventoryOptimizer:
     """
     Optimize inventory decisions using demand forecasts
-    
+
     Optimization:
     - Minimize: holding costs + stockout costs + markdown costs
     - Subject to: storage constraints, budget constraints
     - Consider: lead times, supplier reliability, seasonality
-    
+
     Decision variables:
     - Order quantity: How much to order now
     - Reorder point: When to place next order
@@ -488,7 +488,7 @@ class InventoryOptimizer:
     ) -> DemandForecast:
         """
         Compute optimal order quantity for SKU at location
-        
+
         Uses forecast demand, lead time, holding costs, and stockout costs
         to determine order quantity minimizing expected total cost.
         """
@@ -563,7 +563,7 @@ class InventoryOptimizer:
 def inventory_optimization_example():
     """
     Demonstration of embedding-based inventory optimization
-    
+
     Scenarios:
     1. Cold start: New product with no history
     2. Seasonal spike: Anticipate holiday demand

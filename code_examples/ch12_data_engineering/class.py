@@ -268,14 +268,14 @@ class StreamingEmbeddingPipeline:
         try:
             # Extract text features
             text_parts = []
-            for field in ['title', 'description', 'content']:
-                if field in event.data:
-                    text_parts.append(str(event.data[field]))
+            for field_name in ['title', 'description', 'content']:
+                if field_name in event.data:
+                    text_parts.append(str(event.data[field_name]))
 
             if not text_parts:
                 return None
 
-            text = " ".join(text_parts)
+            " ".join(text_parts)
 
             # In production: Use proper feature extraction
             # For now: Return dummy features
@@ -299,7 +299,7 @@ class StreamingEmbeddingPipeline:
             Batch of embeddings (N, embedding_dim)
         """
         # Stack features into batch
-        features_batch = np.stack(features_list)
+        np.stack(features_list)
 
         # Generate embeddings
         # In production: Use actual embedding model

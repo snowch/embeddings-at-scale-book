@@ -12,7 +12,7 @@ class EmbeddingCompression:
         import faiss
 
         dim = embeddings.shape[1]
-        subvector_dim = dim // num_subvectors
+        dim // num_subvectors
 
         # Train product quantizer
         pq = faiss.IndexPQ(dim, num_subvectors, bits_per_subvector)

@@ -39,7 +39,7 @@ import numpy as np
 class QueryPlan:
     """
     Execution plan for vector similarity query
-    
+
     Attributes:
         query_id: Unique query identifier
         query_vector: Query embedding
@@ -69,7 +69,7 @@ class QueryPlan:
 class QueryResult:
     """
     Query execution result with statistics
-    
+
     Attributes:
         query_id: Query identifier
         results: List of (id, score) tuples
@@ -96,7 +96,7 @@ class QueryResult:
 class QueryOptimizer:
     """
     Intelligent query optimization for vector similarity search
-    
+
     Analyzes query characteristics and selects optimal execution strategy
     """
 
@@ -108,7 +108,7 @@ class QueryOptimizer:
     def analyze_query(self, plan: QueryPlan) -> Dict[str, Any]:
         """
         Analyze query characteristics to inform optimization
-        
+
         Returns:
             analysis: Query characteristics and recommendations
         """
@@ -163,7 +163,7 @@ class QueryOptimizer:
     def _estimate_filter_selectivity(self, filters: Dict[str, Any]) -> float:
         """
         Estimate what fraction of vectors pass filters
-        
+
         Uses statistics from previous queries and metadata distributions
         """
         if not filters:
@@ -172,11 +172,11 @@ class QueryOptimizer:
         # In production, query metadata statistics
         # For demonstration, use heuristics
         selectivity = 1.0
-        for field, value in filters.items():
+        for filter_name, value in filters.items():
             if isinstance(value, list):
                 # IN clause - estimate from list length and cardinality
                 field_cardinality = self.config.get(
-                    f'{field}_cardinality', 1000
+                    f'{filter_name}_cardinality', 1000
                 )
                 selectivity *= min(len(value) / field_cardinality, 1.0)
             elif isinstance(value, tuple):
@@ -185,7 +185,7 @@ class QueryOptimizer:
             else:
                 # Equality - estimate from cardinality
                 field_cardinality = self.config.get(
-                    f'{field}_cardinality', 100
+                    f'{filter_name}_cardinality', 100
                 )
                 selectivity *= 1.0 / field_cardinality
 
@@ -213,7 +213,7 @@ class QueryOptimizer:
     def optimize_k_value(self, k: int, strategy: str) -> int:
         """
         Adjust k value based on strategy to maintain recall
-        
+
         ANN methods need to retrieve more candidates than k
         to achieve target recall after filtering
         """
@@ -239,7 +239,7 @@ class QueryOptimizer:
     ) -> Dict[str, float]:
         """
         Estimate computational cost of query execution
-        
+
         Returns:
             costs: Estimated CPU time, memory, I/O operations
         """
@@ -292,7 +292,7 @@ class QueryOptimizer:
 class MultiStageRetrieval:
     """
     Multi-stage retrieval pipeline: coarse → medium → fine filtering
-    
+
     Progressively narrows candidate set while maintaining recall
     """
 
@@ -307,11 +307,11 @@ class MultiStageRetrieval:
     ) -> QueryResult:
         """
         Execute multi-stage retrieval query
-        
+
         Args:
             plan: Query execution plan
             stages: Override default stages (for testing)
-        
+
         Returns:
             result: Query results with execution statistics
         """
@@ -436,13 +436,13 @@ class MultiStageRetrieval:
     ) -> List[str]:
         """
         IVF coarse filtering - identify relevant clusters
-        
+
         Returns candidate IDs from top clusters
         """
         # In production, query actual IVF index
         # For demonstration, simulate cluster selection
         n_clusters = self.config.get('ivf_clusters', 4096)
-        vectors_per_cluster = self.config.get(
+        self.config.get(
             'total_vectors', 1e9
         ) // n_clusters
 
@@ -466,7 +466,7 @@ class MultiStageRetrieval:
     ) -> List[str]:
         """
         HNSW graph search - navigate similarity graph
-        
+
         Returns candidate IDs from graph traversal
         """
         # In production, query actual HNSW index
@@ -487,7 +487,7 @@ class MultiStageRetrieval:
     ) -> List[str]:
         """
         Product quantization filtering - refine with quantized distances
-        
+
         Returns top-k candidates by PQ distance
         """
         # In production, compute actual PQ distances
@@ -514,7 +514,7 @@ class MultiStageRetrieval:
     ) -> List[Tuple[str, float]]:
         """
         Exact distance reranking - compute exact similarities for final results
-        
+
         Returns top-k by exact distance, applying filters
         """
         # In production, fetch actual vectors and compute exact distances
@@ -549,7 +549,7 @@ class MultiStageRetrieval:
 class ParallelQueryExecutor:
     """
     Parallel query execution for high throughput
-    
+
     Distributes queries across CPU cores and GPU devices
     """
 
@@ -568,10 +568,10 @@ class ParallelQueryExecutor:
     ) -> List[QueryResult]:
         """
         Execute batch of queries in parallel
-        
+
         Args:
             plans: List of query plans to execute
-        
+
         Returns:
             results: Query results in same order as plans
         """
@@ -615,7 +615,7 @@ class ParallelQueryExecutor:
     ) -> List[QueryResult]:
         """
         Execute batch of HNSW queries efficiently
-        
+
         Shares graph structure reads across queries
         """
         # In production, use batched HNSW search
@@ -631,7 +631,7 @@ class ParallelQueryExecutor:
     ) -> List[QueryResult]:
         """
         Execute batch of IVF queries efficiently
-        
+
         Shares cluster lookups across queries
         """
         # In production, use batched IVF search

@@ -97,31 +97,6 @@ class TreatmentRecommendation:
     expected_qol: float
     explanation: str
 
-# Placeholder classes - see class.py for full implementation
-from dataclasses import dataclass
-from typing import Any, Dict
-
-import torch.nn as nn
-
-
-@dataclass
-class Patient:
-    """Placeholder for Patient."""
-    patient_id: str
-    age: int = 0
-    conditions: list = None
-    medications: list = None
-    lab_results: Dict[str, Any] = None
-
-class TrialPatientEncoder(nn.Module):
-    """Placeholder for TrialPatientEncoder."""
-    def __init__(self):
-        super().__init__()
-
-    def encode(self, patient):
-        import torch
-        return torch.randn(768)
-
 class PersonalizedTreatmentSystem:
     """Personalized treatment recommendation system"""
 

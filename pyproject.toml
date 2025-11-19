@@ -41,10 +41,14 @@ select = [
 # Ignore specific rules that are too strict for educational code
 ignore = [
     "E501",   # Line too long (handled by formatter)
+    "E402",   # Module level import not at top of file (educational code with docs)
     "B008",   # Function call in argument defaults
     "B905",   # zip() without explicit strict parameter
     "N803",   # Argument name should be lowercase (conflicts with common ML conventions)
     "N806",   # Variable in function should be lowercase (conflicts with ML conventions)
+    "N812",   # Lowercase imported as non-lowercase (standard PyTorch: import torch.nn.functional as F)
+    "N817",   # CamelCase imported as acronym (standard ML: DDP for DistributedDataParallel)
+    "SIM102", # Use single if instead of nested (nested can be clearer in educational code)
     "SIM108", # Use ternary operator (can reduce readability)
 ]
 

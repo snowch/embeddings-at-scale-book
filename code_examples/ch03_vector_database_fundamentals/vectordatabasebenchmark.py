@@ -152,11 +152,11 @@ class VectorDatabaseBenchmark:
         num_queries = 10000
         query_latencies = []
 
-        for i in range(num_queries):
+        for _i in range(num_queries):
             query = np.random.randn(self.embedding_dim).astype(np.float32)
 
             start = time.time()
-            results_ids = index.search(query, k=10)
+            index.search(query, k=10)
             latency_ms = (time.time() - start) * 1000
 
             query_latencies.append(latency_ms)

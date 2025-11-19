@@ -41,7 +41,7 @@ class AdvancedTripletLoss(nn.Module):
             loss: Scalar tensor
             metrics: Dict with mining statistics
         """
-        batch_size = embeddings.shape[0]
+        embeddings.shape[0]
 
         # Compute pairwise distances
         if self.distance_metric == 'euclidean':

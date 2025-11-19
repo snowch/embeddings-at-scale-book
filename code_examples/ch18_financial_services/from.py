@@ -37,7 +37,7 @@ import torch.nn.functional as F
 class Security:
     """
     Security (stock, bond, commodity, etc.)
-    
+
     Attributes:
         ticker: Symbol (AAPL, TSLA, etc.)
         name: Company name
@@ -69,7 +69,7 @@ class Security:
 class TradingSignal:
     """
     Trading signal output
-    
+
     Attributes:
         ticker: Security ticker
         timestamp: Signal generation time
@@ -92,14 +92,14 @@ class TradingSignal:
 class SecurityEncoder(nn.Module):
     """
     Encode securities to embeddings
-    
+
     Architecture:
     - Price encoder: LSTM over historical prices
     - Fundamental encoder: MLP over financial metrics
     - News encoder: Transformer over recent news
     - Alternative data encoder: Custom encoders per data type
     - Fusion: Attention-based combination of all modalities
-    
+
     Training:
     - Return prediction: Embedding predicts future returns
     - Contrastive: Securities in same sector closer
@@ -148,11 +148,11 @@ class SecurityEncoder(nn.Module):
     ) -> torch.Tensor:
         """
         Encode securities
-        
+
         Args:
             price_history: Price history (batch_size, seq_len, 5)
             fundamentals: Fundamental features (batch_size, num_features)
-        
+
         Returns:
             Security embeddings (batch_size, embedding_dim)
         """
@@ -175,14 +175,14 @@ class SecurityEncoder(nn.Module):
 class MarketRegimeEncoder(nn.Module):
     """
     Encode market regime (bull, bear, volatile, calm)
-    
+
     Captures macro conditions affecting all securities:
     - VIX level (volatility)
     - Interest rates
     - Credit spreads
     - Market breadth
     - Sector rotation
-    
+
     Used to condition trading signals on market state.
     """
 
@@ -201,10 +201,10 @@ class MarketRegimeEncoder(nn.Module):
     def forward(self, market_indicators: torch.Tensor) -> torch.Tensor:
         """
         Encode market regime
-        
+
         Args:
             market_indicators: Market indicators (batch_size, 20)
-        
+
         Returns:
             Market regime embeddings (batch_size, embedding_dim)
         """
@@ -215,13 +215,13 @@ class MarketRegimeEncoder(nn.Module):
 class TradingSignalGenerator(nn.Module):
     """
     Generate trading signals from security and market embeddings
-    
+
     Predicts future returns conditioned on:
     - Security embedding (intrinsic characteristics)
     - Market regime embedding (macro environment)
     - Recent momentum (short-term price action)
     - Cross-sectional position (relative to sector/market)
-    
+
     Outputs:
     - Expected return (alpha)
     - Confidence (signal strength)
@@ -255,12 +255,12 @@ class TradingSignalGenerator(nn.Module):
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Generate trading signals
-        
+
         Args:
             security_emb: Security embeddings (batch_size, security_dim)
             regime_emb: Market regime embeddings (batch_size, regime_dim)
             momentum_features: Recent momentum (batch_size, 10)
-        
+
         Returns:
             Tuple of (predicted_return, confidence, risk_score)
         """
@@ -281,7 +281,7 @@ class TradingSignalGenerator(nn.Module):
 def trading_signal_example():
     """
     Complete trading signal generation pipeline
-    
+
     Demonstrates:
     1. Encoding securities from price history and fundamentals
     2. Encoding market regime
@@ -295,9 +295,9 @@ def trading_signal_example():
     print("         Predict future returns in embedding space")
 
     # Initialize components
-    security_encoder = SecurityEncoder(embedding_dim=256)
-    regime_encoder = MarketRegimeEncoder(embedding_dim=64)
-    signal_generator = TradingSignalGenerator(security_dim=256, regime_dim=64)
+    SecurityEncoder(embedding_dim=256)
+    MarketRegimeEncoder(embedding_dim=64)
+    TradingSignalGenerator(security_dim=256, regime_dim=64)
 
     print("\n--- Example 1: Tech Growth Stock ---")
     print("Ticker: GROWTH_TECH")

@@ -39,7 +39,7 @@ import torch.nn as nn
 class DigitalTwinState:
     """
     Digital twin state representation
-    
+
     Attributes:
         timestamp: State timestamp
         asset_id: Physical asset identifier
@@ -61,7 +61,7 @@ class DigitalTwinState:
 class SimulationScenario:
     """
     What-if simulation scenario
-    
+
     Attributes:
         scenario_id: Unique identifier
         description: Scenario description
@@ -84,7 +84,7 @@ class SimulationScenario:
 class StateEncoder(nn.Module):
     """
     Encode physical system observations to latent state
-    
+
     Maps high-dimensional sensor readings to compact
     state representation capturing system dynamics.
     """
@@ -131,7 +131,7 @@ class StateEncoder(nn.Module):
 class TransitionModel(nn.Module):
     """
     Learn state transition dynamics
-    
+
     Predicts next state from current state and action:
     s_{t+1} = f(s_t, a_t)
     """
@@ -188,7 +188,7 @@ class TransitionModel(nn.Module):
 class ObservationDecoder(nn.Module):
     """
     Decode latent state to sensor observations
-    
+
     Predicts sensor values from state embedding.
     """
     def __init__(
@@ -222,7 +222,7 @@ class ObservationDecoder(nn.Module):
 class RewardPredictor(nn.Module):
     """
     Predict outcomes from state-action pairs
-    
+
     Estimates quality, throughput, energy consumption, etc.
     """
     def __init__(
@@ -263,7 +263,7 @@ class RewardPredictor(nn.Module):
 class DigitalTwinSystem:
     """
     Digital twin system for manufacturing assets
-    
+
     Capabilities:
     - Real-time state estimation from sensors
     - Predictive simulation of future states
@@ -305,7 +305,7 @@ class DigitalTwinSystem:
     ) -> DigitalTwinState:
         """
         Update digital twin state from real sensor measurements
-        
+
         Infers latent state and compares predictions to reality
         """
         # Convert to tensor
@@ -364,7 +364,7 @@ class DigitalTwinSystem:
     ) -> Tuple[List[torch.Tensor], List[Dict[str, float]], List[torch.Tensor]]:
         """
         Simulate forward trajectory given action sequence
-        
+
         Returns:
             states: List of state embeddings
             observations: List of predicted sensor values
@@ -419,7 +419,7 @@ class DigitalTwinSystem:
     ) -> List[Dict[str, float]]:
         """
         Find optimal action sequence using model predictive control
-        
+
         Uses cross-entropy method for optimization
         """
         if asset_id not in self.current_states:
@@ -435,7 +435,7 @@ class DigitalTwinSystem:
         num_iterations = 10
         elite_frac = 0.1
 
-        for iteration in range(num_iterations):
+        for _iteration in range(num_iterations):
             # Sample action sequences
             samples = torch.randn(num_samples, time_horizon, self.action_dim).to(self.device)
             action_sequences = action_mean + samples * action_std
@@ -504,7 +504,7 @@ class DigitalTwinSystem:
     ) -> List[Tuple[datetime, float]]:
         """
         Detect anomalies based on prediction errors
-        
+
         Returns timestamps and prediction errors exceeding threshold
         """
         if asset_id not in self.state_history:
@@ -520,7 +520,7 @@ class DigitalTwinSystem:
 def digital_twin_example():
     """
     Example: Digital twin for robotic assembly cell
-    
+
     Scenario: 6-axis robot performing assembly operations
     - 50 sensors (joint positions, torques, vision, force)
     - 10 control actions (joint velocities, gripper)
@@ -609,7 +609,7 @@ def digital_twin_example():
     # Create action sequence with increased speed
     time_horizon = 20
     actions = []
-    for t in range(time_horizon):
+    for _t in range(time_horizon):
         action_dict = {
             f'action_{i}': np.random.randn() * 0.6  # 20% increase
             for i in range(action_dim)

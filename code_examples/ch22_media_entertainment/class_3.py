@@ -45,7 +45,7 @@ import torch.nn.functional as F
 class ViewingEvent:
     """
     Individual viewing event for behavioral analysis
-    
+
     Attributes:
         event_id: Unique event identifier
         user_id: Viewer identifier (anonymized)
@@ -73,7 +73,7 @@ class ViewingEvent:
 class ViewerSegment:
     """
     Discovered viewer micro-segment
-    
+
     Attributes:
         segment_id: Unique segment identifier
         segment_name: Descriptive name
@@ -99,7 +99,7 @@ class ViewerSegment:
 class AdCampaign:
     """
     Advertising campaign
-    
+
     Attributes:
         campaign_id: Unique campaign identifier
         advertiser: Advertiser name
@@ -180,14 +180,14 @@ class BehavioralViewerEncoder(nn.Module):
     ) -> torch.Tensor:
         """
         Encode viewer behavior
-        
+
         Args:
             content_sequence: [batch, seq_len, content_dim]
             engagement_scores: [batch, seq_len, 3] - duration, completion, signals
             temporal_features: [batch, seq_len, 31] - hour + day encoding
             device_ids: [batch, seq_len] - device type IDs
             mask: [batch, seq_len] - attention mask
-            
+
         Returns:
             viewer_embedding: [batch, embedding_dim]
         """
@@ -254,11 +254,11 @@ class AdResponsePredictor(nn.Module):
     ) -> torch.Tensor:
         """
         Predict ad click-through rate
-        
+
         Args:
             viewer_embeddings: [batch, viewer_dim]
             ad_embeddings: [batch, ad_dim]
-            
+
         Returns:
             ctr_predictions: [batch, 1] predicted CTR
         """

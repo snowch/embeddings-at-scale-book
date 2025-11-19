@@ -34,7 +34,7 @@ Techniques:
 class Facility:
     """
     Warehouse or distribution center
-    
+
     Attributes:
         facility_id: Unique identifier
         location: (latitude, longitude)
@@ -60,7 +60,7 @@ class Facility:
 class Order:
     """
     Customer order to fulfill
-    
+
     Attributes:
         order_id: Unique identifier
         customer_location: (latitude, longitude)
@@ -77,7 +77,7 @@ class Order:
 class FacilityEncoder(nn.Module):
     """
     Encode facilities to embeddings
-    
+
     Architecture:
     - Location: Geographic coordinates
     - Capacity: Storage capacity, throughput
@@ -98,10 +98,10 @@ class FacilityEncoder(nn.Module):
     def forward(self, facility_features: torch.Tensor) -> torch.Tensor:
         """
         Encode facilities
-        
+
         Args:
             facility_features: Facility features (batch_size, num_features)
-        
+
         Returns:
             Facility embeddings (batch_size, embedding_dim)
         """
@@ -112,9 +112,9 @@ class FacilityEncoder(nn.Module):
 class RouteCostModel(nn.Module):
     """
     Predict cost of fulfilling order from facility
-    
+
     Model: cost(facility, order) = f(facility_emb, order_emb, distance, ...)
-    
+
     Factors:
     - Distance: Shipping distance
     - Urgency: Delivery deadline, priority
@@ -144,12 +144,12 @@ class RouteCostModel(nn.Module):
     ) -> torch.Tensor:
         """
         Predict fulfillment cost
-        
+
         Args:
             facility_emb: Facility embeddings (batch_size, embedding_dim)
             order_emb: Order embeddings (batch_size, embedding_dim)
             context: Context features (batch_size, num_features)
-        
+
         Returns:
             Predicted costs (batch_size, 1)
         """
@@ -160,7 +160,7 @@ class RouteCostModel(nn.Module):
 class SupplyChainOptimizer:
     """
     Optimize supply chain decisions using embeddings
-    
+
     Decisions:
     - Warehouse selection: Which warehouse fulfills each order
     - Inventory allocation: How much inventory at each warehouse
@@ -184,12 +184,12 @@ class SupplyChainOptimizer:
     ) -> Tuple[str, float, Dict[str, Any]]:
         """
         Select which facility should fulfill order
-        
+
         Args:
             order: Order to fulfill
             facilities: Available facilities
             constraints: Service level, capacity constraints
-        
+
         Returns:
             (facility_id, cost, analysis)
         """
@@ -291,15 +291,15 @@ class SupplyChainOptimizer:
 def supply_chain_example():
     """
     Warehouse selection for e-commerce order fulfillment
-    
+
     Scenario:
     - 3 warehouses: East Coast, Central, West Coast
     - Order from California
     - Product in stock at East (2000 mi) and West (50 mi)
     - Not in stock at Central
-    
+
     Traditional: Ship from nearest warehouse with inventory (West)
-    
+
     Embedding optimization:
     - Consider all factors: shipping cost, inventory levels, capacity, etc.
     - Learn that sometimes farther warehouse is cheaper (lower labor costs)

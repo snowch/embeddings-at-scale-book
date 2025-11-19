@@ -115,7 +115,7 @@ class CostSummary:
 class CostTracker:
     """
     Comprehensive cost tracking and optimization system
-    
+
     Tracks resource usage, calculates costs, attributes to teams/projects,
     and provides optimization recommendations.
     """
@@ -128,7 +128,7 @@ class CostTracker:
     ):
         """
         Initialize cost tracker
-        
+
         Args:
             cost_rates: Cost rates per resource unit
             budget_limits: Budget limits by team/project
@@ -275,11 +275,11 @@ class CostTracker:
     ) -> CostSummary:
         """
         Get cost summary for time period
-        
+
         Args:
             start_time: Start of period (default: start of current month)
             end_time: End of period (default: now)
-            
+
         Returns:
             CostSummary with aggregated costs
         """

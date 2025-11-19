@@ -114,7 +114,7 @@ def train_siamese_enterprise(
     total_loss = 0
     total_accuracy = 0
 
-    for batch_idx, (x1, x2, labels) in enumerate(train_loader):
+    for _batch_idx, (x1, x2, labels) in enumerate(train_loader):
         x1, x2, labels = x1.to(device), x2.to(device), labels.to(device)
 
         optimizer.zero_grad()

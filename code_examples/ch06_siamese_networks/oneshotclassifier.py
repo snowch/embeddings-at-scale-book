@@ -163,10 +163,7 @@ class OneShotClassifier:
         exp_sims = np.exp(similarities - np.max(similarities))  # Numerical stability
         probabilities = exp_sims / exp_sims.sum()
 
-        return {
-            class_id: prob
-            for class_id, prob in zip(class_ids, probabilities)
-        }
+        return dict(zip(class_ids, probabilities))
 
 
 # Example: Fraud detection with one-shot learning

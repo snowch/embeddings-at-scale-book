@@ -44,7 +44,7 @@ import torch.nn.functional as F
 class ProtectedContent:
     """
     Protected content in IP database
-    
+
     Attributes:
         content_id: Unique identifier
         title: Content title
@@ -72,7 +72,7 @@ class ProtectedContent:
 class ContentMatch:
     """
     Detected copyright match
-    
+
     Attributes:
         match_id: Unique match identifier
         upload_id: ID of uploaded content
@@ -143,10 +143,10 @@ class RobustVideoEncoder(nn.Module):
     def forward(self, frames: torch.Tensor) -> torch.Tensor:
         """
         Encode video to perceptual hash
-        
+
         Args:
             frames: [batch, num_frames, channels, height, width]
-            
+
         Returns:
             fingerprint: [batch, embedding_dim]
         """
@@ -215,10 +215,10 @@ class AudioFingerprintEncoder(nn.Module):
     def forward(self, spectrogram: torch.Tensor) -> torch.Tensor:
         """
         Generate audio fingerprint
-        
+
         Args:
             spectrogram: [batch, 1, time, freq]
-            
+
         Returns:
             fingerprint: [batch, embedding_dim]
         """
@@ -257,7 +257,7 @@ class ContentIdentificationSystem:
     ):
         """
         Add content to protected database
-        
+
         Args:
             content: Protected content metadata
             video_frames: Video frames for fingerprinting
@@ -300,12 +300,12 @@ class ContentIdentificationSystem:
     ) -> List[ContentMatch]:
         """
         Check if upload matches protected content
-        
+
         Args:
             upload_id: ID of uploaded content
             video_frames: Video frames
             audio_spectrogram: Audio spectrogram
-            
+
         Returns:
             matches: List of detected matches
         """

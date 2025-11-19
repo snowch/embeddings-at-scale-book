@@ -48,7 +48,7 @@ class RiskLevel(Enum):
 class Supplier:
     """
     Supplier entity representation
-    
+
     Attributes:
         supplier_id: Unique identifier
         name: Company name
@@ -78,7 +78,7 @@ class Supplier:
 class Part:
     """
     Part/component representation
-    
+
     Attributes:
         part_id: Unique part number
         name: Part name/description
@@ -108,7 +108,7 @@ class Part:
 class Shipment:
     """
     Shipment tracking and prediction
-    
+
     Attributes:
         shipment_id: Unique identifier
         supplier_id: Originating supplier
@@ -145,7 +145,7 @@ class Shipment:
 class SupplierEncoder(nn.Module):
     """
     Encode supplier attributes to embeddings
-    
+
     Combines structured features (location, financial metrics)
     with historical performance time series.
     """
@@ -223,10 +223,10 @@ class SupplierEncoder(nn.Module):
 class SupplyNetworkGNN(nn.Module):
     """
     Graph neural network over supply chain relationships
-    
+
     Nodes: Suppliers, manufacturers, parts
     Edges: Supplies, alternative sources, geographic proximity
-    
+
     Propagates risk signals through network structure.
     """
     def __init__(
@@ -297,7 +297,7 @@ class SupplyNetworkGNN(nn.Module):
 class DisruptionPredictor(nn.Module):
     """
     Predict supply chain disruptions
-    
+
     Multi-task prediction:
     1. Disruption probability
     2. Delay magnitude (days)
@@ -346,7 +346,7 @@ class DisruptionPredictor(nn.Module):
 class SupplyChainIntelligenceSystem:
     """
     Production supply chain intelligence system
-    
+
     Manages:
     - Supplier risk monitoring
     - Shipment delay prediction
@@ -390,7 +390,7 @@ class SupplyChainIntelligenceSystem:
     def predict_shipment_risk(self, shipment: Shipment) -> Dict[str, Any]:
         """
         Predict disruption risk for shipment
-        
+
         Considers:
         - Supplier reliability
         - Route complexity
@@ -495,7 +495,7 @@ class SupplyChainIntelligenceSystem:
     ) -> List[Tuple[str, float, str]]:
         """
         Optimize sourcing decision for part
-        
+
         Returns ranked list of (supplier_id, score, rationale)
         """
         if part_id not in self.parts:
@@ -508,7 +508,7 @@ class SupplyChainIntelligenceSystem:
             if supplier_id not in self.suppliers:
                 continue
 
-            supplier = self.suppliers[supplier_id]
+            self.suppliers[supplier_id]
 
             # Score based on multiple factors
             # In production, use learned scoring model
@@ -541,7 +541,7 @@ class SupplyChainIntelligenceSystem:
 def supply_chain_intelligence_example():
     """
     Example: Supply chain intelligence for automotive manufacturing
-    
+
     Scenario: Automotive OEM with complex supply network
     - 800 tier-1 suppliers, 3000+ tier-2/3 suppliers
     - 50,000+ parts

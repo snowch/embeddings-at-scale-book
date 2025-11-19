@@ -250,7 +250,7 @@ class EmbeddingExperimentFramework:
             )
 
         # Statistical power and sample size check
-        adequate_sample_size = len(set([e['user_id'] for e in events])) >= config.minimum_sample_size
+        adequate_sample_size = len({e['user_id'] for e in events}) >= config.minimum_sample_size
 
         # Generate recommendation
         recommendation = self._generate_recommendation(
@@ -264,8 +264,8 @@ class EmbeddingExperimentFramework:
             'primary_metric': primary_result,
             'secondary_metrics': secondary_results,
             'sample_size': {
-                'control': len(set([e['user_id'] for e in control_metrics])),
-                'treatment': len(set([e['user_id'] for e in treatment_metrics]))
+                'control': len({e['user_id'] for e in control_metrics}),
+                'treatment': len({e['user_id'] for e in treatment_metrics})
             },
             'adequate_sample_size': adequate_sample_size,
             'recommendation': recommendation

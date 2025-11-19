@@ -35,7 +35,7 @@ Production considerations:
 class SentimentSignal:
     """
     Sentiment-derived trading signal
-    
+
     Attributes:
         ticker: Security ticker
         timestamp: When sentiment measured
@@ -58,12 +58,12 @@ class SentimentSignal:
 class FinancialTextEncoder(nn.Module):
     """
     Encode financial text to embeddings
-    
+
     Fine-tuned on financial text + market outcomes:
     - News articles → future returns
     - Earnings call transcripts → post-earnings drift
     - Analyst reports → price target accuracy
-    
+
     Learns: Positive sentiment words for finance (beat, exceed, strong)
             Negative sentiment words (miss, weak, concern)
             Hedging language (may, could, possible)
@@ -93,10 +93,10 @@ class FinancialTextEncoder(nn.Module):
     def forward(self, text_embeddings: torch.Tensor) -> torch.Tensor:
         """
         Encode financial text
-        
+
         Args:
             text_embeddings: BERT embeddings (batch_size, 768)
-        
+
         Returns:
             Financial text embeddings (batch_size, embedding_dim)
         """
@@ -111,7 +111,7 @@ class FinancialTextEncoder(nn.Module):
 class SentimentClassifier(nn.Module):
     """
     Classify sentiment from text embeddings
-    
+
     Outputs:
     - Sentiment score (-1 to +1): Bearish to bullish
     - Confidence (0 to 1): How confident the model is
@@ -143,10 +143,10 @@ class SentimentClassifier(nn.Module):
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Classify sentiment
-        
+
         Args:
             text_emb: Text embeddings (batch_size, embedding_dim)
-        
+
         Returns:
             Tuple of (sentiment_score, confidence, aspect_sentiment)
         """
@@ -164,7 +164,7 @@ class SentimentClassifier(nn.Module):
 def sentiment_trading_example():
     """
     News sentiment → trading signals
-    
+
     Demonstrates:
     1. Processing breaking news
     2. Extracting sentiment

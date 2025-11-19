@@ -43,7 +43,7 @@ import numpy as np
 class CacheEntry:
     """
     Cached embedding or query result
-    
+
     Attributes:
         key: Cache key (embedding ID or query hash)
         value: Cached data (embedding vector or query results)
@@ -69,7 +69,7 @@ class CacheEntry:
 class CacheStats:
     """
     Cache performance statistics
-    
+
     Attributes:
         hits: Number of cache hits
         misses: Number of cache misses
@@ -97,11 +97,11 @@ class CacheStats:
 class MultiTierCache:
     """
     Multi-tier LRU cache for hot embeddings
-    
+
     L1: Hot cache (most frequently accessed)
     L2: Warm cache (recently accessed)
     L3: Cold cache (less frequently accessed)
-    
+
     Each tier has different size/latency trade-offs
     """
 
@@ -143,10 +143,10 @@ class MultiTierCache:
     def get(self, key: str) -> Optional[Any]:
         """
         Get value from cache, checking all tiers
-        
+
         Args:
             key: Cache key
-        
+
         Returns:
             value: Cached value or None if not found
         """
@@ -227,7 +227,7 @@ class MultiTierCache:
     ) -> None:
         """
         Put value into cache at specified tier
-        
+
         Args:
             key: Cache key
             value: Value to cache
@@ -352,7 +352,7 @@ class MultiTierCache:
     def invalidate(self, key: str) -> None:
         """
         Invalidate cache entry across all tiers
-        
+
         Args:
             key: Cache key to invalidate
         """
@@ -395,7 +395,7 @@ class MultiTierCache:
     def _compress(self, vector: np.ndarray) -> bytes:
         """
         Compress vector for storage
-        
+
         Uses quantization for ~4× compression
         """
         # Simple quantization: float32 → uint8
@@ -452,7 +452,7 @@ class MultiTierCache:
 class QueryResultCache:
     """
     Cache complete query results
-    
+
     Caches (query_vector, k, filters) → [(id, score), ...]
     """
 
@@ -470,12 +470,12 @@ class QueryResultCache:
     ) -> Optional[List[Tuple[str, float]]]:
         """
         Get cached query results
-        
+
         Args:
             query_vector: Query embedding
             k: Number of results
             filters: Query filters
-        
+
         Returns:
             results: Cached results or None if not found
         """
@@ -504,7 +504,7 @@ class QueryResultCache:
     ) -> None:
         """
         Cache query results
-        
+
         Args:
             query_vector: Query embedding
             k: Number of results
@@ -541,7 +541,7 @@ class QueryResultCache:
     ) -> str:
         """
         Create cache key from query parameters
-        
+
         Hash query vector to fixed-length key
         """
         # Hash query vector
@@ -566,7 +566,7 @@ class QueryResultCache:
 class AdaptivePrefetcher:
     """
     Adaptive prefetching based on query patterns
-    
+
     Learns which embeddings likely to be accessed next
     """
 
@@ -581,7 +581,7 @@ class AdaptivePrefetcher:
     def record_access(self, key: str) -> None:
         """
         Record access pattern for learning
-        
+
         Args:
             key: Accessed cache key
         """
@@ -600,11 +600,11 @@ class AdaptivePrefetcher:
     def prefetch(self, current_key: str, n: int = 10) -> List[str]:
         """
         Predict likely next accesses and prefetch
-        
+
         Args:
             current_key: Current access
             n: Number of entries to prefetch
-        
+
         Returns:
             prefetch_keys: Predicted next accesses
         """

@@ -127,7 +127,7 @@ class ExperimentResults:
 class UserExperienceAnalytics:
     """
     Comprehensive user experience analytics for embedding systems
-    
+
     Tracks user interactions, computes engagement/satisfaction metrics,
     runs A/B tests, and provides insights for optimization.
     """
@@ -198,7 +198,7 @@ class UserExperienceAnalytics:
     ) -> Dict[str, float]:
         """
         Calculate engagement metrics for time period
-        
+
         Returns metrics like CTR, dwell time, clicks per session, etc.
         """
         # Filter events
@@ -281,7 +281,7 @@ class UserExperienceAnalytics:
     ) -> ExperimentResults:
         """
         Run A/B test comparing two embedding models
-        
+
         Args:
             experiment_name: Name of experiment
             control_group: Control group identifier
@@ -289,7 +289,7 @@ class UserExperienceAnalytics:
             start_date: Experiment start date
             end_date: Experiment end date
             metrics_to_test: List of metrics to compare
-            
+
         Returns:
             ExperimentResults with statistical analysis
         """

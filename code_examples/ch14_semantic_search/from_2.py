@@ -57,7 +57,6 @@ class MediaAsset:
     perceptual_hash: Optional[str] = None
 
 # Placeholder class
-import torch.nn as nn
 
 
 class ImageEncoder(nn.Module):

@@ -37,7 +37,7 @@ import numpy as np
 class WorkloadProfile:
     """
     Characterization of vector workload for index tuning
-    
+
     Attributes:
         total_vectors: Total number of vectors in dataset
         vector_dim: Dimensionality of vectors
@@ -71,7 +71,7 @@ class WorkloadProfile:
 class IndexConfig:
     """
     Configuration for vector index
-    
+
     Attributes:
         index_type: Type of index (hnsw, ivf, pq, lsh, hybrid)
         parameters: Index-specific parameters
@@ -98,7 +98,7 @@ class IndexConfig:
 class HNSWTuner:
     """
     HNSW index parameter tuning
-    
+
     HNSW parameters:
     - M: Number of connections per layer (16-64 typical)
     - ef_construction: Size of dynamic candidate list during construction (100-500)
@@ -112,7 +112,7 @@ class HNSWTuner:
     def tune(self) -> IndexConfig:
         """
         Tune HNSW parameters for workload
-        
+
         Returns:
             config: Optimized HNSW configuration
         """
@@ -194,7 +194,7 @@ class HNSWTuner:
     def _estimate_memory(self, M: float, ef_construction: float) -> float:
         """
         Estimate memory requirements for HNSW index
-        
+
         Memory = vectors + graph structure + construction buffers
         """
         # Vector storage
@@ -229,7 +229,7 @@ class HNSWTuner:
     def _estimate_build_time(self, M: float, ef_construction: float) -> float:
         """
         Estimate index construction time
-        
+
         Roughly linear in dataset size, quadratic in ef_construction
         """
         base_time_per_million = 0.1  # hours per million vectors
@@ -249,7 +249,7 @@ class HNSWTuner:
     ) -> float:
         """
         Estimate query latency at given percentile
-        
+
         Latency increases with ef_search and dimensionality
         """
         # Base latency for distance computation
@@ -272,7 +272,7 @@ class HNSWTuner:
     def _estimate_recall(self, M: float, ef_search: float) -> float:
         """
         Estimate recall for given parameters
-        
+
         Higher M and ef_search → higher recall
         """
         # Empirical formula (approximation)
@@ -290,7 +290,7 @@ class HNSWTuner:
 class IVFTuner:
     """
     IVF (Inverted File Index) parameter tuning
-    
+
     IVF parameters:
     - n_clusters: Number of Voronoi cells (sqrt(N) to N/100 typical)
     - n_probe: Number of clusters to search (1 to n_clusters)
@@ -303,7 +303,7 @@ class IVFTuner:
     def tune(self) -> IndexConfig:
         """
         Tune IVF parameters for workload
-        
+
         Returns:
             config: Optimized IVF configuration
         """
@@ -329,7 +329,7 @@ class IVFTuner:
         n_clusters = min(n_clusters, 65536)
 
         # Estimate optimal n_probe
-        typical_k = self._get_typical_k()
+        self._get_typical_k()
 
         if self.profile.recall_requirement >= 0.98:
             n_probe = max(int(n_clusters * 0.05), 50)  # Search 5% of clusters
@@ -389,7 +389,7 @@ class IVFTuner:
     def _estimate_memory(self, n_clusters: int) -> float:
         """
         Estimate memory for IVF index
-        
+
         Memory = vectors + centroids + inverted lists
         """
         # Vector storage
@@ -425,7 +425,7 @@ class IVFTuner:
     ) -> float:
         """
         Estimate build time
-        
+
         Dominated by k-means clustering time
         """
         # k-means iterations (typically 10-50)
@@ -486,7 +486,7 @@ class IVFTuner:
 class IndexSelector:
     """
     Select optimal index type and configuration for workload
-    
+
     Compares HNSW, IVF, PQ, and hybrid approaches
     """
 
@@ -498,7 +498,7 @@ class IndexSelector:
     def select(self) -> IndexConfig:
         """
         Select best index configuration for workload
-        
+
         Returns:
             config: Recommended index configuration
         """
@@ -528,7 +528,7 @@ class IndexSelector:
     def _score_config(self, config: IndexConfig) -> float:
         """
         Score configuration based on how well it meets requirements
-        
+
         Returns:
             score: Higher is better (0-100)
         """

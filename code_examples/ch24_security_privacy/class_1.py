@@ -44,14 +44,14 @@ import numpy as np
 class PrivacyConfig:
     """
     Privacy configuration for similarity search
-    
+
     Attributes:
         epsilon: Differential privacy parameter (smaller = more private)
         delta: Failure probability for (ε,δ)-DP
         sensitivity: Query sensitivity (for noise calibration)
         noise_mechanism: Noise distribution (laplace, gaussian)
         enable_query_obfuscation: Add dummy queries
-        enable_result_obfuscation: Add dummy results  
+        enable_result_obfuscation: Add dummy results
         enable_access_hiding: Use ORAM for access pattern hiding
         privacy_budget_tracking: Track cumulative privacy loss
     """
@@ -68,7 +68,7 @@ class PrivacyConfig:
 class PrivateQuery:
     """
     Privacy-preserving query representation
-    
+
     Attributes:
         query_id: Unique identifier
         obfuscated_vector: Query with added noise/dummies
@@ -88,7 +88,7 @@ class PrivateQuery:
 class PrivateResult:
     """
     Privacy-preserving search result
-    
+
     Attributes:
         query_id: Query identifier
         results: List of (id, noisy_score) tuples
@@ -105,17 +105,17 @@ class PrivateResult:
 class DifferentiallyPrivateLSH:
     """
     Locality-Sensitive Hashing with Differential Privacy
-    
+
     Standard LSH leaks information through hash bucket membership.
     DP-LSH adds calibrated noise to protect privacy while maintaining
     approximate nearest neighbor guarantees.
-    
+
     Approach:
     1. Generate LSH hash functions
     2. Add Laplace noise to hash values
     3. Query noisy hash buckets
     4. Post-process results with additional noise
-    
+
     Privacy guarantee:
     - Each query satisfies ε-differential privacy
     - Privacy budget tracks cumulative usage
@@ -153,7 +153,7 @@ class DifferentiallyPrivateLSH:
     def _generate_hash_functions(self) -> List[List[np.ndarray]]:
         """
         Generate random projection hash functions
-        
+
         Returns:
             List of hash function matrices for each table
         """
@@ -179,18 +179,18 @@ class DifferentiallyPrivateLSH:
     ) -> int:
         """
         Hash vector using LSH with optional differential privacy noise
-        
+
         Steps:
         1. Project vector using hash functions
         2. Quantize projections to bits
         3. Add Laplace noise (if privacy enabled)
         4. Combine bits into hash value
-        
+
         Args:
             vector: Vector to hash
             table_id: Which hash table to use
             add_noise: Whether to add DP noise
-            
+
         Returns:
             Hash value (integer)
         """
@@ -222,7 +222,7 @@ class DifferentiallyPrivateLSH:
     ):
         """
         Index embedding in DP-LSH tables
-        
+
         Args:
             embedding: Vector to index
             embedding_id: Unique identifier
@@ -240,17 +240,17 @@ class DifferentiallyPrivateLSH:
     ) -> PrivateQuery:
         """
         Create privacy-preserving query
-        
+
         Techniques:
         1. Add Laplace noise to query vector
         2. Generate dummy queries for obfuscation
         3. Track privacy budget usage
-        
+
         Args:
             query: Original query vector
             k: Number of results desired
             epsilon_per_query: Privacy budget for this query
-            
+
         Returns:
             Private query object
         """
@@ -292,19 +292,19 @@ class DifferentiallyPrivateLSH:
     ) -> PrivateResult:
         """
         Privacy-preserving similarity search
-        
+
         Steps:
         1. Hash query into each table (with noise)
         2. Retrieve candidates from matching buckets
         3. Compute noisy similarities
         4. Add dummy results for obfuscation
         5. Return top-k with privacy guarantees
-        
+
         Args:
             private_query: Privacy-preserving query
             k: Number of results
             embeddings: Embedding store for similarity computation
-            
+
         Returns:
             Private search results
         """
@@ -355,7 +355,7 @@ class DifferentiallyPrivateLSH:
         dummy_results = []
         if self.privacy_config.enable_result_obfuscation:
             num_dummies = k // 2  # Add 50% dummy results
-            all_ids = set(embeddings.keys()) - set(c[0] for c in top_k_results)
+            all_ids = set(embeddings.keys()) - {c[0] for c in top_k_results}
             dummy_ids = np.random.choice(
                 list(all_ids),
                 size=min(num_dummies, len(all_ids)),
@@ -381,16 +381,16 @@ class DifferentiallyPrivateLSH:
 class SecureMultiPartyKNN:
     """
     Secure Multi-Party Computation for k-NN
-    
+
     Scenario: Multiple parties have embedding databases, want to jointly
     compute k-NN without revealing their embeddings to each other.
-    
+
     Protocol:
     1. Secret sharing: Each party splits embeddings into shares
     2. Distributed computation: Compute similarities on shares
     3. Secure aggregation: Combine results without reconstruction
     4. Result revelation: Only final top-k revealed
-    
+
     Security: Honest-but-curious adversary model, collusion resistance
     """
 
@@ -412,14 +412,14 @@ class SecureMultiPartyKNN:
     ) -> List[float]:
         """
         Split value into additive secret shares
-        
+
         Property: sum(shares) = value (modulo some large prime)
         Each party gets one share, learns nothing individually
-        
+
         Args:
             value: Value to share
             num_shares: Number of shares
-            
+
         Returns:
             List of shares
         """
@@ -444,17 +444,17 @@ class SecureMultiPartyKNN:
     ) -> float:
         """
         Compute similarity using secure MPC
-        
+
         Protocol:
         1. Each party computes partial dot product with their data
         2. Parties secret-share partial results
         3. Aggregate shares to get final similarity
         4. No party learns individual contributions
-        
+
         Args:
             query: Query vector (can be shared)
             party_embeddings: Embedding from each party
-            
+
         Returns:
             Aggregated similarity score
         """
@@ -494,16 +494,16 @@ class SecureMultiPartyKNN:
     ) -> List[Tuple[int, str, float]]:
         """
         Federated k-NN across parties
-        
+
         Protocol:
         1. Each party computes local top-k
         2. Parties securely aggregate to find global top-k
         3. Only final results revealed
-        
+
         Args:
             query: Query vector
             k: Number of results
-            
+
         Returns:
             Global top-k: (party_id, emb_id, score) tuples
         """
@@ -528,14 +528,14 @@ class SecureMultiPartyKNN:
 class PrivateInformationRetrieval:
     """
     Private Information Retrieval for embeddings
-    
+
     Goal: Query database without revealing which item you're querying for
-    
+
     Computational PIR:
     - Based on cryptographic assumptions (e.g., homomorphic encryption)
     - Polylogarithmic communication complexity
     - Practical for small-medium databases
-    
+
     Information-theoretic PIR:
     - Requires database replication across non-colluding servers
     - Perfect privacy but higher communication cost
@@ -561,16 +561,16 @@ class PrivateInformationRetrieval:
     ) -> Optional[np.ndarray]:
         """
         Retrieve embedding without revealing which one
-        
+
         Simplified approach (real PIR uses homomorphic encryption):
         1. Generate query vector that encodes index obliviously
         2. Server computes linear combination
         3. Client decodes result
-        
+
         Args:
             query_index: Index to retrieve (hidden from server)
             database: Embedding database
-            
+
         Returns:
             Retrieved embedding
         """
