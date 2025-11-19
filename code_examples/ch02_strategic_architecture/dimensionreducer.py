@@ -3,6 +3,7 @@
 
 from sklearn.decomposition import PCA
 
+
 class DimensionReducer:
     """Reduce embedding dimensionality to save costs"""
 

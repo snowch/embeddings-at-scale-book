@@ -1,8 +1,9 @@
 # Code from Chapter 10
 # Book: Embeddings at Scale
 
+
 import torch.optim as optim
-from typing import List
+
 
 class MemoryEfficientOptimizer:
     """
@@ -102,14 +103,14 @@ def memory_usage_comparison():
     adam_8bit_mb = num_params * 3 * 1 / 1e6
     sgd_mb = num_params * 1 * 4 / 1e6  # Only momentum
 
-    print(f"\nMemory usage:")
+    print("\nMemory usage:")
     print(f"  Parameters (FP32): {param_memory_mb:.1f} MB")
     print(f"  Adam (FP32): {adam_fp32_mb:.1f} MB optimizer state")
     print(f"  Adam (FP16): {adam_fp16_mb:.1f} MB optimizer state")
     print(f"  Adam (8-bit): {adam_8bit_mb:.1f} MB optimizer state")
     print(f"  SGD: {sgd_mb:.1f} MB optimizer state")
 
-    print(f"\nTotal memory (params + optimizer):")
+    print("\nTotal memory (params + optimizer):")
     print(f"  Adam (FP32): {param_memory_mb + adam_fp32_mb:.1f} MB")
     print(f"  Adam (FP16): {param_memory_mb + adam_fp16_mb:.1f} MB")
     print(f"  Adam (8-bit): {param_memory_mb + adam_8bit_mb:.1f} MB")

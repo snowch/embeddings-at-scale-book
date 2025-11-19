@@ -19,7 +19,9 @@ Benefits:
 """
 
 from typing import List, Set
+
 import numpy as np
+
 
 class MultiStageRetriever:
     """
@@ -65,7 +67,7 @@ class MultiStageRetriever:
         self.stage3_k = stage3_k
         self.stage4_k = stage4_k
 
-        print(f"Initialized Multi-Stage Retriever")
+        print("Initialized Multi-Stage Retriever")
         print(f"  Stage 1 (vector): {stage1_k}")
         print(f"  Stage 2 (keyword): {stage2_k}")
         print(f"  Stage 3 (rerank): {stage3_k}")

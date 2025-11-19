@@ -8,7 +8,7 @@ class QuantumEmbeddingTrainer:
     Uses parameterized quantum circuits as feature extractors,
     trained with classical optimization of circuit parameters
     """
-    
+
     def __init__(
         self,
         input_dim: int,
@@ -21,13 +21,13 @@ class QuantumEmbeddingTrainer:
         self.num_qubits = num_qubits
         self.num_layers = num_layers
         self.params = self._initialize_parameters()
-    
+
     def _initialize_parameters(self) -> np.ndarray:
         """Initialize quantum circuit parameters"""
         # Parameters for rotation gates (RX, RY, RZ) in each layer
         num_params = self.num_qubits * 3 * self.num_layers
         return np.random.randn(num_params) * 0.1
-    
+
     def quantum_circuit(
         self,
         x: np.ndarray,
@@ -49,7 +49,7 @@ class QuantumEmbeddingTrainer:
         # Encode input (amplitude encoding)
         # |ψ⟩ = Σᵢ xᵢ|i⟩
         state = x / (np.linalg.norm(x) + 1e-10)
-        
+
         # Apply variational layers (simulated)
         param_idx = 0
         for layer in range(self.num_layers):
@@ -60,24 +60,24 @@ class QuantumEmbeddingTrainer:
                     rx = params[param_idx]
                     ry = params[param_idx + 1]
                     rz = params[param_idx + 2]
-                    
+
                     # Simple simulation of rotation effect
                     state[qubit] *= np.cos(rx/2) * np.cos(ry/2) * np.cos(rz/2)
                     param_idx += 3
-            
+
             # Entanglement (CNOT gates) - simulated as correlation
             if len(state) > 1:
                 for i in range(0, len(state)-1, 2):
                     # CNOT effect approximation
                     state[i] = 0.7 * state[i] + 0.3 * state[i+1]
                     state[i+1] = 0.3 * state[i] + 0.7 * state[i+1]
-        
+
         # Measurement: extract embedding
         embedding = state[:self.output_dim]
         embedding = embedding / (np.linalg.norm(embedding) + 1e-10)
-        
+
         return embedding
-    
+
     def train_step(
         self,
         x_batch: np.ndarray,
@@ -93,20 +93,20 @@ class QuantumEmbeddingTrainer:
         This requires 2 quantum circuit evaluations per parameter
         """
         batch_size = len(x_batch)
-        
+
         # Forward pass
         embeddings = np.array([
             self.quantum_circuit(x, self.params)
             for x in x_batch
         ])
-        
+
         # Compute loss (contrastive or supervised)
         loss = self._compute_loss(embeddings, y_batch)
-        
+
         # Compute gradients via parameter-shift rule
         gradients = np.zeros_like(self.params)
         shift = np.pi / 2
-        
+
         for i in range(len(self.params)):
             # Shift parameter up
             params_plus = self.params.copy()
@@ -116,7 +116,7 @@ class QuantumEmbeddingTrainer:
                 for x in x_batch
             ])
             loss_plus = self._compute_loss(embeddings_plus, y_batch)
-            
+
             # Shift parameter down
             params_minus = self.params.copy()
             params_minus[i] -= shift
@@ -125,15 +125,15 @@ class QuantumEmbeddingTrainer:
                 for x in x_batch
             ])
             loss_minus = self._compute_loss(embeddings_minus, y_batch)
-            
+
             # Gradient via parameter-shift rule
             gradients[i] = (loss_plus - loss_minus) / 2
-        
+
         # Update parameters
         self.params -= learning_rate * gradients
-        
+
         return loss
-    
+
     def _compute_loss(
         self,
         embeddings: np.ndarray,
@@ -143,18 +143,18 @@ class QuantumEmbeddingTrainer:
         # Simplified contrastive loss
         batch_size = len(embeddings)
         loss = 0
-        
+
         for i in range(batch_size):
             for j in range(i+1, batch_size):
                 similarity = np.dot(embeddings[i], embeddings[j])
-                
+
                 if labels[i] == labels[j]:
                     # Similar: maximize similarity
                     loss += (1 - similarity) ** 2
                 else:
                     # Dissimilar: minimize similarity
                     loss += max(0, similarity) ** 2
-        
+
         return loss / (batch_size * (batch_size - 1) / 2)
 
 # Example: Quantum kernel for similarity computation
@@ -165,16 +165,16 @@ class QuantumKernel:
     Uses quantum feature maps to compute inner products
     in high-dimensional Hilbert space
     """
-    
+
     def __init__(self, num_qubits: int, num_layers: int):
         self.num_qubits = num_qubits
         self.num_layers = num_layers
-    
+
     def feature_map(self, x: np.ndarray) -> np.ndarray:
         """Quantum feature map |φ(x)⟩"""
         # ZZ feature map: U(x) = Π exp(-i(π - xᵢ)(π - xⱼ)ZᵢZⱼ)
         # Creates entangled quantum state encoding input
-        
+
         # Simplified simulation
         phi = x.copy()
         for layer in range(self.num_layers):
@@ -182,9 +182,9 @@ class QuantumKernel:
             phi = np.sin(phi * np.pi)
             # Entanglement effect
             phi = np.fft.fft(phi).real
-        
+
         return phi / (np.linalg.norm(phi) + 1e-10)
-    
+
     def kernel(self, x1: np.ndarray, x2: np.ndarray) -> float:
         """
         Quantum kernel: K(x₁, x₂) = |⟨φ(x₁)|φ(x₂)⟩|²
@@ -193,20 +193,20 @@ class QuantumKernel:
         """
         phi1 = self.feature_map(x1)
         phi2 = self.feature_map(x2)
-        
+
         # Inner product in feature space
         overlap = np.abs(np.dot(phi1, phi2))
-        
+
         return overlap ** 2
-    
+
     def kernel_matrix(self, X: np.ndarray) -> np.ndarray:
         """Compute kernel matrix for all pairs"""
         n = len(X)
         K = np.zeros((n, n))
-        
+
         for i in range(n):
             for j in range(i, n):
                 K[i, j] = self.kernel(X[i], X[j])
                 K[j, i] = K[i, j]
-        
+
         return K

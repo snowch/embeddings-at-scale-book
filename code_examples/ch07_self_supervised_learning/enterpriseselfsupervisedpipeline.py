@@ -5,6 +5,7 @@ import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel
 from torch.utils.data import DistributedSampler
 
+
 class EnterpriseSelfsupervisedPipeline:
     """
     Production self-supervised learning pipeline

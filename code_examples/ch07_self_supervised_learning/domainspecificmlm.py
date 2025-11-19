@@ -1,10 +1,16 @@
 # Code from Chapter 07
 # Book: Embeddings at Scale
 
-from transformers import BertConfig, BertForMaskedLM, BertTokenizer
-from transformers import DataCollatorForLanguageModeling
-from transformers import Trainer, TrainingArguments
 import torch
+from transformers import (
+    BertConfig,
+    BertForMaskedLM,
+    BertTokenizer,
+    DataCollatorForLanguageModeling,
+    Trainer,
+    TrainingArguments,
+)
+
 
 class DomainSpecificMLM:
     """
@@ -63,8 +69,8 @@ class DomainSpecificMLM:
         """
         from tokenizers import Tokenizer
         from tokenizers.models import BPE
-        from tokenizers.trainers import BpeTrainer
         from tokenizers.pre_tokenizers import Whitespace
+        from tokenizers.trainers import BpeTrainer
 
         # Initialize tokenizer
         tokenizer = Tokenizer(BPE(unk_token="[UNK]"))

@@ -25,15 +25,17 @@ Dashboard goals:
 - Drill-down for root cause analysis
 """
 
-import time
-import numpy as np
-from typing import Dict, List, Optional, Any, Callable
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from collections import defaultdict, deque
 import json
 import threading
+import time
+from collections import defaultdict, deque
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 from enum import Enum
+from typing import Any, Callable, Dict, List, Optional
+
+import numpy as np
+
 
 class MetricType(Enum):
     """Types of metrics to track"""
@@ -59,7 +61,7 @@ class PerformanceSnapshot:
     Captures all key metrics for dashboard display
     """
     timestamp: datetime
-    
+
     # Query metrics
     queries_per_second: float
     avg_latency_ms: float
@@ -69,28 +71,28 @@ class PerformanceSnapshot:
     p999_latency_ms: float
     timeout_rate: float
     error_rate: float
-    
+
     # Index metrics
     index_memory_gb: float
     index_query_accuracy: float
     candidates_scanned_avg: int
-    
+
     # Cache metrics
     cache_hit_rate: float
     cache_memory_gb: float
     cache_eviction_rate: float
-    
+
     # Resource metrics
     cpu_utilization: float
     memory_utilization: float
     gpu_utilization: float
     disk_iops: float
     network_mbps: float
-    
+
     # Cost metrics
     cost_per_query_usd: float
     total_cost_hourly_usd: float
-    
+
     # Quality metrics
     quality_score: float
     drift_score: float
@@ -101,7 +103,7 @@ class PerformanceMonitor:
     
     Collects, aggregates, and exposes metrics for dashboards and alerting.
     """
-    
+
     def __init__(
         self,
         window_size_seconds: int = 300,  # 5 minute window
@@ -116,24 +118,24 @@ class PerformanceMonitor:
         """
         self.window_size = timedelta(seconds=window_size_seconds)
         self.retention = timedelta(hours=retention_hours)
-        
+
         # Thread-safe metric storage
         self.lock = threading.Lock()
-        
+
         # Recent metric values for aggregation
         self.metrics: Dict[str, deque] = defaultdict(lambda: deque(maxlen=10000))
-        
+
         # Aggregated snapshots
         self.snapshots: deque = deque(maxlen=retention_hours * 12)  # 5-min snapshots
-        
+
         # Alert callbacks
         self.alert_callbacks: List[Callable] = []
-        
+
         # Start background aggregation
         self.running = True
         self.aggregation_thread = threading.Thread(target=self._aggregation_loop, daemon=True)
         self.aggregation_thread.start()
-    
+
     def record_metric(
         self,
         name: str,
@@ -149,15 +151,15 @@ class PerformanceMonitor:
             labels=labels or {},
             metric_type=metric_type
         )
-        
+
         with self.lock:
             self.metrics[name].append(metric)
-            
+
             # Prune old metrics
             cutoff = datetime.now() - self.retention
             while self.metrics[name] and self.metrics[name][0].timestamp < cutoff:
                 self.metrics[name].popleft()
-    
+
     def record_query(
         self,
         latency_ms: float,
@@ -168,28 +170,28 @@ class PerformanceMonitor:
         index_name: str = "default"
     ):
         """Convenience method to record query metrics"""
-        self.record_metric("query_latency_ms", latency_ms, 
+        self.record_metric("query_latency_ms", latency_ms,
                           labels={"index": index_name}, metric_type=MetricType.HISTOGRAM)
-        self.record_metric("query_count", 1, 
-                          labels={"index": index_name, "success": str(success)}, 
+        self.record_metric("query_count", 1,
+                          labels={"index": index_name, "success": str(success)},
                           metric_type=MetricType.COUNTER)
-        
+
         if timed_out:
-            self.record_metric("query_timeout", 1, 
+            self.record_metric("query_timeout", 1,
                               labels={"index": index_name}, metric_type=MetricType.COUNTER)
-        
+
         if not success:
-            self.record_metric("query_error", 1, 
+            self.record_metric("query_error", 1,
                               labels={"index": index_name}, metric_type=MetricType.COUNTER)
-        
+
         if cache_hit:
             self.record_metric("cache_hit", 1, metric_type=MetricType.COUNTER)
         else:
             self.record_metric("cache_miss", 1, metric_type=MetricType.COUNTER)
-        
-        self.record_metric("candidates_scanned", candidates_scanned, 
+
+        self.record_metric("candidates_scanned", candidates_scanned,
                           labels={"index": index_name}, metric_type=MetricType.HISTOGRAM)
-    
+
     def record_resource_usage(
         self,
         cpu_percent: float,
@@ -201,26 +203,26 @@ class PerformanceMonitor:
         """Record resource utilization metrics"""
         self.record_metric("cpu_utilization", cpu_percent, metric_type=MetricType.GAUGE)
         self.record_metric("memory_gb", memory_gb, metric_type=MetricType.GAUGE)
-        
+
         if gpu_percent is not None:
             self.record_metric("gpu_utilization", gpu_percent, metric_type=MetricType.GAUGE)
         if disk_iops is not None:
             self.record_metric("disk_iops", disk_iops, metric_type=MetricType.GAUGE)
         if network_mbps is not None:
             self.record_metric("network_mbps", network_mbps, metric_type=MetricType.GAUGE)
-    
+
     def get_current_snapshot(self) -> PerformanceSnapshot:
         """Get current performance snapshot for dashboard"""
         now = datetime.now()
         window_start = now - self.window_size
-        
+
         with self.lock:
             # Query metrics
-            latencies = [m.value for m in self.metrics.get("query_latency_ms", []) 
+            latencies = [m.value for m in self.metrics.get("query_latency_ms", [])
                         if m.timestamp >= window_start]
-            query_counts = [m for m in self.metrics.get("query_count", []) 
+            query_counts = [m for m in self.metrics.get("query_count", [])
                            if m.timestamp >= window_start]
-            
+
             # Calculate QPS
             if query_counts:
                 total_queries = sum(m.value for m in query_counts)
@@ -228,7 +230,7 @@ class PerformanceMonitor:
                 qps = total_queries / max(time_span, 1)
             else:
                 qps = 0.0
-            
+
             # Latency percentiles
             if latencies:
                 avg_latency = np.mean(latencies)
@@ -238,30 +240,30 @@ class PerformanceMonitor:
                 p999 = np.percentile(latencies, 99.9) if len(latencies) > 1000 else p99
             else:
                 avg_latency = p50 = p90 = p99 = p999 = 0.0
-            
+
             # Error and timeout rates
-            error_counts = sum(m.value for m in self.metrics.get("query_error", []) 
+            error_counts = sum(m.value for m in self.metrics.get("query_error", [])
                               if m.timestamp >= window_start)
-            timeout_counts = sum(m.value for m in self.metrics.get("query_timeout", []) 
+            timeout_counts = sum(m.value for m in self.metrics.get("query_timeout", [])
                                 if m.timestamp >= window_start)
             total_queries = sum(m.value for m in query_counts)
-            
+
             error_rate = error_counts / max(total_queries, 1)
             timeout_rate = timeout_counts / max(total_queries, 1)
-            
+
             # Cache metrics
-            cache_hits = sum(m.value for m in self.metrics.get("cache_hit", []) 
+            cache_hits = sum(m.value for m in self.metrics.get("cache_hit", [])
                             if m.timestamp >= window_start)
-            cache_misses = sum(m.value for m in self.metrics.get("cache_miss", []) 
+            cache_misses = sum(m.value for m in self.metrics.get("cache_miss", [])
                               if m.timestamp >= window_start)
             cache_hit_rate = cache_hits / max(cache_hits + cache_misses, 1)
-            
+
             # Get latest gauge values
             def get_latest_gauge(name: str, default: float = 0.0) -> float:
-                values = [m.value for m in self.metrics.get(name, []) 
+                values = [m.value for m in self.metrics.get(name, [])
                          if m.timestamp >= window_start]
                 return values[-1] if values else default
-            
+
             snapshot = PerformanceSnapshot(
                 timestamp=now,
                 queries_per_second=qps,
@@ -274,7 +276,7 @@ class PerformanceMonitor:
                 error_rate=error_rate,
                 index_memory_gb=get_latest_gauge("index_memory_gb"),
                 index_query_accuracy=get_latest_gauge("index_query_accuracy", 0.95),
-                candidates_scanned_avg=int(np.mean([m.value for m in self.metrics.get("candidates_scanned", []) 
+                candidates_scanned_avg=int(np.mean([m.value for m in self.metrics.get("candidates_scanned", [])
                                                      if m.timestamp >= window_start]) or 0),
                 cache_hit_rate=cache_hit_rate,
                 cache_memory_gb=get_latest_gauge("cache_memory_gb"),
@@ -289,61 +291,61 @@ class PerformanceMonitor:
                 quality_score=get_latest_gauge("quality_score", 85.0),
                 drift_score=get_latest_gauge("drift_score")
             )
-        
+
         return snapshot
-    
+
     def _aggregation_loop(self):
         """Background thread for periodic snapshot aggregation"""
         while self.running:
             try:
                 snapshot = self.get_current_snapshot()
-                
+
                 with self.lock:
                     self.snapshots.append(snapshot)
-                
+
                 # Check alerts
                 self._check_alerts(snapshot)
-                
+
             except Exception as e:
                 print(f"Error in aggregation loop: {e}")
-            
+
             time.sleep(60)  # Aggregate every minute
-    
+
     def _check_alerts(self, snapshot: PerformanceSnapshot):
         """Check if any alert conditions are met"""
         alerts = []
-        
+
         # High latency alerts
         if snapshot.p99_latency_ms > 100:
             alerts.append(f"High p99 latency: {snapshot.p99_latency_ms:.1f}ms > 100ms")
-        
+
         # High error rate
         if snapshot.error_rate > 0.01:  # >1%
             alerts.append(f"High error rate: {snapshot.error_rate*100:.2f}% > 1%")
-        
+
         # High timeout rate
         if snapshot.timeout_rate > 0.005:  # >0.5%
             alerts.append(f"High timeout rate: {snapshot.timeout_rate*100:.2f}% > 0.5%")
-        
+
         # Low cache hit rate
         if snapshot.cache_hit_rate < 0.5:  # <50%
             alerts.append(f"Low cache hit rate: {snapshot.cache_hit_rate*100:.1f}% < 50%")
-        
+
         # High resource utilization
         if snapshot.cpu_utilization > 90:
             alerts.append(f"High CPU utilization: {snapshot.cpu_utilization:.1f}% > 90%")
-        
+
         if snapshot.memory_utilization > 32:  # >32GB
             alerts.append(f"High memory usage: {snapshot.memory_utilization:.1f}GB > 32GB")
-        
+
         # Low quality score
         if snapshot.quality_score < 70:
             alerts.append(f"Low quality score: {snapshot.quality_score:.1f} < 70")
-        
+
         # High drift score
         if snapshot.drift_score > 0.3:
             alerts.append(f"High drift score: {snapshot.drift_score:.3f} > 0.3")
-        
+
         # Trigger alert callbacks
         if alerts:
             for callback in self.alert_callbacks:
@@ -351,21 +353,21 @@ class PerformanceMonitor:
                     callback(snapshot, alerts)
                 except Exception as e:
                     print(f"Error in alert callback: {e}")
-    
+
     def register_alert_callback(self, callback: Callable):
         """Register callback for alerts"""
         self.alert_callbacks.append(callback)
-    
+
     def get_dashboard_data(self, hours: int = 1) -> Dict[str, Any]:
         """Get data for dashboard display"""
         cutoff = datetime.now() - timedelta(hours=hours)
-        
+
         with self.lock:
             recent_snapshots = [s for s in self.snapshots if s.timestamp >= cutoff]
-        
+
         if not recent_snapshots:
             return {"error": "No data available"}
-        
+
         return {
             "current": self._snapshot_to_dict(recent_snapshots[-1]),
             "history": {
@@ -388,7 +390,7 @@ class PerformanceMonitor:
                 "total_cost": sum([s.total_cost_hourly_usd for s in recent_snapshots]) * (hours / len(recent_snapshots))
             }
         }
-    
+
     def _snapshot_to_dict(self, snapshot: PerformanceSnapshot) -> Dict[str, Any]:
         """Convert snapshot to dictionary"""
         return {
@@ -426,17 +428,17 @@ class PerformanceMonitor:
                 "drift": snapshot.drift_score
             }
         }
-    
+
     def generate_dashboard_html(self, hours: int = 1) -> str:
         """Generate simple HTML dashboard"""
         data = self.get_dashboard_data(hours)
-        
+
         if "error" in data:
             return f"<html><body><h1>Error: {data['error']}</h1></body></html>"
-        
+
         current = data["current"]
         summary = data["summary"]
-        
+
         html = f"""
 <!DOCTYPE html>
 <html>
@@ -621,7 +623,7 @@ class PerformanceMonitor:
 </html>
 """
         return html
-    
+
     def shutdown(self):
         """Shutdown monitoring"""
         self.running = False
@@ -632,18 +634,18 @@ class PerformanceMonitor:
 # Example usage
 if __name__ == "__main__":
     import random
-    
+
     # Initialize monitor
     monitor = PerformanceMonitor()
-    
+
     # Register alert callback
     def alert_handler(snapshot: PerformanceSnapshot, alerts: List[str]):
         print(f"\n🚨 ALERT at {snapshot.timestamp.isoformat()}:")
         for alert in alerts:
             print(f"  - {alert}")
-    
+
     monitor.register_alert_callback(alert_handler)
-    
+
     # Simulate queries
     print("Simulating query traffic...")
     for i in range(1000):
@@ -651,15 +653,15 @@ if __name__ == "__main__":
         success = random.random() > 0.02  # 2% error rate
         timed_out = random.random() < 0.005  # 0.5% timeout rate
         cache_hit = random.random() < 0.7  # 70% cache hit rate
-        
+
         # Latency varies by cache hit
         if cache_hit:
             latency = random.gauss(5, 2)  # Fast cache hit
         else:
             latency = random.gauss(30, 10)  # Slower database query
-        
+
         latency = max(1, latency)
-        
+
         monitor.record_query(
             latency_ms=latency,
             success=success,
@@ -667,7 +669,7 @@ if __name__ == "__main__":
             cache_hit=cache_hit,
             candidates_scanned=random.randint(100, 10000)
         )
-        
+
         # Simulate resource usage
         if i % 100 == 0:
             monitor.record_resource_usage(
@@ -677,15 +679,15 @@ if __name__ == "__main__":
                 disk_iops=random.gauss(1000, 200),
                 network_mbps=random.gauss(500, 100)
             )
-            
+
             # Record cost and quality
             monitor.record_metric("cost_per_query_usd", 0.0001 * random.gauss(1, 0.1))
             monitor.record_metric("total_cost_hourly_usd", 2.5 * random.gauss(1, 0.1))
             monitor.record_metric("quality_score", 85 * random.gauss(1, 0.05))
             monitor.record_metric("drift_score", 0.1 * random.gauss(1, 0.5))
-        
+
         time.sleep(0.01)  # 100 QPS
-    
+
     # Get current snapshot
     print("\nCurrent Performance Snapshot:")
     snapshot = monitor.get_current_snapshot()
@@ -695,17 +697,17 @@ if __name__ == "__main__":
     print(f"  Error rate: {snapshot.error_rate*100:.2f}%")
     print(f"  Cache hit rate: {snapshot.cache_hit_rate*100:.1f}%")
     print(f"  Quality score: {snapshot.quality_score:.1f}")
-    
+
     # Generate dashboard
     print("\nGenerating dashboard HTML...")
     html = monitor.generate_dashboard_html(hours=1)
     with open("/tmp/dashboard.html", "w") as f:
         f.write(html)
     print("Dashboard saved to /tmp/dashboard.html")
-    
+
     # Show dashboard data
     print("\nDashboard Data (JSON):")
     dashboard_data = monitor.get_dashboard_data(hours=1)
     print(json.dumps(dashboard_data, indent=2, default=str))
-    
+
     monitor.shutdown()

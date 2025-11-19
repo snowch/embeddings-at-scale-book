@@ -30,9 +30,9 @@ Success factors:
 """
 
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Set
 from enum import Enum
-from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Set
+
 
 class StakeholderRole(Enum):
     """Stakeholder roles in change process"""
@@ -82,7 +82,7 @@ class Stakeholder:
     concerns: List[str] = field(default_factory=list)
     interests: List[str] = field(default_factory=list)
     preferred_channels: Set[CommunicationChannel] = field(default_factory=set)
-    
+
     def engagement_priority(self) -> int:
         """Calculate engagement priority based on influence and role"""
         role_weights = {
@@ -147,26 +147,26 @@ class ChangeManagementFramework:
     Manages stakeholder engagement, communication strategy,
     pilot projects, and progress tracking
     """
-    
+
     def __init__(self, organization_name: str):
         self.organization_name = organization_name
         self.stakeholders: List[Stakeholder] = []
         self.barriers: List[ChangeBarrier] = []
         self.pilots: List[PilotProject] = []
         self.communication_log: List[Dict] = []
-        
+
     def add_stakeholder(self, stakeholder: Stakeholder):
         """Add stakeholder to framework"""
         self.stakeholders.append(stakeholder)
-        
+
     def add_barrier(self, barrier: ChangeBarrier):
         """Add adoption barrier"""
         self.barriers.append(barrier)
-        
+
     def add_pilot(self, pilot: PilotProject):
         """Add pilot project"""
         self.pilots.append(pilot)
-        
+
     def assess_readiness(self) -> Dict[str, any]:
         """
         Assess organizational readiness for embedding adoption
@@ -179,17 +179,17 @@ class ChangeManagementFramework:
         for stakeholder in self.stakeholders:
             role = stakeholder.role
             role_counts[role] = role_counts.get(role, 0) + 1
-        
+
         # Assess leadership support
         has_executive_sponsor = StakeholderRole.EXECUTIVE_SPONSOR in role_counts
         champion_count = role_counts.get(StakeholderRole.CHAMPION, 0)
         resistor_count = role_counts.get(StakeholderRole.RESISTOR, 0) + \
                         role_counts.get(StakeholderRole.BLOCKER, 0)
-        
+
         # Assess barriers
         critical_barriers = [b for b in self.barriers if b.severity >= 8]
         moderate_barriers = [b for b in self.barriers if 5 <= b.severity < 8]
-        
+
         # Calculate readiness score
         readiness_score = 0
         if has_executive_sponsor:
@@ -198,7 +198,7 @@ class ChangeManagementFramework:
         readiness_score -= resistor_count * 15
         readiness_score -= len(critical_barriers) * 10
         readiness_score -= len(moderate_barriers) * 5
-        
+
         # Determine readiness level
         if readiness_score >= 60:
             readiness = ChangeReadiness.READY
@@ -209,7 +209,7 @@ class ChangeManagementFramework:
         else:
             readiness = ChangeReadiness.NOT_READY
             recommendation = "Build foundation before attempting adoption"
-        
+
         return {
             'readiness': readiness.value,
             'score': readiness_score,
@@ -220,13 +220,13 @@ class ChangeManagementFramework:
             'moderate_barriers': len(moderate_barriers),
             'recommendation': recommendation,
             'next_steps': self._generate_next_steps(
-                readiness, 
+                readiness,
                 has_executive_sponsor,
                 champion_count,
                 critical_barriers
             )
         }
-    
+
     def _generate_next_steps(
         self,
         readiness: ChangeReadiness,
@@ -235,19 +235,19 @@ class ChangeManagementFramework:
         critical_barriers: List[ChangeBarrier]
     ) -> List[str]:
         """Generate recommended next steps based on readiness"""
-        
+
         steps = []
-        
+
         if not has_executive_sponsor:
             steps.append("Secure executive sponsorship through business case and demos")
-        
+
         if champion_count < 2:
             steps.append("Identify and recruit 2-3 champions across key departments")
-        
+
         if critical_barriers:
-            steps.append(f"Address {len(critical_barriers)} critical barriers: " + 
+            steps.append(f"Address {len(critical_barriers)} critical barriers: " +
                         ", ".join(b.name for b in critical_barriers[:3]))
-        
+
         if readiness == ChangeReadiness.READY:
             steps.extend([
                 "Launch pilot project with early adopters",
@@ -269,9 +269,9 @@ class ChangeManagementFramework:
                 "Assess technical and organizational gaps",
                 "Develop 6-12 month readiness roadmap"
             ])
-        
+
         return steps
-    
+
     def design_communication_strategy(self) -> Dict[str, any]:
         """
         Design stakeholder communication strategy
@@ -286,10 +286,10 @@ class ChangeManagementFramework:
             if role not in grouped_stakeholders:
                 grouped_stakeholders[role] = []
             grouped_stakeholders[role].append(stakeholder)
-        
+
         # Design messaging for each group
         messaging_strategy = {}
-        
+
         # Executive sponsors: Business value, ROI, strategic advantage
         if StakeholderRole.EXECUTIVE_SPONSOR in grouped_stakeholders:
             messaging_strategy['executives'] = {
@@ -304,7 +304,7 @@ class ChangeManagementFramework:
                 'frequency': 'Monthly',
                 'content_type': 'Business case, success metrics, strategic updates'
             }
-        
+
         # Champions: Technical details, implementation progress, how to advocate
         if StakeholderRole.CHAMPION in grouped_stakeholders:
             messaging_strategy['champions'] = {
@@ -319,7 +319,7 @@ class ChangeManagementFramework:
                 'frequency': 'Weekly',
                 'content_type': 'Technical deep dives, demos, Q&A sessions'
             }
-        
+
         # Skeptics/resistors: Address concerns, demonstrate value, reduce risk
         skeptics_and_resistors = (
             grouped_stakeholders.get(StakeholderRole.SKEPTIC, []) +
@@ -338,7 +338,7 @@ class ChangeManagementFramework:
                 'frequency': 'As needed, minimum monthly',
                 'content_type': 'Direct conversations addressing specific concerns'
             }
-        
+
         # Blockers: Understand motivations, find common ground, escalate if needed
         if StakeholderRole.BLOCKER in grouped_stakeholders:
             messaging_strategy['blockers'] = {
@@ -353,7 +353,7 @@ class ChangeManagementFramework:
                 'frequency': 'Weekly until resolution',
                 'content_type': 'Direct negotiation, executive involvement if needed'
             }
-        
+
         # Broad organization: General awareness, training opportunities, success stories
         messaging_strategy['organization_wide'] = {
             'key_messages': [
@@ -370,7 +370,7 @@ class ChangeManagementFramework:
             'frequency': 'Monthly major updates, quarterly deep dives',
             'content_type': 'Accessible explanations, demos, case studies'
         }
-        
+
         return {
             'strategy': messaging_strategy,
             'overall_principles': [
@@ -382,15 +382,15 @@ class ChangeManagementFramework:
             ],
             'communication_calendar': self._create_communication_calendar(messaging_strategy)
         }
-    
+
     def _create_communication_calendar(
-        self, 
+        self,
         messaging_strategy: Dict[str, any]
     ) -> List[Dict[str, str]]:
         """Create month-by-month communication calendar"""
-        
+
         calendar = []
-        
+
         # Month 1: Launch and awareness
         calendar.append({
             'month': 1,
@@ -402,7 +402,7 @@ class ChangeManagementFramework:
                 'One-on-one meetings with key skeptics'
             ]
         })
-        
+
         # Month 2-3: Education and pilot start
         calendar.append({
             'month': '2-3',
@@ -414,7 +414,7 @@ class ChangeManagementFramework:
                 'Monthly email updates on progress'
             ]
         })
-        
+
         # Month 4-6: Pilot results and iteration
         calendar.append({
             'month': '4-6',
@@ -426,7 +426,7 @@ class ChangeManagementFramework:
                 'Expansion planning with additional teams'
             ]
         })
-        
+
         # Month 7-12: Scale and reinforcement
         calendar.append({
             'month': '7-12',
@@ -438,9 +438,9 @@ class ChangeManagementFramework:
                 'Documentation and best practices dissemination'
             ]
         })
-        
+
         return calendar
-    
+
     def track_progress(self) -> Dict[str, any]:
         """
         Track change management progress
@@ -450,28 +450,28 @@ class ChangeManagementFramework:
         """
         # Stakeholder engagement metrics
         engagement_score = sum(
-            1 for s in self.stakeholders 
+            1 for s in self.stakeholders
             if s.role in [StakeholderRole.CHAMPION, StakeholderRole.EARLY_ADOPTER]
         ) / max(len(self.stakeholders), 1)
-        
+
         resistance_score = sum(
-            1 for s in self.stakeholders 
+            1 for s in self.stakeholders
             if s.role in [StakeholderRole.RESISTOR, StakeholderRole.BLOCKER]
         ) / max(len(self.stakeholders), 1)
-        
+
         # Pilot project status
         completed_pilots = [p for p in self.pilots if p.status == 'completed']
         successful_pilots = [
-            p for p in completed_pilots 
+            p for p in completed_pilots
             if p.actual_results and all(
-                p.actual_results.get(k, 0) >= v 
+                p.actual_results.get(k, 0) >= v
                 for k, v in p.target_metrics.items()
             )
         ]
-        
+
         # Barrier resolution
         resolved_barriers = [b for b in self.barriers if b.severity < 3]  # Largely addressed
-        
+
         return {
             'engagement_score': engagement_score,
             'resistance_score': resistance_score,
@@ -497,7 +497,7 @@ class ChangeManagementFramework:
                 len([b for b in self.barriers if b.severity >= 8])
             )
         }
-    
+
     def _assess_overall_health(
         self,
         engagement_score: float,
@@ -506,11 +506,11 @@ class ChangeManagementFramework:
         critical_barriers: int
     ) -> str:
         """Assess overall change management health"""
-        
-        if (engagement_score > 0.3 and resistance_score < 0.2 and 
+
+        if (engagement_score > 0.3 and resistance_score < 0.2 and
             successful_pilots >= 2 and critical_barriers == 0):
             return "Healthy - Change progressing well"
-        elif (engagement_score > 0.2 and resistance_score < 0.3 and 
+        elif (engagement_score > 0.2 and resistance_score < 0.3 and
               successful_pilots >= 1):
             return "Moderate - Some challenges but manageable"
         else:
@@ -522,9 +522,9 @@ def manage_enterprise_embedding_change():
     """
     Example: Manage change for enterprise embedding adoption
     """
-    
+
     framework = ChangeManagementFramework("TechCorp")
-    
+
     # Add stakeholders
     stakeholders = [
         Stakeholder(
@@ -564,10 +564,10 @@ def manage_enterprise_embedding_change():
             preferred_channels={CommunicationChannel.ONE_ON_ONE}
         )
     ]
-    
+
     for stakeholder in stakeholders:
         framework.add_stakeholder(stakeholder)
-    
+
     # Add barriers
     barriers = [
         ChangeBarrier(
@@ -595,10 +595,10 @@ def manage_enterprise_embedding_change():
             timeline="6 months"
         )
     ]
-    
+
     for barrier in barriers:
         framework.add_barrier(barrier)
-    
+
     # Add pilot projects
     pilots = [
         PilotProject(
@@ -626,13 +626,13 @@ def manage_enterprise_embedding_change():
             business_impact="Medium - improves employee productivity"
         )
     ]
-    
+
     for pilot in pilots:
         framework.add_pilot(pilot)
-    
+
     # Assess readiness
     readiness = framework.assess_readiness()
-    
+
     print("=== Change Readiness Assessment ===\n")
     print(f"Readiness: {readiness['readiness']}")
     print(f"Score: {readiness['score']}")
@@ -640,29 +640,29 @@ def manage_enterprise_embedding_change():
     print("Next Steps:")
     for i, step in enumerate(readiness['next_steps'], 1):
         print(f"  {i}. {step}")
-    
+
     # Design communication strategy
     comm_strategy = framework.design_communication_strategy()
-    
+
     print("\n=== Communication Strategy ===\n")
     for audience, details in comm_strategy['strategy'].items():
         print(f"{audience.upper()}:")
         if 'stakeholders' in details:
             print(f"  Stakeholders: {', '.join(details['stakeholders'])}")
         print(f"  Frequency: {details['frequency']}")
-        print(f"  Key Messages:")
+        print("  Key Messages:")
         for msg in details['key_messages']:
             print(f"    - {msg}")
         print()
-    
+
     # Track progress (simulated)
     progress = framework.track_progress()
-    
+
     print("=== Progress Dashboard ===\n")
     print(f"Overall Health: {progress['overall_health']}")
     print(f"Engagement Score: {progress['engagement_score']:.1%}")
     print(f"Resistance Score: {progress['resistance_score']:.1%}")
-    print(f"\nPilot Status:")
+    print("\nPilot Status:")
     print(f"  Completed: {progress['pilot_status']['completed']}/{progress['pilot_status']['total']}")
     print(f"  Success Rate: {progress['pilot_status']['success_rate']:.1%}")
 

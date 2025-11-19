@@ -99,8 +99,8 @@ def example_manufacturing_defect_detection():
     detector = IndustrialDefectDetection(mae_model)
 
     # 3. Calibrate threshold
-    from torchvision.datasets import ImageFolder
     from torchvision import transforms
+    from torchvision.datasets import ImageFolder
 
     transform = transforms.Compose([
         transforms.Resize(224),

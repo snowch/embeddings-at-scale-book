@@ -31,7 +31,7 @@ class EmbeddingStrategyValidator:
 
         overall_score = sum(
             validation[dim]['score'] * weights[dim]
-            for dim in weights.keys()
+            for dim in weights
         )
 
         validation['overall_score'] = overall_score
@@ -88,7 +88,7 @@ class EmbeddingStrategyValidator:
             return {
                 'decision': 'GO (with conditions)',
                 'confidence': 'medium',
-                'rationale': f'Strategy is viable but has gaps. Address issues before full commitment.',
+                'rationale': 'Strategy is viable but has gaps. Address issues before full commitment.',
                 'next_steps': [
                     'Address identified gaps',
                     'Run pilot project to validate assumptions',

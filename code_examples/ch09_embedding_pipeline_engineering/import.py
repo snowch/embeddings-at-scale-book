@@ -1,12 +1,14 @@
 # Code from Chapter 09
 # Book: Embeddings at Scale
 
-import numpy as np
-from typing import Dict, List, Optional, Tuple
-from datetime import datetime, timedelta
 from dataclasses import dataclass
+from datetime import datetime
+from typing import Dict, List, Optional, Tuple
+
+import numpy as np
 import torch
 import torch.nn as nn
+
 
 @dataclass
 class EmbeddingQualityMetrics:

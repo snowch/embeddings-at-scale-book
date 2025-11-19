@@ -28,9 +28,9 @@ Capability requirements:
 """
 
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Set
 from enum import Enum
-from datetime import datetime
+from typing import Dict, List, Optional, Set
+
 
 class Capability(Enum):
     """Team capability categories"""
@@ -69,11 +69,11 @@ class TeamMember:
     experience_years: float
     capacity: float = 1.0
     growth_trajectory: Set[Capability] = field(default_factory=set)
-    
+
     def proficiency(self, capability: Capability) -> Optional[ProficiencyLevel]:
         """Get proficiency level for capability"""
         return self.capabilities.get(capability)
-    
+
     def is_developing(self, capability: Capability) -> bool:
         """Check if actively developing capability"""
         return capability in self.growth_trajectory
@@ -103,21 +103,21 @@ class TeamCapabilityAssessment:
     Analyzes current team composition, identifies gaps,
     and recommends hiring/training strategies
     """
-    
+
     def __init__(self):
         self.team_members: List[TeamMember] = []
         self.requirements: List[CapabilityRequirement] = []
-        
+
     def add_team_member(self, member: TeamMember):
         """Add team member"""
         self.team_members.append(member)
-        
+
     def add_requirement(self, requirement: CapabilityRequirement):
         """Add capability requirement"""
         self.requirements.append(requirement)
-        
+
     def assess_capability(
-        self, 
+        self,
         capability: Capability,
         min_proficiency: ProficiencyLevel
     ) -> Dict[str, any]:
@@ -134,21 +134,21 @@ class TeamCapabilityAssessment:
         # Count team members meeting proficiency requirement
         qualified_members = [
             member for member in self.team_members
-            if member.proficiency(capability) 
+            if member.proficiency(capability)
             and member.proficiency(capability).value >= min_proficiency.value
         ]
-        
+
         # Count members actively developing this capability
         developing_members = [
             member for member in self.team_members
             if member.is_developing(capability)
         ]
-        
+
         # Calculate effective capacity
         effective_capacity = sum(
             member.capacity for member in qualified_members
         )
-        
+
         return {
             'capability': capability.value,
             'min_proficiency': min_proficiency.name,
@@ -158,11 +158,11 @@ class TeamCapabilityAssessment:
             'developing_count': len(developing_members),
             'developing_members': [m.name for m in developing_members],
             'has_expert': any(
-                m.proficiency(capability) == ProficiencyLevel.EXPERT 
+                m.proficiency(capability) == ProficiencyLevel.EXPERT
                 for m in qualified_members
             )
         }
-    
+
     def identify_gaps(self) -> List[Dict[str, any]]:
         """
         Identify capability gaps across all requirements
@@ -171,15 +171,15 @@ class TeamCapabilityAssessment:
             List of gaps with severity and recommendations
         """
         gaps = []
-        
+
         for req in self.requirements:
             assessment = self.assess_capability(
-                req.capability, 
+                req.capability,
                 req.min_proficiency
             )
-            
+
             capacity_gap = req.headcount - assessment['effective_capacity']
-            
+
             if capacity_gap > 0:
                 gap = {
                     'capability': req.capability.value,
@@ -199,12 +199,12 @@ class TeamCapabilityAssessment:
                     )
                 }
                 gaps.append(gap)
-        
+
         # Sort by severity (most critical first)
         gaps.sort(key=lambda x: x['severity'], reverse=True)
-        
+
         return gaps
-    
+
     def _generate_recommendation(
         self,
         capacity_gap: float,
@@ -213,7 +213,7 @@ class TeamCapabilityAssessment:
         developing_count: int
     ) -> Dict[str, any]:
         """Generate hiring/training recommendation"""
-        
+
         # Critical gap with no expert: urgent external hire needed
         if criticality >= 8 and not has_expert and capacity_gap >= 0.5:
             return {
@@ -223,7 +223,7 @@ class TeamCapabilityAssessment:
                 'timeline': '1-2 months',
                 'alternatives': []
             }
-        
+
         # Large gap but has expert: can train internally
         if capacity_gap >= 1.0 and has_expert:
             return {
@@ -233,7 +233,7 @@ class TeamCapabilityAssessment:
                 'timeline': '3-6 months',
                 'alternatives': ['contract_hire', 'consulting_partnership']
             }
-        
+
         # Small gap with people developing: monitor
         if capacity_gap < 0.5 and developing_count > 0:
             return {
@@ -243,7 +243,7 @@ class TeamCapabilityAssessment:
                 'timeline': '6-12 months',
                 'alternatives': ['accelerated_training', 'mentorship_program']
             }
-        
+
         # Moderate gap: flexible approach
         return {
             'action': 'flexible',
@@ -252,7 +252,7 @@ class TeamCapabilityAssessment:
             'timeline': '3-6 months',
             'alternatives': ['hire', 'train', 'contract', 'partnership']
         }
-    
+
     def generate_hiring_plan(self, gaps: List[Dict[str, any]]) -> Dict[str, any]:
         """
         Generate hiring plan from identified gaps
@@ -267,7 +267,7 @@ class TeamCapabilityAssessment:
         urgent_hires = [g for g in gaps if g['recommendation']['action'] == 'urgent_hire']
         training_needs = [g for g in gaps if g['recommendation']['action'] == 'internal_training']
         flexible_needs = [g for g in gaps if g['recommendation']['action'] == 'flexible']
-        
+
         return {
             'urgent_hires': {
                 'count': len(urgent_hires),
@@ -312,39 +312,39 @@ class TeamCapabilityAssessment:
                 'long-term (6-12 months)': 'Capability development and maturation'
             }
         }
-    
+
     def create_team_dashboard(self) -> str:
         """Generate visual team capability dashboard"""
-        
+
         dashboard = "# Embedding Team Capability Dashboard\n\n"
-        
+
         # Team overview
-        dashboard += f"## Team Overview\n"
+        dashboard += "## Team Overview\n"
         dashboard += f"- Total team members: {len(self.team_members)}\n"
         dashboard += f"- Total FTE capacity: {sum(m.capacity for m in self.team_members):.1f}\n"
         dashboard += f"- Active growth initiatives: {sum(len(m.growth_trajectory) for m in self.team_members)}\n\n"
-        
+
         # Capability coverage matrix
         dashboard += "## Capability Coverage\n\n"
         dashboard += "| Capability | Expert | Proficient | Competent | Novice | Gap |\n"
         dashboard += "|------------|--------|------------|-----------|--------|-----|\n"
-        
+
         for capability in Capability:
-            expert = sum(1 for m in self.team_members 
+            expert = sum(1 for m in self.team_members
                         if m.proficiency(capability) == ProficiencyLevel.EXPERT)
-            proficient = sum(1 for m in self.team_members 
+            proficient = sum(1 for m in self.team_members
                            if m.proficiency(capability) == ProficiencyLevel.PROFICIENT)
-            competent = sum(1 for m in self.team_members 
+            competent = sum(1 for m in self.team_members
                           if m.proficiency(capability) == ProficiencyLevel.COMPETENT)
-            novice = sum(1 for m in self.team_members 
+            novice = sum(1 for m in self.team_members
                         if m.proficiency(capability) == ProficiencyLevel.NOVICE)
-            
+
             # Find if there's a requirement
             req = next((r for r in self.requirements if r.capability == capability), None)
             gap_indicator = "✓" if not req or expert > 0 else "⚠" if proficient > 0 else "✗"
-            
+
             dashboard += f"| {capability.value} | {expert} | {proficient} | {competent} | {novice} | {gap_indicator} |\n"
-        
+
         # Critical gaps
         gaps = self.identify_gaps()
         if gaps:
@@ -356,7 +356,7 @@ class TeamCapabilityAssessment:
                 dashboard += f"- Gap: {gap['capacity_gap']:.1f} FTE\n"
                 dashboard += f"- Recommendation: {gap['recommendation']['action']} ({gap['recommendation']['priority']})\n"
                 dashboard += f"- Timeline: {gap['recommendation']['timeline']}\n\n"
-        
+
         return dashboard
 
 
@@ -365,9 +365,9 @@ def build_enterprise_embedding_team():
     """
     Example: Assess and build enterprise embedding team
     """
-    
+
     assessment = TeamCapabilityAssessment()
-    
+
     # Define requirements for enterprise embedding system
     requirements = [
         CapabilityRequirement(
@@ -407,10 +407,10 @@ def build_enterprise_embedding_team():
             criticality=6
         )
     ]
-    
+
     for req in requirements:
         assessment.add_requirement(req)
-    
+
     # Current team (small, underspecialized)
     team_members = [
         TeamMember(
@@ -448,13 +448,13 @@ def build_enterprise_embedding_team():
             growth_trajectory={Capability.EMBEDDING_EXPERTISE}
         )
     ]
-    
+
     for member in team_members:
         assessment.add_team_member(member)
-    
+
     # Assess gaps
     gaps = assessment.identify_gaps()
-    
+
     print("=== Capability Gap Analysis ===\n")
     for gap in gaps:
         print(f"Capability: {gap['capability']}")
@@ -462,22 +462,22 @@ def build_enterprise_embedding_team():
         print(f"  Recommendation: {gap['recommendation']['action']} - {gap['recommendation']['description']}")
         print(f"  Timeline: {gap['recommendation']['timeline']}")
         print()
-    
+
     # Generate hiring plan
     hiring_plan = assessment.generate_hiring_plan(gaps)
-    
+
     print("\n=== Hiring Plan ===\n")
     print(f"Urgent hires needed: {hiring_plan['urgent_hires']['count']}")
     print(f"  Capabilities: {', '.join(hiring_plan['urgent_hires']['capabilities'])}")
     print(f"  Timeline: {hiring_plan['urgent_hires']['timeline']}")
     print(f"  Estimated cost: ${hiring_plan['urgent_hires']['estimated_cost']:,}")
-    
+
     print(f"\nTraining programs: {len(hiring_plan['training_programs']['capabilities'])}")
     print(f"  Participants: {hiring_plan['training_programs']['participants']}")
     print(f"  Timeline: {hiring_plan['training_programs']['timeline']}")
-    
+
     print(f"\nTotal investment: ${hiring_plan['total_investment']:,}")
-    
+
     # Display dashboard
     print("\n" + "="*60)
     print(assessment.create_team_dashboard())

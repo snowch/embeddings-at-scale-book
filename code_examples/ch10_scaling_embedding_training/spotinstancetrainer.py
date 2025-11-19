@@ -1,9 +1,10 @@
 # Code from Chapter 10
 # Book: Embeddings at Scale
 
-import time
 import signal
+import time
 from pathlib import Path
+
 
 class SpotInstanceTrainer:
     """

@@ -23,14 +23,15 @@ Production considerations:
 - False positive management: Balance detection vs user friction
 """
 
+import time
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple
+
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import List, Dict, Optional, Tuple, Set
-from dataclasses import dataclass
-from datetime import datetime
-import time
+
 
 @dataclass
 class Transaction:
@@ -263,7 +264,7 @@ class FraudDetectionSystem:
         self.transaction_count = 0
         self.fraud_count = 0
 
-        print(f"Initialized Fraud Detection System")
+        print("Initialized Fraud Detection System")
         print(f"  Embedding dimension: {embedding_dim}")
         print(f"  Anomaly threshold: {anomaly_threshold}")
 
@@ -277,7 +278,7 @@ class FraudDetectionSystem:
         self.merchant_id_to_idx = {mid: idx for idx, mid in enumerate(merchants)}
         self.device_id_to_idx = {did: idx for idx, did in enumerate(devices)}
 
-        print(f"Built entity mappings:")
+        print("Built entity mappings:")
         print(f"  Users: {len(self.user_id_to_idx)}")
         print(f"  Merchants: {len(self.merchant_id_to_idx)}")
         print(f"  Devices: {len(self.device_id_to_idx)}")
@@ -533,7 +534,7 @@ def fraud_detection_example():
     print(f"Fraud detected: {is_fraud}")
 
     # Statistics
-    print(f"\n=== System Statistics ===")
+    print("\n=== System Statistics ===")
     print(f"Total transactions processed: {system.transaction_count}")
     print(f"Fraud detected: {system.fraud_count}")
     print(f"Fraud rate: {system.fraud_count / system.transaction_count:.2%}")

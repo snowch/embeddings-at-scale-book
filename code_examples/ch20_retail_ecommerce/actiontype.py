@@ -26,15 +26,16 @@ Production considerations:
 - Privacy: Handle PII, GDPR compliance
 """
 
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
+from typing import Any, Dict, List, Optional, Set
+
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import List, Dict, Optional, Tuple, Any, Set
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from enum import Enum
-import json
+
 
 class ActionType(Enum):
     """User action types"""
@@ -157,7 +158,7 @@ class ActionEncoder(nn.Module):
     - Temporal context (time since last action)
     - Channel/device context
     """
-    
+
     def __init__(
         self,
         num_action_types=20,
@@ -166,25 +167,25 @@ class ActionEncoder(nn.Module):
     ):
         super().__init__()
         self.embedding_dim = embedding_dim
-        
+
         # Action type embedding
         self.action_type_emb = nn.Embedding(num_action_types, 64)
-        
+
         # Product embedding (shared with product search)
         self.product_emb = nn.Embedding(num_products, 64)
-        
+
         # Temporal features
         self.temporal_proj = nn.Linear(5, 32)  # Time features
-        
+
         # Context features (device, channel)
         self.context_proj = nn.Linear(10, 32)
-        
+
         # Fusion
         self.fusion = nn.Sequential(
             nn.Linear(64 + 64 + 32 + 32, embedding_dim),
             nn.ReLU()
         )
-    
+
     def forward(
         self,
         action_types: torch.Tensor,
@@ -206,11 +207,11 @@ class ActionEncoder(nn.Module):
         product_emb = self.product_emb(product_ids)
         temporal_emb = self.temporal_proj(temporal_features)
         context_emb = self.context_proj(context_features)
-        
+
         combined = torch.cat([
             action_emb, product_emb, temporal_emb, context_emb
         ], dim=1)
-        
+
         return self.fusion(combined)
 
 class SessionEncoder(nn.Module):
@@ -228,12 +229,12 @@ class SessionEncoder(nn.Module):
     - Predictive: Embedding predicts next action, conversion
     - Multi-task: Journey stage, conversion, time-to-convert
     """
-    
+
     def __init__(self, action_encoder: ActionEncoder, embedding_dim=256):
         super().__init__()
         self.action_encoder = action_encoder
         self.embedding_dim = embedding_dim
-        
+
         # Sequential encoder (LSTM)
         self.lstm = nn.LSTM(
             input_size=action_encoder.embedding_dim,
@@ -242,14 +243,14 @@ class SessionEncoder(nn.Module):
             batch_first=True,
             dropout=0.2
         )
-        
+
         # Self-attention over actions
         self.attention = nn.MultiheadAttention(
             embed_dim=embedding_dim,
             num_heads=8,
             batch_first=True
         )
-        
+
     def forward(
         self,
         action_embeddings: torch.Tensor,
@@ -276,13 +277,13 @@ class SessionEncoder(nn.Module):
             lstm_out, _ = nn.utils.rnn.pad_packed_sequence(lstm_out, batch_first=True)
         else:
             lstm_out, (h_n, c_n) = self.lstm(action_embeddings)
-        
+
         # Attention pooling
         attended, _ = self.attention(lstm_out, lstm_out, lstm_out)
-        
+
         # Combine last hidden state and attention
         session_emb = (h_n[-1] + attended.mean(dim=1)) / 2
-        
+
         return F.normalize(session_emb, p=2, dim=1)
 
 class JourneyAnalyzer(nn.Module):
@@ -300,17 +301,17 @@ class JourneyAnalyzer(nn.Module):
     - Session encoder: History → current state embedding
     - Multi-head prediction: Multiple outcomes from embedding
     """
-    
+
     def __init__(self, embedding_dim=256):
         super().__init__()
         self.embedding_dim = embedding_dim
-        
+
         self.action_encoder = ActionEncoder(embedding_dim=128)
         self.session_encoder = SessionEncoder(
             self.action_encoder,
             embedding_dim=embedding_dim
         )
-        
+
         # Journey stage classifier
         self.stage_classifier = nn.Sequential(
             nn.Linear(embedding_dim, 128),
@@ -318,7 +319,7 @@ class JourneyAnalyzer(nn.Module):
             nn.Dropout(0.3),
             nn.Linear(128, len(JourneyStage))
         )
-        
+
         # Conversion probability predictor
         self.conversion_predictor = nn.Sequential(
             nn.Linear(embedding_dim, 128),
@@ -327,7 +328,7 @@ class JourneyAnalyzer(nn.Module):
             nn.Linear(128, 1),
             nn.Sigmoid()
         )
-        
+
         # Time-to-conversion predictor
         self.time_predictor = nn.Sequential(
             nn.Linear(embedding_dim, 128),
@@ -335,14 +336,14 @@ class JourneyAnalyzer(nn.Module):
             nn.Linear(128, 1),
             nn.Softplus()  # Non-negative
         )
-        
+
         # Next action predictor
         self.next_action_predictor = nn.Sequential(
             nn.Linear(embedding_dim, 128),
             nn.ReLU(),
             nn.Linear(128, len(ActionType))
         )
-        
+
         # Friction detector (binary: at risk or not)
         self.friction_detector = nn.Sequential(
             nn.Linear(embedding_dim, 128),
@@ -351,7 +352,7 @@ class JourneyAnalyzer(nn.Module):
             nn.Linear(128, 1),
             nn.Sigmoid()
         )
-    
+
     def forward(
         self,
         action_embeddings: torch.Tensor,
@@ -363,7 +364,7 @@ class JourneyAnalyzer(nn.Module):
         """
         # Encode session
         session_emb = self.session_encoder(action_embeddings, sequence_lengths)
-        
+
         # Multiple predictions
         return {
             'stage_logits': self.stage_classifier(session_emb),
@@ -388,10 +389,10 @@ class HyperPersonalizationEngine:
     Hyper-personalization: Individual-level real-time adaptation
     based on current session state, not segment averages.
     """
-    
+
     def __init__(self, analyzer: JourneyAnalyzer):
         self.analyzer = analyzer
-        
+
         # Intervention strategies
         self.interventions = {
             'high_intent_low_conversion': [
@@ -423,7 +424,7 @@ class HyperPersonalizationEngine:
                 'Loyalty points reminder'
             ]
         }
-    
+
     def analyze_realtime(
         self,
         session: CustomerSession
@@ -442,24 +443,24 @@ class HyperPersonalizationEngine:
             # In production: encode actual action sequence
             dummy_actions = torch.randn(1, len(session.actions), 128)
             seq_lengths = torch.tensor([len(session.actions)])
-            
+
             predictions = self.analyzer(dummy_actions, seq_lengths)
-            
+
             # Extract predictions
             stage_probs = F.softmax(predictions['stage_logits'][0], dim=0)
             journey_stage = JourneyStage(
                 list(JourneyStage)[torch.argmax(stage_probs).item()].value
             )
-            
+
             conversion_prob = float(predictions['conversion_prob'][0, 0])
             time_to_convert = float(predictions['time_to_convert'][0, 0])
             friction_score = float(predictions['friction_score'][0, 0])
-            
+
             next_action_probs = F.softmax(predictions['next_action_logits'][0], dim=0)
             next_action = ActionType(
                 list(ActionType)[torch.argmax(next_action_probs).item()].value
             )
-        
+
         # Detect friction points
         friction_points = []
         if friction_score > 0.7:
@@ -470,19 +471,19 @@ class HyperPersonalizationEngine:
                 friction_points.append("Cart sitting idle")
         if len(session.viewed_products) > 5 and session.cart_value == 0:
             friction_points.append("Browsing without commitment")
-        
+
         # Recommend actions based on state
         recommended_actions = self._recommend_interventions(
             journey_stage, conversion_prob, friction_score, session
         )
-        
+
         # Find similar journeys (simplified)
         similar_journeys = [
             "Session_12345 (converted, similar product interest)",
             "Session_67890 (browsing pattern match)",
             "Session_11223 (same journey stage)"
         ]
-        
+
         return JourneyInsight(
             user_id=session.user_id,
             session_id=session.session_id,
@@ -494,7 +495,7 @@ class HyperPersonalizationEngine:
             similar_journeys=similar_journeys,
             next_likely_action=next_action
         )
-    
+
     def _recommend_interventions(
         self,
         stage: JourneyStage,
@@ -504,28 +505,28 @@ class HyperPersonalizationEngine:
     ) -> List[str]:
         """Recommend personalized interventions"""
         recommendations = []
-        
+
         # High intent but not converting
         if stage == JourneyStage.INTENT and conversion_prob < 0.5:
             recommendations.extend(self.interventions['high_intent_low_conversion'])
-        
+
         # Cart abandonment risk
         if session.cart_value > 0 and friction_score > 0.6:
             recommendations.extend(self.interventions['cart_abandonment_risk'])
-        
+
         # High engagement browsing
         if stage == JourneyStage.CONSIDERATION and len(session.viewed_products) > 3:
             recommendations.extend(self.interventions['browsing_high_engagement'])
-        
+
         # First time vs returning
         # (Simplified: check number of previous sessions)
         if len(session.actions) < 5:
             recommendations.extend(self.interventions['first_time_visitor'][:1])
         else:
             recommendations.extend(self.interventions['return_customer'][:1])
-        
+
         return recommendations[:3]  # Top 3 recommendations
-    
+
     def personalize_experience(
         self,
         session: CustomerSession,
@@ -537,7 +538,7 @@ class HyperPersonalizationEngine:
         Returns: Personalized content, layout, offers
         """
         insight = self.analyze_realtime(session)
-        
+
         personalization = {
             'hero_banner': self._select_hero_banner(insight, context),
             'product_recommendations': self._recommend_products(insight, session),
@@ -546,9 +547,9 @@ class HyperPersonalizationEngine:
             'layout_priority': self._adjust_layout(insight),
             'next_best_action': insight.recommended_actions
         }
-        
+
         return personalization
-    
+
     def _select_hero_banner(
         self,
         insight: JourneyInsight,
@@ -563,7 +564,7 @@ class HyperPersonalizationEngine:
             return "Complete Your Look - Cart Suggestions"
         else:
             return "Welcome Back - New Items You'll Love"
-    
+
     def _recommend_products(
         self,
         insight: JourneyInsight,
@@ -589,7 +590,7 @@ class HyperPersonalizationEngine:
                 "Popular in your region",
                 "Based on your profile"
             ]
-    
+
     def _determine_offer(
         self,
         insight: JourneyInsight,
@@ -605,7 +606,7 @@ class HyperPersonalizationEngine:
                 'expires_in': 3600,  # 1 hour
                 'message': 'Special offer just for you!'
             }
-        
+
         # Cart abandonment risk
         if session.cart_value > 100 and any('abandon' in fp for fp in insight.friction_points):
             return {
@@ -613,22 +614,22 @@ class HyperPersonalizationEngine:
                 'threshold': None,
                 'message': 'Free shipping on your order today!'
             }
-        
+
         return None
-    
+
     def _generate_urgency(self, insight: JourneyInsight) -> List[str]:
         """Generate urgency messages"""
         messages = []
-        
+
         if insight.journey_stage == JourneyStage.INTENT:
             messages.append("Only 3 left in stock!")
             messages.append("15 people viewing this item")
-        
+
         if insight.conversion_probability > 0.6:
             messages.append("Complete purchase in next 30 min for same-day shipping")
-        
+
         return messages
-    
+
     def _adjust_layout(self, insight: JourneyInsight) -> Dict[str, str]:
         """Adjust page layout based on journey stage"""
         if insight.journey_stage == JourneyStage.AWARENESS:
@@ -657,10 +658,10 @@ def customer_journey_example():
     Demonstration of journey analysis and hyper-personalization
     """
     print("=== Customer Journey Analysis & Hyper-Personalization ===\n")
-    
+
     analyzer = JourneyAnalyzer(embedding_dim=256)
     personalization_engine = HyperPersonalizationEngine(analyzer)
-    
+
     # Scenario 1: High-intent customer with friction
     print("--- Scenario 1: Cart Abandonment Risk ---")
     session1 = CustomerSession(
@@ -678,31 +679,31 @@ def customer_journey_example():
         cart_value=199.99,
         viewed_products={"COAT_001", "COAT_002", "BOOTS_001"}
     )
-    
+
     print("Session summary:")
     print(f"  Actions: {len(session1.actions)} (search → view → add to cart → browsing)")
     print(f"  Cart value: ${session1.cart_value}")
     print(f"  Products viewed: {len(session1.viewed_products)}")
-    print(f"  Current behavior: Browsing other items after adding coat to cart")
+    print("  Current behavior: Browsing other items after adding coat to cart")
     print()
-    
+
     insight1 = personalization_engine.analyze_realtime(session1)
     print("Journey analysis:")
     print(f"  Stage: {insight1.journey_stage.value}")
     print(f"  Conversion probability: {insight1.conversion_probability:.1%}")
     print(f"  Time to conversion: {insight1.time_to_conversion/60:.0f} minutes (predicted)")
     print()
-    
+
     print("Friction points:")
     for fp in insight1.friction_points:
         print(f"  ⚠ {fp}")
     print()
-    
+
     print("Recommended interventions:")
     for action in insight1.recommended_actions:
         print(f"  → {action}")
     print()
-    
+
     personalization1 = personalization_engine.personalize_experience(session1, {})
     print("Hyper-personalized experience:")
     print(f"  Hero banner: {personalization1['hero_banner']}")
@@ -713,7 +714,7 @@ def customer_journey_example():
         print(f"    Message: '{offer['message']}'")
         print(f"    Expires: {offer['expires_in']/60:.0f} minutes")
     print()
-    
+
     # Scenario 2: First-time visitor, high engagement
     print("--- Scenario 2: Engaged First-Time Visitor ---")
     session2 = CustomerSession(
@@ -731,26 +732,26 @@ def customer_journey_example():
         cart_value=0.0,
         viewed_products={"DRESS_001", "DRESS_002", "DRESS_003"}
     )
-    
+
     print("Session summary:")
-    print(f"  New visitor (no purchase history)")
+    print("  New visitor (no purchase history)")
     print(f"  Actions: {len(session2.actions)} (category browse → 3 products viewed)")
-    print(f"  High engagement: Zoomed images, checked size guide")
-    print(f"  Cart: Empty")
+    print("  High engagement: Zoomed images, checked size guide")
+    print("  Cart: Empty")
     print()
-    
+
     insight2 = personalization_engine.analyze_realtime(session2)
     print("Journey analysis:")
     print(f"  Stage: {insight2.journey_stage.value}")
     print(f"  Conversion probability: {insight2.conversion_probability:.1%}")
     print(f"  Next likely action: {insight2.next_likely_action.value if insight2.next_likely_action else 'Unknown'}")
     print()
-    
+
     print("Recommended interventions:")
     for action in insight2.recommended_actions:
         print(f"  → {action}")
     print()
-    
+
     personalization2 = personalization_engine.personalize_experience(session2, {})
     print("Hyper-personalized experience:")
     print(f"  Products shown: {', '.join(personalization2['product_recommendations'])}")
@@ -759,7 +760,7 @@ def customer_journey_example():
         print(f"  Welcome offer: {offer['type']}")
     print(f"  Layout: {personalization2['layout_priority']['highlight']}")
     print()
-    
+
     print("--- System Performance ---")
     print("Real-time latency: <50ms per prediction")
     print("Session encoding: 15-30ms")

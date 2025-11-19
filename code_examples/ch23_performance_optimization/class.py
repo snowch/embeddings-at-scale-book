@@ -27,14 +27,13 @@ Performance targets:
 - Cost: <$0.10 per million queries
 """
 
-import numpy as np
-import torch
-from typing import List, Dict, Optional, Tuple, Any
-from dataclasses import dataclass, field
-from datetime import datetime
 import time
 from collections import defaultdict
-import heapq
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional, Tuple
+
+import numpy as np
+
 
 @dataclass
 class QueryPlan:
@@ -100,12 +99,12 @@ class QueryOptimizer:
     
     Analyzes query characteristics and selects optimal execution strategy
     """
-    
+
     def __init__(self, config: Dict[str, Any]):
         self.config = config
         self.query_history = []
         self.performance_stats = defaultdict(list)
-        
+
     def analyze_query(self, plan: QueryPlan) -> Dict[str, Any]:
         """
         Analyze query characteristics to inform optimization
@@ -123,7 +122,7 @@ class QueryOptimizer:
             'recommended_index': None,
             'estimated_candidates': 0,
         }
-        
+
         # Estimate filter selectivity
         if plan.filters:
             selectivity = analysis['filter_selectivity']
@@ -152,15 +151,15 @@ class QueryOptimizer:
             else:
                 analysis['recommended_strategy'] = 'hybrid'
                 analysis['estimated_candidates'] = plan.k * 20
-        
+
         # Select optimal index
         analysis['recommended_index'] = self._select_index(
             analysis['recommended_strategy'],
             plan.filters
         )
-        
+
         return analysis
-    
+
     def _estimate_filter_selectivity(self, filters: Dict[str, Any]) -> float:
         """
         Estimate what fraction of vectors pass filters
@@ -169,7 +168,7 @@ class QueryOptimizer:
         """
         if not filters:
             return 1.0
-        
+
         # In production, query metadata statistics
         # For demonstration, use heuristics
         selectivity = 1.0
@@ -189,9 +188,9 @@ class QueryOptimizer:
                     f'{field}_cardinality', 100
                 )
                 selectivity *= 1.0 / field_cardinality
-        
+
         return max(selectivity, 0.0001)  # At least 0.01% selectivity
-    
+
     def _select_index(
         self,
         strategy: str,
@@ -210,7 +209,7 @@ class QueryOptimizer:
             return 'hnsw_index'  # Start with HNSW, fall back if needed
         else:
             return 'hnsw_index'  # Default
-    
+
     def optimize_k_value(self, k: int, strategy: str) -> int:
         """
         Adjust k value based on strategy to maintain recall
@@ -232,7 +231,7 @@ class QueryOptimizer:
         else:
             # Conservative default
             return int(k * 2)
-    
+
     def estimate_query_cost(
         self,
         plan: QueryPlan,
@@ -246,14 +245,14 @@ class QueryOptimizer:
         """
         strategy = analysis['recommended_strategy']
         candidates = analysis['estimated_candidates']
-        
+
         costs = {
             'cpu_ms': 0.0,
             'memory_mb': 0.0,
             'io_operations': 0,
             'network_mb': 0.0,
         }
-        
+
         # CPU cost (distance computations)
         vector_dim = len(plan.query_vector)
         if strategy == 'exact':
@@ -274,20 +273,20 @@ class QueryOptimizer:
         elif strategy == 'filtered_scan':
             # Scan filtered subset
             filtered_vectors = int(
-                self.config.get('total_vectors', 1e9) * 
+                self.config.get('total_vectors', 1e9) *
                 analysis['filter_selectivity']
             )
             costs['cpu_ms'] = filtered_vectors * vector_dim * 1e-6
             costs['memory_mb'] = filtered_vectors * vector_dim * 4 / 1024**2
             costs['io_operations'] = filtered_vectors // 10000
-        
+
         # Network cost for distributed queries
         if self.config.get('distributed', False):
             costs['network_mb'] = (
                 len(plan.query_vector) * 4 / 1024**2 +  # Query vector
                 plan.k * (vector_dim * 4 + 16) / 1024**2  # Results
             )
-        
+
         return costs
 
 class MultiStageRetrieval:
@@ -296,11 +295,11 @@ class MultiStageRetrieval:
     
     Progressively narrows candidate set while maintaining recall
     """
-    
+
     def __init__(self, config: Dict[str, Any]):
         self.config = config
         self.optimizer = QueryOptimizer(config)
-        
+
     def execute_query(
         self,
         plan: QueryPlan,
@@ -317,14 +316,14 @@ class MultiStageRetrieval:
             result: Query results with execution statistics
         """
         start_time = time.time()
-        
+
         # Analyze query
         analysis = self.optimizer.analyze_query(plan)
-        
+
         # Select execution stages
         if stages is None:
             stages = self._select_stages(plan, analysis)
-        
+
         # Execute stages
         candidates = set()
         candidates_scanned = 0
@@ -333,10 +332,10 @@ class MultiStageRetrieval:
             'stages': [],
             'analysis': analysis,
         }
-        
+
         for stage_name in stages:
             stage_start = time.time()
-            
+
             if stage_name == 'coarse_ivf':
                 # Stage 1: IVF coarse filtering
                 stage_candidates = self._coarse_ivf_stage(
@@ -345,7 +344,7 @@ class MultiStageRetrieval:
                 )
                 candidates.update(stage_candidates)
                 candidates_scanned += len(stage_candidates)
-                
+
             elif stage_name == 'hnsw_graph':
                 # Stage 2: HNSW graph search
                 stage_candidates = self._hnsw_stage(
@@ -358,7 +357,7 @@ class MultiStageRetrieval:
                 else:
                     candidates = set(stage_candidates)
                 candidates_scanned += len(stage_candidates)
-                
+
             elif stage_name == 'pq_filtering':
                 # Stage 3: Product quantization refinement
                 stage_candidates = self._pq_filtering_stage(
@@ -368,7 +367,7 @@ class MultiStageRetrieval:
                 )
                 candidates = set(stage_candidates)
                 candidates_scanned += len(stage_candidates)
-                
+
             elif stage_name == 'exact_reranking':
                 # Stage 4: Exact distance reranking
                 results = self._exact_reranking_stage(
@@ -378,17 +377,17 @@ class MultiStageRetrieval:
                     filters=plan.filters
                 )
                 exact_distances += len(candidates)
-                
+
             stage_time = (time.time() - stage_start) * 1000
             explain_info['stages'].append({
                 'name': stage_name,
                 'time_ms': stage_time,
                 'candidates_after': len(candidates) if stage_name != 'exact_reranking' else len(results),
             })
-        
+
         # Finalize results
         execution_time = (time.time() - start_time) * 1000
-        
+
         return QueryResult(
             query_id=plan.query_id,
             results=results,
@@ -399,7 +398,7 @@ class MultiStageRetrieval:
             index_used=analysis['recommended_index'],
             explain_info=explain_info if plan.explain else {}
         )
-    
+
     def _select_stages(
         self,
         plan: QueryPlan,
@@ -409,30 +408,27 @@ class MultiStageRetrieval:
         Select optimal retrieval stages based on query characteristics
         """
         strategy = analysis['recommended_strategy']
-        
+
         if strategy == 'exact':
             return ['exact_reranking']
-        
-        elif strategy == 'hnsw':
+
+        elif strategy == 'hnsw' or strategy == 'hnsw_postfilter':
             return ['hnsw_graph', 'exact_reranking']
-        
-        elif strategy == 'hnsw_postfilter':
-            return ['hnsw_graph', 'exact_reranking']
-        
+
         elif strategy == 'ivf_pq':
             return ['coarse_ivf', 'pq_filtering', 'exact_reranking']
-        
+
         elif strategy == 'hybrid':
             return ['coarse_ivf', 'hnsw_graph', 'pq_filtering', 'exact_reranking']
-        
+
         elif strategy == 'filtered_scan':
             # Filter first, then search filtered subset
             return ['exact_reranking']  # Filtering happens in reranking
-        
+
         else:
             # Default: HNSW + reranking
             return ['hnsw_graph', 'exact_reranking']
-    
+
     def _coarse_ivf_stage(
         self,
         query: np.ndarray,
@@ -449,20 +445,20 @@ class MultiStageRetrieval:
         vectors_per_cluster = self.config.get(
             'total_vectors', 1e9
         ) // n_clusters
-        
+
         # Simulate selecting top 10 clusters
         n_probe = min(10, n_clusters)
         candidates_per_cluster = k // n_probe
-        
+
         candidates = []
         for i in range(n_probe):
             # Simulate cluster IDs
             cluster_id = f"cluster_{i}"
             for j in range(candidates_per_cluster):
                 candidates.append(f"{cluster_id}_vec_{j}")
-        
+
         return candidates
-    
+
     def _hnsw_stage(
         self,
         query: np.ndarray,
@@ -476,13 +472,13 @@ class MultiStageRetrieval:
         # In production, query actual HNSW index
         # For demonstration, simulate graph search
         ef_search = max(k, 100)  # HNSW ef_search parameter
-        
+
         candidates = []
         for i in range(ef_search):
             candidates.append(f"hnsw_vec_{i}")
-        
+
         return candidates
-    
+
     def _pq_filtering_stage(
         self,
         query: np.ndarray,
@@ -496,19 +492,19 @@ class MultiStageRetrieval:
         """
         # In production, compute actual PQ distances
         # For demonstration, simulate PQ filtering
-        
+
         # Simulate PQ distance computation (much faster than exact)
         scored_candidates = []
         for cand_id in candidates[:k]:
             # Random score for demo
             score = np.random.random()
             scored_candidates.append((cand_id, score))
-        
+
         # Sort by score
         scored_candidates.sort(key=lambda x: x[1], reverse=True)
-        
+
         return [cand_id for cand_id, _ in scored_candidates[:k]]
-    
+
     def _exact_reranking_stage(
         self,
         query: np.ndarray,
@@ -523,21 +519,21 @@ class MultiStageRetrieval:
         """
         # In production, fetch actual vectors and compute exact distances
         # For demonstration, simulate exact reranking
-        
+
         scored_results = []
         for cand_id in candidates:
             # Simulate filter check
             if filters and not self._passes_filters(cand_id, filters):
                 continue
-            
+
             # Simulate exact distance (in production, actual cosine similarity)
             score = np.random.random()
             scored_results.append((cand_id, score))
-        
+
         # Sort and return top-k
         scored_results.sort(key=lambda x: x[1], reverse=True)
         return scored_results[:k]
-    
+
     def _passes_filters(
         self,
         candidate_id: str,
@@ -556,7 +552,7 @@ class ParallelQueryExecutor:
     
     Distributes queries across CPU cores and GPU devices
     """
-    
+
     def __init__(
         self,
         config: Dict[str, Any],
@@ -565,7 +561,7 @@ class ParallelQueryExecutor:
         self.config = config
         self.n_workers = n_workers
         self.retrieval = MultiStageRetrieval(config)
-        
+
     def execute_batch(
         self,
         plans: List[QueryPlan]
@@ -585,10 +581,10 @@ class ParallelQueryExecutor:
             analysis = self.retrieval.optimizer.analyze_query(plan)
             strategy = analysis['recommended_strategy']
             strategy_groups[strategy].append((i, plan))
-        
+
         # Execute each strategy group
         all_results = [None] * len(plans)
-        
+
         for strategy, group in strategy_groups.items():
             if strategy == 'hnsw':
                 # Batch HNSW queries - can share graph traversals
@@ -606,13 +602,13 @@ class ParallelQueryExecutor:
                     self.retrieval.execute_query(plan)
                     for _, plan in group
                 ]
-            
+
             # Place results in correct positions
             for (i, _), result in zip(group, results):
                 all_results[i] = result
-        
+
         return all_results
-    
+
     def _batch_hnsw_queries(
         self,
         plans: List[QueryPlan]
@@ -628,7 +624,7 @@ class ParallelQueryExecutor:
             self.retrieval.execute_query(plan)
             for plan in plans
         ]
-    
+
     def _batch_ivf_queries(
         self,
         plans: List[QueryPlan]

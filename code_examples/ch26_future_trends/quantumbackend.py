@@ -33,12 +33,11 @@ Current limitations (2025):
 - Limited connectivity (topology constraints)
 """
 
-import numpy as np
-from typing import List, Dict, Optional, Tuple, Any
-from dataclasses import dataclass, field
-from datetime import datetime
+from dataclasses import dataclass
 from enum import Enum
-from abc import ABC, abstractmethod
+from typing import Dict, Optional
+
+import numpy as np
 
 # Note: Actual quantum computing requires specialized libraries
 # (Qiskit, Cirq, PennyLane) and access to quantum hardware/simulators
@@ -100,7 +99,7 @@ class QuantumEmbeddingSearch:
     Combines classical preprocessing with quantum search algorithms
     for embeddings that exceed classical search efficiency
     """
-    
+
     def __init__(self, config: QuantumConfig):
         self.config = config
         self.quantum_available = self._check_quantum_backend()
@@ -108,16 +107,16 @@ class QuantumEmbeddingSearch:
         self.num_embeddings: int = 0
         self.embedding_dim: int = 0
         self.quantum_encodings: Optional[Dict] = None
-        
+
     def _check_quantum_backend(self) -> bool:
         """Check if quantum backend is available"""
         if self.config.backend == QuantumBackend.SIMULATOR:
             return True  # Simulators always available
-        
+
         # In practice, check quantum hardware availability
         # For now, assume simulators only
         return self.config.backend == QuantumBackend.SIMULATOR
-    
+
     def build_index(self, embeddings: np.ndarray):
         """
         Build quantum-compatible index from embeddings
@@ -130,23 +129,23 @@ class QuantumEmbeddingSearch:
         """
         self.embeddings = embeddings
         self.num_embeddings, self.embedding_dim = embeddings.shape
-        
+
         # Dimensionality reduction if exceeds qubit count
         if self.embedding_dim > self.config.num_qubits:
             self._reduce_dimension()
-        
+
         # Prepare quantum encodings
         self.quantum_encodings = self._prepare_quantum_encodings()
-        
+
     def _reduce_dimension(self):
         """Reduce dimension to fit quantum hardware constraints"""
         from sklearn.decomposition import PCA
-        
+
         target_dim = self.config.num_qubits - 5  # Reserve qubits for search
         pca = PCA(n_components=target_dim)
         self.embeddings = pca.fit_transform(self.embeddings)
         self.embedding_dim = target_dim
-    
+
     def _prepare_quantum_encodings(self) -> Dict:
         """
         Prepare quantum state encodings for embeddings
@@ -155,7 +154,7 @@ class QuantumEmbeddingSearch:
         Requires O(d) gates to prepare, where d is dimension
         """
         encodings = {}
-        
+
         for idx, embedding in enumerate(self.embeddings):
             # Normalize for amplitude encoding
             norm = np.linalg.norm(embedding)
@@ -163,16 +162,16 @@ class QuantumEmbeddingSearch:
                 normalized = embedding / norm
             else:
                 normalized = embedding
-            
+
             # Store encoding information
             encodings[idx] = {
                 'amplitudes': normalized,
                 'norm': norm,
                 'phase': 0  # Could encode additional information in phase
             }
-        
+
         return encodings
-    
+
     def search(
         self,
         query: np.ndarray,
@@ -192,12 +191,12 @@ class QuantumEmbeddingSearch:
                 self.quantum_available and
                 self.num_embeddings > self.config.hybrid_threshold
             )
-        
+
         if use_quantum:
             return self._quantum_search(query, k)
         else:
             return self._classical_search(query, k)
-    
+
     def _classical_search(
         self,
         query: np.ndarray,
@@ -205,21 +204,21 @@ class QuantumEmbeddingSearch:
     ) -> QuantumSearchResult:
         """Classical similarity search as baseline"""
         import time
-        
+
         start = time.time()
-        
+
         # Normalize query
         query_norm = query / (np.linalg.norm(query) + 1e-10)
-        
+
         # Compute similarities
         similarities = self.embeddings @ query_norm
-        
+
         # Get top-k
         top_k_indices = np.argsort(similarities)[-k:][::-1]
         top_k_distances = 1.0 - similarities[top_k_indices]
-        
+
         classical_time = (time.time() - start) * 1000
-        
+
         return QuantumSearchResult(
             indices=top_k_indices,
             distances=top_k_distances,
@@ -231,7 +230,7 @@ class QuantumEmbeddingSearch:
             error_estimate=0.0,
             backend_used="classical"
         )
-    
+
     def _quantum_search(
         self,
         query: np.ndarray,
@@ -250,29 +249,29 @@ class QuantumEmbeddingSearch:
         Theoretical complexity: O(√N) vs O(N) classical
         """
         import time
-        
+
         quantum_start = time.time()
-        
+
         # Normalize query
         query_norm = query / (np.linalg.norm(query) + 1e-10)
-        
+
         # Quantum search (simulated)
         # In practice, this would use Qiskit/Cirq to construct and execute
         # quantum circuits on real quantum hardware
-        
+
         # Determine similarity threshold for oracle
         threshold = self._compute_similarity_threshold(query_norm, k)
-        
+
         # Grover iterations needed: ~π/4 * √N
         num_iterations = int(np.pi / 4 * np.sqrt(self.num_embeddings))
         num_iterations = min(num_iterations, self.config.max_depth)
-        
+
         # Simulate quantum measurement
         # Real implementation would execute quantum circuit
         candidates = self._simulate_grover_search(query_norm, threshold, num_iterations)
-        
+
         quantum_time = (time.time() - quantum_start) * 1000
-        
+
         # Classical refinement
         classical_start = time.time()
         refined_results = self._refine_quantum_candidates(
@@ -281,11 +280,11 @@ class QuantumEmbeddingSearch:
             k
         )
         classical_time = (time.time() - classical_start) * 1000
-        
+
         # Estimate speedup
         theoretical_speedup = np.sqrt(self.num_embeddings / k)
         practical_speedup = min(theoretical_speedup, 100)  # Current limitations
-        
+
         return QuantumSearchResult(
             indices=refined_results['indices'],
             distances=refined_results['distances'],
@@ -297,7 +296,7 @@ class QuantumEmbeddingSearch:
             error_estimate=refined_results['error'],
             backend_used=f"quantum_{self.config.backend.value}"
         )
-    
+
     def _compute_similarity_threshold(
         self,
         query: np.ndarray,
@@ -315,13 +314,13 @@ class QuantumEmbeddingSearch:
             replace=False
         )
         sample_similarities = self.embeddings[sample_indices] @ query
-        
+
         # Estimate kth percentile
         percentile = 100 * (1 - k / self.num_embeddings)
         threshold = np.percentile(sample_similarities, percentile)
-        
+
         return threshold * 0.9  # Conservative threshold
-    
+
     def _simulate_grover_search(
         self,
         query: np.ndarray,
@@ -342,30 +341,30 @@ class QuantumEmbeddingSearch:
         """
         # Compute all similarities (in practice, done in quantum superposition)
         similarities = self.embeddings @ query
-        
+
         # Identify items above threshold (oracle marks these)
         marked_indices = np.where(similarities >= threshold)[0]
         num_marked = len(marked_indices)
-        
+
         if num_marked == 0:
             # No items above threshold, lower threshold
             threshold = np.percentile(similarities, 90)
             marked_indices = np.where(similarities >= threshold)[0]
             num_marked = len(marked_indices)
-        
+
         # Grover amplification increases probability of marked states
         # After k iterations, probability ~ sin²((2k+1)θ) where sin(θ) = √(M/N)
         # M = marked items, N = total items
-        
+
         theta = np.arcsin(np.sqrt(num_marked / self.num_embeddings))
         final_prob = np.sin((2 * num_iterations + 1) * theta) ** 2
-        
+
         # Probability distribution after Grover iterations
         probabilities = np.zeros(self.num_embeddings)
         probabilities[marked_indices] = final_prob / num_marked
         probabilities[~np.isin(np.arange(self.num_embeddings), marked_indices)] = \
             (1 - final_prob) / (self.num_embeddings - num_marked)
-        
+
         # Sample based on quantum measurement probabilities
         candidates = np.random.choice(
             self.num_embeddings,
@@ -373,9 +372,9 @@ class QuantumEmbeddingSearch:
             replace=False,
             p=probabilities / probabilities.sum()
         )
-        
+
         return candidates
-    
+
     def _refine_quantum_candidates(
         self,
         query: np.ndarray,
@@ -391,16 +390,16 @@ class QuantumEmbeddingSearch:
         # Compute exact similarities for candidates
         candidate_embeddings = self.embeddings[candidates]
         similarities = candidate_embeddings @ query
-        
+
         # Sort by similarity
         sorted_indices = np.argsort(similarities)[-k:][::-1]
         top_k_candidates = candidates[sorted_indices]
         top_k_similarities = similarities[sorted_indices]
-        
+
         # Estimate error from quantum approximation
         # In practice, compare with classical ground truth
         error_estimate = 0.01  # 1% typical quantum error with error mitigation
-        
+
         return {
             'indices': top_k_candidates,
             'distances': 1.0 - top_k_similarities,
@@ -412,13 +411,13 @@ class QuantumEmbeddingSearch:
 # Example usage for quantum-accelerated search
 def demonstrate_quantum_search():
     """Demonstrate hybrid quantum-classical similarity search"""
-    
+
     # Generate synthetic embeddings
     num_embeddings = 100000
     embedding_dim = 768
     embeddings = np.random.randn(num_embeddings, embedding_dim)
     embeddings = embeddings / np.linalg.norm(embeddings, axis=1, keepdims=True)
-    
+
     # Configure quantum system
     config = QuantumConfig(
         backend=QuantumBackend.SIMULATOR,
@@ -427,19 +426,19 @@ def demonstrate_quantum_search():
         hybrid_threshold=10000,
         algorithm="grover"
     )
-    
+
     # Build index
     search = QuantumEmbeddingSearch(config)
     search.build_index(embeddings)
-    
+
     # Query
     query = np.random.randn(embedding_dim)
     query = query / np.linalg.norm(query)
-    
+
     # Classical search (baseline)
     classical_result = search.search(query, k=10, use_quantum=False)
     print(f"Classical search: {classical_result.classical_time_ms:.2f}ms")
-    
+
     # Quantum-accelerated search
     quantum_result = search.search(query, k=10, use_quantum=True)
     print(f"Quantum search: {quantum_result.quantum_time_ms:.2f}ms " +

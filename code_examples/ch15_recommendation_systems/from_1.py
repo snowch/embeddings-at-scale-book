@@ -23,14 +23,16 @@ Production:
 - Fallback: Base embedding if session too short
 """
 
+import time
+from collections import deque
+from dataclasses import dataclass
+from typing import Deque, Dict, List, Optional, Tuple
+
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import List, Dict, Optional, Tuple, Deque
-from dataclasses import dataclass
-from collections import deque
-import time
+
 
 @dataclass
 class SessionEvent:
@@ -162,7 +164,7 @@ class RealTimePersonalizer:
         )
         self.session_encoder.eval()
 
-        print(f"Initialized Real-Time Personalizer")
+        print("Initialized Real-Time Personalizer")
         print(f"  Session window: {session_window} minutes")
 
     def track_event(self, user_id: str, event: SessionEvent):

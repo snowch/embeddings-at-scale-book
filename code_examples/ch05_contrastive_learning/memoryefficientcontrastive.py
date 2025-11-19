@@ -3,6 +3,7 @@
 
 from torch.utils.checkpoint import checkpoint
 
+
 class MemoryEfficientContrastive(nn.Module):
     """
     Use gradient checkpointing to reduce memory consumption

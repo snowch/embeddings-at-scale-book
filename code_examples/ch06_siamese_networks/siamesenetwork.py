@@ -1,9 +1,9 @@
 # Code from Chapter 06
 # Book: Embeddings at Scale
 
-import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
 
 class SiameseNetwork(nn.Module):
     """

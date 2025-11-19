@@ -1,8 +1,9 @@
 # Code from Chapter 04
 # Book: Embeddings at Scale
 
-from sklearn.decomposition import PCA
 import numpy as np
+from sklearn.decomposition import PCA
+
 
 class IntrinsicDimensionality:
     """

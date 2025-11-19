@@ -24,10 +24,12 @@ Investment priorities:
 """
 
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Set, Tuple
-from enum import Enum
 from datetime import datetime, timedelta
+from enum import Enum
+from typing import Dict, List, Set, Tuple
+
 import numpy as np
+
 
 class DataAssetType(Enum):
     """Types of proprietary data assets"""
@@ -50,22 +52,22 @@ class DataMoat:
     quality_score: float  # 0-1, accuracy and completeness
     business_value: float  # Estimated revenue impact
     collection_cost: float  # Monthly cost to maintain
-    
+
     # Coverage and representation
     domain_coverage: float  # 0-1, fraction of domain represented
     rare_pattern_count: int  # Long-tail phenomena captured
     temporal_recency: timedelta  # How fresh the data is
-    
+
     # Competitive advantage metrics
     time_to_replicate: timedelta  # Estimated competitor catch-up time
     replication_cost: float  # Estimated competitor investment needed
     network_effect_strength: float  # 0-1, how much advantage compounds
-    
+
     # Integration and usage
     active_models: Set[str]  # Models trained on this data
     downstream_applications: Set[str]  # Applications depending on it
     feedback_loop_strength: float  # 0-1, how well usage improves data
-    
+
     metadata: Dict[str, any] = field(default_factory=dict)
 
 @dataclass
@@ -75,29 +77,29 @@ class AdvantageCompounding:
     initial_value: float  # Starting competitive advantage
     compound_rate: float  # Monthly growth in advantage
     investment_required: float  # Monthly spend to maintain
-    
+
     # Compounding mechanisms
     scale_effects: float  # Advantage from data/user scale
     learning_effects: float  # Advantage from accumulated knowledge
     network_effects: float  # Advantage from user/partner ecosystem
     expertise_effects: float  # Advantage from team capability
-    
+
     # Defensive moat
     switching_costs: float  # Cost for users to switch to competitor
     integration_complexity: float  # Difficulty replicating integrations
     regulatory_barriers: float  # Compliance/legal advantage
-    
+
     # Time dynamics
     months_to_neutralize: float  # Time for competitor to match
     erosion_rate: float  # Monthly decay without investment
-    
+
     # Strategic value
     revenue_contribution: float  # Monthly revenue attributable
     margin_improvement: float  # Profit margin versus competitors
     market_share_impact: float  # Market share gain from advantage
-    
+
     measurements: List[Tuple[datetime, float]] = field(default_factory=list)
-    
+
     def project_advantage(self, months: int) -> float:
         """Project advantage value over time"""
         # Compound growth with diminishing returns
@@ -107,7 +109,7 @@ class AdvantageCompounding:
             erosion = self.erosion_rate
             value = value * (1 + growth - erosion)
         return value
-    
+
     def calculate_roi(self, months: int) -> float:
         """Calculate return on moat investment"""
         total_investment = self.investment_required * months
@@ -119,12 +121,12 @@ class AdvantageCompounding:
 
 class SustainableAdvantageBuilder:
     """System for building and tracking sustainable advantages"""
-    
+
     def __init__(self):
         self.data_moats: Dict[str, DataMoat] = {}
         self.advantages: Dict[str, AdvantageCompounding] = {}
         self.start_date = datetime.now()
-    
+
     def assess_data_moat(
         self,
         asset_type: DataAssetType,
@@ -133,23 +135,23 @@ class SustainableAdvantageBuilder:
         uniqueness: float
     ) -> Dict[str, float]:
         """Assess strength and sustainability of data moat"""
-        
+
         # Calculate time for competitor to reach parity
         competitor_catch_up_months = (
             current_size / (growth_rate * 2)  # Assume competitor grows 2× faster
         ) if growth_rate > 0 else float('inf')
-        
+
         # Estimate replication cost based on data collection challenges
         collection_cost_per_example = 0.01 * (1 + uniqueness * 10)  # Higher for unique data
         replication_cost = current_size * collection_cost_per_example
-        
+
         # Network effect strength - how much having more data attracts more users
         network_strength = min(uniqueness * 0.8, 1.0)  # Unique data creates stronger effects
-        
+
         # Compound value over time
         months_ahead = 36  # 3-year horizon
         advantage_multiplier = (1 + growth_rate / current_size) ** months_ahead
-        
+
         return {
             "competitive_lead_months": competitor_catch_up_months,
             "replication_cost_millions": replication_cost / 1_000_000,
@@ -160,24 +162,24 @@ class SustainableAdvantageBuilder:
                 1.0
             )
         }
-    
+
     def optimize_investment_allocation(
         self,
         total_budget: float,
         investment_options: List[Tuple[str, float, float]]  # name, cost, compound_rate
     ) -> Dict[str, float]:
         """Optimize budget allocation across advantage-building activities"""
-        
+
         # Simple greedy allocation prioritizing highest ROI
         sorted_options = sorted(
             investment_options,
             key=lambda x: x[2] / x[1],  # Compound rate per dollar
             reverse=True
         )
-        
+
         allocation = {}
         remaining_budget = total_budget
-        
+
         for name, cost, compound_rate in sorted_options:
             if remaining_budget >= cost:
                 allocation[name] = cost
@@ -185,9 +187,9 @@ class SustainableAdvantageBuilder:
             else:
                 allocation[name] = remaining_budget
                 break
-        
+
         return allocation
-    
+
     def identify_moat_opportunities(
         self,
         current_capabilities: Dict[str, float],
@@ -195,9 +197,9 @@ class SustainableAdvantageBuilder:
         resources_available: Dict[str, float]
     ) -> List[Dict[str, any]]:
         """Identify highest-value opportunities for building moats"""
-        
+
         opportunities = []
-        
+
         # Data moat opportunities
         if resources_available.get("data_collection_capacity", 0) > 0:
             opportunities.append({
@@ -208,7 +210,7 @@ class SustainableAdvantageBuilder:
                 "sustainability": 0.85,
                 "investment_required": 500_000  # Initial setup
             })
-        
+
         # Domain expertise opportunities
         if resources_available.get("expert_hiring_capacity", 0) > 0:
             opportunities.append({
@@ -219,7 +221,7 @@ class SustainableAdvantageBuilder:
                 "sustainability": 0.75,
                 "investment_required": 2_000_000  # Annual comp for team
             })
-        
+
         # Learning system opportunities
         if current_capabilities.get("ml_platform_maturity", 0) > 0.7:
             opportunities.append({
@@ -230,13 +232,13 @@ class SustainableAdvantageBuilder:
                 "sustainability": 0.90,
                 "investment_required": 1_000_000  # Platform development
             })
-        
+
         # Sort by value/investment ratio
         opportunities.sort(
             key=lambda x: x["estimated_value"] / x["investment_required"],
             reverse=True
         )
-        
+
         return opportunities
 
 # Example usage for strategic planning
@@ -246,9 +248,9 @@ def develop_moat_strategy(
     time_horizon_months: int
 ) -> Dict[str, any]:
     """Develop comprehensive moat-building strategy"""
-    
+
     builder = SustainableAdvantageBuilder()
-    
+
     # Assess current data assets
     data_strength = builder.assess_data_moat(
         DataAssetType.USER_BEHAVIOR,
@@ -256,25 +258,25 @@ def develop_moat_strategy(
         growth_rate=current_position.get("monthly_growth", 0),
         uniqueness=current_position.get("data_uniqueness", 0.5)
     )
-    
+
     # Identify investment opportunities
     opportunities = builder.identify_moat_opportunities(
         current_capabilities=current_position.get("capabilities", {}),
         market_gaps=current_position.get("market_gaps", {}),
         resources_available=current_position.get("resources", {})
     )
-    
+
     # Allocate budget
     investment_options = [
         (opp["focus"], opp["investment_required"], opp["estimated_value"])
         for opp in opportunities
     ]
-    
+
     allocation = builder.optimize_investment_allocation(
         available_budget,
         investment_options
     )
-    
+
     # Project outcomes
     projected_advantages = []
     for opp in opportunities:
@@ -291,10 +293,10 @@ def develop_moat_strategy(
                 months_to_neutralize=opp["time_to_value"] * 2,
                 erosion_rate=0.02
             )
-            
+
             projected_value = advantage.project_advantage(time_horizon_months)
             roi = advantage.calculate_roi(time_horizon_months)
-            
+
             projected_advantages.append({
                 "source": opp["focus"],
                 "type": opp["type"],
@@ -303,7 +305,7 @@ def develop_moat_strategy(
                 "sustainability": opp["sustainability"],
                 "investment": allocation[opp["focus"]]
             })
-    
+
     return {
         "current_strength": data_strength,
         "opportunities": opportunities,

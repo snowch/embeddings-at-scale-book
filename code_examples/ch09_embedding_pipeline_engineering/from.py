@@ -18,13 +18,14 @@ Raw Data → Feature Engineering → Batch Inference → Vector Store → Servin
 Real-time Data → Feature Engineering → Online Inference → Vector Store → Serving Layer
 """
 
-import torch
-import torch.nn as nn
-from typing import Dict, List, Optional, Union
+import json
 from dataclasses import dataclass
 from datetime import datetime
-import numpy as np
-import json
+from typing import Dict, List, Optional
+
+import torch
+import torch.nn as nn
+
 
 @dataclass
 class EmbeddingModelMetadata:
@@ -461,7 +462,7 @@ class EmbeddingInferencePipeline:
         throughput = self.processed_count / elapsed if elapsed > 0 else 0
 
         if final:
-            print(f"\n✓ Batch inference complete")
+            print("\n✓ Batch inference complete")
             print(f"  Total processed: {self.processed_count:,}")
             print(f"  Elapsed time: {elapsed:.1f}s")
             print(f"  Throughput: {throughput:,.0f} embeddings/second")
@@ -547,7 +548,7 @@ def embedding_mlops_example():
             batch_size=1024
         )
 
-        print(f"\n✓ MLOps workflow complete")
+        print("\n✓ MLOps workflow complete")
         print(f"  Model in production: {model_id}")
 
 # Uncomment to run:

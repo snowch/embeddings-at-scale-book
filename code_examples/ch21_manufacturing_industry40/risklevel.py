@@ -26,14 +26,16 @@ Production considerations:
 - Multi-objective optimization: Balance cost, risk, sustainability
 """
 
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
+
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import List, Dict, Optional, Tuple, Any, Set
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from enum import Enum
+
 
 class RiskLevel(Enum):
     """Risk level classifications"""
@@ -155,18 +157,18 @@ class SupplierEncoder(nn.Module):
         embedding_dim: int = 512
     ):
         super().__init__()
-        
+
         # Categorical embeddings
         self.location_embedding = nn.Embedding(num_locations, 64)
         self.cert_embedding = nn.Embedding(num_certifications, 32)
-        
+
         # Financial health encoder
         self.financial_encoder = nn.Sequential(
             nn.Linear(10, hidden_dim),  # 10 financial metrics
             nn.ReLU(),
             nn.Dropout(0.1)
         )
-        
+
         # Performance history encoder (time series)
         self.performance_encoder = nn.LSTM(
             input_size=5,  # on-time %, quality score, responsiveness, etc.
@@ -175,7 +177,7 @@ class SupplierEncoder(nn.Module):
             batch_first=True,
             dropout=0.1
         )
-        
+
         # Fusion network
         self.fusion = nn.Sequential(
             nn.Linear(64 + 32 + hidden_dim * 2, hidden_dim),
@@ -184,7 +186,7 @@ class SupplierEncoder(nn.Module):
             nn.Linear(hidden_dim, embedding_dim),
             nn.LayerNorm(embedding_dim)
         )
-        
+
     def forward(
         self,
         location_ids: torch.Tensor,
@@ -204,18 +206,18 @@ class SupplierEncoder(nn.Module):
         # Encode categorical
         loc_emb = self.location_embedding(location_ids)
         cert_emb = self.cert_embedding(cert_ids).mean(dim=1)
-        
+
         # Encode financial
         fin_emb = self.financial_encoder(financial_features)
-        
+
         # Encode performance history
         _, (perf_hidden, _) = self.performance_encoder(performance_history)
         perf_emb = perf_hidden[-1]  # Last layer hidden state
-        
+
         # Fuse all features
         combined = torch.cat([loc_emb, cert_emb, fin_emb, perf_emb], dim=-1)
         embeddings = self.fusion(combined)
-        
+
         return embeddings
 
 class SupplyNetworkGNN(nn.Module):
@@ -235,22 +237,22 @@ class SupplyNetworkGNN(nn.Module):
         dropout: float = 0.1
     ):
         super().__init__()
-        
+
         self.num_layers = num_layers
-        
+
         # Message passing layers
         self.convs = nn.ModuleList([
             nn.Linear(node_dim + edge_dim, node_dim)
             for _ in range(num_layers)
         ])
-        
+
         self.norms = nn.ModuleList([
             nn.LayerNorm(node_dim)
             for _ in range(num_layers)
         ])
-        
+
         self.dropout = nn.Dropout(dropout)
-        
+
     def forward(
         self,
         node_features: torch.Tensor,
@@ -266,30 +268,30 @@ class SupplyNetworkGNN(nn.Module):
             updated_features: [num_nodes, node_dim]
         """
         x = node_features
-        
+
         for i in range(self.num_layers):
             # Aggregate messages from neighbors
             source_idx, target_idx = edge_index[0], edge_index[1]
-            
+
             # Gather source node features and edge features
             messages = torch.cat([
                 x[source_idx],
                 edge_features
             ], dim=-1)
-            
+
             # Transform messages
             messages = self.convs[i](messages)
-            
+
             # Aggregate to target nodes (sum)
             aggregated = torch.zeros_like(x)
             aggregated.index_add_(0, target_idx, messages)
-            
+
             # Update node features
             x = x + aggregated
             x = self.norms[i](x)
             x = F.relu(x)
             x = self.dropout(x)
-        
+
         return x
 
 class DisruptionPredictor(nn.Module):
@@ -309,7 +311,7 @@ class DisruptionPredictor(nn.Module):
         hidden_dim: int = 512
     ):
         super().__init__()
-        
+
         self.shared = nn.Sequential(
             nn.Linear(embedding_dim, hidden_dim),
             nn.ReLU(),
@@ -318,13 +320,13 @@ class DisruptionPredictor(nn.Module):
             nn.ReLU(),
             nn.Dropout(0.1)
         )
-        
+
         # Task-specific heads
         self.disruption_prob = nn.Linear(hidden_dim, 1)
         self.delay_magnitude = nn.Linear(hidden_dim, 1)
         self.disruption_type = nn.Linear(hidden_dim, num_disruption_types)
         self.recovery_time = nn.Linear(hidden_dim, 1)
-        
+
     def forward(self, embeddings: torch.Tensor) -> Dict[str, torch.Tensor]:
         """
         Args:
@@ -333,7 +335,7 @@ class DisruptionPredictor(nn.Module):
             predictions: Dictionary of prediction tensors
         """
         shared_repr = self.shared(embeddings)
-        
+
         return {
             'disruption_prob': torch.sigmoid(self.disruption_prob(shared_repr)),
             'delay_days': F.relu(self.delay_magnitude(shared_repr)),
@@ -363,28 +365,28 @@ class SupplyChainIntelligenceSystem:
         self.network_gnn = network_gnn.to(device)
         self.disruption_predictor = disruption_predictor.to(device)
         self.device = device
-        
+
         # Supply chain graph
         self.suppliers: Dict[str, Supplier] = {}
         self.parts: Dict[str, Part] = {}
         self.shipments: Dict[str, Shipment] = {}
-        
+
         # Network structure
         self.supply_relationships: List[Tuple[str, str]] = []  # (supplier, part)
-        
+
     def add_supplier(self, supplier: Supplier):
         """Register supplier in system"""
         self.suppliers[supplier.supplier_id] = supplier
-        
+
         # Encode supplier
         # In production, batch process all suppliers
         supplier.embedding = np.random.randn(512)  # Placeholder
-    
+
     def add_part(self, part: Part):
         """Register part in system"""
         self.parts[part.part_id] = part
         part.embedding = np.random.randn(512)  # Placeholder
-    
+
     def predict_shipment_risk(self, shipment: Shipment) -> Dict[str, Any]:
         """
         Predict disruption risk for shipment
@@ -398,18 +400,18 @@ class SupplyChainIntelligenceSystem:
         # Get supplier embedding
         if shipment.supplier_id not in self.suppliers:
             raise ValueError(f"Unknown supplier: {shipment.supplier_id}")
-        
+
         supplier = self.suppliers[shipment.supplier_id]
         supplier_emb = torch.FloatTensor(supplier.embedding).unsqueeze(0).to(self.device)
-        
+
         # Predict disruptions
         with torch.no_grad():
             predictions = self.disruption_predictor(supplier_emb)
-        
+
         disruption_prob = predictions['disruption_prob'].item()
         delay_days = predictions['delay_days'].item()
         recovery_days = predictions['recovery_days'].item()
-        
+
         # Determine risk level
         if disruption_prob < 0.1:
             risk_level = RiskLevel.LOW
@@ -419,7 +421,7 @@ class SupplyChainIntelligenceSystem:
             risk_level = RiskLevel.HIGH
         else:
             risk_level = RiskLevel.CRITICAL
-        
+
         # Identify disruption factors
         disruption_types = [
             'logistics_delay',
@@ -431,13 +433,13 @@ class SupplyChainIntelligenceSystem:
         ]
         type_probs = F.softmax(predictions['disruption_type'], dim=-1).cpu().numpy()[0]
         top_type_idx = np.argmax(type_probs)
-        
+
         disruption_factors = [
             disruption_types[top_type_idx],
             f"Supplier reliability: {1 - disruption_prob:.1%}",
             f"Route complexity: {len(shipment.route.split(','))} hops"
         ]
-        
+
         return {
             'disruption_probability': disruption_prob,
             'expected_delay_days': delay_days,
@@ -450,7 +452,7 @@ class SupplyChainIntelligenceSystem:
                 shipment
             )
         }
-    
+
     def _generate_recommendations(
         self,
         risk_level: RiskLevel,
@@ -459,16 +461,16 @@ class SupplyChainIntelligenceSystem:
     ) -> List[str]:
         """Generate actionable recommendations"""
         recommendations = []
-        
+
         if risk_level in [RiskLevel.HIGH, RiskLevel.CRITICAL]:
             recommendations.append(f"HIGH PRIORITY: Expedite shipment {shipment.shipment_id}")
             recommendations.append("Activate backup supplier for affected parts")
             recommendations.append("Alert production planning of potential delay")
-        
+
         if delay_days > 7:
             recommendations.append("Consider air freight upgrade")
             recommendations.append("Increase safety stock for affected parts")
-        
+
         # Find alternative suppliers
         affected_parts = shipment.parts
         for part_id in affected_parts[:2]:  # Top 2 critical parts
@@ -482,9 +484,9 @@ class SupplyChainIntelligenceSystem:
                     recommendations.append(
                         f"Alternative suppliers for {part_id}: {', '.join(alt_suppliers[:2])}"
                     )
-        
+
         return recommendations
-    
+
     def optimize_sourcing(
         self,
         part_id: str,
@@ -498,42 +500,42 @@ class SupplyChainIntelligenceSystem:
         """
         if part_id not in self.parts:
             raise ValueError(f"Unknown part: {part_id}")
-        
+
         part = self.parts[part_id]
         recommendations = []
-        
+
         for supplier_id in part.suppliers:
             if supplier_id not in self.suppliers:
                 continue
-            
+
             supplier = self.suppliers[supplier_id]
-            
+
             # Score based on multiple factors
             # In production, use learned scoring model
             reliability_score = np.random.uniform(0.7, 0.95)
             cost_score = np.random.uniform(0.6, 0.9)
             lead_time_score = np.random.uniform(0.7, 0.95)
-            
+
             # Multi-objective score
             weights = {
                 'reliability': 0.4,
                 'cost': 0.3,
                 'lead_time': 0.3
             }
-            
+
             total_score = (
                 reliability_score * weights['reliability'] +
                 cost_score * weights['cost'] +
                 lead_time_score * weights['lead_time']
             )
-            
+
             rationale = f"Reliability: {reliability_score:.0%}, Cost: {cost_score:.0%}, Lead time: {lead_time_score:.0%}"
-            
+
             recommendations.append((supplier_id, total_score, rationale))
-        
+
         # Sort by score
         recommendations.sort(key=lambda x: x[1], reverse=True)
-        
+
         return recommendations
 
 def supply_chain_intelligence_example():
@@ -550,30 +552,30 @@ def supply_chain_intelligence_example():
     print("SUPPLY CHAIN INTELLIGENCE - AUTOMOTIVE MANUFACTURING")
     print("=" * 80)
     print()
-    
+
     # Initialize models
     supplier_encoder = SupplierEncoder(
         num_locations=200,
         num_certifications=50
     )
-    
+
     network_gnn = SupplyNetworkGNN()
-    
+
     disruption_predictor = DisruptionPredictor()
-    
+
     sc_system = SupplyChainIntelligenceSystem(
         supplier_encoder=supplier_encoder,
         network_gnn=network_gnn,
         disruption_predictor=disruption_predictor,
         device='cpu'
     )
-    
+
     print("System initialized:")
     print("  - Supplier encoder: 200 locations, 50 certifications")
     print("  - Network GNN: 3 layers, 512-dim embeddings")
     print("  - Disruption types: 6 categories")
     print()
-    
+
     # Register suppliers
     print("Registering suppliers...")
     suppliers_data = [
@@ -583,7 +585,7 @@ def supply_chain_intelligence_example():
         ("SUPP_004", "Steel Components Inc", 2, {"country": "USA", "region": "Michigan"}),
         ("SUPP_005", "Polymer Solutions SA", 1, {"country": "France", "region": "Rhône"})
     ]
-    
+
     for supplier_id, name, tier, location in suppliers_data:
         supplier = Supplier(
             supplier_id=supplier_id,
@@ -599,10 +601,10 @@ def supply_chain_intelligence_example():
             parts_supplied=['PART_001', 'PART_002']
         )
         sc_system.add_supplier(supplier)
-    
+
     print(f"  - Registered {len(sc_system.suppliers)} suppliers")
     print()
-    
+
     # Register parts
     print("Registering parts...")
     parts_data = [
@@ -611,7 +613,7 @@ def supply_chain_intelligence_example():
         ("PART_003", "Steel Frame Component", "structural", ["SUPP_004"]),
         ("PART_004", "Interior Trim Panel", "interior", ["SUPP_005"])
     ]
-    
+
     for part_id, name, category, suppliers in parts_data:
         part = Part(
             part_id=part_id,
@@ -622,22 +624,22 @@ def supply_chain_intelligence_example():
             lead_time=14.0
         )
         sc_system.add_part(part)
-    
+
     print(f"  - Registered {len(sc_system.parts)} parts")
     print()
-    
+
     # Monitor shipments
     print("Monitoring active shipments...")
     print()
-    
+
     shipments_data = [
         ("SHIP_001", "SUPP_001", ["PART_001"], "Frankfurt", "Detroit", "DHL", 0.35),
         ("SHIP_002", "SUPP_002", ["PART_001"], "Taipei", "Detroit", "FedEx", 0.65),
         ("SHIP_003", "SUPP_003", ["PART_002"], "Queretaro", "Detroit", "UPS", 0.15),
     ]
-    
+
     alerts_generated = 0
-    
+
     for shipment_id, supplier_id, parts, origin, dest, carrier, risk_factor in shipments_data:
         shipment = Shipment(
             shipment_id=shipment_id,
@@ -650,14 +652,14 @@ def supply_chain_intelligence_example():
             scheduled_departure=datetime.now(),
             scheduled_arrival=datetime.now() + timedelta(days=14)
         )
-        
+
         # Predict risk
         risk_assessment = sc_system.predict_shipment_risk(shipment)
-        
+
         # Mock adjustment based on scenario
         risk_assessment['disruption_probability'] = risk_factor
         risk_assessment['expected_delay_days'] = risk_factor * 10
-        
+
         if risk_factor < 0.3:
             risk_assessment['risk_level'] = RiskLevel.LOW
         elif risk_factor < 0.5:
@@ -665,7 +667,7 @@ def supply_chain_intelligence_example():
         else:
             risk_assessment['risk_level'] = RiskLevel.HIGH
             alerts_generated += 1
-        
+
         # Display results
         print(f"Shipment: {shipment_id}")
         print(f"  Route: {origin} → {dest}")
@@ -674,31 +676,31 @@ def supply_chain_intelligence_example():
         print(f"  Risk level: {risk_assessment['risk_level'].value.upper()}")
         print(f"  Disruption probability: {risk_assessment['disruption_probability']:.1%}")
         print(f"  Expected delay: {risk_assessment['expected_delay_days']:.1f} days")
-        
+
         if risk_assessment['risk_level'] in [RiskLevel.HIGH, RiskLevel.CRITICAL]:
-            print(f"  ⚠️  ALERT: High-risk shipment detected")
-            print(f"  Recommended actions:")
+            print("  ⚠️  ALERT: High-risk shipment detected")
+            print("  Recommended actions:")
             for action in risk_assessment['recommended_actions'][:3]:
                 print(f"    - {action}")
-        
+
         print()
-    
+
     # Sourcing optimization
     print("=" * 80)
     print("SOURCING OPTIMIZATION")
     print("=" * 80)
     print()
-    
+
     part_id = "PART_001"
     print(f"Optimizing sourcing for {part_id} (Engine Control Unit)")
     print()
-    
+
     recommendations = sc_system.optimize_sourcing(
         part_id=part_id,
         quantity=1000,
         target_date=datetime.now() + timedelta(days=30)
     )
-    
+
     print("Supplier recommendations (ranked):")
     for i, (supplier_id, score, rationale) in enumerate(recommendations, 1):
         supplier = sc_system.suppliers[supplier_id]
@@ -706,7 +708,7 @@ def supply_chain_intelligence_example():
         print(f"   Score: {score:.2f}")
         print(f"   {rationale}")
         print()
-    
+
     # Summary
     print("=" * 80)
     print("SYSTEM SUMMARY")

@@ -42,7 +42,7 @@ class EquipmentReading:
     image: Optional[np.ndarray] = None
     maintenance_history: Optional[List[Dict]] = None
     failure_time: Optional[float] = None
-    
+
     def __post_init__(self):
         if self.sensors is None:
             self.sensors = {}
@@ -59,7 +59,7 @@ class EquipmentEncoder(nn.Module):
     - Maintenance encoder: Past maintenance history
     - Fusion: Combine modalities
     """
-    
+
     def __init__(
         self,
         embedding_dim: int = 128,
@@ -67,7 +67,7 @@ class EquipmentEncoder(nn.Module):
         sequence_length: int = 100
     ):
         super().__init__()
-        
+
         # Sensor time-series encoder (LSTM)
         self.sensor_encoder = nn.LSTM(
             input_size=num_sensors,
@@ -76,7 +76,7 @@ class EquipmentEncoder(nn.Module):
             batch_first=True,
             dropout=0.2
         )
-        
+
         # Fusion layer
         self.fusion = nn.Sequential(
             nn.Linear(64, 128),
@@ -84,7 +84,7 @@ class EquipmentEncoder(nn.Module):
             nn.Dropout(0.2),
             nn.Linear(128, embedding_dim)
         )
-    
+
     def forward(self, sensor_data: torch.Tensor) -> torch.Tensor:
         """
         Encode equipment state
@@ -98,13 +98,13 @@ class EquipmentEncoder(nn.Module):
         # Encode sensor time series
         _, (hidden, _) = self.sensor_encoder(sensor_data)
         sensor_emb = hidden[-1]  # Last hidden state
-        
+
         # Fusion
         equipment_emb = self.fusion(sensor_emb)
-        
+
         # Normalize
         equipment_emb = F.normalize(equipment_emb, p=2, dim=1)
-        
+
         return equipment_emb
 
 class FailurePredictionModel(nn.Module):
@@ -116,10 +116,10 @@ class FailurePredictionModel(nn.Module):
     - Time to failure: Expected hours until failure
     - Failure mode: Type of failure (bearing, motor, etc.)
     """
-    
+
     def __init__(self, embedding_dim: int = 128):
         super().__init__()
-        
+
         # Failure probability head
         self.failure_prob_head = nn.Sequential(
             nn.Linear(embedding_dim, 128),
@@ -128,7 +128,7 @@ class FailurePredictionModel(nn.Module):
             nn.Linear(128, 1),
             nn.Sigmoid()
         )
-        
+
         # Time to failure head
         self.time_to_failure_head = nn.Sequential(
             nn.Linear(embedding_dim, 128),
@@ -137,7 +137,7 @@ class FailurePredictionModel(nn.Module):
             nn.Linear(128, 1),
             nn.ReLU()  # Positive time
         )
-    
+
     def forward(self, embeddings: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Predict failure
@@ -150,7 +150,7 @@ class FailurePredictionModel(nn.Module):
         """
         failure_prob = self.failure_prob_head(embeddings)
         time_to_failure = self.time_to_failure_head(embeddings)
-        
+
         return failure_prob, time_to_failure
 
 # Example: Predictive maintenance
@@ -174,34 +174,34 @@ def predictive_maintenance_example():
     - Predict time to failure
     - Schedule maintenance proactively
     """
-    
+
     print("=== Predictive Maintenance ===")
     print("\nEquipment: CNC Machining Center")
     print("Component: Spindle bearing")
     print("Failure mode: Bearing wear → vibration → failure")
     print("Failure cost: $50K (downtime + repair)")
     print("Maintenance cost: $5K (planned bearing replacement)")
-    
+
     print("\n--- Traditional Approaches ---")
     print("\n1. Reactive Maintenance:")
     print("   Wait for failure, then fix")
     print("   Downtime: 24 hours")
     print("   Total cost: $50K")
     print("   → Unacceptable: Disrupts production")
-    
+
     print("\n2. Preventive Maintenance:")
     print("   Replace bearing every 1000 hours")
     print("   Some bearings last 1500 hours (wasted)")
     print("   Some bearings fail at 800 hours (still have failures)")
     print("   Average cost: $5K every 1000 hours")
     print("   → Suboptimal: Too early or too late")
-    
+
     print("\n3. Threshold-Based:")
     print("   Alert if vibration > 10 mm/s")
     print("   Problem: Sudden failures still occur")
     print("   Problem: False alarms from normal variation")
     print("   → Better, but misses complex patterns")
-    
+
     print("\n--- Embedding-Based Predictive Maintenance ---")
     print("\nApproach:")
     print("  1. Learn normal operation embedding from sensor data")
@@ -209,7 +209,7 @@ def predictive_maintenance_example():
     print("  3. Detect drift toward failure patterns")
     print("  4. Predict time to failure")
     print("  5. Schedule maintenance proactively")
-    
+
     print("\n--- Equipment 1: Healthy ---")
     print("Hours of operation: 200")
     print("Temperature: 65°C (normal)")
@@ -219,7 +219,7 @@ def predictive_maintenance_example():
     print("Failure probability (next 100 hours): 2%")
     print("Time to failure: 800+ hours")
     print("Recommendation: Continue normal operation")
-    
+
     print("\n--- Equipment 2: Early Degradation ---")
     print("Hours of operation: 650")
     print("Temperature: 72°C (slight increase)")
@@ -230,7 +230,7 @@ def predictive_maintenance_example():
     print("Time to failure: 150 hours")
     print("Recommendation: Schedule maintenance in 100 hours")
     print("  → Detected early degradation before vibration threshold")
-    
+
     print("\n--- Equipment 3: Imminent Failure ---")
     print("Hours of operation: 820")
     print("Temperature: 85°C (high)")
@@ -241,7 +241,7 @@ def predictive_maintenance_example():
     print("Time to failure: 20 hours")
     print("Recommendation: URGENT - Stop machine and replace bearing")
     print("  → Caught just before catastrophic failure")
-    
+
     print("\n--- Results ---")
     print("Failures prevented: 95%")
     print("Unnecessary maintenance reduced: 60%")

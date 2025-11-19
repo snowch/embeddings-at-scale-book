@@ -13,13 +13,13 @@ Quality dimensions:
 6. Semantic validity: Features preserve meaning
 """
 
-import numpy as np
-import pandas as pd
-from typing import List, Dict, Optional, Tuple, Set
-from dataclasses import dataclass
-from datetime import datetime
-from collections import defaultdict
 import hashlib
+from collections import defaultdict
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple
+
+import numpy as np
+
 
 @dataclass
 class QualityIssue:
@@ -81,7 +81,7 @@ class EmbeddingDataQualityValidator:
         # Baseline statistics (for drift detection)
         self.baseline_stats: Optional[Dict] = None
 
-        print(f"Initialized Data Quality Validator")
+        print("Initialized Data Quality Validator")
         print(f"  Required fields: {len(required_fields)}")
         print(f"  Numeric fields: {len(numeric_fields)}")
         print(f"  Categorical fields: {len(categorical_fields)}")
@@ -121,7 +121,7 @@ class EmbeddingDataQualityValidator:
         critical = sum(1 for i in self.issues if i.severity == 'critical')
         warnings = sum(1 for i in self.issues if i.severity == 'warning')
 
-        print(f"✓ Validation complete")
+        print("✓ Validation complete")
         print(f"  Clean records: {len(clean_records):,} ({len(clean_records)/len(records):.1%})")
         print(f"  Issues found: {len(self.issues)}")
         print(f"    Critical: {critical}")
@@ -448,18 +448,18 @@ def data_quality_example():
 
     # Print quality report
     report = validator.get_quality_report()
-    print(f"\n=== Quality Report ===")
+    print("\n=== Quality Report ===")
     print(f"Records validated: {report['records_validated']:,}")
     print(f"Quality score: {report['quality_score']:.2%}")
     print(f"Total issues: {report['total_issues']}")
     print(f"  Critical: {report['critical_issues']}")
     print(f"  Warnings: {report['warnings']}")
-    print(f"\nIssue breakdown:")
+    print("\nIssue breakdown:")
     for issue_type, count in report['issue_breakdown'].items():
         print(f"  {issue_type}: {count}")
 
     # Print sample issues
-    print(f"\nSample issues:")
+    print("\nSample issues:")
     for issue in issues[:5]:
         print(f"  [{issue.severity.upper()}] {issue.issue_type}: {issue.description}")
 

@@ -3,6 +3,7 @@
 
 import torch.distributed as dist
 
+
 class MultiNodeContrastiveLearning:
     """
     Multi-node distributed contrastive learning

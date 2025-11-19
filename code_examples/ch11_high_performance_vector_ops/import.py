@@ -12,12 +12,14 @@ Techniques:
 5. Filtering: Pre-filter candidates before computing similarity
 """
 
+import time
+from dataclasses import dataclass
+from typing import List
+
 import numpy as np
 import torch
 import torch.nn.functional as F
-from typing import List, Tuple, Optional
-from dataclasses import dataclass
-import time
+
 
 @dataclass
 class SearchResult:
@@ -218,7 +220,7 @@ class EarlyTerminationSearch:
         # Sort dimensions by maximum contribution (for early termination)
         self.dim_order = np.argsort(-self.max_contrib)
 
-        print(f"Initialized early termination search")
+        print("Initialized early termination search")
         print(f"  Max contrib range: [{self.max_contrib.min():.3f}, {self.max_contrib.max():.3f}]")
 
     def search(
@@ -331,23 +333,23 @@ def exact_search_example():
     query = query / np.linalg.norm(query)
 
     # Search
-    print(f"\nSearching for k=10 nearest neighbors...")
+    print("\nSearching for k=10 nearest neighbors...")
     result = search.search(query, k=10)
 
-    print(f"\n✓ Search complete")
+    print("\n✓ Search complete")
     print(f"  Latency: {result.latency_ms:.2f} ms")
     print(f"  Throughput: {num_vectors / (result.latency_ms / 1000):,.0f} vectors/sec")
     print(f"  Top-5 scores: {result.scores[:5]}")
 
     # Batch search
-    print(f"\nBatch search with 100 queries...")
+    print("\nBatch search with 100 queries...")
     queries = np.random.randn(100, dim).astype(np.float32)
     queries = queries / np.linalg.norm(queries, axis=1, keepdims=True)
 
     batch_results = search.batch_search(queries, k=10, batch_size=10)
     total_latency = sum(r.latency_ms for r in batch_results)
 
-    print(f"✓ Batch search complete")
+    print("✓ Batch search complete")
     print(f"  Total latency: {total_latency:.2f} ms")
     print(f"  Per-query latency: {total_latency / 100:.2f} ms")
     print(f"  Throughput: {100 / (total_latency / 1000):.0f} queries/sec")

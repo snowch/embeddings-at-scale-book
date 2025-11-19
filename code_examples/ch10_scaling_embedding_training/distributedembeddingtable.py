@@ -30,12 +30,13 @@ For embedding training, typically combine:
 - Pipeline Parallelism: For deep transformer stacks
 """
 
+from typing import Dict
+
 import torch
-import torch.nn as nn
 import torch.distributed as dist
+import torch.nn as nn
 from torch.nn.parallel import DistributedDataParallel as DDP
-from typing import Optional, Dict, List, Tuple
-import numpy as np
+
 
 class DistributedEmbeddingTable(nn.Module):
     """

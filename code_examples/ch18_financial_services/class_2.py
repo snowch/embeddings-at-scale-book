@@ -63,7 +63,7 @@ class CustomerEncoder(nn.Module):
     - Product adoption: Predict next product customer adopts
     - Contrastive: High-LTV customers close together
     """
-    
+
     def __init__(
         self,
         embedding_dim: int = 128,
@@ -71,7 +71,7 @@ class CustomerEncoder(nn.Module):
     ):
         super().__init__()
         self.embedding_dim = embedding_dim
-        
+
         # Transaction encoder
         self.transaction_encoder = nn.LSTM(
             input_size=20,  # transaction features
@@ -80,10 +80,10 @@ class CustomerEncoder(nn.Module):
             batch_first=True,
             dropout=0.2
         )
-        
+
         # Product embeddings
         self.product_embedding = nn.Embedding(num_products, 32)
-        
+
         # Interaction encoder
         self.interaction_encoder = nn.Sequential(
             nn.Linear(30, 64),
@@ -91,7 +91,7 @@ class CustomerEncoder(nn.Module):
             nn.Dropout(0.2),
             nn.Linear(64, 64)
         )
-        
+
         # Fusion
         self.fusion = nn.Sequential(
             nn.Linear(160, 128),  # 64 + 32 + 64
@@ -99,7 +99,7 @@ class CustomerEncoder(nn.Module):
             nn.Dropout(0.2),
             nn.Linear(128, embedding_dim)
         )
-        
+
     def forward(
         self,
         transaction_history: torch.Tensor,
@@ -120,21 +120,21 @@ class CustomerEncoder(nn.Module):
         # Encode transaction history
         _, (transaction_hidden, _) = self.transaction_encoder(transaction_history)
         transaction_emb = transaction_hidden[-1]
-        
+
         # Encode products (average of held products)
         product_embs = self.product_embedding(product_ids)
         product_emb = product_embs.mean(dim=1)
-        
+
         # Encode interactions
         interaction_emb = self.interaction_encoder(interaction_features)
-        
+
         # Fuse
         combined = torch.cat([transaction_emb, product_emb, interaction_emb], dim=1)
         customer_emb = self.fusion(combined)
-        
+
         # Normalize
         customer_emb = F.normalize(customer_emb, p=2, dim=1)
-        
+
         return customer_emb
 
 # Example: Customer churn prevention
@@ -147,12 +147,12 @@ def churn_prevention_example():
     2. Identifying at-risk customers
     3. Personalized retention interventions
     """
-    
+
     print("=== Customer Churn Prevention System ===")
     print("\nObjective: Identify and retain at-risk customers")
     print("Approach: Learn embeddings capturing lifecycle stage")
     print("         Detect drift toward churn cluster")
-    
+
     print("\n--- Customer 1: Healthy ---")
     print("Customer ID: C001")
     print("Products: Checking, savings, credit card")
@@ -161,18 +161,18 @@ def churn_prevention_example():
     print("  - Active credit card usage")
     print("  - Mobile app usage: 15x per month")
     print("  - Customer service: No recent calls")
-    
+
     print("\nEmbedding analysis:")
     print("  Cluster: Engaged customers")
     print("  Distance from churn cluster: 0.89 (far)")
     print("  Lifecycle stage: Growth")
-    
+
     print("\nAssessment:")
     print("  Churn probability (90 days): 3%")
     print("  Lifetime value: $8,500")
     print("  Action: No intervention needed")
     print("  Opportunity: Cross-sell mortgage")
-    
+
     print("\n--- Customer 2: Early At-Risk Indicators ---")
     print("Customer ID: C002")
     print("Products: Checking, savings")
@@ -182,13 +182,13 @@ def churn_prevention_example():
     print("  - Mobile app usage dropped (was 20x, now 5x per month)")
     print("  - No credit card usage last 30 days")
     print("  - Customer service: Called twice about fees")
-    
+
     print("\nEmbedding analysis:")
     print("  Current cluster: Engaged customers")
     print("  Drift: Moving toward disengaged cluster")
     print("  Distance from churn cluster: 0.45 (closing)")
     print("  Similar to: Past churners 60 days before churn")
-    
+
     print("\nAssessment:")
     print("  Churn probability (90 days): 35%")
     print("  Lifetime value at risk: $6,200")
@@ -200,7 +200,7 @@ def churn_prevention_example():
     print("    3. Survey about service issues")
     print("    4. Highlight unused benefits (free ATMs, overdraft protection)")
     print("\n→ Caught early, high retention probability")
-    
+
     print("\n--- Customer 3: Imminent Churn ---")
     print("Customer ID: C003")
     print("Products: Checking only")
@@ -211,12 +211,12 @@ def churn_prevention_example():
     print("  - App uninstalled")
     print("  - Customer service: Canceled credit card last month")
     print("  - External signal: Opened account at competitor")
-    
+
     print("\nEmbedding analysis:")
     print("  Current cluster: Churned/inactive customers")
     print("  Distance from churn cluster: 0.05 (inside)")
     print("  Embedding nearly identical to: Customers who churned")
-    
+
     print("\nAssessment:")
     print("  Churn probability (90 days): 92%")
     print("  Likely already churned (inactive 45 days)")
@@ -229,7 +229,7 @@ def churn_prevention_example():
     print("  ")
     print("  ROI consideration: $200 bonus vs $2,500 acquisition cost")
     print("  → Win-back cheaper than new acquisition")
-    
+
     print("\n--- System Performance ---")
     print("Customers monitored: 1.5M")
     print("At-risk identified: 45,000 (3%)")

@@ -2,8 +2,7 @@
 # Book: Embeddings at Scale
 
 from dataclasses import dataclass
-from typing import Dict, List
-import math
+
 
 @dataclass
 class GPUInstance:

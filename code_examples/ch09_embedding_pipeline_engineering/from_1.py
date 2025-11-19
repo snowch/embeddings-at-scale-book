@@ -2,10 +2,12 @@
 # Book: Embeddings at Scale
 
 import hashlib
-import numpy as np
-from typing import Dict, List, Optional
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
+from typing import Dict, List, Optional
+
+import numpy as np
+
 
 @dataclass
 class ExperimentConfig:
@@ -136,7 +138,7 @@ class EmbeddingExperimentFramework:
         If hash < treatment_allocation: treatment
         Else: control
         """
-        hash_input = f"{user_id}:{experiment_id}".encode('utf-8')
+        hash_input = f"{user_id}:{experiment_id}".encode()
         hash_output = hashlib.md5(hash_input).hexdigest()
 
         # Convert hex to float in [0, 1]

@@ -24,8 +24,6 @@ class SiameseEmbeddingService:
         self.batch_size = batch_size
 
         # LRU cache for embeddings
-        from functools import lru_cache
-        import hashlib
 
         self.embedding_cache = {}
         self.cache_size = cache_size

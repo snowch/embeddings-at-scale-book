@@ -22,8 +22,10 @@ Evaluation data:
 """
 
 from dataclasses import dataclass
-from typing import List, Set, Optional
+from typing import List, Set
+
 import numpy as np
+
 
 @dataclass
 class EvaluationSample:

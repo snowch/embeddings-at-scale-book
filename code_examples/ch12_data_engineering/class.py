@@ -18,15 +18,15 @@ Latency budget:
 - Total: 100-400ms (< 1 second)
 """
 
-import asyncio
+import queue
+import threading
 import time
-from typing import Dict, List, Optional, Callable
 from dataclasses import dataclass, field
 from datetime import datetime
-from collections import deque
+from typing import Dict, List, Optional
+
 import numpy as np
-import threading
-import queue
+
 
 @dataclass
 class StreamEvent:
@@ -106,7 +106,7 @@ class StreamingEmbeddingPipeline:
         # Checkpointing
         self.last_checkpoint_offset = 0
 
-        print(f"Initialized Streaming Embedding Pipeline")
+        print("Initialized Streaming Embedding Pipeline")
         print(f"  Batch window: {batch_window_ms}ms")
         print(f"  Max batch size: {max_batch_size}")
 
@@ -457,7 +457,7 @@ def streaming_news_example():
 
     # Print metrics
     metrics = pipeline.get_metrics()
-    print(f"\n✓ Streaming pipeline metrics:")
+    print("\n✓ Streaming pipeline metrics:")
     print(f"  Events processed: {metrics['events_processed']}")
     print(f"  Batches processed: {metrics['batches_processed']}")
     print(f"  Avg latency: {metrics['avg_latency_ms']:.1f}ms")

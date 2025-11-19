@@ -10,11 +10,13 @@ Algorithms:
 3. Product Quantization: Vector compression for memory efficiency
 """
 
-import numpy as np
-from typing import List, Tuple, Optional
 import heapq
-from collections import defaultdict
 import time
+from collections import defaultdict
+from typing import List, Optional
+
+import numpy as np
+
 
 class IVFIndex:
     """
@@ -61,7 +63,7 @@ class IVFIndex:
         self.inverted_lists = None  # cluster_id → [vector_indices]
         self.corpus = None
 
-        print(f"Initialized IVF index")
+        print("Initialized IVF index")
         print(f"  Clusters: {num_clusters}")
         print(f"  Probes: {num_probes}")
 
@@ -268,7 +270,7 @@ class HNSWIndex:
         self.entry_point = None
         self.entry_layer = -1
 
-        print(f"Initialized HNSW index")
+        print("Initialized HNSW index")
         print(f"  M: {M}, ef_construction: {ef_construction}, ef_search: {ef_search}")
 
     def add(self, vector: np.ndarray):

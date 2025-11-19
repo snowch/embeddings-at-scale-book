@@ -17,10 +17,11 @@ Metrics:
 - Calibration: KL divergence between user prefs and recommendations
 """
 
-import numpy as np
-from typing import List, Dict, Optional, Tuple, Set
-from dataclasses import dataclass
 from collections import defaultdict
+from typing import Dict, List, Optional, Tuple
+
+import numpy as np
+
 
 class DiversityOptimizer:
     """
@@ -47,7 +48,7 @@ class DiversityOptimizer:
         self.lambda_diversity = lambda_diversity
         self.category_constraints = category_constraints or {}
 
-        print(f"Initialized Diversity Optimizer")
+        print("Initialized Diversity Optimizer")
         print(f"  Lambda diversity: {lambda_diversity}")
 
     def mmr_rerank(

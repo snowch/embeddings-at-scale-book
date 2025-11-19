@@ -190,6 +190,6 @@ recommendation = framework.evaluate(ecommerce_context)
 
 print(f"Recommendation: {recommendation['recommendation']}")
 print(f"Approach: {recommendation['approach']}")
-print(f"\nRationale:")
+print("\nRationale:")
 for factor in recommendation['rationale']:
     print(f"  - {factor}")

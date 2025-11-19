@@ -33,17 +33,13 @@ Performance targets:
 - Query filtering: <10% overhead
 """
 
-import numpy as np
-import torch
-from typing import List, Dict, Optional, Tuple, Set, Any, Callable
+import hashlib
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-import hashlib
-import hmac
-import json
-import time
-from collections import defaultdict
+from typing import Any, Dict, List, Optional, Tuple
+
 
 class Permission(Enum):
     """Permission types"""
@@ -190,34 +186,34 @@ class AccessControlEngine:
     - Rate limiting: Enforce quotas
     - Audit logging: Record all access
     """
-    
+
     def __init__(self):
         # User database
         self.users: Dict[str, User] = {}
-        
+
         # Role definitions
         self.roles: Dict[str, Role] = {}
-        
+
         # Access policies
         self.policies: List[AccessPolicy] = []
-        
+
         # Query quotas
         self.quotas: Dict[str, QueryQuota] = {}
-        
+
         # Audit log (in production: use database or log aggregation)
         self.audit_log: List[AuditLogEntry] = []
-        
+
         # Active sessions
         self.sessions: Dict[str, Dict[str, Any]] = {}
-        
+
         # Initialize default roles
         self._initialize_default_roles()
-        
+
         print("Access Control Engine initialized")
-    
+
     def _initialize_default_roles(self):
         """Create default roles"""
-        
+
         # Admin role: Full access
         self.roles["admin"] = Role(
             role_id="admin",
@@ -226,7 +222,7 @@ class AccessControlEngine:
             resource_patterns=["*"],
             constraints={}
         )
-        
+
         # Analyst role: Read and query access
         self.roles["analyst"] = Role(
             role_id="analyst",
@@ -238,7 +234,7 @@ class AccessControlEngine:
                 "queries_per_hour": 100
             }
         )
-        
+
         # Service role: Query-only access
         self.roles["service"] = Role(
             role_id="service",
@@ -250,7 +246,7 @@ class AccessControlEngine:
                 "queries_per_hour": 10000
             }
         )
-        
+
         # Auditor role: Read audit logs only
         self.roles["auditor"] = Role(
             role_id="auditor",
@@ -259,7 +255,7 @@ class AccessControlEngine:
             resource_patterns=["audit:*"],
             constraints={}
         )
-    
+
     def create_user(
         self,
         username: str,
@@ -284,7 +280,7 @@ class AccessControlEngine:
         user_id = hashlib.sha256(
             f"{username}:{email}".encode()
         ).hexdigest()[:16]
-        
+
         user = User(
             user_id=user_id,
             username=username,
@@ -293,12 +289,12 @@ class AccessControlEngine:
             attributes=attributes or {},
             tenant_id=tenant_id
         )
-        
+
         self.users[user_id] = user
-        
+
         # Initialize quota
         self.quotas[user_id] = QueryQuota(user_id=user_id)
-        
+
         # Audit log
         self._log_access(
             user_id=user_id,
@@ -307,9 +303,9 @@ class AccessControlEngine:
             resource_id=user_id,
             result="success"
         )
-        
+
         return user
-    
+
     def authenticate(
         self,
         api_key: str,
@@ -333,13 +329,13 @@ class AccessControlEngine:
         """
         # Simplified: API key is just user_id
         # In production: verify JWT, check revocation, etc.
-        
+
         user_id = api_key
         user = self.users.get(user_id)
-        
+
         if user:
             user.last_login = datetime.now()
-            
+
             self._log_access(
                 user_id=user_id,
                 action="authenticate",
@@ -357,9 +353,9 @@ class AccessControlEngine:
                 result="failure",
                 metadata={"ip_address": ip_address}
             )
-        
+
         return user
-    
+
     def authorize(
         self,
         user: User,
@@ -391,16 +387,16 @@ class AccessControlEngine:
             role = self.roles.get(role_id)
             if not role:
                 continue
-            
+
             # Check if action is permitted
             if action not in role.permissions and Permission.ADMIN not in role.permissions:
                 continue
-            
+
             # Check resource patterns
             resource_str = f"{resource_type.value}:{resource_id}"
             if not self._match_resource_pattern(resource_str, role.resource_patterns):
                 continue
-            
+
             # Role grants access
             self._log_access(
                 user_id=user.user_id,
@@ -410,11 +406,11 @@ class AccessControlEngine:
                 result="success"
             )
             return True
-        
+
         # Check ABAC policies
         if self._evaluate_policies(user, action, resource_type, resource_id):
             return True
-        
+
         # Access denied
         self._log_access(
             user_id=user.user_id,
@@ -424,7 +420,7 @@ class AccessControlEngine:
             result="denied"
         )
         return False
-    
+
     def _match_resource_pattern(
         self,
         resource: str,
@@ -448,17 +444,17 @@ class AccessControlEngine:
         for pattern in patterns:
             if pattern == "*":
                 return True
-            
+
             if pattern.endswith("*"):
                 prefix = pattern[:-1]
                 if resource.startswith(prefix):
                     return True
-            
+
             if pattern == resource:
                 return True
-        
+
         return False
-    
+
     def _evaluate_policies(
         self,
         user: User,
@@ -482,29 +478,29 @@ class AccessControlEngine:
             # Check if policy applies to this user
             if user.user_id not in policy.principals and "*" not in policy.principals:
                 continue
-            
+
             # Check if action is covered
             if action.value not in policy.actions and "*" not in policy.actions:
                 continue
-            
+
             # Check if resource matches
             resource_str = f"{resource_type.value}:{resource_id}"
             if not self._match_resource_pattern(resource_str, policy.resources):
                 continue
-            
+
             # Evaluate conditions
             if policy.conditions:
                 if not self._evaluate_conditions(user, policy.conditions):
                     continue
-            
+
             # Policy applies
             if policy.effect == "allow":
                 return True
             elif policy.effect == "deny":
                 return False
-        
+
         return False
-    
+
     def _evaluate_conditions(
         self,
         user: User,
@@ -529,12 +525,12 @@ class AccessControlEngine:
             if key == "tenant":
                 if user.tenant_id != value.get("equals"):
                     return False
-            
+
             elif key == "attribute":
                 for attr_key, attr_value in value.items():
                     if user.attributes.get(attr_key) != attr_value:
                         return False
-            
+
             elif key == "time":
                 now = datetime.now().time()
                 if "after" in value:
@@ -545,9 +541,9 @@ class AccessControlEngine:
                     before = datetime.strptime(value["before"], "%H:%M").time()
                     if now > before:
                         return False
-        
+
         return True
-    
+
     def check_quota(
         self,
         user: User,
@@ -566,37 +562,37 @@ class AccessControlEngine:
         quota = self.quotas.get(user.user_id)
         if not quota:
             return False, "No quota found"
-        
+
         # Reset counters if needed
         now = datetime.now()
         if now >= quota.reset_time:
             quota.current_hour_count = 0
             quota.reset_time = now + timedelta(hours=1)
-        
+
         if now.date() != quota.reset_time.date():
             quota.current_day_count = 0
-        
+
         # Check hourly limit
         if quota.current_hour_count >= quota.queries_per_hour:
             return False, "Hourly quota exceeded"
-        
+
         # Check daily limit
         if quota.current_day_count >= quota.queries_per_day:
             return False, "Daily quota exceeded"
-        
+
         # Check result size
         if result_size > quota.max_result_size:
             return False, f"Result size exceeds limit ({quota.max_result_size})"
-        
+
         return True, "OK"
-    
+
     def increment_quota(self, user: User):
         """Increment user's query count"""
         quota = self.quotas.get(user.user_id)
         if quota:
             quota.current_hour_count += 1
             quota.current_day_count += 1
-    
+
     def apply_row_level_security(
         self,
         user: User,
@@ -618,25 +614,25 @@ class AccessControlEngine:
             Modified filter with security constraints
         """
         secure_filter = query_filter.copy()
-        
+
         # Enforce tenant isolation
         if user.tenant_id:
             secure_filter["tenant_id"] = user.tenant_id
-        
+
         # Enforce attribute-based filters
         if "region" in user.attributes:
             secure_filter["region"] = user.attributes["region"]
-        
+
         if "department" in user.attributes:
             secure_filter["department"] = user.attributes["department"]
-        
+
         # Enforce classification level
         if "clearance_level" in user.attributes:
             clearance = user.attributes["clearance_level"]
             secure_filter["classification"] = {"$lte": clearance}
-        
+
         return secure_filter
-    
+
     def _log_access(
         self,
         user_id: str,
@@ -672,15 +668,15 @@ class AccessControlEngine:
             metadata=metadata or {},
             query_details=query_details
         )
-        
+
         self.audit_log.append(log_entry)
-        
+
         # In production: write to immutable storage
         # - Append-only database
         # - Write to SIEM (Splunk, ELK)
         # - Store in S3 with versioning
         # - Use blockchain for tamper-proof audit
-    
+
     def query_audit_log(
         self,
         user_id: Optional[str] = None,
@@ -703,22 +699,22 @@ class AccessControlEngine:
             Matching audit entries
         """
         results = self.audit_log
-        
+
         if user_id:
             results = [e for e in results if e.user_id == user_id]
-        
+
         if action:
             results = [e for e in results if e.action == action]
-        
+
         if start_time:
             results = [e for e in results if e.timestamp >= start_time]
-        
+
         if end_time:
             results = [e for e in results if e.timestamp <= end_time]
-        
+
         if result:
             results = [e for e in results if e.result == result]
-        
+
         return results
 
 # Example usage
@@ -728,11 +724,11 @@ def access_control_example():
     """
     print("=== Access Control and Audit Trails ===")
     print()
-    
+
     # Initialize access control engine
     ac = AccessControlEngine()
     print()
-    
+
     # Create users with different roles
     admin_user = ac.create_user(
         username="alice_admin",
@@ -740,7 +736,7 @@ def access_control_example():
         roles=["admin"],
         tenant_id="tenant_acme"
     )
-    
+
     analyst_user = ac.create_user(
         username="bob_analyst",
         email="bob@example.com",
@@ -748,23 +744,23 @@ def access_control_example():
         tenant_id="tenant_acme",
         attributes={"region": "US", "department": "marketing"}
     )
-    
+
     service_user = ac.create_user(
         username="api_service",
         email="service@example.com",
         roles=["service"],
         tenant_id="tenant_acme"
     )
-    
+
     print("Created users:")
     print(f"  Admin: {admin_user.username} (roles: {admin_user.roles})")
     print(f"  Analyst: {analyst_user.username} (roles: {analyst_user.roles})")
     print(f"  Service: {service_user.username} (roles: {service_user.roles})")
     print()
-    
+
     # Test authorization
     print("Authorization tests:")
-    
+
     # Admin can do everything
     can_delete = ac.authorize(
         admin_user,
@@ -773,7 +769,7 @@ def access_control_example():
         "emb_123"
     )
     print(f"  Admin delete embedding: {can_delete}")
-    
+
     # Analyst can query but not delete
     can_query = ac.authorize(
         analyst_user,
@@ -789,7 +785,7 @@ def access_control_example():
     )
     print(f"  Analyst query embedding: {can_query}")
     print(f"  Analyst delete embedding: {can_delete}")
-    
+
     # Service can only query
     can_query = ac.authorize(
         service_user,
@@ -806,16 +802,16 @@ def access_control_example():
     print(f"  Service query embedding: {can_query}")
     print(f"  Service export embedding: {can_export}")
     print()
-    
+
     # Test quota enforcement
     print("Quota checks:")
     allowed, reason = ac.check_quota(analyst_user, result_size=50)
     print(f"  Analyst query (k=50): {allowed} ({reason})")
-    
+
     allowed, reason = ac.check_quota(analyst_user, result_size=5000)
     print(f"  Analyst query (k=5000): {allowed} ({reason})")
     print()
-    
+
     # Test row-level security
     print("Row-level security:")
     query_filter = {"category": "products"}
@@ -823,7 +819,7 @@ def access_control_example():
     print(f"  Original filter: {query_filter}")
     print(f"  Secure filter: {secure_filter}")
     print()
-    
+
     # Query audit log
     print("Audit log (last 5 entries):")
     recent_logs = ac.query_audit_log()[-5:]

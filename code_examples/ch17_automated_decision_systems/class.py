@@ -45,7 +45,7 @@ class Product:
     inventory: int
     base_price: float
     embedding: Optional[np.ndarray] = None
-    
+
     def __post_init__(self):
         if self.features is None:
             self.features = {}
@@ -69,7 +69,7 @@ class Customer:
     browsing_history: List[str]
     price_sensitivity: Optional[float] = None
     embedding: Optional[np.ndarray] = None
-    
+
     def __post_init__(self):
         if self.demographics is None:
             self.demographics = {}
@@ -88,7 +88,7 @@ class ProductEncoder(nn.Module):
     - Competitive context: Similar product prices
     - MLP: Combine features into product embedding
     """
-    
+
     def __init__(
         self,
         embedding_dim: int = 128,
@@ -97,11 +97,11 @@ class ProductEncoder(nn.Module):
     ):
         super().__init__()
         self.embedding_dim = embedding_dim
-        
+
         # Categorical embeddings
         self.category_embedding = nn.Embedding(num_categories, 32)
         self.brand_embedding = nn.Embedding(num_brands, 32)
-        
+
         # Feature encoder
         self.feature_encoder = nn.Sequential(
             nn.Linear(64 + 10, 128),  # +10 for numerical features
@@ -109,7 +109,7 @@ class ProductEncoder(nn.Module):
             nn.Dropout(0.2),
             nn.Linear(128, embedding_dim)
         )
-    
+
     def forward(
         self,
         category_ids: torch.Tensor,
@@ -130,16 +130,16 @@ class ProductEncoder(nn.Module):
         # Embed categorical features
         cat_emb = self.category_embedding(category_ids)
         brand_emb = self.brand_embedding(brand_ids)
-        
+
         # Concatenate
         combined = torch.cat([cat_emb, brand_emb, numerical_features], dim=1)
-        
+
         # Encode
         product_emb = self.feature_encoder(combined)
-        
+
         # Normalize
         product_emb = F.normalize(product_emb, p=2, dim=1)
-        
+
         return product_emb
 
 class CustomerEncoder(nn.Module):
@@ -152,7 +152,7 @@ class CustomerEncoder(nn.Module):
     - Price sensitivity: Inferred from purchase patterns
     - MLP: Combine features into customer embedding
     """
-    
+
     def __init__(
         self,
         embedding_dim: int = 128,
@@ -160,10 +160,10 @@ class CustomerEncoder(nn.Module):
     ):
         super().__init__()
         self.embedding_dim = embedding_dim
-        
+
         # Customer ID embedding
         self.customer_id_embedding = nn.Embedding(num_customers, embedding_dim // 2)
-        
+
         # Feature encoder
         self.feature_encoder = nn.Sequential(
             nn.Linear(embedding_dim // 2 + 20, 128),
@@ -171,7 +171,7 @@ class CustomerEncoder(nn.Module):
             nn.Dropout(0.2),
             nn.Linear(128, embedding_dim)
         )
-    
+
     def forward(
         self,
         customer_ids: torch.Tensor,
@@ -189,16 +189,16 @@ class CustomerEncoder(nn.Module):
         """
         # Embed customer IDs
         cust_emb = self.customer_id_embedding(customer_ids)
-        
+
         # Concatenate with features
         combined = torch.cat([cust_emb, numerical_features], dim=1)
-        
+
         # Encode
         customer_emb = self.feature_encoder(combined)
-        
+
         # Normalize
         customer_emb = F.normalize(customer_emb, p=2, dim=1)
-        
+
         return customer_emb
 
 class DemandModel(nn.Module):
@@ -216,17 +216,17 @@ class DemandModel(nn.Module):
     - For each price point, predict demand
     - Optimize: price * demand * (price - cost)
     """
-    
+
     def __init__(
         self,
         embedding_dim: int = 128,
         context_dim: int = 10
     ):
         super().__init__()
-        
+
         # Combined encoder
         input_dim = embedding_dim * 2 + 1 + context_dim  # product + customer + price + context
-        
+
         self.demand_predictor = nn.Sequential(
             nn.Linear(input_dim, 256),
             nn.ReLU(),
@@ -237,7 +237,7 @@ class DemandModel(nn.Module):
             nn.Linear(128, 1),
             nn.Sigmoid()
         )
-    
+
     def forward(
         self,
         product_emb: torch.Tensor,
@@ -259,10 +259,10 @@ class DemandModel(nn.Module):
         """
         # Concatenate all inputs
         combined = torch.cat([product_emb, customer_emb, price, context], dim=1)
-        
+
         # Predict purchase probability
         purchase_prob = self.demand_predictor(combined)
-        
+
         return purchase_prob
 
 class DynamicPricingEngine:
@@ -277,7 +277,7 @@ class DynamicPricingEngine:
     3. Select price maximizing expected profit
     4. Apply constraints (minimum margin, price stability)
     """
-    
+
     def __init__(
         self,
         product_encoder: ProductEncoder,
@@ -291,7 +291,7 @@ class DynamicPricingEngine:
         self.demand_model = demand_model
         self.min_margin = min_margin
         self.max_price_change = max_price_change
-    
+
     def optimize_price(
         self,
         product: Product,
@@ -315,23 +315,23 @@ class DynamicPricingEngine:
         min_price = product.cost * (1 + self.min_margin)
         max_price = product.base_price * (1 + self.max_price_change)
         candidate_prices = np.linspace(min_price, max_price, num_price_points)
-        
+
         # Encode product and customer (simplified - would use actual features)
         product_emb = product.embedding
         customer_emb = customer.embedding
-        
+
         # Evaluate each price
         best_price = None
         best_profit = -float('inf')
         price_analysis = []
-        
+
         with torch.no_grad():
             for price in candidate_prices:
                 # Convert to tensors
                 product_emb_t = torch.tensor(product_emb).unsqueeze(0).float()
                 customer_emb_t = torch.tensor(customer_emb).unsqueeze(0).float()
                 price_t = torch.tensor([[price]]).float()
-                
+
                 # Simplified context
                 context_t = torch.tensor([[
                     context.get('hour', 12) / 24.0,
@@ -340,7 +340,7 @@ class DynamicPricingEngine:
                     context.get('competitor_price', product.base_price) / product.base_price,
                     *[0.0] * 6  # Placeholder
                 ]]).float()
-                
+
                 # Predict demand
                 purchase_prob = self.demand_model(
                     product_emb_t,
@@ -348,22 +348,22 @@ class DynamicPricingEngine:
                     price_t,
                     context_t
                 ).item()
-                
+
                 # Compute expected profit
                 margin = price - product.cost
                 expected_profit = purchase_prob * margin
-                
+
                 price_analysis.append({
                     'price': price,
                     'purchase_prob': purchase_prob,
                     'margin': margin,
                     'expected_profit': expected_profit
                 })
-                
+
                 if expected_profit > best_profit:
                     best_profit = expected_profit
                     best_price = price
-        
+
         return best_price, {
             'expected_profit': best_profit,
             'price_analysis': price_analysis,
@@ -388,13 +388,13 @@ def dynamic_pricing_example():
     - Impulse: Base price (time-sensitive)
     - Clearance: Lower price (high inventory pressure)
     """
-    
+
     print("=== Dynamic Pricing System ===")
     print("\nProduct: Wireless Headphones")
     print("  Cost: $50")
     print("  Base price: $100")
     print("  Current inventory: 500 units")
-    
+
     print("\n--- Customer Segment: Price-Sensitive ---")
     print("Characteristics:")
     print("  - Compares prices across sites")
@@ -407,7 +407,7 @@ def dynamic_pricing_example():
     print("  Purchase probability: 45%")
     print("  Expected profit: $79 * 0.45 * ($79 - $50) = $10.33")
     print("  → 38% profit increase by lowering price")
-    
+
     print("\n--- Customer Segment: Premium ---")
     print("Characteristics:")
     print("  - Values quality and brand")
@@ -420,7 +420,7 @@ def dynamic_pricing_example():
     print("  Purchase probability: 52%")
     print("  Expected profit: $115 * 0.52 * ($115 - $50) = $38.87")
     print("  → 30% profit increase by raising price")
-    
+
     print("\n--- Customer Segment: Impulse Buyer ---")
     print("Characteristics:")
     print("  - Making quick decision")
@@ -433,7 +433,7 @@ def dynamic_pricing_example():
     print("  Purchase probability: 48%")
     print("  Expected profit: $95 * 0.48 * ($95 - $50) = $20.52")
     print("  → 3% profit increase")
-    
+
     print("\n--- Clearance Scenario: High Inventory ---")
     print("Inventory: 2,000 units (excess stock)")
     print("Days until new model: 14 days")

@@ -22,11 +22,12 @@ Benefits:
 - Reduced training cost (transfer instead of train from scratch)
 """
 
+from typing import Dict, List, Optional
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import numpy as np
-from typing import List, Dict, Optional, Tuple
+
 
 class CrossDomainRecommender(nn.Module):
     """
@@ -165,7 +166,7 @@ class TransferLearningRecommender:
         )
 
         # Train (simplified - in production: full training loop)
-        print(f"✓ Pre-trained source model")
+        print("✓ Pre-trained source model")
 
     def transfer_to_target(
         self,
@@ -209,7 +210,7 @@ class TransferLearningRecommender:
 
         # Fine-tune on target domain
         # (simplified - in production: full training loop)
-        print(f"✓ Transferred and fine-tuned on target domain")
+        print("✓ Transferred and fine-tuned on target domain")
 
 # Example: Movies → Books transfer
 def cross_domain_transfer_example():
@@ -234,7 +235,7 @@ def cross_domain_transfer_example():
         num_items_per_domain={'movies': 10000, 'books': 5000}
     )
 
-    print(f"\nModel architecture:")
+    print("\nModel architecture:")
     print(f"  Shared user embedding: {model.embedding_dim}-dim")
     print(f"  Movies: {10000} items")
     print(f"  Books: {5000} items")
@@ -243,13 +244,13 @@ def cross_domain_transfer_example():
     user_id = torch.tensor([0])
 
     # User watched movies
-    print(f"\nUser watched movies: 5, 12, 23, 45, 67")
+    print("\nUser watched movies: 5, 12, 23, 45, 67")
 
     # Encode user (from movie viewing history)
     user_emb = model.encode_user(user_id)
 
     # Recommend books (transfer to books domain)
-    print(f"\nRecommending books based on movie preferences...")
+    print("\nRecommending books based on movie preferences...")
 
     # Get book embeddings
     book_ids = torch.arange(100)  # Sample 100 books
@@ -261,11 +262,11 @@ def cross_domain_transfer_example():
     # Top-5 books
     top_scores, top_indices = torch.topk(scores, k=5)
 
-    print(f"\nTop 5 book recommendations:")
+    print("\nTop 5 book recommendations:")
     for idx, score in zip(top_indices, top_scores):
         print(f"  Book {idx.item()}: {score.item():.3f}")
 
-    print(f"\n✓ Cross-domain transfer successful")
+    print("\n✓ Cross-domain transfer successful")
 
 # Uncomment to run:
 # cross_domain_transfer_example()

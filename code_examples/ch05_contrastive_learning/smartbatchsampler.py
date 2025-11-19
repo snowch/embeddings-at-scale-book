@@ -129,8 +129,9 @@ class SmartBatchSampler:
         Returns:
             indices: Selected example indices
         """
-        import numpy as np
         from collections import Counter
+
+        import numpy as np
 
         # Count examples per domain
         domain_counts = Counter(domain_labels)

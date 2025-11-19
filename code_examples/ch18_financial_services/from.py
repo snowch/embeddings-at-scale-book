@@ -24,14 +24,14 @@ Production considerations:
 - Transaction costs: Model slippage, commissions, market impact
 """
 
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Tuple
+
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import List, Dict, Optional, Tuple, Any
-from dataclasses import dataclass
-from datetime import datetime
-import time
+
 
 @dataclass
 class Security:
@@ -56,7 +56,7 @@ class Security:
     fundamentals: Optional[Dict[str, float]] = None
     news: Optional[List[str]] = None
     alternative_data: Optional[Dict[str, Any]] = None
-    
+
     def __post_init__(self):
         if self.fundamentals is None:
             self.fundamentals = {}
@@ -105,7 +105,7 @@ class SecurityEncoder(nn.Module):
     - Contrastive: Securities in same sector closer
     - Triplet: High-correlation securities closer than low-correlation
     """
-    
+
     def __init__(
         self,
         embedding_dim: int = 256,
@@ -115,7 +115,7 @@ class SecurityEncoder(nn.Module):
         super().__init__()
         self.embedding_dim = embedding_dim
         self.price_lookback = price_lookback
-        
+
         # Price encoder (LSTM over OHLCV)
         self.price_encoder = nn.LSTM(
             input_size=5,  # open, high, low, close, volume
@@ -124,7 +124,7 @@ class SecurityEncoder(nn.Module):
             batch_first=True,
             dropout=0.2
         )
-        
+
         # Fundamental encoder
         self.fundamental_encoder = nn.Sequential(
             nn.Linear(num_fundamental_features, 128),
@@ -132,7 +132,7 @@ class SecurityEncoder(nn.Module):
             nn.Dropout(0.2),
             nn.Linear(128, 128)
         )
-        
+
         # Fusion layer
         self.fusion = nn.Sequential(
             nn.Linear(256, 256),
@@ -140,7 +140,7 @@ class SecurityEncoder(nn.Module):
             nn.Dropout(0.2),
             nn.Linear(256, embedding_dim)
         )
-        
+
     def forward(
         self,
         price_history: torch.Tensor,
@@ -159,17 +159,17 @@ class SecurityEncoder(nn.Module):
         # Encode price history
         _, (price_hidden, _) = self.price_encoder(price_history)
         price_emb = price_hidden[-1]  # Last layer hidden state
-        
+
         # Encode fundamentals
         fundamental_emb = self.fundamental_encoder(fundamentals)
-        
+
         # Fuse
         combined = torch.cat([price_emb, fundamental_emb], dim=1)
         security_emb = self.fusion(combined)
-        
+
         # Normalize
         security_emb = F.normalize(security_emb, p=2, dim=1)
-        
+
         return security_emb
 
 class MarketRegimeEncoder(nn.Module):
@@ -185,11 +185,11 @@ class MarketRegimeEncoder(nn.Module):
     
     Used to condition trading signals on market state.
     """
-    
+
     def __init__(self, embedding_dim: int = 64):
         super().__init__()
         self.embedding_dim = embedding_dim
-        
+
         # Market indicators encoder
         self.encoder = nn.Sequential(
             nn.Linear(20, 64),  # 20 market indicators
@@ -197,7 +197,7 @@ class MarketRegimeEncoder(nn.Module):
             nn.Dropout(0.2),
             nn.Linear(64, embedding_dim)
         )
-        
+
     def forward(self, market_indicators: torch.Tensor) -> torch.Tensor:
         """
         Encode market regime
@@ -227,7 +227,7 @@ class TradingSignalGenerator(nn.Module):
     - Confidence (signal strength)
     - Risk score (downside risk)
     """
-    
+
     def __init__(
         self,
         security_dim: int = 256,
@@ -235,7 +235,7 @@ class TradingSignalGenerator(nn.Module):
         hidden_dim: int = 256
     ):
         super().__init__()
-        
+
         # Signal generation network
         self.signal_network = nn.Sequential(
             nn.Linear(security_dim + regime_dim + 10, hidden_dim),
@@ -246,7 +246,7 @@ class TradingSignalGenerator(nn.Module):
             nn.Dropout(0.3),
             nn.Linear(hidden_dim, 3)  # return, confidence, risk
         )
-        
+
     def forward(
         self,
         security_emb: torch.Tensor,
@@ -266,15 +266,15 @@ class TradingSignalGenerator(nn.Module):
         """
         # Combine all inputs
         combined = torch.cat([security_emb, regime_emb, momentum_features], dim=1)
-        
+
         # Generate signals
         outputs = self.signal_network(combined)
-        
+
         # Split outputs
         predicted_return = outputs[:, 0]
         confidence = torch.sigmoid(outputs[:, 1])  # 0-1
         risk_score = torch.sigmoid(outputs[:, 2])  # 0-1
-        
+
         return predicted_return, confidence, risk_score
 
 # Example: End-to-end trading signal system
@@ -288,17 +288,17 @@ def trading_signal_example():
     3. Generating trading signals
     4. Position sizing and risk management
     """
-    
+
     print("=== Trading Signal Generation System ===")
     print("\nObjective: Generate alpha by identifying mispriced securities")
     print("Approach: Learn security embeddings from multi-modal data")
     print("         Predict future returns in embedding space")
-    
+
     # Initialize components
     security_encoder = SecurityEncoder(embedding_dim=256)
     regime_encoder = MarketRegimeEncoder(embedding_dim=64)
     signal_generator = TradingSignalGenerator(security_dim=256, regime_dim=64)
-    
+
     print("\n--- Example 1: Tech Growth Stock ---")
     print("Ticker: GROWTH_TECH")
     print("Sector: Technology")
@@ -306,13 +306,13 @@ def trading_signal_example():
     print("Fundamentals: High revenue growth, negative earnings")
     print("News: New product launch, positive analyst coverage")
     print("Market Regime: Bull market, low volatility")
-    
+
     # Simulate encoding
     print("\nSecurity Embedding Analysis:")
     print("  Similar to: Other high-growth tech stocks")
     print("  Cluster: Growth momentum cluster")
     print("  Distance from value stocks: 0.85 (far)")
-    
+
     print("\nSignal:")
     print("  Predicted return (1 month): +8.5%")
     print("  Confidence: 0.72")
@@ -320,7 +320,7 @@ def trading_signal_example():
     print("  Position size: 2% of portfolio")
     print("  Explanation: Strong momentum, positive news sentiment")
     print("               But elevated risk due to negative earnings")
-    
+
     print("\n--- Example 2: Value Stock Opportunity ---")
     print("Ticker: VALUE_IND")
     print("Sector: Industrials")
@@ -328,12 +328,12 @@ def trading_signal_example():
     print("Fundamentals: Low P/E, high dividend yield, strong balance sheet")
     print("News: Temporary supply chain issues (resolved)")
     print("Market Regime: Bull market, low volatility")
-    
+
     print("\nSecurity Embedding Analysis:")
     print("  Similar to: Other undervalued industrials")
     print("  Cluster: Value recovery cluster")
     print("  Recent shift: Moving toward growth cluster")
-    
+
     print("\nSignal:")
     print("  Predicted return (1 month): +12.3%")
     print("  Confidence: 0.85")
@@ -342,7 +342,7 @@ def trading_signal_example():
     print("  Explanation: Temporary selloff created value opportunity")
     print("               Fundamentals strong, supply chain issues resolved")
     print("               Similar stocks historically recovered quickly")
-    
+
     print("\n--- Example 3: Avoid Signal ---")
     print("Ticker: BUBBLE_STOCK")
     print("Sector: Technology")
@@ -350,12 +350,12 @@ def trading_signal_example():
     print("Fundamentals: No revenue, massive valuation")
     print("News: Heavy retail investor interest, social media hype")
     print("Market Regime: Bull market, increasing volatility")
-    
+
     print("\nSecurity Embedding Analysis:")
     print("  Similar to: Past bubble stocks (2000, 2021)")
     print("  Cluster: Speculative bubble cluster")
     print("  Warning: High distance from fundamental value cluster")
-    
+
     print("\nSignal:")
     print("  Predicted return (1 month): -15.2%")
     print("  Confidence: 0.68")
@@ -364,7 +364,7 @@ def trading_signal_example():
     print("  Explanation: Embedding similar to past bubble stocks")
     print("               Price disconnected from fundamentals")
     print("               High crash risk when sentiment reverses")
-    
+
     print("\n--- Portfolio Construction ---")
     print("Strategy: Long-short equity")
     print("Long positions:")

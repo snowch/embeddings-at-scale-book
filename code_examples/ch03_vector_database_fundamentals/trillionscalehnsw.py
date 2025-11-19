@@ -36,7 +36,7 @@ class TrillionScaleHNSW:
         return {
             'online_inserts': {
                 'strategy': 'Add to existing HNSW graph',
-                'cost': f'O(log N * M * ef_construction)',
+                'cost': 'O(log N * M * ef_construction)',
                 'latency': '10-100ms per insert',
                 'when_to_use': 'Continuous product catalog updates'
             },

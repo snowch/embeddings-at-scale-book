@@ -12,14 +12,16 @@ Key differences from traditional ETL:
 5. Support incremental updates for continuous training
 """
 
-import pandas as pd
-import numpy as np
-from typing import Dict, List, Optional, Tuple, Any
+import hashlib
+import json
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-import json
 from pathlib import Path
-import hashlib
+from typing import Any, Dict, List, Optional
+
+import numpy as np
+import pandas as pd
+
 
 @dataclass
 class DataRecord:
@@ -106,7 +108,7 @@ class EmbeddingETLPipeline:
         self.last_checkpoint_id: Optional[str] = None
         self._load_checkpoint()
 
-        print(f"Initialized Embedding ETL Pipeline")
+        print("Initialized Embedding ETL Pipeline")
         print(f"  Output: {output_path}")
         print(f"  Batch size: {batch_size:,}")
         if self.last_checkpoint_id:
@@ -243,9 +245,7 @@ class EmbeddingETLPipeline:
         # Structured features: Extract numerical/categorical
         structured_features = {}
         for key, value in record.data.items():
-            if isinstance(value, (int, float)):
-                structured_features[key] = float(value)
-            elif isinstance(value, bool):
+            if isinstance(value, (int, float)) or isinstance(value, bool):
                 structured_features[key] = float(value)
 
         # Context features: Metadata that provides additional signal
@@ -454,7 +454,7 @@ class EmbeddingETLPipeline:
 
         elapsed = (datetime.now() - start_time).total_seconds()
 
-        print(f"\n✓ ETL pipeline complete")
+        print("\n✓ ETL pipeline complete")
         print(f"  Duration: {elapsed:.1f}s")
         print(f"  Throughput: {self.records_processed / elapsed:.0f} records/sec")
         print(f"  Success rate: {self.records_processed / (self.records_processed + self.records_failed):.2%}")
@@ -489,7 +489,7 @@ class EmbeddingETLPipeline:
         if not checkpoint_file.exists():
             return
 
-        with open(checkpoint_file, 'r') as f:
+        with open(checkpoint_file) as f:
             checkpoint = json.load(f)
 
         self.last_checkpoint_id = checkpoint.get('last_record_id')
@@ -528,7 +528,7 @@ class DistributedETLPipeline:
         self.num_partitions = num_partitions
         self.output_path = output_path
 
-        print(f"Initialized Distributed ETL Pipeline")
+        print("Initialized Distributed ETL Pipeline")
         print(f"  Partitions: {num_partitions}")
         print(f"  Output: {output_path}")
 
@@ -648,7 +648,7 @@ def ecommerce_etl_example():
         output_format='jsonl'
     )
 
-    print(f"\n✓ E-commerce ETL complete")
+    print("\n✓ E-commerce ETL complete")
     print(f"  Output: {pipeline.output_path}")
 
 # Uncomment to run:

@@ -24,14 +24,14 @@ Production considerations:
 - Fairness: Monitor for demographic disparities
 """
 
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Tuple
+
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import List, Dict, Optional, Tuple, Any
-from dataclasses import dataclass
-from datetime import datetime
-import random
+
 
 @dataclass
 class BusinessCase:
@@ -56,7 +56,7 @@ class BusinessCase:
     outcome: Optional[Any] = None
     timestamp: Optional[float] = None
     embedding: Optional[np.ndarray] = None
-    
+
     def __post_init__(self):
         if self.context is None:
             self.context = {}
@@ -80,7 +80,7 @@ class DecisionRequest:
     context: Dict[str, Any]
     required_confidence: float = 0.8
     human_review: bool = False
-    
+
     def __post_init__(self):
         if self.context is None:
             self.context = {}
@@ -100,7 +100,7 @@ class EntityEncoder(nn.Module):
     - Outcome prediction: Embedding predicts decision outcome
     - Contrastive: Positive outcomes close, negative outcomes far
     """
-    
+
     def __init__(
         self,
         embedding_dim: int = 128,
@@ -109,12 +109,12 @@ class EntityEncoder(nn.Module):
     ):
         super().__init__()
         self.embedding_dim = embedding_dim
-        
+
         # Categorical feature embeddings
         self.categorical_embeddings = nn.ModuleList([
             nn.Embedding(1000, 16) for _ in range(num_categorical_features)
         ])
-        
+
         # Numerical feature encoder
         self.numerical_encoder = nn.Sequential(
             nn.Linear(num_numerical_features, 64),
@@ -122,7 +122,7 @@ class EntityEncoder(nn.Module):
             nn.Dropout(0.2),
             nn.Linear(64, 64)
         )
-        
+
         # Combined encoder
         feature_dim = num_categorical_features * 16 + 64
         self.feature_encoder = nn.Sequential(
@@ -131,7 +131,7 @@ class EntityEncoder(nn.Module):
             nn.Dropout(0.2),
             nn.Linear(256, embedding_dim)
         )
-    
+
     def forward(
         self,
         categorical_features: torch.Tensor,
@@ -152,19 +152,19 @@ class EntityEncoder(nn.Module):
         for i, emb_layer in enumerate(self.categorical_embeddings):
             cat_embs.append(emb_layer(categorical_features[:, i]))
         cat_emb = torch.cat(cat_embs, dim=1)
-        
+
         # Encode numerical features
         num_emb = self.numerical_encoder(numerical_features)
-        
+
         # Combine
         combined = torch.cat([cat_emb, num_emb], dim=1)
-        
+
         # Encode to entity embedding
         entity_emb = self.feature_encoder(combined)
-        
+
         # Normalize
         entity_emb = F.normalize(entity_emb, p=2, dim=1)
-        
+
         return entity_emb
 
 class DecisionModel(nn.Module):
@@ -181,7 +181,7 @@ class DecisionModel(nn.Module):
     - Regression: Continuous outcome (LTV, default probability)
     - Multi-task: Predict multiple outcomes jointly
     """
-    
+
     def __init__(
         self,
         embedding_dim: int = 128,
@@ -190,7 +190,7 @@ class DecisionModel(nn.Module):
     ):
         super().__init__()
         self.task = task
-        
+
         self.decision_head = nn.Sequential(
             nn.Linear(embedding_dim, 256),
             nn.ReLU(),
@@ -200,7 +200,7 @@ class DecisionModel(nn.Module):
             nn.Dropout(0.3),
             nn.Linear(128, num_outcomes)
         )
-    
+
     def forward(self, embeddings: torch.Tensor) -> torch.Tensor:
         """
         Predict outcomes from embeddings
@@ -212,7 +212,7 @@ class DecisionModel(nn.Module):
             Predictions (batch_size, num_outcomes)
         """
         logits = self.decision_head(embeddings)
-        
+
         if self.task == 'classification':
             return F.softmax(logits, dim=1)
         else:
@@ -236,7 +236,7 @@ class CaseBasedReasoning:
     - Adaptive: Automatically incorporates new cases
     - No retraining: Just add cases to database
     """
-    
+
     def __init__(
         self,
         encoder: EntityEncoder,
@@ -246,11 +246,11 @@ class CaseBasedReasoning:
         self.encoder = encoder
         self.embedding_dim = embedding_dim
         self.k_neighbors = k_neighbors
-        
+
         # Historical case database
         self.cases: List[BusinessCase] = []
         self.case_embeddings: Optional[np.ndarray] = None
-    
+
     def add_case(
         self,
         case: BusinessCase,
@@ -265,7 +265,7 @@ class CaseBasedReasoning:
         """
         case.embedding = embedding
         self.cases.append(case)
-        
+
         # Rebuild embedding matrix
         if self.case_embeddings is None:
             self.case_embeddings = embedding.reshape(1, -1)
@@ -274,7 +274,7 @@ class CaseBasedReasoning:
                 self.case_embeddings,
                 embedding.reshape(1, -1)
             ])
-    
+
     def retrieve_similar_cases(
         self,
         query_embedding: np.ndarray,
@@ -292,24 +292,24 @@ class CaseBasedReasoning:
         """
         if k is None:
             k = self.k_neighbors
-        
+
         if len(self.cases) == 0:
             return []
-        
+
         # Compute similarities
         query_embedding = query_embedding / np.linalg.norm(query_embedding)
         similarities = np.dot(self.case_embeddings, query_embedding)
-        
+
         # Get top k
         top_indices = np.argsort(similarities)[-k:][::-1]
-        
+
         similar_cases = [
             (self.cases[idx], similarities[idx])
             for idx in top_indices
         ]
-        
+
         return similar_cases
-    
+
     def make_decision(
         self,
         request: DecisionRequest,
@@ -327,34 +327,34 @@ class CaseBasedReasoning:
         """
         # Retrieve similar cases
         similar_cases = self.retrieve_similar_cases(request_embedding)
-        
+
         if len(similar_cases) == 0:
             # No historical cases - force human review
             return None, 0.0, []
-        
+
         # Aggregate outcomes
         # For binary decisions: weighted vote
         # For continuous: weighted average
-        
+
         total_weight = 0.0
         weighted_outcome = 0.0
         supporting_cases = []
-        
+
         for case, similarity in similar_cases:
             if case.outcome is None:
                 continue
-            
+
             weight = similarity  # Could use exponential: exp(10 * similarity)
             weighted_outcome += weight * case.outcome
             total_weight += weight
             supporting_cases.append(case)
-        
+
         if total_weight == 0:
             return None, 0.0, []
-        
+
         # Compute decision and confidence
         avg_outcome = weighted_outcome / total_weight
-        
+
         # For binary: outcome is 0/1, avg_outcome is probability
         if isinstance(supporting_cases[0].outcome, bool):
             decision = avg_outcome > 0.5
@@ -364,7 +364,7 @@ class CaseBasedReasoning:
             # Confidence based on similarity of top cases
             top_similarities = [s for _, s in similar_cases[:3]]
             confidence = np.mean(top_similarities)
-        
+
         return decision, confidence, supporting_cases
 
 class HybridDecisionSystem:
@@ -382,7 +382,7 @@ class HybridDecisionSystem:
     - Risk limits: Maximum exposure per category
     - Fairness: Demographic parity constraints
     """
-    
+
     def __init__(
         self,
         encoder: EntityEncoder,
@@ -392,7 +392,7 @@ class HybridDecisionSystem:
         self.encoder = encoder
         self.decision_model = decision_model
         self.rules = rules or {}
-    
+
     def check_rules(
         self,
         request: DecisionRequest
@@ -407,23 +407,23 @@ class HybridDecisionSystem:
             (passed, violated_rules)
         """
         violated_rules = []
-        
+
         # Example rules
         if 'minimum_age' in self.rules:
             if request.context.get('age', 0) < self.rules['minimum_age']:
                 violated_rules.append(f"Age below minimum ({self.rules['minimum_age']})")
-        
+
         if 'maximum_amount' in self.rules:
             if request.context.get('amount', 0) > self.rules['maximum_amount']:
                 violated_rules.append(f"Amount exceeds maximum ({self.rules['maximum_amount']})")
-        
+
         if 'required_fields' in self.rules:
             for field in self.rules['required_fields']:
                 if field not in request.context:
                     violated_rules.append(f"Missing required field: {field}")
-        
+
         return len(violated_rules) == 0, violated_rules
-    
+
     def make_decision(
         self,
         request: DecisionRequest,
@@ -441,7 +441,7 @@ class HybridDecisionSystem:
         """
         # Check hard rules first
         rules_passed, violated_rules = self.check_rules(request)
-        
+
         if not rules_passed:
             return {
                 'decision': 'reject',
@@ -450,12 +450,12 @@ class HybridDecisionSystem:
                 'violated_rules': violated_rules,
                 'model_prediction': None
             }
-        
+
         # Get model prediction
         with torch.no_grad():
             prediction = self.decision_model(request_embedding.unsqueeze(0))
             prediction = prediction.squeeze(0).cpu().numpy()
-        
+
         # Interpret prediction
         if self.decision_model.task == 'classification':
             decision = 'approve' if prediction[1] > 0.5 else 'reject'
@@ -463,7 +463,7 @@ class HybridDecisionSystem:
         else:
             decision = float(prediction[0])
             confidence = 0.9  # Placeholder
-        
+
         # Check confidence threshold
         if confidence < request.required_confidence:
             return {
@@ -473,7 +473,7 @@ class HybridDecisionSystem:
                 'model_prediction': decision,
                 'violated_rules': []
             }
-        
+
         return {
             'decision': decision,
             'confidence': confidence,
@@ -499,7 +499,7 @@ def credit_approval_example():
     - Approve if similar applicants had low default rates
     - Automatically adapts as new data arrives
     """
-    
+
     print("=== Credit Approval System ===")
     print("\nTraditional rules:")
     print("  IF credit_score > 700")
@@ -507,7 +507,7 @@ def credit_approval_example():
     print("  AND debt_to_income < 40%")
     print("  AND no_recent_delinquencies")
     print("  THEN approve")
-    
+
     print("\n--- Application 1: Clear Approve ---")
     print("Credit score: 750")
     print("Income: $80,000")
@@ -516,7 +516,7 @@ def credit_approval_example():
     print("Traditional: APPROVE (all rules passed)")
     print("Embedding: APPROVE (confidence: 0.95)")
     print("  Similar cases: 50 approved, 1 defaulted (2% default rate)")
-    
+
     print("\n--- Application 2: Edge Case ---")
     print("Credit score: 680")
     print("Income: $65,000")
@@ -527,7 +527,7 @@ def credit_approval_example():
     print("  Similar cases: 30 approved, 2 defaulted (6.7% default rate)")
     print("  Reason: Strong income and stable employment history")
     print("  → System learns that 680 score + high income often performs well")
-    
+
     print("\n--- Application 3: Novel Scenario ---")
     print("Credit score: 720")
     print("Income: $45,000 (gig economy)")
@@ -537,7 +537,7 @@ def credit_approval_example():
     print("Embedding: HUMAN REVIEW (confidence: 0.65)")
     print("  Similar cases: Only 5 gig economy workers in database")
     print("  → Insufficient data, flag for human underwriter")
-    
+
     print("\n--- Application 4: Regulatory Violation ---")
     print("Credit score: 780")
     print("Income: $120,000")

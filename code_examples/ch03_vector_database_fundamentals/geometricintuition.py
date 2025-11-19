@@ -3,6 +3,7 @@
 
 import numpy as np
 
+
 class GeometricIntuition:
     """Understanding vector similarity through geometry"""
 

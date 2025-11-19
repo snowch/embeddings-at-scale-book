@@ -9,6 +9,7 @@ embedding_dim = 768
 # Theoretical complexity
 # HNSW: O(log(N)) for insert and search
 import math
+
 avg_hops = math.log2(num_embeddings)  # ~48 hops
 
 # Practical performance with distributed architecture:

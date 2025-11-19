@@ -21,12 +21,14 @@ Applications:
 - Pharmaceuticals: Detect contamination, incorrect dosage
 """
 
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple
+
 import numpy as np
 import torch
 import torch.nn as nn
-from typing import List, Dict, Optional, Tuple
-from dataclasses import dataclass
 from PIL import Image
+
 
 @dataclass
 class Product:
@@ -163,7 +165,7 @@ class QualityControlSystem:
         self.products_inspected = 0
         self.defects_detected = 0
 
-        print(f"Initialized Quality Control System")
+        print("Initialized Quality Control System")
         print(f"  Embedding dimension: {embedding_dim}")
 
     def build_normal_cluster(self, products: List[Product]):
@@ -196,7 +198,7 @@ class QualityControlSystem:
         # Set radius at specified percentile
         self.cluster_radius = np.percentile(distances, self.anomaly_threshold * 100)
 
-        print(f"✓ Built normal cluster")
+        print("✓ Built normal cluster")
         print(f"  Centroid: {self.cluster_centroid.shape}")
         print(f"  Radius (95th percentile): {self.cluster_radius:.4f}")
 
@@ -298,7 +300,7 @@ def quality_control_example():
     print(f"Defective: {is_defective}")
 
     # Statistics
-    print(f"\n=== System Statistics ===")
+    print("\n=== System Statistics ===")
     print(f"Products inspected: {system.products_inspected}")
     print(f"Defects detected: {system.defects_detected}")
     print(f"Defect rate: {system.defects_detected / system.products_inspected:.2%}")

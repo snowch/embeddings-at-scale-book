@@ -4,6 +4,7 @@
 import faiss
 import numpy as np
 
+
 class OfflineHardNegativeMining:
     """
     Offline hard negative mining using approximate nearest neighbors

@@ -13,8 +13,10 @@ Techniques:
 """
 
 import re
-from typing import List, Tuple
+from typing import List
+
 import numpy as np
+
 
 class PassageExtractor:
     """
@@ -204,7 +206,7 @@ class HierarchicalContextAssembler:
         self.passage_extractor = PassageExtractor(max_sentences_per_doc=3)
         self.deduplicator = ContextDeduplicator()
 
-        print(f"Initialized Hierarchical Context Assembler")
+        print("Initialized Hierarchical Context Assembler")
         print(f"  Max tokens: {max_tokens:,}")
 
     def assemble(
@@ -316,7 +318,7 @@ def context_optimization_example():
     optimized_context = hierarchical_assembler.assemble(query, documents)
     print(f"Context length: {len(optimized_context)} chars (~{len(optimized_context)//4} tokens)")
 
-    print(f"\nSample optimized context:")
+    print("\nSample optimized context:")
     print(optimized_context[:500] + "...")
 
 # Uncomment to run:

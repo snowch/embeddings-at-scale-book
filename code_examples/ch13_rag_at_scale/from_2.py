@@ -17,9 +17,9 @@ Production approach:
 """
 
 from dataclasses import dataclass
-from typing import List, Tuple, Optional, Dict
 from datetime import datetime
-import numpy as np
+from typing import Dict, List, Optional, Tuple
+
 
 @dataclass
 class Claim:

@@ -26,14 +26,15 @@ Production considerations:
 - Integration: Connect to MES, SCADA, CMMS systems
 """
 
-import numpy as np
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from typing import List, Dict, Optional, Tuple, Any
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
+
+import numpy as np
+import torch
+import torch.nn as nn
+
 
 class MachineStatus(Enum):
     """Machine operational status"""
@@ -149,10 +150,10 @@ class MachineStateEncoder(nn.Module):
         dropout: float = 0.1
     ):
         super().__init__()
-        
+
         # Sensor embedding
         self.sensor_projection = nn.Linear(num_sensors, hidden_dim)
-        
+
         # Temporal transformer
         encoder_layer = nn.TransformerEncoderLayer(
             d_model=hidden_dim,
@@ -165,14 +166,14 @@ class MachineStateEncoder(nn.Module):
             encoder_layer,
             num_layers=num_layers
         )
-        
+
         # Operating parameters encoder
         self.param_encoder = nn.Sequential(
             nn.Linear(10, hidden_dim),  # 10 operating parameters
             nn.ReLU(),
             nn.Dropout(dropout)
         )
-        
+
         # Final projection
         self.projection = nn.Sequential(
             nn.Linear(hidden_dim * 2, hidden_dim),
@@ -181,7 +182,7 @@ class MachineStateEncoder(nn.Module):
             nn.Linear(hidden_dim, embedding_dim),
             nn.LayerNorm(embedding_dim)
         )
-        
+
     def forward(
         self,
         sensor_data: torch.Tensor,
@@ -196,20 +197,20 @@ class MachineStateEncoder(nn.Module):
         """
         # Project sensors
         x = self.sensor_projection(sensor_data)
-        
+
         # Temporal attention
         x = self.transformer(x)
-        
+
         # Global pooling
         sensor_repr = x.mean(dim=1)
-        
+
         # Encode operating parameters
         param_repr = self.param_encoder(operating_params)
-        
+
         # Combine
         combined = torch.cat([sensor_repr, param_repr], dim=-1)
         embeddings = self.projection(combined)
-        
+
         return embeddings
 
 class DegradationModel(nn.Module):
@@ -226,9 +227,9 @@ class DegradationModel(nn.Module):
         hidden_dim: int = 512
     ):
         super().__init__()
-        
+
         self.num_time_bins = num_time_bins
-        
+
         # LSTM for temporal trajectory
         self.trajectory_encoder = nn.LSTM(
             input_size=embedding_dim,
@@ -237,7 +238,7 @@ class DegradationModel(nn.Module):
             batch_first=True,
             dropout=0.1
         )
-        
+
         # Survival distribution predictor
         self.hazard_predictor = nn.Sequential(
             nn.Linear(hidden_dim, hidden_dim),
@@ -245,7 +246,7 @@ class DegradationModel(nn.Module):
             nn.Dropout(0.1),
             nn.Linear(hidden_dim, num_time_bins)
         )
-        
+
     def forward(
         self,
         state_trajectory: torch.Tensor
@@ -260,20 +261,20 @@ class DegradationModel(nn.Module):
         # Encode trajectory
         _, (hidden, _) = self.trajectory_encoder(state_trajectory)
         trajectory_repr = hidden[-1]
-        
+
         # Predict hazard function (probability of failure at each time)
         hazard = torch.sigmoid(self.hazard_predictor(trajectory_repr))
-        
+
         # Convert hazard to survival function
         # S(t) = exp(-∫hazard(τ)dτ) ≈ exp(-Σhazard)
         cumulative_hazard = torch.cumsum(hazard, dim=-1)
         survival_curve = torch.exp(-cumulative_hazard)
-        
+
         # Expected RUL = ∫t * f(t)dt where f(t) = -dS/dt
         time_bins = torch.arange(self.num_time_bins, dtype=torch.float32, device=hazard.device)
         pdf = hazard * survival_curve  # Approximate PDF
         expected_rul = (pdf * time_bins).sum(dim=-1) / pdf.sum(dim=-1)
-        
+
         return survival_curve, expected_rul
 
 class SchedulingOptimizer(nn.Module):
@@ -291,9 +292,9 @@ class SchedulingOptimizer(nn.Module):
         hidden_dim: int = 512
     ):
         super().__init__()
-        
+
         self.num_machines = num_machines
-        
+
         # Policy network (which machine for which job)
         self.policy = nn.Sequential(
             nn.Linear(state_dim, hidden_dim),
@@ -304,7 +305,7 @@ class SchedulingOptimizer(nn.Module):
             nn.Dropout(0.1),
             nn.Linear(hidden_dim, num_machines)
         )
-        
+
         # Value network (estimated future reward)
         self.value = nn.Sequential(
             nn.Linear(state_dim, hidden_dim),
@@ -312,7 +313,7 @@ class SchedulingOptimizer(nn.Module):
             nn.Dropout(0.1),
             nn.Linear(hidden_dim, 1)
         )
-        
+
     def forward(
         self,
         state: torch.Tensor
@@ -350,14 +351,14 @@ class EquipmentOptimizationSystem:
         self.degradation_model = degradation_model.to(device)
         self.scheduler = scheduler.to(device)
         self.device = device
-        
+
         # Equipment tracking
         self.machines: Dict[str, Dict] = {}
         self.state_history: Dict[str, List[MachineState]] = {}
-        
+
         # Job queue
         self.pending_jobs: List[Job] = []
-        
+
     def register_machine(
         self,
         machine_id: str,
@@ -373,23 +374,23 @@ class EquipmentOptimizationSystem:
             'last_maintenance': datetime.now() - timedelta(days=90)
         }
         self.state_history[machine_id] = []
-    
+
     def update_machine_state(self, state: MachineState):
         """Process machine state update"""
         if state.machine_id not in self.machines:
             raise ValueError(f"Unknown machine: {state.machine_id}")
-        
+
         # Update machine info
         self.machines[state.machine_id]['status'] = state.status
         self.machines[state.machine_id]['runtime_hours'] = state.runtime_hours
-        
+
         # Store state history
         self.state_history[state.machine_id].append(state)
-        
+
         # Keep last 1000 states
         if len(self.state_history[state.machine_id]) > 1000:
             self.state_history[state.machine_id] = self.state_history[state.machine_id][-1000:]
-    
+
     def predict_maintenance(
         self,
         machine_id: str
@@ -399,23 +400,23 @@ class EquipmentOptimizationSystem:
         """
         if machine_id not in self.state_history:
             return None
-        
+
         states = self.state_history[machine_id]
         if len(states) < 100:  # Need history
             return None
-        
+
         # Prepare state trajectory
         # In production, encode actual sensor data
         # Here using mock embeddings
         trajectory = np.random.randn(100, 512)  # Last 100 states
         trajectory_tensor = torch.FloatTensor(trajectory).unsqueeze(0).to(self.device)
-        
+
         # Predict RUL
         with torch.no_grad():
             survival_curve, expected_rul = self.degradation_model(trajectory_tensor)
-        
+
         rul_hours = expected_rul.item()
-        
+
         # Determine severity and timing
         if rul_hours < 24:
             severity = "critical"
@@ -429,10 +430,10 @@ class EquipmentOptimizationSystem:
         else:
             severity = "low"
             maintenance_type = MaintenanceType.PREVENTIVE
-        
+
         # Optimal timing (before RUL expires, during planned downtime)
         optimal_timing = datetime.now() + timedelta(hours=rul_hours * 0.8)
-        
+
         # Estimate cost of delay
         if severity == "critical":
             cost_if_delayed = 50000  # Emergency breakdown
@@ -440,7 +441,7 @@ class EquipmentOptimizationSystem:
             cost_if_delayed = 15000
         else:
             cost_if_delayed = 5000
-        
+
         prediction = MaintenancePrediction(
             machine_id=machine_id,
             prediction_time=datetime.now(),
@@ -453,9 +454,9 @@ class EquipmentOptimizationSystem:
             cost_if_delayed=cost_if_delayed,
             parts_needed=["bearing_set_A", "lubricant_premium"]
         )
-        
+
         return prediction
-    
+
     def optimize_schedule(
         self,
         jobs: List[Job]
@@ -467,43 +468,43 @@ class EquipmentOptimizationSystem:
         """
         # In production, use RL-based scheduler
         # Here using simplified heuristic
-        
+
         schedule: Dict[str, List[str]] = {
             machine_id: [] for machine_id in self.machines
         }
-        
+
         # Sort jobs by priority and due date
         sorted_jobs = sorted(
             jobs,
             key=lambda j: (-j.priority, j.due_date or datetime.max)
         )
-        
+
         for job in sorted_jobs:
             # Find best machine
             best_machine = None
             min_completion_time = float('inf')
-            
+
             for machine_id in job.eligible_machines:
                 if machine_id not in self.machines:
                     continue
-                
+
                 machine = self.machines[machine_id]
                 if machine['status'] not in [MachineStatus.RUNNING, MachineStatus.IDLE]:
                     continue
-                
+
                 # Estimate completion time
                 current_load = len(schedule[machine_id])
                 completion_time = current_load * 2.0 + job.estimated_duration
-                
+
                 if completion_time < min_completion_time:
                     min_completion_time = completion_time
                     best_machine = machine_id
-            
+
             if best_machine:
                 schedule[best_machine].append(job.job_id)
-        
+
         return schedule
-    
+
     def calculate_oee(
         self,
         machine_id: str,
@@ -516,17 +517,17 @@ class EquipmentOptimizationSystem:
         """
         if machine_id not in self.state_history:
             return {}
-        
+
         # Get states in time period
         cutoff = datetime.now() - time_period
         recent_states = [
             s for s in self.state_history[machine_id]
             if s.timestamp > cutoff
         ]
-        
+
         if not recent_states:
             return {}
-        
+
         # Calculate availability
         total_time = time_period.total_seconds() / 3600  # hours
         running_time = sum(
@@ -534,17 +535,17 @@ class EquipmentOptimizationSystem:
             if s.status == MachineStatus.RUNNING
         ) / len(recent_states) * total_time
         availability = running_time / total_time
-        
+
         # Calculate performance (actual vs ideal cycle time)
         # Mock calculation
         performance = 0.85  # 85% of ideal speed
-        
+
         # Calculate quality (good units / total units)
         # Mock calculation
         quality = 0.95  # 95% first-pass yield
-        
+
         oee = availability * performance * quality
-        
+
         return {
             'oee': oee,
             'availability': availability,
@@ -568,25 +569,25 @@ def equipment_optimization_example():
     print("EQUIPMENT OPTIMIZATION - CNC MACHINING CENTER")
     print("=" * 80)
     print()
-    
+
     # Initialize models
     state_encoder = MachineStateEncoder(num_sensors=40)
     degradation_model = DegradationModel()
     scheduler = SchedulingOptimizer(state_dim=512, num_machines=10)
-    
+
     opt_system = EquipmentOptimizationSystem(
         state_encoder=state_encoder,
         degradation_model=degradation_model,
         scheduler=scheduler,
         device='cpu'
     )
-    
+
     print("System initialized:")
     print("  - Machines: 10 CNC centers")
     print("  - Sensors per machine: 40")
     print("  - State embedding: 512 dimensions")
     print()
-    
+
     # Register machines
     print("Registering machines...")
     for i in range(10):
@@ -597,13 +598,13 @@ def equipment_optimization_example():
         )
     print(f"  - Registered {len(opt_system.machines)} machines")
     print()
-    
+
     # Simulate operation and maintenance predictions
     print("Predictive maintenance analysis...")
     print()
-    
+
     maintenance_needed = []
-    
+
     for machine_id in list(opt_system.machines.keys())[:5]:  # Check first 5
         # Simulate state updates
         for t in range(100):
@@ -615,13 +616,13 @@ def equipment_optimization_example():
                 runtime_hours=1000 + t
             )
             opt_system.update_machine_state(state)
-        
+
         # Predict maintenance
         prediction = opt_system.predict_maintenance(machine_id)
-        
+
         if prediction and prediction.severity in ["high", "critical"]:
             maintenance_needed.append(prediction)
-            
+
             print(f"Machine: {machine_id}")
             print(f"  Remaining useful life: {prediction.remaining_useful_life:.1f} hours")
             print(f"  Confidence interval: {prediction.confidence_interval[0]:.0f}-{prediction.confidence_interval[1]:.0f} hours")
@@ -632,16 +633,16 @@ def equipment_optimization_example():
             print(f"  Cost if delayed: ${prediction.cost_if_delayed:,.0f}")
             print(f"  Parts needed: {', '.join(prediction.parts_needed)}")
             print()
-    
+
     print(f"Total machines requiring attention: {len(maintenance_needed)}")
     print()
-    
+
     # Job scheduling
     print("=" * 80)
     print("JOB SCHEDULING OPTIMIZATION")
     print("=" * 80)
     print()
-    
+
     # Create mock jobs
     jobs = []
     for i in range(20):
@@ -655,25 +656,25 @@ def equipment_optimization_example():
             due_date=datetime.now() + timedelta(days=np.random.randint(1, 15))
         )
         jobs.append(job)
-    
+
     print(f"Scheduling {len(jobs)} jobs across {len(opt_system.machines)} machines...")
     print()
-    
+
     schedule = opt_system.optimize_schedule(jobs)
-    
+
     # Display schedule summary
     for machine_id, job_ids in list(schedule.items())[:5]:
         if job_ids:
             print(f"{machine_id}: {len(job_ids)} jobs assigned")
             print(f"  Job IDs: {', '.join(job_ids[:3])}{'...' if len(job_ids) > 3 else ''}")
     print()
-    
+
     # OEE analysis
     print("=" * 80)
     print("OVERALL EQUIPMENT EFFECTIVENESS (OEE)")
     print("=" * 80)
     print()
-    
+
     oee_results = []
     for machine_id in list(opt_system.machines.keys())[:5]:
         oee_metrics = opt_system.calculate_oee(machine_id)
@@ -687,11 +688,11 @@ def equipment_optimization_example():
             print(f"  Running hours: {oee_metrics['running_hours']:.1f}")
             print(f"  Downtime hours: {oee_metrics['downtime_hours']:.1f}")
             print()
-    
+
     avg_oee = np.mean([m['oee'] for _, m in oee_results])
     print(f"Fleet average OEE: {avg_oee*100:.1f}%")
     print()
-    
+
     # Summary
     print("=" * 80)
     print("OPTIMIZATION SUMMARY")

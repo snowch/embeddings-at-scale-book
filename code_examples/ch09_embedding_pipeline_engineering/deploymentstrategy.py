@@ -2,10 +2,11 @@
 # Book: Embeddings at Scale
 
 from enum import Enum
-from typing import Dict, List, Optional
-import torch
+from typing import Dict, Optional
+
 import numpy as np
-from datetime import datetime
+import torch
+
 
 class DeploymentStrategy(Enum):
     """
@@ -143,7 +144,7 @@ class EmbeddingVersionCoordinator:
         self.traffic_routing[new_model_id] = 1.0  # 100% traffic
 
         # Keep BLUE as rollback target (don't delete yet)
-        print(f"✓ Deployment complete. GREEN active, BLUE retained for rollback.")
+        print("✓ Deployment complete. GREEN active, BLUE retained for rollback.")
 
     def _deploy_incremental(
         self,
@@ -191,9 +192,9 @@ class EmbeddingVersionCoordinator:
 
         self._enable_dual_index_routing(old_index, new_index_name)
 
-        print(f"✓ Incremental deployment started")
-        print(f"  Re-embedding progress tracked in background")
-        print(f"  Queries served from both OLD and NEW indices during transition")
+        print("✓ Incremental deployment started")
+        print("  Re-embedding progress tracked in background")
+        print("  Queries served from both OLD and NEW indices during transition")
 
     def _deploy_shadow(
         self,
@@ -232,10 +233,10 @@ class EmbeddingVersionCoordinator:
         # Shadow traffic logs comparisons but doesn't serve
         self._enable_shadow_mode(new_model_id)
 
-        print(f"✓ Shadow deployment active")
-        print(f"  NEW model: Running in shadow (no production traffic)")
-        print(f"  OLD model: Serving 100% production traffic")
-        print(f"  Comparison metrics being collected")
+        print("✓ Shadow deployment active")
+        print("  NEW model: Running in shadow (no production traffic)")
+        print("  OLD model: Serving 100% production traffic")
+        print("  Comparison metrics being collected")
 
     def _deploy_canary(
         self,
@@ -274,10 +275,10 @@ class EmbeddingVersionCoordinator:
 
         self.traffic_routing[new_model_id] = initial_canary_percentage
 
-        print(f"✓ Canary deployment started")
+        print("✓ Canary deployment started")
         print(f"  NEW model: {initial_canary_percentage:.1%} traffic")
         print(f"  OLD model: {1 - initial_canary_percentage:.1%} traffic")
-        print(f"  Monitor metrics, then gradually increase canary traffic")
+        print("  Monitor metrics, then gradually increase canary traffic")
 
     def rollback(self, target_model_id: Optional[str] = None):
         """
