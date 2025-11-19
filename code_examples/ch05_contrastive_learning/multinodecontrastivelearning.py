@@ -113,4 +113,6 @@ def launch_multi_node_training(num_nodes, gpus_per_node):
     """
     Launch multi-node distributed training
 
-    Typically launched via SLURM or similar cluster manager:
+    Typically launched via SLURM or similar cluster manager.
+    """
+    pass

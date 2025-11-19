@@ -302,4 +302,5 @@ class DecentralizedEmbeddingRegistry:
 
 ### Zero-Knowledge Proofs for Private Embedding Verification
 
-Zero-knowledge proofs (ZKPs)—cryptographic protocols enabling verification without revealing underlying data—allow embedding providers to prove quality, integrity, and properties without exposing embeddings.
+# Zero-knowledge proofs (ZKPs) are cryptographic protocols enabling verification without revealing underlying data.
+# They allow embedding providers to prove quality, integrity, and properties without exposing embeddings.

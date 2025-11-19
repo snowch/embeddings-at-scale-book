@@ -48,4 +48,6 @@ def train_multi_node():
     """
     Multi-node training script
 
-    Launch with Slurm:
+    Launch with Slurm or similar cluster scheduler.
+    """
+    pass
