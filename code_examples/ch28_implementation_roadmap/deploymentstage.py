@@ -1,4 +1,7 @@
-from typing import Tuple
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from enum import Enum
+from typing import Dict, List, Optional, Tuple
 
 # Code from Chapter 28
 # Book: Embeddings at Scale
@@ -29,11 +32,6 @@ Key components:
 - Monitoring stack (Prometheus, Grafana)
 - CI/CD pipeline (GitHub Actions, ArgoCD)
 """
-
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from enum import Enum
-from typing import Dict, List, Optional
 
 
 class DeploymentStage(Enum):
@@ -117,7 +115,7 @@ class PilotConfiguration:
 class PilotMonitor:
     """
     Monitor pilot deployment performance and health.
-    
+
     Track SLOs, user metrics, incidents, and determine
     rollout readiness.
     """
@@ -217,7 +215,7 @@ class PilotMonitor:
     def assess_rollout_readiness(self) -> Dict[str, any]:
         """
         Assess readiness for broader rollout.
-        
+
         Returns assessment with recommendations.
         """
         assessment = {
@@ -275,7 +273,7 @@ class PilotMonitor:
             )
 
         # Check success metrics
-        for metric_name, target in self.config.success_metrics.items():
+        for metric_name, _target in self.config.success_metrics.items():
             # In real implementation, fetch actual metric values
             assessment["metrics"][metric_name] = "Not implemented"
 

@@ -1,3 +1,8 @@
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from enum import Enum
+from typing import Dict, List, Set, Tuple
+
 import numpy as np
 
 # Code from Chapter 30
@@ -28,11 +33,6 @@ Preparedness dimensions:
 - Talent adaptability: Team capable of learning new techniques
 - Strategic optionality: Multiple paths forward preserved
 """
-
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from enum import Enum
-from typing import Dict, List, Set, Tuple
 
 
 class DisruptionCategory(Enum):
