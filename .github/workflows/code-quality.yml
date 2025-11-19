@@ -38,12 +38,10 @@ jobs:
       - name: Run ruff linter
         run: |
           ruff check code_examples/ --output-format=github
-        continue-on-error: true  # Informational only - educational code has expected style issues
 
       - name: Run ruff formatter check
         run: |
           ruff format --check code_examples/
-        continue-on-error: true
 
   syntax-check:
     name: Python Syntax Check
@@ -132,18 +130,17 @@ jobs:
           echo "📋 Code Quality Report"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo ""
-          echo "Linting: ${{ needs.lint.result }} (informational only)"
+          echo "Linting: ${{ needs.lint.result }} (required)"
           echo "Syntax Check: ${{ needs.syntax-check.result }} (required)"
           echo "Dependencies: ${{ needs.dependencies-check.result }} (required)"
           echo ""
 
-          # Only check required jobs (syntax and dependencies)
-          # Linting is informational for educational code
-          if [ "${{ needs.syntax-check.result }}" = "success" ] && \
+          # Check all required jobs
+          if [ "${{ needs.lint.result }}" = "success" ] && \
+             [ "${{ needs.syntax-check.result }}" = "success" ] && \
              [ "${{ needs.dependencies-check.result }}" = "success" ]; then
             echo "✅ All required checks passed!"
-            echo "ℹ️  Linting issues are tracked but don't block the build"
           else
-            echo "❌ Required checks failed"
+            echo "❌ One or more required checks failed"
             exit 1
           fi
