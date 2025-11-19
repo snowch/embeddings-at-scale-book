@@ -65,23 +65,30 @@ View workflow results: Actions tab on GitHub
 
 ### Linting Analysis
 
-Total linting issues detected: **6,709**
+**Original**: 6,709 issues
+**Current**: 2,363 issues
+**Fixed**: 4,346 issues (65% reduction) ✅
 
-**Auto-fixable**: 4,339 issues (65%)
+#### Recent Improvements
 
-#### Issue Breakdown
+**2025-11-19**: Auto-fixed 4,346 issues in two passes:
+- Pass 1: 4,128 fixes (whitespace, f-strings, imports)
+- Pass 2: 218 fixes (code simplification, optimizations)
 
-| Issue Type | Count | Fixable | Severity |
-|------------|-------|---------|----------|
-| Unused imports | 202 | ✅ Yes | Low |
-| F-string without placeholders | 189 | ✅ Yes | Low |
-| Unsorted imports | 131 | ✅ Yes | Low |
-| Trailing whitespace | 72 | ✅ Yes | Low |
-| Unused variables | 50 | ❌ No | Low |
-| Undefined names | 1,444 | ❌ No | Expected* |
-| Other style issues | ~4,621 | Mixed | Low |
+#### Remaining Issues Breakdown
+
+| Issue Type | Count | Fixable | Severity | Status |
+|------------|-------|---------|----------|--------|
+| Undefined names (F821) | 1,444 | ❌ No | Expected* | Normal for educational code |
+| Unused variables (F841) | 50 | ❌ No | Low | Intentional in some examples |
+| Collapsible if (SIM102) | 18 | ❌ No | Style | Kept for clarity |
+| Other style issues | ~851 | 855 unsafe | Low | Require manual review |
+
+**Total remaining**: 2,363 issues (35% of original)
 
 \* **Note on undefined names**: Many code examples are educational snippets extracted from chapters. They intentionally focus on specific concepts and may not include all imports. This is normal for a technical book.
+
+\*\* **Unsafe fixes**: 855 additional fixes available with `--unsafe-fixes` flag, but require manual review to ensure they don't change code behavior.
 
 ## Configuration
 
