@@ -1,6 +1,8 @@
+import torch
+import torch.nn as nn
+
 # Code from Chapter 10
 # Book: Embeddings at Scale
-
 from torch.utils.checkpoint import checkpoint
 
 

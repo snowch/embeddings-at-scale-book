@@ -1,3 +1,8 @@
+from dataclasses import dataclass
+from typing import Any, Dict, Tuple
+
+import numpy as np
+
 # Code from Chapter 26
 # Book: Embeddings at Scale
 

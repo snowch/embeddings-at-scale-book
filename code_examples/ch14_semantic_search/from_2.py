@@ -1,3 +1,5 @@
+import torch.nn.functional as F
+
 # Code from Chapter 14
 # Book: Embeddings at Scale
 
@@ -23,6 +25,8 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
+import torch
+import torch.nn as nn
 from PIL import Image
 
 
@@ -51,6 +55,19 @@ class MediaAsset:
     visual_embedding: Optional[np.ndarray] = None
     content_embedding: Optional[np.ndarray] = None
     perceptual_hash: Optional[str] = None
+
+# Placeholder class
+import torch.nn as nn
+
+
+class ImageEncoder(nn.Module):
+    """Placeholder for ImageEncoder."""
+    def __init__(self):
+        super().__init__()
+
+    def encode(self, image):
+        import torch
+        return torch.randn(768)
 
 class VisualStyleEncoder(nn.Module):
     """

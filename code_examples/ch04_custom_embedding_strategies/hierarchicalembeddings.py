@@ -1,6 +1,18 @@
 # Code from Chapter 04
 # Book: Embeddings at Scale
 
+import numpy as np
+
+
+# Placeholder encoder class
+class Encoder:
+    """Placeholder encoder. Replace with actual model."""
+    def __init__(self, dim=512):
+        self.dim = dim
+
+    def encode(self, text):
+        return np.random.randn(self.dim).astype(np.float32)
+
 class HierarchicalEmbeddings:
     """
     Preserve hierarchical structure in embedding space

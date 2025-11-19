@@ -1,3 +1,9 @@
+import random
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Tuple
+
+import numpy as np
+
 # Code from Chapter 19
 # Book: Embeddings at Scale
 
@@ -25,6 +31,28 @@ Production considerations:
 - Clinical integration: Fit into physician workflow
 - Continuous learning: Update as new evidence emerges
 """
+
+# Placeholder classes - see class.py for full implementation
+import torch.nn as nn
+
+
+@dataclass
+class Patient:
+    """Placeholder for Patient."""
+    patient_id: str
+    age: int = 0
+    conditions: list = None
+    medications: list = None
+    lab_results: Dict[str, Any] = None
+
+class TrialPatientEncoder(nn.Module):
+    """Placeholder for TrialPatientEncoder."""
+    def __init__(self):
+        super().__init__()
+
+    def encode(self, patient):
+        import torch
+        return torch.randn(768)
 
 @dataclass
 class TreatmentOption:
@@ -68,6 +96,31 @@ class TreatmentRecommendation:
     expected_survival: float
     expected_qol: float
     explanation: str
+
+# Placeholder classes - see class.py for full implementation
+from dataclasses import dataclass
+from typing import Any, Dict
+
+import torch.nn as nn
+
+
+@dataclass
+class Patient:
+    """Placeholder for Patient."""
+    patient_id: str
+    age: int = 0
+    conditions: list = None
+    medications: list = None
+    lab_results: Dict[str, Any] = None
+
+class TrialPatientEncoder(nn.Module):
+    """Placeholder for TrialPatientEncoder."""
+    def __init__(self):
+        super().__init__()
+
+    def encode(self, patient):
+        import torch
+        return torch.randn(768)
 
 class PersonalizedTreatmentSystem:
     """Personalized treatment recommendation system"""

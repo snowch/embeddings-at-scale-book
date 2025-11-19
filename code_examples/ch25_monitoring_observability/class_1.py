@@ -1,3 +1,6 @@
+from collections import defaultdict
+from typing import Any
+
 # Code from Chapter 25
 # Book: Embeddings at Scale
 

@@ -17,6 +17,8 @@ Techniques:
 - Multi-task learning: Learn across multiple domains simultaneously
 """
 
+# Placeholder classes - see from.py for full implementation
+from dataclasses import dataclass
 from typing import Dict, List, Tuple
 
 import numpy as np
@@ -24,6 +26,22 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+
+class CollaborativeFilteringModel(nn.Module):
+    """Placeholder for CollaborativeFilteringModel."""
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, user_ids, item_ids):
+        import torch
+        return torch.randn(len(user_ids))
+
+@dataclass
+class Interaction:
+    """Placeholder for Interaction."""
+    user_id: str
+    item_id: str
+    rating: float = 0.0
 
 class ContentBasedItemEmbedding(nn.Module):
     """

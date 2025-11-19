@@ -1,3 +1,5 @@
+import torch.nn.functional as F
+
 # Code from Chapter 05
 # Book: Embeddings at Scale
 

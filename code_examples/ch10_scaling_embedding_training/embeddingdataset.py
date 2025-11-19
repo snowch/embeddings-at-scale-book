@@ -4,9 +4,25 @@
 import torch
 import torch.distributed as dist
 import torch.multiprocessing as mp
+import torch.nn as nn
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader, Dataset
 from torch.utils.data.distributed import DistributedSampler
+
+
+# Placeholder class for distributed contrastive embedding
+# See distributedembeddingtable.py for full implementation
+class DistributedContrastiveEmbedding(nn.Module):
+    """Placeholder for DistributedContrastiveEmbedding. Replace with actual implementation."""
+    def __init__(self, vocab_size=100000, embedding_dim=512):
+        super().__init__()
+        self.embedding = nn.Embedding(vocab_size, embedding_dim)
+
+    def forward(self, anchor_ids, positive_ids):
+        anchor_emb = self.embedding(anchor_ids)
+        positive_emb = self.embedding(positive_ids)
+        # Return dummy loss
+        return torch.tensor(0.5, requires_grad=True)
 
 
 class EmbeddingDataset(Dataset):

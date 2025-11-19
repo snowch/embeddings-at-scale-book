@@ -1,3 +1,5 @@
+import time
+
 # Code from Chapter 13
 # Book: Embeddings at Scale
 
@@ -18,10 +20,31 @@ Benefits:
 - Diversity (avoid redundant results)
 """
 
-from typing import List, Set
+# Placeholder classes - see from.py for full implementation
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Set
 
 import numpy as np
 
+
+@dataclass
+class Document:
+    """Placeholder for Document."""
+    doc_id: str
+    content: str
+    metadata: Dict[str, Any]
+    embedding: Optional[np.ndarray] = None
+    score: float = 0.0
+
+@dataclass
+class Query:
+    """Placeholder for Query."""
+    query_id: str
+    text: str
+    intent: Optional[str] = None
+    entities: List[str] = None
+    expanded_queries: List[str] = None
+    filters: Dict[str, Any] = None
 
 class MultiStageRetriever:
     """

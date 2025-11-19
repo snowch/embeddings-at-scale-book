@@ -21,6 +21,40 @@ from typing import Callable, List
 import numpy as np
 
 
+# Placeholder classes - see import.py for full implementations
+@dataclass
+class SearchResult:
+    """Placeholder for SearchResult."""
+    indices: np.ndarray
+    scores: np.ndarray
+    latency_ms: float
+
+class OptimizedExactSearch:
+    """Placeholder for OptimizedExactSearch."""
+    def __init__(self):
+        pass
+
+    def search(self, query_vector, k=10):
+        return SearchResult(
+            indices=np.array([0]),
+            scores=np.array([1.0]),
+            latency_ms=0.1
+        )
+
+# Placeholder for GPUVectorSearch - see gpuvectorsearch.py for full implementation
+class GPUVectorSearch:
+    """Placeholder for GPUVectorSearch."""
+    def __init__(self, embedding_dim=768):
+        self.embedding_dim = embedding_dim
+
+    def search(self, query, k=10):
+        return SearchResult(
+            indices=np.array(list(range(k))),
+            scores=np.array([1.0 - i*0.1 for i in range(k)]),
+            latency_ms=1.0
+        )
+
+
 @dataclass
 class Query:
     """Query request"""

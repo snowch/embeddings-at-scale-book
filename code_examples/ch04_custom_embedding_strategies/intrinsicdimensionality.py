@@ -64,6 +64,11 @@ class IntrinsicDimensionality:
         }
 
 
+# Placeholder function for loading embeddings
+def load_embeddings():
+    """Load embeddings. Placeholder implementation."""
+    return np.random.randn(1000, 768).astype(np.float32)
+
 # Example usage
 embeddings = load_embeddings()  # Your 768-dim embeddings
 

@@ -1,5 +1,13 @@
+import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
+
 # Code from Chapter 03
 # Book: Embeddings at Scale
+
+# Utility function
+def top_k(similarities, k=10):
+    """Return indices of top-k similarities. Placeholder implementation."""
+    return np.argsort(similarities)[-k:][::-1]
 
 # Traditional database query
 def find_customer(database, customer_id):

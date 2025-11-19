@@ -1,5 +1,25 @@
+import faiss
+import numpy as np
+import torch
+
 # Code from Chapter 02
 # Book: Embeddings at Scale
+
+# ModalityFusion placeholder - see modalityfusion.py for full implementation
+class ModalityFusion:
+    """Placeholder for ModalityFusion."""
+    @staticmethod
+    def early_fusion(modality_embeddings, weights=None):
+        if weights is None:
+            weights = [1.0 / len(modality_embeddings)] * len(modality_embeddings)
+        # Convert to tensors if needed
+        embeddings_tensors = []
+        for emb in modality_embeddings:
+            if isinstance(emb, np.ndarray):
+                emb = torch.from_numpy(emb)
+            embeddings_tensors.append(emb)
+        fused = sum(w * emb for w, emb in zip(weights, embeddings_tensors))
+        return fused / torch.norm(fused)
 
 class MultiModalIndex:
     """Scalable multi-modal indexing"""

@@ -41,6 +41,19 @@ class QualityIssue:
     description: str = ""
     metadata: Dict = None
 
+# Placeholder class - see from.py for full implementation
+from dataclasses import dataclass
+from typing import Any, Dict
+
+
+@dataclass
+class EmbeddingFeatures:
+    """Placeholder for EmbeddingFeatures."""
+    record_id: str
+    text_content: str = ""
+    structured_features: Dict[str, Any] = None
+    metadata: Dict[str, Any] = None
+
 class EmbeddingDataQualityValidator:
     """
     Comprehensive data quality validation for embedding training

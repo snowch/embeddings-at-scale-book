@@ -1,3 +1,6 @@
+import numpy as np
+import torch
+
 # Code from Chapter 06
 # Book: Embeddings at Scale
 

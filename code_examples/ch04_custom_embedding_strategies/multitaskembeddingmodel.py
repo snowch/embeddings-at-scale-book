@@ -1,8 +1,25 @@
 # Code from Chapter 04
 # Book: Embeddings at Scale
-
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+
+
+# Placeholder transformer encoder
+class TransformerEncoder(nn.Module):
+    """Placeholder transformer encoder. Replace with actual model."""
+    def __init__(self, dim=512, depth=6, heads=8):
+        super().__init__()
+        self.dim = dim
+        self.depth = depth
+        self.heads = heads
+        self.linear = nn.Linear(768, dim)  # Dummy linear layer
+
+    def forward(self, input_ids, attention_mask):
+        # Return dummy hidden states
+        batch_size = input_ids.shape[0]
+        seq_len = input_ids.shape[1] if len(input_ids.shape) > 1 else 1
+        return torch.randn(batch_size, seq_len, self.dim)
 
 
 class MultiTaskEmbeddingModel(nn.Module):
@@ -96,6 +113,14 @@ task_weights = {
     'brand': 0.2,        # Help preserve brand info
     'price': 0.1         # Weak signal for price tier
 }
+
+# Placeholder data loader
+class PlaceholderDataLoader:
+    """Placeholder data loader. Replace with actual DataLoader."""
+    def __iter__(self):
+        return iter([])  # Empty iterator for demonstration
+
+train_loader = PlaceholderDataLoader()
 
 # Training loop
 optimizer = torch.optim.AdamW(model.parameters(), lr=2e-5)

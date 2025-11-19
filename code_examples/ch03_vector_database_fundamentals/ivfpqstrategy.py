@@ -1,3 +1,6 @@
+import numpy as np
+from sklearn.cluster import KMeans
+
 # Code from Chapter 03
 # Book: Embeddings at Scale
 
@@ -29,8 +32,6 @@ class IVFPQStrategy:
         """
 
         # Step 1: Coarse quantization (K-means)
-        from sklearn.cluster import KMeans
-
         print(f"Training {self.num_centroids} centroids...")
         kmeans = KMeans(n_clusters=self.num_centroids, max_iter=20)
         centroid_assignments = kmeans.fit_predict(training_vectors)

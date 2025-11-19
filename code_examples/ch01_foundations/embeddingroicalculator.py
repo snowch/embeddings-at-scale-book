@@ -1,6 +1,39 @@
 # Code from Chapter 01
 # Book: Embeddings at Scale
 
+# Placeholder ROI calculation functions
+def calculate_search_roi(**kwargs):
+    """Calculate search ROI. Placeholder implementation."""
+    return {'total_annual_benefit': 0.0, 'annual_value': 0.0}
+
+def calculate_efficiency_roi(**kwargs):
+    """Calculate efficiency ROI. Placeholder implementation."""
+    return {'total_annual_benefit': 0.0, 'annual_value': 0.0}
+
+def calculate_fraud_roi(**kwargs):
+    """Calculate fraud ROI. Placeholder implementation."""
+    return {'total_annual_benefit': 0.0, 'annual_value': 0.0}
+
+def calculate_ltv_improvement(**kwargs):
+    """Calculate LTV improvement. Placeholder implementation."""
+    return {'total_annual_benefit': 0.0, 'annual_value': 0.0}
+
+def risk_adjusted_roi(potential_benefit, probability_of_success, implementation_cost, annual_operating_cost, years):
+    """Calculate risk-adjusted ROI. Placeholder implementation."""
+    expected_annual_benefit = potential_benefit * probability_of_success
+    total_benefit = expected_annual_benefit * years
+    total_cost = implementation_cost + (annual_operating_cost * years)
+    npv = total_benefit - total_cost
+    roi_percent = (npv / total_cost * 100) if total_cost > 0 else 0
+    payback_period_years = (implementation_cost / expected_annual_benefit) if expected_annual_benefit > 0 else 0
+
+    return {
+        'expected_annual_benefit': expected_annual_benefit,
+        'npv': npv,
+        'roi_percent': roi_percent,
+        'payback_period_years': payback_period_years
+    }
+
 class EmbeddingROICalculator:
     """Complete ROI framework for embedding projects"""
 

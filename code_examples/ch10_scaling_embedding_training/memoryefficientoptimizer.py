@@ -1,7 +1,7 @@
+import torch.nn as nn
+
 # Code from Chapter 10
 # Book: Embeddings at Scale
-
-
 import torch.optim as optim
 
 

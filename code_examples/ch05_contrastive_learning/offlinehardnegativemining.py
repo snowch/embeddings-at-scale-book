@@ -1,8 +1,9 @@
 # Code from Chapter 05
 # Book: Embeddings at Scale
-
 import faiss
 import numpy as np
+import torch
+from torch.utils import data
 
 
 class OfflineHardNegativeMining:

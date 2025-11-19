@@ -10,6 +10,16 @@ import numpy as np
 import torch
 
 
+# Placeholder class for embedding model registry
+class EmbeddingModelRegistry:
+    """Placeholder for embedding model registry. Replace with actual implementation."""
+    def __init__(self):
+        self.models = {}
+
+    def get_model(self, model_id):
+        return None  # Placeholder
+
+
 class HybridEmbeddingSystem:
     """
     Hybrid system combining batch and real-time embedding generation

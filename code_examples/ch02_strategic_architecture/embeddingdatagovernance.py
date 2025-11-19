@@ -1,6 +1,25 @@
 # Code from Chapter 02
 # Book: Embeddings at Scale
 
+# Placeholder classes for data governance
+class DataCatalog:
+    """Placeholder for data catalog. Replace with actual implementation."""
+    def is_approved_source(self, data_source):
+        return True  # Placeholder
+
+class PIIDetector:
+    """Placeholder for PII detection. Replace with actual implementation."""
+    def scan(self, data_source):
+        return {'contains_pii': False, 'pii_types': []}
+
+    def detect_pii_fields(self, data):
+        return []
+
+class BiasAuditor:
+    """Placeholder for bias auditing. Replace with actual implementation."""
+    def audit(self, data_source):
+        return {'bias_score': 0.0, 'bias_details': {}}
+
 class EmbeddingDataGovernance:
     """Data governance for embedding systems"""
 

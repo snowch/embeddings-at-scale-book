@@ -1,5 +1,11 @@
+import faiss
+import numpy as np
+
 # Code from Chapter 01
 # Book: Embeddings at Scale
+
+# Example data for demonstration
+dim = 768  # Common embedding dimension
 
 # Wrong: Single-node architecture
 embeddings = np.load('embeddings.npy')  # Doesn't scale

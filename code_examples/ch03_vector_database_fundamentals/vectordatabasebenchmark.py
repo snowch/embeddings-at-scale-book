@@ -1,3 +1,7 @@
+import time
+
+import numpy as np
+
 # Code from Chapter 03
 # Book: Embeddings at Scale
 
@@ -126,10 +130,6 @@ class VectorDatabaseBenchmark:
     def run_benchmark_suite(self):
         """Execute comprehensive benchmark"""
 
-        import time
-
-        import numpy as np
-
         results = {}
 
         # 1. Index Build Benchmark
@@ -203,8 +203,6 @@ class VectorDatabaseBenchmark:
 
     def measure_throughput(self, index, duration_seconds):
         """Measure queries per second"""
-
-        import time
 
         query_count = 0
         end_time = time.time() + duration_seconds

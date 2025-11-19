@@ -1,3 +1,5 @@
+from typing import Tuple
+
 # Code from Chapter 28
 # Book: Embeddings at Scale
 

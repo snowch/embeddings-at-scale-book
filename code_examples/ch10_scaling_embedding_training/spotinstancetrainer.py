@@ -1,9 +1,12 @@
 # Code from Chapter 10
 # Book: Embeddings at Scale
-
 import signal
 import time
 from pathlib import Path
+from typing import Dict
+
+import torch
+import torch.nn as nn
 
 
 class SpotInstanceTrainer:

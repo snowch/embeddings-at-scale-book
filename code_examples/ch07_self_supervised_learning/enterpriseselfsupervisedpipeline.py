@@ -1,6 +1,7 @@
+import torch
+
 # Code from Chapter 07
 # Book: Embeddings at Scale
-
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel
 from torch.utils.data import DistributedSampler

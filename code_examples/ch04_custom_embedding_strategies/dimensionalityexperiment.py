@@ -1,3 +1,5 @@
+import pandas as pd
+
 # Code from Chapter 04
 # Book: Embeddings at Scale
 

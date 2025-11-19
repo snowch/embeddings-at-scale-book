@@ -1,3 +1,6 @@
+import torch
+import torch.nn as nn
+
 # Code from Chapter 08
 # Book: Embeddings at Scale
 
