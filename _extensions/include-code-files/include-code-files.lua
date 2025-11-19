@@ -71,26 +71,23 @@ local function snippet(cb, fh)
   cb.attributes.endLine = tostring(stop)
 end
 
---- Resolve file path relative to source file or project root
+--- Resolve file path - handle relative paths from chapter files
 local function resolve_path(include_path)
-  -- First try the path as-is (relative to project root or absolute)
+  -- Try the path as-is first
   local fh = io.open(include_path)
   if fh then
     fh:close()
     return include_path
   end
 
-  -- If that fails and we have PANDOC_STATE with input files, try relative to source
-  if PANDOC_STATE and PANDOC_STATE.input_files and #PANDOC_STATE.input_files > 0 then
-    local source_file = PANDOC_STATE.input_files[1]
-    local source_dir = source_file:match("(.*/)")
-    if source_dir then
-      local resolved = source_dir .. include_path
-      fh = io.open(resolved)
-      if fh then
-        fh:close()
-        return resolved
-      end
+  -- If path starts with ../, assume it's from a chapters/ subdirectory
+  -- Convert ../code_examples/ to code_examples/
+  if include_path:match("^%.%./") then
+    local without_parent = include_path:gsub("^%.%./", "")
+    fh = io.open(without_parent)
+    if fh then
+      fh:close()
+      return without_parent
     end
   end
 
