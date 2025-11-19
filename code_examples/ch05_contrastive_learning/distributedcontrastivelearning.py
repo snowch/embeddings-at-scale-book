@@ -81,8 +81,8 @@ class DistributedContrastiveLearning:
         """
         # Prepare tensors for gathering
         world_size = dist.get_world_size()
-        local_batch_size = local_embeddings.shape[0]
-        embedding_dim = local_embeddings.shape[1]
+        local_embeddings.shape[0]
+        local_embeddings.shape[1]
 
         # Create list of tensors to receive gathered embeddings
         gathered_embeddings = [

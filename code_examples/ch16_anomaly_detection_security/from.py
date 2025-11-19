@@ -270,9 +270,9 @@ class FraudDetectionSystem:
 
     def build_entity_mappings(self, transactions: List[Transaction]):
         """Build entity ID to index mappings"""
-        users = set(t.user_id for t in transactions)
-        merchants = set(t.merchant_id for t in transactions)
-        devices = set(t.device_id for t in transactions if t.device_id)
+        users = {t.user_id for t in transactions}
+        merchants = {t.merchant_id for t in transactions}
+        devices = {t.device_id for t in transactions if t.device_id}
 
         self.user_id_to_idx = {uid: idx for idx, uid in enumerate(users)}
         self.merchant_id_to_idx = {mid: idx for idx, mid in enumerate(merchants)}

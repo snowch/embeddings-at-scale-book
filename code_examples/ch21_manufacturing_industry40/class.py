@@ -41,7 +41,7 @@ import torch.nn.functional as F
 class SensorReading:
     """
     Multi-sensor time-series data
-    
+
     Attributes:
         timestamp: Reading timestamp
         machine_id: Machine identifier
@@ -65,7 +65,7 @@ class SensorReading:
 class QualityPrediction:
     """
     Predicted quality outcome
-    
+
     Attributes:
         product_id: Product identifier
         timestamp: Prediction timestamp
@@ -88,7 +88,7 @@ class QualityPrediction:
 class TemporalConvNet(nn.Module):
     """
     Temporal convolutional network for sensor time series
-    
+
     Captures local temporal patterns across multiple sensors
     with dilated convolutions for multi-scale dependencies.
     """
@@ -138,7 +138,7 @@ class TemporalConvNet(nn.Module):
 class SensorEncoder(nn.Module):
     """
     Encode multi-sensor time-series data to embeddings
-    
+
     Uses temporal convolutions + self-attention to capture
     both local patterns and long-range dependencies.
     """
@@ -217,7 +217,7 @@ class SensorEncoder(nn.Module):
 class DefectPredictor(nn.Module):
     """
     Predict defects from sensor + process + product embeddings
-    
+
     Multi-task model predicting:
     1. Binary defect probability
     2. Multi-class defect type
@@ -284,7 +284,7 @@ class DefectPredictor(nn.Module):
 class PredictiveQualitySystem:
     """
     Production-ready predictive quality control system
-    
+
     Manages:
     - Real-time sensor stream processing
     - Model inference with <10ms latency
@@ -360,7 +360,7 @@ class PredictiveQualitySystem:
     ) -> Optional[QualityPrediction]:
         """
         Process real-time sensor reading and predict quality
-        
+
         Returns prediction if window is full, None otherwise
         """
         machine_id = reading.machine_id
@@ -398,7 +398,7 @@ class PredictiveQualitySystem:
         defect_prob = predictions['defect_prob'].item()
         defect_type_logits = predictions['defect_type'].cpu().numpy()[0]
         severity_logits = predictions['severity'].cpu().numpy()[0]
-        time_to_defect = predictions['time_to_defect'].item()
+        predictions['time_to_defect'].item()
 
         # Create prediction object
         defect_types = ['surface_defect', 'dimensional', 'material', 'assembly', 'functional']
@@ -446,7 +446,7 @@ class PredictiveQualitySystem:
 def predictive_quality_example():
     """
     Example: Predictive quality control for automotive stamping
-    
+
     Scenario: Stamping press manufacturing car body panels
     - 50 sensors: force, position, temperature, vibration, acoustic
     - 200 strokes per minute

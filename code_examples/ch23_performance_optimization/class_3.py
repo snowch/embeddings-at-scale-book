@@ -37,7 +37,7 @@ from sklearn.cluster import MiniBatchKMeans
 class CompressionConfig:
     """
     Configuration for vector compression
-    
+
     Attributes:
         method: Compression method (pq, sq, binary, pca, sparse, learned)
         compression_ratio: Target compression ratio (2-32×)
@@ -59,7 +59,7 @@ class CompressionConfig:
 class CompressionMetrics:
     """
     Metrics for compressed vector storage
-    
+
     Attributes:
         original_size_bytes: Size before compression
         compressed_size_bytes: Size after compression
@@ -84,10 +84,10 @@ class CompressionMetrics:
 class ProductQuantizer:
     """
     Product Quantization for vector compression
-    
+
     Splits D-dimensional vector into M subvectors of D/M dimensions,
     quantizes each subvector independently using k-means codebook
-    
+
     Typical parameters:
     - M = 8-16 subvectors
     - k = 256 centroids per subvector (8-bit codes)
@@ -123,7 +123,7 @@ class ProductQuantizer:
     ) -> None:
         """
         Train PQ codebooks using k-means on subvectors
-        
+
         Args:
             vectors: Training vectors (n_samples, dim)
             sample_size: Use subset of vectors for training (faster)
@@ -170,10 +170,10 @@ class ProductQuantizer:
     def encode(self, vectors: np.ndarray) -> np.ndarray:
         """
         Encode vectors using PQ codes
-        
+
         Args:
             vectors: Vectors to encode (n_samples, dim)
-        
+
         Returns:
             codes: PQ codes (n_samples, n_subvectors) as uint8
         """
@@ -207,10 +207,10 @@ class ProductQuantizer:
     def decode(self, codes: np.ndarray) -> np.ndarray:
         """
         Decode PQ codes back to approximate vectors
-        
+
         Args:
             codes: PQ codes (n_samples, n_subvectors) as uint8
-        
+
         Returns:
             vectors: Reconstructed vectors (n_samples, dim)
         """
@@ -236,17 +236,17 @@ class ProductQuantizer:
     ) -> np.ndarray:
         """
         Compute distances between query and PQ-encoded vectors
-        
+
         Uses asymmetric distance computation (ADC):
         - Query is exact (not quantized)
         - Database vectors are quantized
-        
+
         Much faster than decoding + distance computation
-        
+
         Args:
             query: Query vector (dim,)
             codes: PQ codes (n_samples, n_subvectors)
-        
+
         Returns:
             distances: Approximate L2 distances (n_samples,)
         """
@@ -280,10 +280,10 @@ class ProductQuantizer:
     ) -> CompressionMetrics:
         """
         Compute compression metrics
-        
+
         Args:
             original_vectors: Original uncompressed vectors
-        
+
         Returns:
             metrics: Compression performance metrics
         """
@@ -319,11 +319,11 @@ class ProductQuantizer:
 class ScalarQuantizer:
     """
     Scalar Quantization: Map float32 → int8/int16
-    
+
     For each dimension independently:
     - Find min/max values
     - Map linearly to integer range
-    
+
     Simpler than PQ, less compression but faster and more accurate
     """
 
@@ -349,7 +349,7 @@ class ScalarQuantizer:
     def train(self, vectors: np.ndarray) -> None:
         """
         Learn quantization parameters (min/max per dimension)
-        
+
         Args:
             vectors: Training vectors (n_samples, dim)
         """
@@ -362,10 +362,10 @@ class ScalarQuantizer:
     def encode(self, vectors: np.ndarray) -> np.ndarray:
         """
         Encode vectors to quantized form
-        
+
         Args:
             vectors: Vectors to encode (n_samples, dim)
-        
+
         Returns:
             quantized: Quantized vectors (n_samples, dim) as uint8/uint16
         """
@@ -388,10 +388,10 @@ class ScalarQuantizer:
     def decode(self, quantized: np.ndarray) -> np.ndarray:
         """
         Decode quantized vectors back to float32
-        
+
         Args:
             quantized: Quantized vectors (n_samples, dim)
-        
+
         Returns:
             vectors: Reconstructed float32 vectors
         """
@@ -438,7 +438,7 @@ class ScalarQuantizer:
 class BinaryQuantizer:
     """
     Binary Quantization: Map to {-1, +1} or {0, 1}
-    
+
     Extreme compression (32× for float32)
     Works well for certain embeddings (e.g., locality-sensitive hashing)
     """
@@ -453,10 +453,10 @@ class BinaryQuantizer:
     def encode(self, vectors: np.ndarray) -> np.ndarray:
         """
         Encode vectors to binary
-        
+
         Args:
             vectors: Vectors to encode (n_samples, dim)
-        
+
         Returns:
             binary: Binary vectors (n_samples, dim) as bool
         """
@@ -465,10 +465,10 @@ class BinaryQuantizer:
     def decode(self, binary: np.ndarray) -> np.ndarray:
         """
         Decode binary to float (maps to {-1, +1})
-        
+
         Args:
             binary: Binary vectors (n_samples, dim) as bool
-        
+
         Returns:
             vectors: Reconstructed vectors as float32
         """
@@ -481,13 +481,13 @@ class BinaryQuantizer:
     ) -> np.ndarray:
         """
         Compute Hamming distance between query and binary vectors
-        
+
         Much faster than Euclidean distance
-        
+
         Args:
             query: Binary query vector (dim,) as bool
             binary_vectors: Binary vectors (n_samples, dim) as bool
-        
+
         Returns:
             distances: Hamming distances (n_samples,)
         """
@@ -529,7 +529,7 @@ class BinaryQuantizer:
 class DimensionalityReducer:
     """
     Dimensionality reduction via PCA or random projection
-    
+
     Reduces 768-dim → 256-dim (3× compression)
     Faster similarity search in lower dimensions
     """
@@ -557,7 +557,7 @@ class DimensionalityReducer:
     ) -> None:
         """
         Learn projection matrix
-        
+
         Args:
             vectors: Training vectors (n_samples, dim)
             sample_size: Use subset for training (faster)
@@ -597,10 +597,10 @@ class DimensionalityReducer:
     def encode(self, vectors: np.ndarray) -> np.ndarray:
         """
         Project vectors to lower dimension
-        
+
         Args:
             vectors: Vectors to encode (n_samples, dim)
-        
+
         Returns:
             projected: Projected vectors (n_samples, target_dim)
         """

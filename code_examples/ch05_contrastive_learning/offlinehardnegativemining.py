@@ -146,7 +146,7 @@ class OfflineHardNegativeMining:
             # Filter out self and known positives
             hard_neg_ids = []
 
-            for score, idx_result in zip(scores[0], indices[0]):
+            for _score, idx_result in zip(scores[0], indices[0]):
                 # Skip self
                 if idx_result == query_id:
                     continue
@@ -276,7 +276,7 @@ def train_with_offline_hard_negatives(model, base_dataset, device, num_epochs=10
 
         # Train epoch
         model.train()
-        for batch in train_loader:
+        for _batch in train_loader:
             # Training step with anchor, positive, hard negative
             # ... (standard training loop)
             pass

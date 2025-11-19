@@ -38,7 +38,7 @@ class ProgressiveDimensionReduction:
         """
         optimizer = torch.optim.Adam(projection.parameters(), lr=1e-3)
 
-        for epoch in range(10):
+        for _epoch in range(10):
             # Sample pairs
             if pairs is None:
                 idx1 = torch.randint(0, len(embeddings), (1000,))

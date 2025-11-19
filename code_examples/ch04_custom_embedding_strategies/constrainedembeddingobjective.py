@@ -87,7 +87,7 @@ class ConstrainedEmbeddingObjective:
 
             elif constraint['type'] == 'price_range':
                 # Check price range coverage
-                price_ranges = set(item['price_tier'] for item in selected)
+                price_ranges = {item['price_tier'] for item in selected}
                 range_coverage = len(price_ranges) / 5  # Assuming 5 price tiers
                 if range_coverage < constraint['threshold']:
                     return False

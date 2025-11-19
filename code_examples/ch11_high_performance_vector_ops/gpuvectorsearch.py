@@ -390,7 +390,7 @@ def gpu_acceleration_example():
     batch_queries = batch_queries / np.linalg.norm(batch_queries, axis=1, keepdims=True)
 
     batch_start = time.time()
-    batch_results = gpu_fp16.batch_search_async(batch_queries, k=10, batch_size=10)
+    gpu_fp16.batch_search_async(batch_queries, k=10, batch_size=10)
     batch_elapsed = (time.time() - batch_start) * 1000
 
     print(f"Total latency: {batch_elapsed:.2f} ms")

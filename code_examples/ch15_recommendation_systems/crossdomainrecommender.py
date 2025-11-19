@@ -173,8 +173,8 @@ class TransferLearningRecommender:
         print(f"\nPre-training on source domain ({len(source_interactions)} interactions)...")
 
         # Extract unique users/items
-        user_ids = set(i.user_id for i in source_interactions)
-        item_ids = set(i.item_id for i in source_interactions)
+        user_ids = {i.user_id for i in source_interactions}
+        item_ids = {i.item_id for i in source_interactions}
 
         # Initialize source model
         self.source_model = CollaborativeFilteringModel(
@@ -206,8 +206,8 @@ class TransferLearningRecommender:
         print(f"\nTransferring to target domain ({len(target_interactions)} interactions)...")
 
         # Extract unique users/items
-        user_ids = set(i.user_id for i in target_interactions)
-        item_ids = set(i.item_id for i in target_interactions)
+        user_ids = {i.user_id for i in target_interactions}
+        item_ids = {i.item_id for i in target_interactions}
 
         # Initialize target model
         self.target_model = CollaborativeFilteringModel(

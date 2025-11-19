@@ -92,7 +92,7 @@ class FederatedEmbeddingServer:
         global_state = self.global_model.state_dict()
 
         # Weighted average
-        for key in global_state.keys():
+        for key in global_state:
             # Start with zeros
             global_state[key] = torch.zeros_like(global_state[key])
 
@@ -174,7 +174,7 @@ class FederatedEmbeddingClient:
 
         num_samples = len(self.local_data)
 
-        for epoch in range(num_epochs):
+        for _epoch in range(num_epochs):
             # Shuffle local data
             indices = torch.randperm(num_samples)
 

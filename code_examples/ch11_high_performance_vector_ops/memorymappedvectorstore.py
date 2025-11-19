@@ -409,7 +409,7 @@ def memory_mapped_example():
 
     start_time = time.time()
     for idx in random_indices:
-        vector = store.get_vector(idx)
+        store.get_vector(idx)
     elapsed = time.time() - start_time
 
     print(f"Random access: {elapsed:.3f}s for 100 vectors ({elapsed/100*1000:.2f} ms/vector)")

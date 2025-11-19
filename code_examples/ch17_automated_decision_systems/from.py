@@ -37,7 +37,7 @@ import torch.nn.functional as F
 class BusinessCase:
     """
     Historical business decision case
-    
+
     Attributes:
         case_id: Unique identifier
         entity_type: Type (customer, product, transaction)
@@ -65,7 +65,7 @@ class BusinessCase:
 class DecisionRequest:
     """
     Request for automated decision
-    
+
     Attributes:
         request_id: Unique identifier
         entity_type: Type (customer, product, transaction)
@@ -88,13 +88,13 @@ class DecisionRequest:
 class EntityEncoder(nn.Module):
     """
     Encode entities to embeddings for decision making
-    
+
     Architecture:
     - Demographic features: Age, location, income, etc.
     - Behavioral features: Transaction history, engagement patterns
     - Contextual features: Current situation, external factors
     - MLP: Combine features into entity embedding
-    
+
     Training:
     - Metric learning: Entities with similar outcomes close
     - Outcome prediction: Embedding predicts decision outcome
@@ -139,11 +139,11 @@ class EntityEncoder(nn.Module):
     ) -> torch.Tensor:
         """
         Encode entities to embeddings
-        
+
         Args:
             categorical_features: Categorical features (batch_size, num_categorical)
             numerical_features: Numerical features (batch_size, num_numerical)
-        
+
         Returns:
             Entity embeddings (batch_size, embedding_dim)
         """
@@ -170,12 +170,12 @@ class EntityEncoder(nn.Module):
 class DecisionModel(nn.Module):
     """
     Predict decision outcomes from embeddings
-    
+
     Architecture:
     - Entity embedding input
     - MLP classifier/regressor
     - Output: Decision outcome prediction
-    
+
     Training:
     - Classification: Binary (approve/reject) or multi-class
     - Regression: Continuous outcome (LTV, default probability)
@@ -204,10 +204,10 @@ class DecisionModel(nn.Module):
     def forward(self, embeddings: torch.Tensor) -> torch.Tensor:
         """
         Predict outcomes from embeddings
-        
+
         Args:
             embeddings: Entity embeddings (batch_size, embedding_dim)
-        
+
         Returns:
             Predictions (batch_size, num_outcomes)
         """
@@ -221,7 +221,7 @@ class DecisionModel(nn.Module):
 class CaseBasedReasoning:
     """
     Make decisions by retrieving similar historical cases
-    
+
     Approach:
     1. New request arrives
     2. Encode request to embedding
@@ -229,7 +229,7 @@ class CaseBasedReasoning:
     4. Aggregate outcomes from similar cases
     5. Make decision based on historical outcomes
     6. Explain via similar cases
-    
+
     Advantages:
     - Intuitive: Decisions based on "what happened before"
     - Explainable: Can show similar past cases
@@ -258,7 +258,7 @@ class CaseBasedReasoning:
     ):
         """
         Add historical case to database
-        
+
         Args:
             case: Business case with outcome
             embedding: Case embedding
@@ -282,11 +282,11 @@ class CaseBasedReasoning:
     ) -> List[Tuple[BusinessCase, float]]:
         """
         Retrieve k most similar historical cases
-        
+
         Args:
             query_embedding: Query embedding (embedding_dim,)
             k: Number of neighbors (defaults to self.k_neighbors)
-        
+
         Returns:
             List of (case, similarity_score) tuples
         """
@@ -317,11 +317,11 @@ class CaseBasedReasoning:
     ) -> Tuple[Any, float, List[BusinessCase]]:
         """
         Make decision based on similar cases
-        
+
         Args:
             request: Decision request
             request_embedding: Request embedding
-        
+
         Returns:
             (decision, confidence, supporting_cases)
         """
@@ -370,12 +370,12 @@ class CaseBasedReasoning:
 class HybridDecisionSystem:
     """
     Combine embedding-based decisions with rule-based constraints
-    
+
     Architecture:
     1. Embedding model makes initial decision
     2. Rule engine enforces hard constraints
     3. Hybrid score combines model + rules
-    
+
     Use cases:
     - Regulatory compliance: Hard rules for legal requirements
     - Business constraints: Inventory, capacity limits
@@ -399,10 +399,10 @@ class HybridDecisionSystem:
     ) -> Tuple[bool, List[str]]:
         """
         Check hard constraint rules
-        
+
         Args:
             request: Decision request
-        
+
         Returns:
             (passed, violated_rules)
         """
@@ -431,11 +431,11 @@ class HybridDecisionSystem:
     ) -> Dict[str, Any]:
         """
         Make decision combining model and rules
-        
+
         Args:
             request: Decision request
             request_embedding: Request embedding
-        
+
         Returns:
             Decision result with explanation
         """
@@ -486,13 +486,13 @@ class HybridDecisionSystem:
 def credit_approval_example():
     """
     Credit approval using embedding-driven business rules
-    
+
     Traditional approach:
     - Credit score > 700
     - Income > $50K
     - Debt-to-income < 40%
     - No recent delinquencies
-    
+
     Embedding approach:
     - Encode applicant to embedding
     - Find similar past applicants

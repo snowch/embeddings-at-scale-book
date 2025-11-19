@@ -49,7 +49,7 @@ class ContextualEmbedding:
 class AGIEmbeddingSystem:
     """
     AGI-inspired embedding system with dynamic, context-aware representations
-    
+
     Features:
     - Continual learning from interactions
     - Context-dependent embeddings
@@ -92,7 +92,7 @@ class AGIEmbeddingSystem:
     ) -> ContextualEmbedding:
         """
         Generate context-aware embedding for multi-modal content
-        
+
         Process:
         1. Retrieve relevant memories based on context
         2. Integrate multi-modal signals
@@ -158,7 +158,7 @@ class AGIEmbeddingSystem:
     ) -> np.ndarray:
         """
         Integrate multi-modal content into unified embedding
-        
+
         Modalities might include:
         - Text: language content
         - Vision: visual features
@@ -219,7 +219,7 @@ class AGIEmbeddingSystem:
         context_embedding = np.zeros(self.base_dim)
 
         # Encode conversation history (recency-weighted)
-        for i, message in enumerate(context.conversation_history[-10:]):
+        for i, _message in enumerate(context.conversation_history[-10:]):
             weight = 0.9 ** (len(context.conversation_history) - i - 1)
             # In practice, encode message with language model
             message_emb = np.random.randn(self.base_dim)
@@ -264,7 +264,7 @@ class AGIEmbeddingSystem:
         # Similarity search in semantic memory
         similarities = self.semantic_memory @ query
         top_k = 5
-        top_indices = np.argsort(similarities)[-top_k:][::-1]
+        np.argsort(similarities)[-top_k:][::-1]
 
         # Retrieve episodic memories (most recent relevant)
         relevant_episodes = []
@@ -288,7 +288,7 @@ class AGIEmbeddingSystem:
         """Generate alternative embeddings with probabilities"""
         alternatives = []
 
-        for i in range(num_alternatives):
+        for _i in range(num_alternatives):
             # Add controlled noise for alternatives
             noise = np.random.randn(self.base_dim) * 0.1
             alt_embedding = base_embedding + noise
@@ -419,7 +419,7 @@ class AGIEmbeddingSystem:
     ):
         """
         Continual learning from feedback
-        
+
         Updates system based on user feedback, corrections, or outcomes
         """
         # Extract learning signal
@@ -494,7 +494,7 @@ def demonstrate_agi_embedding():
         print(f"  {factor}: {weight:.3f}")
 
     print("\nAlternative Embeddings (uncertainty):")
-    for i, (alt_emb, prob) in enumerate(result.alternatives):
+    for i, (_alt_emb, prob) in enumerate(result.alternatives):
         print(f"  Alternative {i+1}: probability = {prob:.3f}")
 
     # Simulate feedback and continual learning

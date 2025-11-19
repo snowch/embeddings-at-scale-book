@@ -40,7 +40,7 @@ from sklearn.metrics import calinski_harabasz_score, davies_bouldin_score, silho
 class EmbeddingBatch:
     """
     Batch of embeddings for quality analysis
-    
+
     Attributes:
         embeddings: Array of embedding vectors (N, D)
         ids: Embedding identifiers
@@ -60,36 +60,36 @@ class EmbeddingBatch:
 class QualityMetrics:
     """
     Comprehensive embedding quality metrics
-    
+
     Attributes:
         timestamp: When metrics were computed
         model_version: Embedding model version
-        
+
         # Intrinsic metrics
         intra_cluster_similarity: Average similarity within clusters
         inter_cluster_similarity: Average similarity between clusters
         silhouette_score: Silhouette coefficient (-1 to 1, higher better)
         davies_bouldin_score: DB index (lower better)
         calinski_harabasz_score: CH score (higher better)
-        
+
         # Dimension utilization
         dimension_variance: Per-dimension variance
         effective_dimensions: Number of dimensions with >1% variance
         dimension_entropy: Entropy of dimension importance
-        
+
         # Calibration metrics
         similarity_distribution: Histogram of pairwise similarities
         score_calibration_error: Calibration error for similarity scores
         threshold_stability: Variance in optimal threshold across folds
-        
+
         # Stability metrics
         temporal_stability: Correlation with previous batch
         cross_version_stability: Correlation with other model versions
-        
+
         # Downstream metrics (if available)
         downstream_accuracy: Performance on labeled task
         proxy_metrics: Dict of proxy task metrics
-        
+
         # Anomaly flags
         anomalies: List of detected quality anomalies
         quality_score: Overall quality score (0-100)
@@ -129,7 +129,7 @@ class QualityMetrics:
 class EmbeddingQualityMonitor:
     """
     Comprehensive embedding quality monitoring system
-    
+
     Tracks intrinsic and extrinsic quality metrics, detects anomalies,
     alerts on degradation, and enables continuous quality improvement.
     """
@@ -143,7 +143,7 @@ class EmbeddingQualityMonitor:
     ):
         """
         Initialize quality monitoring system
-        
+
         Args:
             reference_embeddings: Baseline embeddings for comparison
             quality_thresholds: (min, max) thresholds for each metric
@@ -185,12 +185,12 @@ class EmbeddingQualityMonitor:
     ) -> QualityMetrics:
         """
         Compute comprehensive quality metrics for embedding batch
-        
+
         Args:
             batch: Embedding batch to analyze
             n_clusters: Number of clusters for clustering metrics
             sample_size: Sample size for expensive computations
-            
+
         Returns:
             QualityMetrics object with all computed metrics
         """
@@ -365,7 +365,7 @@ class EmbeddingQualityMonitor:
     ) -> float:
         """
         Compute calibration error for similarity scores
-        
+
         For labeled data: similarity score should correlate with label agreement
         For unlabeled: return 0 (cannot compute without ground truth)
         """
@@ -414,7 +414,7 @@ class EmbeddingQualityMonitor:
     ) -> float:
         """
         Compute stability of optimal similarity threshold across data splits
-        
+
         For unlabeled data: return 0 (cannot compute without ground truth)
         """
         if labels is None:
@@ -427,8 +427,8 @@ class EmbeddingQualityMonitor:
         optimal_thresholds = []
 
         for train_idx, val_idx in kf.split(embeddings):
-            train_emb, val_emb = embeddings[train_idx], embeddings[val_idx]
-            train_labels, val_labels = labels[train_idx], labels[val_idx]
+            _train_emb, val_emb = embeddings[train_idx], embeddings[val_idx]
+            _train_labels, val_labels = labels[train_idx], labels[val_idx]
 
             # Find optimal threshold on validation set
             thresholds = np.linspace(0, 1, 50)
@@ -466,7 +466,7 @@ class EmbeddingQualityMonitor:
     ) -> float:
         """
         Compute stability between current and previous embeddings
-        
+
         Uses dimension-wise correlation of variance patterns
         """
         current_variance = np.var(current_embeddings, axis=0)
@@ -488,7 +488,7 @@ class EmbeddingQualityMonitor:
     ) -> float:
         """
         Compute stability between different model versions
-        
+
         Compares embeddings for same IDs across versions
         """
         # Find common IDs
@@ -609,7 +609,7 @@ class EmbeddingQualityMonitor:
     def _compute_quality_score(self, metrics: QualityMetrics) -> float:
         """
         Compute overall quality score (0-100)
-        
+
         Weighted combination of normalized metrics
         """
         scores = []
@@ -716,7 +716,7 @@ Percentiles: Q25={metrics.similarity_distribution['q25']:.3f}, Q50={metrics.simi
     def plot_quality_trends(self, metrics_list: Optional[List[QualityMetrics]] = None):
         """
         Plot quality metrics over time
-        
+
         Args:
             metrics_list: List of metrics to plot (defaults to history)
         """

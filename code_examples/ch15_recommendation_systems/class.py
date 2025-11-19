@@ -272,7 +272,7 @@ class HybridRecommender:
 
         recommendations = {}
 
-        for item_id, features in item_features.items():
+        for item_id, _features in item_features.items():
             # Get item interaction count
             item_interactions = self.item_interaction_counts.get(item_id, 0)
             item_weight = self.get_blending_weight(item_interactions)

@@ -8,10 +8,12 @@ class DimensionalityExperiment:
     Systematically evaluate different embedding dimensions
     """
 
-    def run_dimensionality_sweep(self, train_data, test_data, dimensions=[128, 256, 384, 512, 768]):
+    def run_dimensionality_sweep(self, train_data, test_data, dimensions=None):
         """
         Train models at different dimensions and evaluate
         """
+        if dimensions is None:
+            dimensions = [128, 256, 384, 512, 768]
         results = []
 
         for dim in dimensions:

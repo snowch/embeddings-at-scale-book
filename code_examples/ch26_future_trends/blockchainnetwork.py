@@ -68,7 +68,7 @@ class EmbeddingContract:
 class DecentralizedEmbeddingRegistry:
     """
     Blockchain-based registry for embeddings
-    
+
     Simulates decentralized registry with:
     - Registration (upload to IPFS, register on blockchain)
     - Discovery (search registry)
@@ -91,7 +91,7 @@ class DecentralizedEmbeddingRegistry:
     ) -> str:
         """
         Register embeddings on decentralized network
-        
+
         Steps:
         1. Upload embeddings to IPFS (content-addressed storage)
         2. Create smart contract for access control
@@ -132,7 +132,7 @@ class DecentralizedEmbeddingRegistry:
     def _upload_to_ipfs(self, embeddings: np.ndarray) -> str:
         """
         Upload embeddings to IPFS
-        
+
         Returns content address (CID)
         """
         # In practice, use IPFS client library (ipfshttpclient)
@@ -177,7 +177,7 @@ class DecentralizedEmbeddingRegistry:
     ) -> List[EmbeddingMetadata]:
         """
         Search decentralized registry
-        
+
         Query filters:
         - embedding_type: Type of embeddings
         - min_quality: Minimum quality score
@@ -186,26 +186,23 @@ class DecentralizedEmbeddingRegistry:
         """
         results = []
 
-        for embedding_id, metadata in self.registry.items():
+        for _embedding_id, metadata in self.registry.items():
             # Filter by type
             if 'embedding_type' in query:
                 if metadata.embedding_type != query['embedding_type']:
                     continue
 
             # Filter by quality
-            if 'min_quality' in query:
-                if metadata.quality_score < query['min_quality']:
-                    continue
+            if 'min_quality' in query and metadata.quality_score < query['min_quality']:
+                continue
 
             # Filter by price
-            if 'max_price' in query:
-                if metadata.price_per_query > query['max_price']:
-                    continue
+            if 'max_price' in query and metadata.price_per_query > query['max_price']:
+                continue
 
             # Filter by samples
-            if 'min_samples' in query:
-                if metadata.num_samples < query['min_samples']:
-                    continue
+            if 'min_samples' in query and metadata.num_samples < query['min_samples']:
+                continue
 
             results.append(metadata)
 
@@ -222,7 +219,7 @@ class DecentralizedEmbeddingRegistry:
     ) -> Dict[str, Any]:
         """
         Request access to embeddings
-        
+
         Verifies payment and permissions via smart contract
         """
         if embedding_id not in self.contracts:
@@ -282,7 +279,7 @@ class DecentralizedEmbeddingRegistry:
     ) -> Optional[np.ndarray]:
         """
         Download embedding from IPFS
-        
+
         Requires valid access token
         """
         # Verify access token

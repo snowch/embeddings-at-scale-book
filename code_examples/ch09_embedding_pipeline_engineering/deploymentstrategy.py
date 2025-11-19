@@ -329,7 +329,6 @@ class EmbeddingVersionCoordinator:
         print(f"Re-embedding corpus into {target_index}...")
 
         processed = 0
-        batch_size = 1024
 
         with torch.no_grad():
             for batch in corpus_iterator:

@@ -108,7 +108,7 @@ class AdvancedMLM:
 
         # Find entity positions
         entity_positions = []
-        for entity_text, entity_type in entities:
+        for entity_text, _entity_type in entities:
             entity_tokens = self.tokenizer.tokenize(entity_text)
 
             # Find entity in tokens

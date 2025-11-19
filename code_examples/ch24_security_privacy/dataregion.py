@@ -74,7 +74,7 @@ class DataCategory(Enum):
 class ConsentRecord:
     """
     User consent for data processing
-    
+
     Attributes:
         user_id: User identifier
         purpose: Purpose of processing
@@ -100,7 +100,7 @@ class ConsentRecord:
 class DeletionRequest:
     """
     User request for data deletion
-    
+
     Attributes:
         request_id: Unique request identifier
         user_id: User requesting deletion
@@ -124,7 +124,7 @@ class DeletionRequest:
 class ExportRequest:
     """
     User request for data export
-    
+
     Attributes:
         request_id: Unique request identifier
         user_id: User requesting export
@@ -146,7 +146,7 @@ class ExportRequest:
 class BreachIncident:
     """
     Data breach incident record
-    
+
     Attributes:
         incident_id: Unique incident identifier
         detected_at: When breach was detected
@@ -171,7 +171,7 @@ class BreachIncident:
 class GDPRComplianceEngine:
     """
     GDPR and data sovereignty compliance engine
-    
+
     Implements:
     - Data residency: Geographic partitioning
     - Consent management: Track legal basis
@@ -207,10 +207,10 @@ class GDPRComplianceEngine:
     def determine_region(self, user_location: str) -> DataRegion:
         """
         Determine data residency region based on user location
-        
+
         Args:
             user_location: User's country code (ISO 3166-1 alpha-2)
-            
+
         Returns:
             Data residency region
         """
@@ -252,7 +252,7 @@ class GDPRComplianceEngine:
     ):
         """
         Store embedding in appropriate regional partition
-        
+
         Args:
             user_id: User identifier
             embedding: Embedding vector
@@ -289,7 +289,7 @@ class GDPRComplianceEngine:
     ) -> ConsentRecord:
         """
         Record user consent for data processing
-        
+
         Args:
             user_id: User identifier
             purpose: Purpose of processing
@@ -297,7 +297,7 @@ class GDPRComplianceEngine:
             data_categories: Types of data
             consent_text: Text shown to user
             expires_in_days: Consent expiration (days)
-            
+
         Returns:
             Consent record
         """
@@ -330,11 +330,11 @@ class GDPRComplianceEngine:
     ) -> bool:
         """
         Check if user has valid consent for purpose
-        
+
         Args:
             user_id: User identifier
             purpose: Purpose to check
-            
+
         Returns:
             True if consent exists and is valid
         """
@@ -364,7 +364,7 @@ class GDPRComplianceEngine:
     ):
         """
         Withdraw user consent for purpose
-        
+
         Args:
             user_id: User identifier
             purpose: Purpose to withdraw
@@ -384,18 +384,18 @@ class GDPRComplianceEngine:
     ) -> DeletionRequest:
         """
         Submit deletion request (GDPR Article 17)
-        
+
         Steps:
         1. Verify user identity
         2. Create deletion request
         3. Process asynchronously
         4. Confirm completion to user
-        
+
         Args:
             user_id: User identifier
             scope: What to delete
             verification: Identity verification details
-            
+
         Returns:
             Deletion request
         """
@@ -422,7 +422,7 @@ class GDPRComplianceEngine:
     def _process_deletion(self, request: DeletionRequest):
         """
         Process deletion request
-        
+
         Steps:
         1. Identify all data for user
         2. Check retention requirements
@@ -430,7 +430,7 @@ class GDPRComplianceEngine:
         4. Remove from training data
         5. Remove from backups (gradual)
         6. Update request status
-        
+
         Args:
             request: Deletion request
         """
@@ -470,13 +470,13 @@ class GDPRComplianceEngine:
     ) -> ExportRequest:
         """
         Submit data export request (GDPR Article 20)
-        
+
         Generate machine-readable export of user's data
-        
+
         Args:
             user_id: User identifier
             format: Export format
-            
+
         Returns:
             Export request
         """
@@ -502,13 +502,13 @@ class GDPRComplianceEngine:
     def _generate_export(self, request: ExportRequest):
         """
         Generate data export for user
-        
+
         Include:
         - Personal information
         - Embeddings
         - Processing history
         - Consent records
-        
+
         Args:
             request: Export request
         """
@@ -562,17 +562,17 @@ class GDPRComplianceEngine:
     ) -> BreachIncident:
         """
         Report data breach incident
-        
+
         GDPR Article 33: Report to supervisory authority within 72 hours
         GDPR Article 34: Notify affected individuals if high risk
-        
+
         Args:
             breach_type: Type of breach
             affected_users: Number affected
             data_categories: Types of data exposed
             severity: Severity level
             description: Incident description
-            
+
         Returns:
             Breach incident record
         """
@@ -606,7 +606,7 @@ class GDPRComplianceEngine:
     def generate_compliance_report(self) -> Dict[str, Any]:
         """
         Generate compliance status report
-        
+
         Returns:
             Compliance metrics and status
         """
@@ -669,7 +669,7 @@ def gdpr_compliance_example():
 
     # Record consent for EU user
     print("1. Recording consent:")
-    consent = gdpr.record_consent(
+    gdpr.record_consent(
         user_id="user_eu_123",
         purpose="embedding_storage",
         legal_basis=LegalBasis.CONSENT,
@@ -692,7 +692,7 @@ def gdpr_compliance_example():
 
     # Request data export (Article 20)
     print("3. Data portability - user requests export:")
-    export_request = gdpr.request_export(user_id="user_eu_123", format="json")
+    gdpr.request_export(user_id="user_eu_123", format="json")
     print()
 
     # Withdraw consent
@@ -702,7 +702,7 @@ def gdpr_compliance_example():
 
     # Request deletion (Article 17)
     print("5. Right to deletion - user requests removal:")
-    deletion_request = gdpr.request_deletion(
+    gdpr.request_deletion(
         user_id="user_eu_123",
         scope="all",
         verification={"method": "email", "verified": True}
@@ -711,7 +711,7 @@ def gdpr_compliance_example():
 
     # Report data breach
     print("6. Breach notification:")
-    breach = gdpr.report_breach(
+    gdpr.report_breach(
         breach_type="unauthorized_access",
         affected_users=1,
         data_categories=[DataCategory.BEHAVIORAL],

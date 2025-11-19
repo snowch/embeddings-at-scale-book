@@ -215,7 +215,7 @@ class DistributedContrastiveEmbedding(nn.Module):
 
         # Compute similarity matrix
         # (global_batch_size, global_batch_size)
-        logits_aa = torch.matmul(anchor_proj_all, anchor_proj_all.T) / self.temperature
+        torch.matmul(anchor_proj_all, anchor_proj_all.T) / self.temperature
         logits_ap = torch.matmul(anchor_proj_all, positive_proj_all.T) / self.temperature
 
         # Contrastive loss (InfoNCE)

@@ -103,7 +103,7 @@ class QueueBasedHardNegativeMining:
         """
         Compute contrastive loss using hard negatives from queue
         """
-        batch_size = anchor_emb.shape[0]
+        anchor_emb.shape[0]
 
         # Get hard negatives
         hard_negs, hard_neg_sims = self.mine_hard_negatives(

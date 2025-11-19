@@ -37,7 +37,7 @@ Production considerations:
 class ComplianceRule:
     """
     Regulatory or internal compliance rule
-    
+
     Attributes:
         rule_id: Unique identifier
         rule_type: Type (AML, trading, privacy, etc.)
@@ -59,7 +59,7 @@ class ComplianceRule:
 class ComplianceEvent:
     """
     Event requiring compliance review
-    
+
     Attributes:
         event_id: Unique identifier
         event_type: Type (transaction, communication, etc.)
@@ -82,10 +82,10 @@ class ComplianceEvent:
 class ComplianceEncoder(nn.Module):
     """
     Encode compliance rules and events
-    
+
     Uses same embedding space for rules and events,
     enabling semantic similarity matching.
-    
+
     Training:
     - Contrastive: Violations close to violated rules
     - Classification: Predict rule type from content
@@ -128,11 +128,11 @@ class ComplianceEncoder(nn.Module):
     ) -> torch.Tensor:
         """
         Encode compliance rules or events
-        
+
         Args:
             text_embeddings: Text embeddings (batch_size, seq_len, 768)
             structured_features: Structured features (batch_size, 50)
-        
+
         Returns:
             Compliance embeddings (batch_size, embedding_dim)
         """
@@ -156,7 +156,7 @@ class ComplianceEncoder(nn.Module):
 def aml_monitoring_example():
     """
     Anti-money laundering transaction monitoring
-    
+
     Detects suspicious patterns:
     - Structuring (splitting large transactions to avoid reporting)
     - Rapid movement (funds in and out quickly)

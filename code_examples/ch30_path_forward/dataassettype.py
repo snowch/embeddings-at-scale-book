@@ -104,7 +104,7 @@ class AdvantageCompounding:
         """Project advantage value over time"""
         # Compound growth with diminishing returns
         value = self.initial_value
-        for month in range(months):
+        for _month in range(months):
             growth = self.compound_rate * (1 - value / 100)  # Diminishing returns
             erosion = self.erosion_rate
             value = value * (1 + growth - erosion)
@@ -180,7 +180,7 @@ class SustainableAdvantageBuilder:
         allocation = {}
         remaining_budget = total_budget
 
-        for name, cost, compound_rate in sorted_options:
+        for name, cost, _compound_rate in sorted_options:
             if remaining_budget >= cost:
                 allocation[name] = cost
                 remaining_budget -= cost

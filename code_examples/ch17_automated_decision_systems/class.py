@@ -34,7 +34,7 @@ Production:
 class Product:
     """
     Product available for purchase
-    
+
     Attributes:
         product_id: Unique identifier
         category: Product category
@@ -62,7 +62,7 @@ class Product:
 class Customer:
     """
     Customer making purchase decision
-    
+
     Attributes:
         customer_id: Unique identifier
         demographics: Age, location, income
@@ -89,7 +89,7 @@ class Customer:
 class ProductEncoder(nn.Module):
     """
     Encode products to embeddings for pricing
-    
+
     Architecture:
     - Product features: Category, brand, attributes
     - Price history: Historical prices and demand
@@ -126,12 +126,12 @@ class ProductEncoder(nn.Module):
     ) -> torch.Tensor:
         """
         Encode products
-        
+
         Args:
             category_ids: Category IDs (batch_size,)
             brand_ids: Brand IDs (batch_size,)
             numerical_features: Numerical features (batch_size, num_features)
-        
+
         Returns:
             Product embeddings (batch_size, embedding_dim)
         """
@@ -153,7 +153,7 @@ class ProductEncoder(nn.Module):
 class CustomerEncoder(nn.Module):
     """
     Encode customers to embeddings for pricing
-    
+
     Architecture:
     - Demographics: Age, income, location
     - Purchase history: Past products, average spend
@@ -187,11 +187,11 @@ class CustomerEncoder(nn.Module):
     ) -> torch.Tensor:
         """
         Encode customers
-        
+
         Args:
             customer_ids: Customer IDs (batch_size,)
             numerical_features: Numerical features (batch_size, num_features)
-        
+
         Returns:
             Customer embeddings (batch_size, embedding_dim)
         """
@@ -212,14 +212,14 @@ class CustomerEncoder(nn.Module):
 class DemandModel(nn.Module):
     """
     Predict purchase probability as function of price
-    
+
     Model: P(purchase | product, customer, price, context)
-    
+
     Architecture:
     - Input: (product_emb, customer_emb, price, context)
     - MLP: Predict purchase probability
     - Training: Binary classification (purchased / not purchased)
-    
+
     Usage:
     - For each price point, predict demand
     - Optimize: price * demand * (price - cost)
@@ -255,13 +255,13 @@ class DemandModel(nn.Module):
     ) -> torch.Tensor:
         """
         Predict purchase probability
-        
+
         Args:
             product_emb: Product embeddings (batch_size, embedding_dim)
             customer_emb: Customer embeddings (batch_size, embedding_dim)
             price: Prices (batch_size, 1)
             context: Context features (batch_size, context_dim)
-        
+
         Returns:
             Purchase probabilities (batch_size, 1)
         """
@@ -276,7 +276,7 @@ class DemandModel(nn.Module):
 class DynamicPricingEngine:
     """
     Dynamic pricing engine using embeddings
-    
+
     Approach:
     1. Encode product and customer to embeddings
     2. For each candidate price:
@@ -309,13 +309,13 @@ class DynamicPricingEngine:
     ) -> Tuple[float, Dict[str, Any]]:
         """
         Optimize price for product-customer pair
-        
+
         Args:
             product: Product to price
             customer: Customer considering purchase
             context: Market context (time, inventory, etc.)
             num_price_points: Number of price points to evaluate
-        
+
         Returns:
             (optimal_price, analysis)
         """
@@ -383,13 +383,13 @@ class DynamicPricingEngine:
 def dynamic_pricing_example():
     """
     Dynamic pricing for e-commerce
-    
+
     Scenario:
     - Product: Wireless headphones
     - Cost: $50
     - Base price: $100
     - Customer segments: Price-sensitive, Premium, Impulse buyers
-    
+
     Pricing optimization:
     - Price-sensitive: Lower price (higher demand elasticity)
     - Premium: Higher price (lower elasticity, values quality)

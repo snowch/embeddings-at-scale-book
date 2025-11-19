@@ -61,7 +61,7 @@ class Contradiction:
 
 # Placeholder classes - see from.py for full implementation
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import numpy as np
 
@@ -130,7 +130,7 @@ class ContradictionDetector:
 
         # Detect contradictions within each group
         contradictions = []
-        for (entity, attribute), claims in claim_groups.items():
+        for (_entity, _attribute), claims in claim_groups.items():
             if len(claims) > 1:
                 conflicts = self._find_conflicts(claims)
                 contradictions.extend(conflicts)

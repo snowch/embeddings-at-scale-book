@@ -456,7 +456,7 @@ class InnovationPipeline:
         }
 
         # Allocate initiatives across quarters
-        for item_id, item in self.portfolio.active_items.items():
+        for _item_id, item in self.portfolio.active_items.items():
             if item.stage in [InnovationStage.EVALUATING, InnovationStage.PROTOTYPING]:
                 # Estimate which quarter this will deploy
                 quarters_ahead = int(item.estimated_engineering_months / 3)

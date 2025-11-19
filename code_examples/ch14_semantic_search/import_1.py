@@ -204,7 +204,7 @@ class KnowledgeGraphEmbedding:
         """
         scores = []
 
-        for entity_id in self.entity_embeddings.keys():
+        for entity_id in self.entity_embeddings:
             if entity_id == subject_id:
                 continue
 
@@ -237,7 +237,7 @@ class KnowledgeGraphEmbedding:
         """
         scores = []
 
-        for predicate in self.relation_embeddings.keys():
+        for predicate in self.relation_embeddings:
             score = self.score_triple(subject_id, predicate, object_id)
             scores.append((predicate, score))
 

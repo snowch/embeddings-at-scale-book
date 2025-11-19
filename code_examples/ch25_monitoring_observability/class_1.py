@@ -66,7 +66,7 @@ class DriftAlert:
 class EmbeddingDriftDetector:
     """
     Comprehensive embedding drift detection system
-    
+
     Monitors statistical, semantic, performance, and business metrics
     to detect embedding quality degradation.
     """
@@ -81,7 +81,7 @@ class EmbeddingDriftDetector:
     ):
         """
         Initialize drift detector
-        
+
         Args:
             baseline_embeddings: Reference embeddings from known-good period
             baseline_labels: Optional labels for supervised drift detection
@@ -142,7 +142,7 @@ class EmbeddingDriftDetector:
             pca.fit(embeddings)
             stats["explained_variance_ratio"] = pca.explained_variance_ratio_
             stats["cumulative_variance"] = np.cumsum(pca.explained_variance_ratio_)
-        except:
+        except Exception:
             pass
 
         return stats
@@ -173,7 +173,7 @@ class EmbeddingDriftDetector:
     ) -> Tuple[bool, List[DriftSignal], Optional[DriftAlert]]:
         """
         Detect drift in current embeddings compared to baseline
-        
+
         Returns:
             (has_drift, signals, alert)
         """
@@ -223,7 +223,7 @@ class EmbeddingDriftDetector:
             )
             ks_p_values.append(p_value)
 
-        mean_ks_p = np.mean(ks_p_values)
+        np.mean(ks_p_values)
         min_ks_p = np.min(ks_p_values)
 
         if min_ks_p < self.drift_thresholds["ks_test_p_value"]:
@@ -307,7 +307,7 @@ class EmbeddingDriftDetector:
                     confidence="medium",
                     description=f"Dimension importance distribution shifted (JS={js_div:.3f})"
                 ))
-        except:
+        except Exception:
             pass
 
         return signals
@@ -409,7 +409,7 @@ class EmbeddingDriftDetector:
     ) -> Tuple[bool, Optional[DriftAlert]]:
         """
         Evaluate drift signals and determine if alert needed
-        
+
         Returns:
             (has_drift, alert)
         """

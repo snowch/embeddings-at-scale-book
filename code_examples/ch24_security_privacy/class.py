@@ -45,7 +45,7 @@ import numpy as np
 class EncryptionConfig:
     """
     Configuration for embedding encryption
-    
+
     Attributes:
         scheme: Encryption scheme (ckks, sgx, ope, hybrid)
         key_size: Key size in bits
@@ -67,7 +67,7 @@ class EncryptionConfig:
 class EncryptedEmbedding:
     """
     Encrypted embedding representation
-    
+
     Attributes:
         id: Embedding identifier
         ciphertext: Encrypted vector data
@@ -126,15 +126,15 @@ class SecureEmbeddingStore(ABC):
 class CKKSEmbeddingStore(SecureEmbeddingStore):
     """
     CKKS homomorphic encryption for embeddings
-    
+
     CKKS (Cheon-Kim-Kim-Song) enables approximate arithmetic on
     encrypted floating-point numbers, suitable for embedding similarity.
-    
+
     Operations:
     - Addition: Add encrypted vectors (for aggregation)
     - Multiplication: Multiply encrypted vectors (for dot product)
     - Rotation: Rotate slots (for vector operations)
-    
+
     Performance:
     - Encryption: O(d log d) for d-dimensional vector
     - Addition: O(d) on encrypted vectors
@@ -154,7 +154,7 @@ class CKKSEmbeddingStore(SecureEmbeddingStore):
     def _initialize_ckks(self):
         """
         Initialize CKKS encryption scheme
-        
+
         In production, use libraries like:
         - Microsoft SEAL (C++, Python bindings)
         - OpenFHE (C++, Python bindings)
@@ -180,16 +180,16 @@ class CKKSEmbeddingStore(SecureEmbeddingStore):
     ) -> EncryptedEmbedding:
         """
         Encrypt embedding with CKKS
-        
+
         Steps:
         1. Encode: Convert float vector to CKKS plaintext
         2. Encrypt: Apply CKKS encryption with public key
         3. Pack: Optionally pack multiple vectors in single ciphertext
-        
+
         Args:
             embedding: Float vector to encrypt
             embedding_id: Unique identifier
-            
+
         Returns:
             Encrypted embedding
         """
@@ -237,10 +237,10 @@ class CKKSEmbeddingStore(SecureEmbeddingStore):
     ) -> np.ndarray:
         """
         Decrypt CKKS-encrypted embedding
-        
+
         Args:
             encrypted: Encrypted embedding
-            
+
         Returns:
             Decrypted float vector
         """
@@ -261,21 +261,21 @@ class CKKSEmbeddingStore(SecureEmbeddingStore):
     ) -> float:
         """
         Compute cosine similarity between encrypted vectors
-        
+
         CKKS enables:
         1. Encrypted dot product: <x, y>_encrypted
         2. Encrypted norms: ||x||_encrypted, ||y||_encrypted
         3. Similarity: <x,y> / (||x|| * ||y||)
-        
+
         Challenges:
         - Division not directly supported, use approximation
         - Noise accumulation from multiple operations
         - Precision loss from encoding
-        
+
         Args:
             query_encrypted: Encrypted query vector
             candidate_encrypted: Encrypted candidate vector
-            
+
         Returns:
             Approximate similarity score
         """
@@ -299,21 +299,21 @@ class CKKSEmbeddingStore(SecureEmbeddingStore):
     ) -> List[Tuple[str, float]]:
         """
         Find k nearest neighbors in encrypted space
-        
+
         Approach:
         1. Compute encrypted similarities with all candidates
         2. Use oblivious selection to find top-k
         3. Return encrypted result for client-side decryption
-        
+
         Or use secure index structures:
         - Encrypted LSH: Hash encrypted vectors
         - Encrypted tree: Navigate tree in encrypted space
         - Secure MPC: Distribute computation across parties
-        
+
         Args:
             query_encrypted: Encrypted query
             k: Number of neighbors
-            
+
         Returns:
             List of (id, encrypted_score) for top-k neighbors
         """
@@ -335,20 +335,20 @@ class CKKSEmbeddingStore(SecureEmbeddingStore):
 class SGXEmbeddingStore(SecureEmbeddingStore):
     """
     Intel SGX (Software Guard Extensions) for secure embedding computation
-    
+
     SGX creates trusted execution environments (enclaves) where code
     and data are protected from the operating system and other processes.
-    
+
     Benefits:
     - Low overhead: 2-5× vs unencrypted (vs 10-100× for FHE)
     - Full computation: Can perform any operation inside enclave
     - Hardware-backed: Security guaranteed by CPU
-    
+
     Limitations:
     - Limited enclave memory (128MB in SGX1, GBs in SGX2)
     - Platform-specific: Intel CPUs only
     - Side-channel vulnerabilities: Spectre, etc.
-    
+
     Use cases:
     - Encrypted database: Store embeddings outside enclave, compute inside
     - Query privacy: Process queries without revealing to database operator
@@ -365,13 +365,13 @@ class SGXEmbeddingStore(SecureEmbeddingStore):
     def _initialize_sgx(self):
         """
         Initialize SGX enclave
-        
+
         Steps:
         1. Load enclave code (signed binary)
         2. Attestation: Verify enclave is genuine Intel SGX
         3. Establish secure channel for data transfer
         4. Load secret keys into enclave
-        
+
         In production, use:
         - Intel SGX SDK
         - Gramine (formerly Graphene) for running Python in SGX
@@ -405,14 +405,14 @@ class SGXEmbeddingStore(SecureEmbeddingStore):
     ) -> EncryptedEmbedding:
         """
         Seal embedding for SGX enclave
-        
+
         Data sealed with enclave's key can only be unsealed
         by the same enclave on the same platform.
-        
+
         Args:
             embedding: Vector to seal
             embedding_id: Unique identifier
-            
+
         Returns:
             Sealed embedding
         """
@@ -447,10 +447,10 @@ class SGXEmbeddingStore(SecureEmbeddingStore):
     ) -> np.ndarray:
         """
         Unseal embedding within SGX enclave
-        
+
         Args:
             encrypted: Sealed embedding
-            
+
         Returns:
             Unsealed vector (only accessible within enclave)
         """
@@ -471,16 +471,16 @@ class SGXEmbeddingStore(SecureEmbeddingStore):
     ) -> float:
         """
         Compute similarity within SGX enclave
-        
+
         Steps:
         1. Unseal both vectors inside enclave
         2. Compute cosine similarity in enclave
         3. Return only result (vectors stay in enclave)
-        
+
         Args:
             query_encrypted: Sealed query
             candidate_encrypted: Sealed candidate
-            
+
         Returns:
             Similarity score
         """
@@ -502,17 +502,17 @@ class SGXEmbeddingStore(SecureEmbeddingStore):
     ) -> List[Tuple[str, float]]:
         """
         Find k nearest neighbors within SGX enclave
-        
+
         Entire search happens in enclave:
         1. Unseal query
         2. Unseal candidates (batch by batch if memory limited)
         3. Compute similarities
         4. Return top-k (scores can be unsealed for client)
-        
+
         Args:
             query_encrypted: Sealed query
             k: Number of neighbors
-            
+
         Returns:
             Top-k neighbors with scores
         """
@@ -534,13 +534,13 @@ class SGXEmbeddingStore(SecureEmbeddingStore):
 class HybridSecureStore(SecureEmbeddingStore):
     """
     Hybrid approach combining multiple security techniques
-    
+
     Strategy:
     1. SGX for high-performance similarity computation
     2. CKKS for data at rest and cross-platform transfer
     3. Secure MPC for distributed queries across data silos
     4. Differential privacy for public result release
-    
+
     Benefits:
     - Performance: Use SGX when available, CKKS otherwise
     - Portability: CKKS works on any platform

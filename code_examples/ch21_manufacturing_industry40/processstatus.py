@@ -56,7 +56,7 @@ class DeviationType(Enum):
 class ProcessStep:
     """
     Individual process operation
-    
+
     Attributes:
         step_id: Unique identifier
         step_name: Operation name (e.g., "milling", "assembly")
@@ -86,7 +86,7 @@ class ProcessStep:
 class ProcessExecution:
     """
     Process execution instance
-    
+
     Attributes:
         execution_id: Unique identifier
         work_order_id: Work order being executed
@@ -120,7 +120,7 @@ class ProcessExecution:
 class Bottleneck:
     """
     Identified process bottleneck
-    
+
     Attributes:
         step_id: Bottleneck process step
         detection_time: When bottleneck was identified
@@ -146,7 +146,7 @@ class Bottleneck:
 class ProcessDeviation:
     """
     Detected process deviation
-    
+
     Attributes:
         execution_id: Affected execution
         detection_time: When detected
@@ -169,7 +169,7 @@ class ProcessDeviation:
 class ProcessStateEncoder(nn.Module):
     """
     Encode process execution state to embeddings
-    
+
     Combines process parameters, sensor readings, material properties,
     and contextual information (time of day, operator, etc.).
     """
@@ -246,7 +246,7 @@ class ProcessStateEncoder(nn.Module):
 class WorkflowEncoder(nn.Module):
     """
     Encode sequential process workflow to trajectory embeddings
-    
+
     Models dependencies between process steps and temporal patterns.
     """
     def __init__(
@@ -322,7 +322,7 @@ class WorkflowEncoder(nn.Module):
 class BottleneckDetector(nn.Module):
     """
     Identify process bottlenecks from workflow patterns
-    
+
     Analyzes utilization, queue lengths, wait times to pinpoint
     constraining operations.
     """
@@ -364,7 +364,7 @@ class BottleneckDetector(nn.Module):
 class ParameterOptimizer(nn.Module):
     """
     Optimize process parameters using reinforcement learning
-    
+
     State: Current process state embedding
     Action: Parameter adjustments
     Reward: Quality, throughput, cost improvements
@@ -419,7 +419,7 @@ class ParameterOptimizer(nn.Module):
 class ProcessAutomationSystem:
     """
     Production process automation system
-    
+
     Manages:
     - Real-time process monitoring
     - Bottleneck detection and resolution
@@ -503,7 +503,7 @@ class ProcessAutomationSystem:
     def detect_bottlenecks(self) -> List[Bottleneck]:
         """
         Analyze workflow to identify bottlenecks
-        
+
         Uses queue lengths, wait times, utilization patterns
         """
         bottlenecks = []
@@ -565,7 +565,7 @@ class ProcessAutomationSystem:
     ) -> Optional[ProcessDeviation]:
         """
         Detect process deviations from nominal operation
-        
+
         Analyzes real-time data to predict quality issues
         """
         if execution_id not in self.active_executions:
@@ -614,7 +614,7 @@ class ProcessAutomationSystem:
     ) -> Dict[str, float]:
         """
         Suggest optimal parameter adjustments for execution
-        
+
         Returns: parameter_name → suggested_value
         """
         if execution_id not in self.active_executions:
@@ -637,7 +637,7 @@ class ProcessAutomationSystem:
 def process_automation_example():
     """
     Example: Process automation for electronics assembly
-    
+
     Scenario: PCB assembly line with 12 process steps
     - SMT placement, reflow soldering, inspection, testing
     - 50 parameters per step, 30 sensors
@@ -804,7 +804,7 @@ def process_automation_example():
     optimized_params = automation_system.optimize_parameters(execution_id)
 
     print("Parameter recommendations (showing first 5):")
-    for i, (param_name, value) in enumerate(list(optimized_params.items())[:5]):
+    for _i, (param_name, value) in enumerate(list(optimized_params.items())[:5]):
         if param_name in step.process_parameters:
             nominal = step.process_parameters[param_name]
             change_pct = (value - nominal) / nominal * 100

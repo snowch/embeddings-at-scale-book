@@ -50,7 +50,7 @@ class StyleAttribute(Enum):
 class VisualQuery:
     """
     Visual search query from uploaded image
-    
+
     Attributes:
         query_id: Unique identifier
         user_id: User making query
@@ -74,7 +74,7 @@ class VisualQuery:
 class StyleTransferQuery:
     """
     Style transfer query: find product A with style of product B
-    
+
     Attributes:
         content_product_id: Product providing content (shape, category)
         style_image: Image providing style (color, pattern)
@@ -89,13 +89,13 @@ class StyleTransferQuery:
 class VisualEncoder(nn.Module):
     """
     Encode product images for visual search
-    
+
     Architecture:
     - Backbone: Vision Transformer or EfficientNet
     - Multi-scale features: Capture both fine details and overall composition
     - Attention pooling: Focus on product region, ignore background
     - Style extraction: Gram matrices for texture, color histograms
-    
+
     Training:
     - Triplet loss: (anchor, style-similar, style-different)
     - Hard negative mining: Visually similar but different category
@@ -163,13 +163,13 @@ class VisualEncoder(nn.Module):
 class StyleAttributeExtractor(nn.Module):
     """
     Extract disentangled style attributes from images
-    
+
     Extracts separate embeddings for:
     - Color: RGB histograms, dominant colors
     - Pattern: Texture features (stripes, floral, solid)
     - Silhouette: Shape, cut, fit
     - Material: Surface appearance (shiny, matte, textured)
-    
+
     Enables fine-grained style transfer: "Find dress with this color
     but different pattern" or "Same silhouette but different material"
     """
@@ -238,17 +238,17 @@ class StyleAttributeExtractor(nn.Module):
 class CrossDomainAdapter(nn.Module):
     """
     Adapt user-uploaded photos to catalog photo space
-    
+
     Challenge: User photos have different characteristics than professional
     catalog photos:
     - Lighting: Natural vs studio
     - Background: Cluttered vs clean
     - Angle: Varied vs standard
     - Quality: Phone camera vs professional
-    
+
     Solution: Learn mapping from user photo domain to catalog domain,
     so visual search works regardless of photo quality.
-    
+
     Training: Pairs of (user photo, catalog photo) of same product
     """
 
@@ -294,12 +294,12 @@ class CrossDomainAdapter(nn.Module):
 class StyleTransferEngine(nn.Module):
     """
     Generate embedding for product A with style of B
-    
+
     Use cases:
     - "Find jeans that match this shirt" (color coordination)
     - "Find casual version of this formal dress" (style adaptation)
     - "Find summer version of this winter coat" (seasonal transfer)
-    
+
     Approach:
     1. Extract content embedding (shape, category) from product A
     2. Extract style attributes (color, pattern) from product B
@@ -332,13 +332,13 @@ class StyleTransferEngine(nn.Module):
     ) -> torch.Tensor:
         """
         Transfer style from style_image to content_image
-        
+
         Args:
             content_image: [batch, 3, H, W] product providing structure
             style_image: [batch, 3, H, W] product providing style
             style_attributes: Which attributes to transfer (default: all)
             intensity: How strongly to apply style (0=none, 1=full)
-        
+
         Returns:
             transferred_embedding: [batch, embedding_dim] combined embedding
         """
@@ -383,7 +383,7 @@ class StyleTransferEngine(nn.Module):
 class VisualSearchSystem:
     """
     End-to-end visual search system
-    
+
     Features:
     1. Image upload: Search by uploading photo
     2. Object detection: Isolate product from background
@@ -410,12 +410,12 @@ class VisualSearchSystem:
     ) -> List[Dict[str, Any]]:
         """
         Search for products matching uploaded image
-        
+
         Args:
             query_image: [1, 3, H, W] uploaded image
             top_k: Number of results
             is_user_photo: Whether to apply domain adaptation
-        
+
         Returns:
             List of matching products with similarity scores
         """
@@ -452,7 +452,7 @@ class VisualSearchSystem:
     ) -> List[Dict[str, Any]]:
         """
         Find products like content_product with style from style_image
-        
+
         Example: "Find jeans (content) that match this shirt (style)"
         """
         # Get content product image (simplified: assumes stored)
@@ -484,7 +484,7 @@ class VisualSearchSystem:
 def visual_search_example():
     """
     Demonstration of visual search and style transfer
-    
+
     Scenarios:
     1. Upload photo: Find exact or similar products
     2. Style transfer: "Find jeans that match this shirt"
@@ -504,7 +504,7 @@ def visual_search_example():
     print()
 
     user_photo = torch.randn(1, 3, 224, 224)
-    results = system.search_by_image(user_photo, top_k=5, is_user_photo=True)
+    system.search_by_image(user_photo, top_k=5, is_user_photo=True)
 
     print("Search results:")
     print("1. Floral Summer Dress (similarity: 0.89)")
@@ -530,7 +530,7 @@ def visual_search_example():
     print()
 
     style_image = torch.randn(1, 3, 224, 224)
-    results = system.search_with_style_transfer(
+    system.search_with_style_transfer(
         content_product_id="JEANS_BASE",
         style_image=style_image,
         style_attributes=[StyleAttribute.COLOR],

@@ -65,7 +65,7 @@ class CommunicationChannel(Enum):
 class Stakeholder:
     """
     Stakeholder in embedding adoption
-    
+
     Attributes:
         name: Stakeholder identifier
         department: Department or team
@@ -100,7 +100,7 @@ class Stakeholder:
 class ChangeBarrier:
     """
     Barrier to embedding adoption
-    
+
     Attributes:
         name: Barrier identifier
         category: Type of barrier (technical, cultural, political)
@@ -120,7 +120,7 @@ class ChangeBarrier:
 class PilotProject:
     """
     Pilot project for demonstrating embedding value
-    
+
     Attributes:
         name: Project name
         description: What the pilot will accomplish
@@ -143,7 +143,7 @@ class PilotProject:
 class ChangeManagementFramework:
     """
     Framework for managing embedding adoption change
-    
+
     Manages stakeholder engagement, communication strategy,
     pilot projects, and progress tracking
     """
@@ -170,7 +170,7 @@ class ChangeManagementFramework:
     def assess_readiness(self) -> Dict[str, any]:
         """
         Assess organizational readiness for embedding adoption
-        
+
         Returns:
             Readiness assessment with recommendations
         """
@@ -275,7 +275,7 @@ class ChangeManagementFramework:
     def design_communication_strategy(self) -> Dict[str, any]:
         """
         Design stakeholder communication strategy
-        
+
         Returns:
             Communication plan tailored to different stakeholder groups
         """
@@ -444,7 +444,7 @@ class ChangeManagementFramework:
     def track_progress(self) -> Dict[str, any]:
         """
         Track change management progress
-        
+
         Returns:
             Progress dashboard with metrics and status
         """

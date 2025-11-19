@@ -85,7 +85,7 @@ class DomainAdaptedContrastive:
         Returns:
             loss with temporal weighting
         """
-        batch_size = len(embeddings)
+        len(embeddings)
 
         # Compute temporal distances (in days)
         time_diff_matrix = torch.abs(

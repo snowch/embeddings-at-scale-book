@@ -45,7 +45,7 @@ import torch.nn.functional as F
 class DPTrainingConfig:
     """
     Configuration for differentially private training
-    
+
     Attributes:
         target_epsilon: Target privacy parameter
         target_delta: Target failure probability
@@ -71,7 +71,7 @@ class DPTrainingConfig:
 class PrivacyAccountant:
     """
     Track cumulative privacy loss during training
-    
+
     Attributes:
         epsilon_spent: Cumulative ε used
         delta_spent: Cumulative δ used
@@ -88,7 +88,7 @@ class PrivacyAccountant:
 class DPEmbeddingModel(nn.Module):
     """
     Embedding model with differential privacy support
-    
+
     Standard embedding model with hooks for:
     - Per-example gradient computation
     - Gradient clipping
@@ -127,10 +127,10 @@ class DPEmbeddingModel(nn.Module):
     def forward(self, input_ids: torch.Tensor) -> torch.Tensor:
         """
         Forward pass
-        
+
         Args:
             input_ids: [batch_size, seq_len] token IDs
-            
+
         Returns:
             embeddings: [batch_size, embedding_dim]
         """
@@ -151,7 +151,7 @@ class DPEmbeddingModel(nn.Module):
 class DPSGDOptimizer:
     """
     Differentially Private SGD optimizer
-    
+
     Implements DP-SGD algorithm:
     1. Compute per-example gradients
     2. Clip gradients to max_grad_norm
@@ -190,13 +190,13 @@ class DPSGDOptimizer:
     def _compute_noise_multiplier(self) -> float:
         """
         Compute noise multiplier from target ε,δ
-        
+
         Uses Gaussian mechanism calibration:
         σ = sqrt(2 * ln(1.25/δ)) * sensitivity / ε
-        
+
         For DP-SGD with gradient clipping:
         sensitivity = max_grad_norm
-        
+
         Returns:
             Noise multiplier σ
         """
@@ -218,14 +218,14 @@ class DPSGDOptimizer:
     ) -> Dict[str, torch.Tensor]:
         """
         Compute gradients for each example in batch
-        
+
         Standard PyTorch computes mean gradient across batch.
         DP-SGD requires per-example gradients for clipping.
-        
+
         Args:
             loss: Loss for batch
             inputs: Input batch
-            
+
         Returns:
             Dictionary of per-example gradients for each parameter
         """
@@ -256,13 +256,13 @@ class DPSGDOptimizer:
     ) -> Dict[str, torch.Tensor]:
         """
         Clip per-example gradients to max_grad_norm
-        
+
         Clipping bounds the influence of any single example:
         g_clipped = g * min(1, max_grad_norm / ||g||)
-        
+
         Args:
             gradients: Per-example gradients
-            
+
         Returns:
             Clipped gradients
         """
@@ -289,13 +289,13 @@ class DPSGDOptimizer:
     ) -> Dict[str, torch.Tensor]:
         """
         Add Gaussian noise to gradients for privacy
-        
+
         Noise scale: σ = noise_multiplier * max_grad_norm
-        
+
         Args:
             gradients: Clipped gradients
             batch_size: Batch size for normalization
-            
+
         Returns:
             Noisy gradients
         """
@@ -319,14 +319,14 @@ class DPSGDOptimizer:
     ):
         """
         Perform one DP-SGD optimization step
-        
+
         Steps:
         1. Compute per-example gradients
         2. Clip each gradient
         3. Add noise
         4. Average and apply update
         5. Update privacy accountant
-        
+
         Args:
             loss: Batch loss
             inputs: Input batch
@@ -338,7 +338,7 @@ class DPSGDOptimizer:
 
         # Compute per-example gradients (simplified)
         # In production: use Opacus or torch.func.grad_and_value
-        for name, param in self.model.named_parameters():
+        for _name, param in self.model.named_parameters():
             if param.grad is not None:
                 # Clip gradient
                 grad_norm = torch.norm(param.grad)
@@ -365,7 +365,7 @@ class DPSGDOptimizer:
     def _update_privacy_accountant(self):
         """
         Update privacy loss after one step
-        
+
         Uses composition theorems to track cumulative (ε,δ)
         """
         self.accountant.steps += 1
@@ -393,7 +393,7 @@ class DPSGDOptimizer:
     def get_privacy_spent(self) -> Tuple[float, float]:
         """
         Get current privacy spent
-        
+
         Returns:
             (epsilon, delta) tuple
         """
@@ -405,17 +405,17 @@ class DPSGDOptimizer:
 class PrivateAggregationOfTeacherEnsembles:
     """
     PATE: Private Aggregation of Teacher Ensembles
-    
+
     Alternative to DP-SGD:
     1. Train multiple "teacher" models on disjoint data
     2. Label public data using noisy aggregation of teachers
     3. Train "student" model on public labeled data
-    
+
     Benefits:
     - Student model has no direct privacy cost
     - Can achieve better utility than DP-SGD
     - Suitable when public unlabeled data available
-    
+
     Limitations:
     - Requires partitionable private data
     - Needs public unlabeled data
@@ -447,17 +447,17 @@ class PrivateAggregationOfTeacherEnsembles:
     ) -> torch.Tensor:
         """
         Aggregate teacher predictions with differential privacy
-        
+
         Steps:
         1. Each teacher predicts on unlabeled example
         2. Take majority vote (for classification) or mean (for regression)
         3. Add Laplace noise to vote counts
         4. Return noisy consensus
-        
+
         Args:
             teacher_predictions: List of teacher predictions
             epsilon: Privacy budget for this aggregation
-            
+
         Returns:
             Noisy consensus prediction
         """
@@ -490,11 +490,11 @@ class PrivateAggregationOfTeacherEnsembles:
     ) -> nn.Module:
         """
         Train student model on privately labeled public data
-        
+
         Args:
             public_data: Unlabeled public data
             student_model: Student model to train
-            
+
         Returns:
             Trained student model with privacy guarantee
         """
@@ -522,7 +522,7 @@ class PrivateAggregationOfTeacherEnsembles:
         print("Training student model...")
         optimizer = torch.optim.Adam(student_model.parameters(), lr=0.001)
 
-        for epoch in range(10):
+        for _epoch in range(10):
             optimizer.zero_grad()
 
             predictions = student_model(public_data)
@@ -576,7 +576,7 @@ def dp_embedding_training_example():
         epoch_loss = 0.0
         num_batches = num_samples // dp_config.batch_size
 
-        for batch_idx in range(num_batches):
+        for _batch_idx in range(num_batches):
             # Simulate batch
             batch_ids = torch.randint(
                 0, vocab_size,

@@ -6,7 +6,7 @@ import numpy as np
 class QuantumEmbeddingTrainer:
     """
     Variational quantum algorithm for embedding training
-    
+
     Uses parameterized quantum circuits as feature extractors,
     trained with classical optimization of circuit parameters
     """
@@ -37,12 +37,12 @@ class QuantumEmbeddingTrainer:
     ) -> np.ndarray:
         """
         Parameterized quantum circuit
-        
+
         Architecture:
         1. Data encoding: Encode input x in quantum state
         2. Variational layers: Parameterized rotations + entanglement
         3. Measurement: Extract embedding from quantum state
-        
+
         Real implementation would use Qiskit/PennyLane:
         - Amplitude encoding for input
         - Ansatz: Hardware-efficient or problem-specific
@@ -54,7 +54,7 @@ class QuantumEmbeddingTrainer:
 
         # Apply variational layers (simulated)
         param_idx = 0
-        for layer in range(self.num_layers):
+        for _layer in range(self.num_layers):
             # Rotation gates
             for qubit in range(self.num_qubits):
                 if qubit < len(state):
@@ -88,13 +88,13 @@ class QuantumEmbeddingTrainer:
     ) -> float:
         """
         Training step using parameter-shift rule for gradients
-        
+
         Quantum gradients computed via parameter-shift rule:
         ∂f/∂θᵢ = [f(θ + π/2 eᵢ) - f(θ - π/2 eᵢ)] / 2
-        
+
         This requires 2 quantum circuit evaluations per parameter
         """
-        batch_size = len(x_batch)
+        len(x_batch)
 
         # Forward pass
         embeddings = np.array([
@@ -163,7 +163,7 @@ class QuantumEmbeddingTrainer:
 class QuantumKernel:
     """
     Quantum kernel for embedding similarity
-    
+
     Uses quantum feature maps to compute inner products
     in high-dimensional Hilbert space
     """
@@ -179,7 +179,7 @@ class QuantumKernel:
 
         # Simplified simulation
         phi = x.copy()
-        for layer in range(self.num_layers):
+        for _layer in range(self.num_layers):
             # Nonlinear transformation
             phi = np.sin(phi * np.pi)
             # Entanglement effect
@@ -190,7 +190,7 @@ class QuantumKernel:
     def kernel(self, x1: np.ndarray, x2: np.ndarray) -> float:
         """
         Quantum kernel: K(x₁, x₂) = |⟨φ(x₁)|φ(x₂)⟩|²
-        
+
         Computed by preparing states and measuring overlap
         """
         phi1 = self.feature_map(x1)

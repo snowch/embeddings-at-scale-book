@@ -50,7 +50,7 @@ class QuantizationMode(Enum):
 class EdgeDeviceConfig:
     """
     Configuration for edge device constraints
-    
+
     Attributes:
         device_type: Type of edge device
         max_model_size_mb: Maximum model size
@@ -85,7 +85,7 @@ class EdgeEmbeddingModel:
 class ModelCompressor:
     """
     Compress embedding models for edge deployment
-    
+
     Combines multiple compression techniques:
     1. Quantization: Reduce precision
     2. Pruning: Remove unimportant weights
@@ -104,7 +104,7 @@ class ModelCompressor:
     ) -> EdgeEmbeddingModel:
         """
         Compress model to target size
-        
+
         Steps:
         1. Prune small weights
         2. Quantize remaining weights
@@ -159,7 +159,7 @@ class ModelCompressor:
     ) -> Tuple[np.ndarray, Dict]:
         """
         Quantize weights to lower precision
-        
+
         INT8 quantization:
         q = round((x - min) / (max - min) * 255)
         x_reconstructed = q / 255 * (max - min) + min
@@ -218,7 +218,7 @@ class ModelCompressor:
 class EdgeEmbeddingInference:
     """
     On-device embedding inference with caching and offloading
-    
+
     Optimizations:
     - Quantized inference on device
     - LRU cache for frequent embeddings
@@ -254,7 +254,7 @@ class EdgeEmbeddingInference:
     ) -> Dict[str, Any]:
         """
         Generate embedding on edge device
-        
+
         Decision flow:
         1. Check cache
         2. If cached: return cached embedding

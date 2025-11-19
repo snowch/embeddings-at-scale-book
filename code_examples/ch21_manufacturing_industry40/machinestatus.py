@@ -55,7 +55,7 @@ class MaintenanceType(Enum):
 class MachineState:
     """
     Machine operational state at point in time
-    
+
     Attributes:
         machine_id: Machine identifier
         timestamp: State timestamp
@@ -83,7 +83,7 @@ class MachineState:
 class MaintenancePrediction:
     """
     Predicted maintenance need
-    
+
     Attributes:
         machine_id: Machine requiring maintenance
         prediction_time: When prediction was made
@@ -111,7 +111,7 @@ class MaintenancePrediction:
 class Job:
     """
     Manufacturing job to be scheduled
-    
+
     Attributes:
         job_id: Unique identifier
         part_id: Part to be manufactured
@@ -136,7 +136,7 @@ class Job:
 class MachineStateEncoder(nn.Module):
     """
     Encode machine sensor streams to state embeddings
-    
+
     Similar to quality control sensor encoder, but specialized
     for equipment state representation and degradation patterns.
     """
@@ -216,7 +216,7 @@ class MachineStateEncoder(nn.Module):
 class DegradationModel(nn.Module):
     """
     Predict remaining useful life from state trajectory
-    
+
     Uses survival analysis approach - predicts probability distribution
     over time-to-failure rather than point estimate.
     """
@@ -280,7 +280,7 @@ class DegradationModel(nn.Module):
 class SchedulingOptimizer(nn.Module):
     """
     Optimize job scheduling using reinforcement learning
-    
+
     State: Machine states, job queue, due dates
     Action: Assign job to machine
     Reward: Throughput, on-time delivery, machine utilization
@@ -332,7 +332,7 @@ class SchedulingOptimizer(nn.Module):
 class EquipmentOptimizationSystem:
     """
     Production equipment optimization system
-    
+
     Manages:
     - Predictive maintenance scheduling
     - Job-to-machine assignment optimization
@@ -463,7 +463,7 @@ class EquipmentOptimizationSystem:
     ) -> Dict[str, List[str]]:
         """
         Optimize job-to-machine assignments
-        
+
         Returns: machine_id → [job_ids] mapping
         """
         # In production, use RL-based scheduler
@@ -512,7 +512,7 @@ class EquipmentOptimizationSystem:
     ) -> Dict[str, float]:
         """
         Calculate Overall Equipment Effectiveness (OEE)
-        
+
         OEE = Availability × Performance × Quality
         """
         if machine_id not in self.state_history:
@@ -558,7 +558,7 @@ class EquipmentOptimizationSystem:
 def equipment_optimization_example():
     """
     Example: Equipment optimization for CNC machining center
-    
+
     Scenario: Factory with 10 CNC machines
     - 40 sensors per machine (vibration, temp, spindle, etc.)
     - 24/7 operation with maintenance windows

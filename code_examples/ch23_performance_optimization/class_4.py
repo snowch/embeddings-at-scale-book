@@ -38,7 +38,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 class Datacenter:
     """
     Datacenter configuration
-    
+
     Attributes:
         name: Datacenter identifier (us-west-1, eu-central-1, etc.)
         region: Geographic region
@@ -64,7 +64,7 @@ class Datacenter:
 class ShardingStrategy:
     """
     Strategy for partitioning embeddings across datacenters
-    
+
     Attributes:
         strategy_type: Type (hash, range, geo, semantic, hybrid)
         shard_count: Number of shards
@@ -81,7 +81,7 @@ class ShardingStrategy:
 class QueryRouter:
     """
     Global query routing to optimal datacenter
-    
+
     Routes queries based on:
     - User location (minimize latency)
     - Data location (where embeddings are)
@@ -110,13 +110,13 @@ class QueryRouter:
     ) -> Tuple[str, List[str]]:
         """
         Route query to optimal datacenter(s)
-        
+
         Args:
             query_id: Query identifier
             embedding_ids: Embeddings needed for query
             user_region: User's geographic region
             latency_budget_ms: Maximum acceptable latency
-        
+
         Returns:
             primary_dc: Primary datacenter to handle query
             backup_dcs: Backup datacenters (for failover)
@@ -155,10 +155,10 @@ class QueryRouter:
     ) -> Set[str]:
         """
         Find datacenters that have all required embeddings
-        
+
         Args:
             embedding_ids: Required embedding IDs
-        
+
         Returns:
             datacenters: Set of datacenter names with all data
         """
@@ -184,7 +184,7 @@ class QueryRouter:
     def _get_shard_id(self, embedding_id: str) -> int:
         """
         Determine which shard contains this embedding
-        
+
         Uses consistent hashing for even distribution
         """
         if self.sharding.strategy_type == "hash":
@@ -210,9 +210,9 @@ class QueryRouter:
     ) -> float:
         """
         Score datacenter for query routing
-        
+
         Higher score = better choice
-        
+
         Factors:
         - Latency to user (lower is better)
         - Current load (lower is better)
@@ -246,7 +246,7 @@ class QueryRouter:
     ) -> float:
         """
         Estimate latency from user region to datacenter
-        
+
         Returns latency in milliseconds
         """
         dc = self.datacenters[dc_name]
@@ -279,7 +279,7 @@ class QueryRouter:
 class ReplicationManager:
     """
     Manage replication of hot embeddings across datacenters
-    
+
     Hot data replicated globally for low latency
     Cold data sharded to save storage/bandwidth
     """
@@ -306,7 +306,7 @@ class ReplicationManager:
     ) -> None:
         """
         Record embedding access for replication decisions
-        
+
         Args:
             embedding_id: Accessed embedding
             datacenter: Datacenter that served it
@@ -323,10 +323,10 @@ class ReplicationManager:
     def should_replicate(self, embedding_id: str) -> bool:
         """
         Determine if embedding should be replicated globally
-        
+
         Args:
             embedding_id: Embedding to check
-        
+
         Returns:
             should_replicate: Whether to replicate
         """
@@ -339,10 +339,10 @@ class ReplicationManager:
     ) -> List[Tuple[str, List[str]]]:
         """
         Generate replication plan for hot embeddings
-        
+
         Args:
             max_replications: Maximum replications to perform
-        
+
         Returns:
             plan: List of (embedding_id, target_datacenters)
         """
@@ -373,7 +373,7 @@ class ReplicationManager:
 class QueryBatcher:
     """
     Batch multiple queries for network efficiency
-    
+
     Instead of N round-trips, make 1 round-trip with N queries
     Amortizes network latency across queries
     """
@@ -396,13 +396,13 @@ class QueryBatcher:
     ) -> Optional[List[Dict[str, Any]]]:
         """
         Add query to batch
-        
+
         Returns batch if ready to execute, None otherwise
-        
+
         Args:
             query_id: Query identifier
             query_data: Query parameters
-        
+
         Returns:
             batch: Batch of queries if ready, None otherwise
         """
@@ -449,7 +449,7 @@ class QueryBatcher:
 class NetworkOptimizer:
     """
     Comprehensive network optimization
-    
+
     Combines routing, replication, batching, and compression
     """
 
@@ -470,12 +470,12 @@ class NetworkOptimizer:
     ) -> Dict[str, Any]:
         """
         Optimize query execution across network
-        
+
         Args:
             query_id: Query identifier
             query_data: Query parameters
             user_region: User's region
-        
+
         Returns:
             execution_plan: Optimized execution plan
         """

@@ -59,10 +59,8 @@ class ScaleConstraints:
         """Target query latency"""
 
         target_p99_latency_ms = 100
-        target_qps = 1_000_000  # 1M queries per second globally
 
         # Available time budget
-        time_budget_ms = target_p99_latency_ms
 
         # Breakdown
         breakdown = {

@@ -55,7 +55,7 @@ class CodingScheme(Enum):
 class NeuromorphicConfig:
     """
     Configuration for neuromorphic embedding inference
-    
+
     Attributes:
         neuron_model: Spiking neuron model
         coding_scheme: How to encode embeddings as spikes
@@ -98,10 +98,10 @@ class SpikeTrain:
 class SpikingNeuron:
     """
     Leaky Integrate-and-Fire (LIF) neuron
-    
+
     Dynamics:
     τ_mem * dV/dt = -(V - V_rest) + R*I(t)
-    
+
     If V ≥ V_threshold: emit spike, V ← V_reset, refractory period
     """
 
@@ -123,7 +123,7 @@ class SpikingNeuron:
     ) -> Optional[SpikeEvent]:
         """
         Simulate one time step
-        
+
         Returns spike event if neuron fires
         """
         # Check refractory period
@@ -152,7 +152,7 @@ class SpikingNeuron:
 class SpikingNeuralNetwork:
     """
     Spiking neural network for embedding inference
-    
+
     Architecture:
     - Input layer: Encode embedding dimensions as spike trains
     - Hidden layers: Spiking neurons with recurrent connections
@@ -224,7 +224,7 @@ class SpikingNeuralNetwork:
     def encode_input(self, embedding: np.ndarray) -> List[List[SpikeEvent]]:
         """
         Encode continuous embedding as spike trains
-        
+
         Rate coding: spike rate proportional to value
         Higher values → more spikes in time window
         """
@@ -268,7 +268,7 @@ class SpikingNeuralNetwork:
     ) -> np.ndarray:
         """
         Forward propagation through spiking network
-        
+
         Event-driven simulation: process spikes as they occur
         """
         time_steps = int(self.config.time_window_ms / self.config.dt_ms)
@@ -286,13 +286,12 @@ class SpikingNeuralNetwork:
         layer_spikes[0] = all_input_spikes
 
         # Simulate network over time
-        spike_idx = 0
         for t_idx in range(time_steps):
             time_ms = t_idx * self.config.dt_ms
 
             # Process each layer
             for layer_idx in range(1, len(self.layers)):
-                prev_layer = self.layers[layer_idx - 1]
+                self.layers[layer_idx - 1]
                 curr_layer = self.layers[layer_idx]
                 weights = self.weights[layer_idx - 1]
 
@@ -329,7 +328,7 @@ class SpikingNeuralNetwork:
     def decode_output(self, output_spikes: List[SpikeEvent]) -> np.ndarray:
         """
         Decode spike trains to embedding vector
-        
+
         Rate decoding: count spikes per neuron, average across population
         """
         embedding = np.zeros(self.output_dim)
@@ -362,7 +361,7 @@ class SpikingNeuralNetwork:
 class NeuromorphicEmbeddingInference:
     """
     Complete neuromorphic embedding inference system
-    
+
     Handles encoding, SNN forward pass, and decoding
     """
 
@@ -391,7 +390,7 @@ class NeuromorphicEmbeddingInference:
     def infer(self, embedding: np.ndarray) -> Dict[str, Any]:
         """
         Perform neuromorphic embedding inference
-        
+
         Returns:
             - Reconstructed embedding
             - Spike statistics

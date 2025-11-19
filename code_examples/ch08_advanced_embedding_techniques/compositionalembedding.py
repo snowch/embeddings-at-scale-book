@@ -59,7 +59,7 @@ class CompositionalEmbedding(nn.Module):
                     nn.Linear(output_dim, output_dim),
                     nn.Sigmoid()
                 )
-                for name in component_dims.keys()
+                for name in component_dims
             })
 
         elif composition_type == 'attention':

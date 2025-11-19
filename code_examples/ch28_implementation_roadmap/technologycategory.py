@@ -134,7 +134,7 @@ class RequirementProfile:
 class TechnologyEvaluator:
     """
     Evaluate and select technologies for embedding system.
-    
+
     Systematic evaluation across categories with configurable
     priorities and constraints.
     """
@@ -157,7 +157,7 @@ class TechnologyEvaluator:
     ) -> List[Tuple[TechnologyOption, float]]:
         """
         Evaluate options in category and return top N.
-        
+
         Returns list of (option, score) tuples sorted by score.
         """
         if category not in self.options:

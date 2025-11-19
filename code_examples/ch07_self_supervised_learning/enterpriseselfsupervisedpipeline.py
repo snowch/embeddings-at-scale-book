@@ -103,7 +103,7 @@ class EnterpriseSelfsupervisedPipeline:
             epoch_loss = 0
             epoch_samples = 0
 
-            for batch_idx, batch in enumerate(dataloader):
+            for _batch_idx, batch in enumerate(dataloader):
                 batch = batch.cuda()
 
                 # Create pretext task

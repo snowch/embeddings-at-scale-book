@@ -117,7 +117,7 @@ class PilotConfiguration:
 class PilotMonitor:
     """
     Monitor pilot deployment performance and health.
-    
+
     Track SLOs, user metrics, incidents, and determine
     rollout readiness.
     """
@@ -217,7 +217,7 @@ class PilotMonitor:
     def assess_rollout_readiness(self) -> Dict[str, any]:
         """
         Assess readiness for broader rollout.
-        
+
         Returns assessment with recommendations.
         """
         assessment = {
@@ -275,7 +275,7 @@ class PilotMonitor:
             )
 
         # Check success metrics
-        for metric_name, target in self.config.success_metrics.items():
+        for metric_name, _target in self.config.success_metrics.items():
             # In real implementation, fetch actual metric values
             assessment["metrics"][metric_name] = "Not implemented"
 

@@ -41,7 +41,7 @@ import torch.nn as nn
 class ContentSegment:
     """
     Segment of content for editing
-    
+
     Attributes:
         segment_id: Unique identifier
         start_time: Segment start (seconds)
@@ -69,7 +69,7 @@ class ContentSegment:
 class EditSuggestion:
     """
     AI-generated editing suggestion
-    
+
     Attributes:
         suggestion_id: Unique identifier
         suggestion_type: "clip", "trailer", "highlight_reel", "social_variant"
@@ -141,11 +141,11 @@ class SaliencyDetector(nn.Module):
     ) -> torch.Tensor:
         """
         Predict saliency scores for each time step
-        
+
         Args:
             video_features: [batch, time_steps, video_dim]
             audio_features: [batch, time_steps, audio_dim]
-            
+
         Returns:
             saliency_scores: [batch, time_steps, 1]
         """
@@ -209,10 +209,10 @@ class EmotionalArcModeler(nn.Module):
     def forward(self, features: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Predict emotional arc
-        
+
         Args:
             features: [batch, time_steps, feature_dim]
-            
+
         Returns:
             emotion_logits: [batch, time_steps, num_emotions]
             arc_embedding: [batch, hidden_dim]
@@ -275,12 +275,12 @@ class ClipGenerator(nn.Module):
     ) -> torch.Tensor:
         """
         Generate clip by selecting segments
-        
+
         Args:
             segment_embeddings: [batch, num_segments, segment_dim]
             segment_durations: [batch, num_segments] - duration of each segment
             saliency_scores: [batch, num_segments] - saliency of each segment
-            
+
         Returns:
             selection_scores: [batch, num_segments] - probability to include
         """
@@ -305,7 +305,7 @@ class ClipGenerator(nn.Module):
     ) -> List[ContentSegment]:
         """
         Select segments to create clip of target duration
-        
+
         Uses greedy selection weighted by saliency
         """
         target = target_duration or self.target_duration
@@ -357,7 +357,7 @@ class TrailerGenerator:
     ) -> EditSuggestion:
         """
         Generate trailer from content segments
-        
+
         Strategy:
         1. Identify high-saliency moments
         2. Ensure emotional variety (setup, tension, climax)

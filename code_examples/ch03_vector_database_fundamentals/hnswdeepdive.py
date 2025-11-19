@@ -16,7 +16,7 @@ class HNSWDeepDive:
 
         # Graph structure: list of layers
         # Each layer: dict of {node_id: [neighbor_ids]}
-        self.layers = [dict() for _ in range(max_level + 1)]
+        self.layers = [{} for _ in range(max_level + 1)]
 
         # Entry point for search
         self.entry_point = None

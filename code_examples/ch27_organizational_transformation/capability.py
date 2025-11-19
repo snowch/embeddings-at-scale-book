@@ -54,7 +54,7 @@ class ProficiencyLevel(Enum):
 class TeamMember:
     """
     Individual team member profile
-    
+
     Attributes:
         name: Team member identifier
         role: Primary role
@@ -82,7 +82,7 @@ class TeamMember:
 class CapabilityRequirement:
     """
     Required capability for project success
-    
+
     Attributes:
         capability: Capability type
         min_proficiency: Minimum required proficiency
@@ -99,7 +99,7 @@ class CapabilityRequirement:
 class TeamCapabilityAssessment:
     """
     Assess team capabilities against requirements
-    
+
     Analyzes current team composition, identifies gaps,
     and recommends hiring/training strategies
     """
@@ -123,11 +123,11 @@ class TeamCapabilityAssessment:
     ) -> Dict[str, any]:
         """
         Assess team capability coverage
-        
+
         Args:
             capability: Capability to assess
             min_proficiency: Minimum required proficiency
-            
+
         Returns:
             Assessment results with gaps and recommendations
         """
@@ -166,7 +166,7 @@ class TeamCapabilityAssessment:
     def identify_gaps(self) -> List[Dict[str, any]]:
         """
         Identify capability gaps across all requirements
-        
+
         Returns:
             List of gaps with severity and recommendations
         """
@@ -256,10 +256,10 @@ class TeamCapabilityAssessment:
     def generate_hiring_plan(self, gaps: List[Dict[str, any]]) -> Dict[str, any]:
         """
         Generate hiring plan from identified gaps
-        
+
         Args:
             gaps: Capability gaps from identify_gaps()
-            
+
         Returns:
             Structured hiring plan with priorities and timelines
         """

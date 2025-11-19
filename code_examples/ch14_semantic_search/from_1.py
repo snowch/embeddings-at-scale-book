@@ -124,7 +124,6 @@ class ScientificSearchEngine:
             Paper embedding (embedding_dim,)
         """
         # Combine title and abstract
-        text = f"{paper.title}. {paper.abstract}"
 
         # In production: Use SPECTER or SciBERT
         # For demo: Random embedding

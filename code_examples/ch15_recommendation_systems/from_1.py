@@ -101,7 +101,7 @@ class SessionEncoder(nn.Module):
         Returns:
             Session embeddings (batch, session_dim)
         """
-        batch_size = item_embeddings.size(0)
+        item_embeddings.size(0)
 
         # RNN encoding
         rnn_out, _ = self.rnn(item_embeddings)  # (batch, max_len, hidden_dim)
@@ -354,7 +354,7 @@ def realtime_personalization_example():
     print("\n=== User Session ===")
     session_items = ['item_5', 'item_7', 'item_12']
 
-    for i, item_id in enumerate(session_items):
+    for _i, item_id in enumerate(session_items):
         print(f"\nUser views {item_id}")
 
         # Track event

@@ -148,7 +148,7 @@ class EpidemicModelingSystem:
             'S': [], 'E': [], 'I': [], 'R': [], 'D': []
         }
 
-        for day in range(days):
+        for _day in range(days):
             total_S = sum(self.compartments['S'].values())
             total_E = sum(self.compartments['E'].values())
             total_I = sum(self.compartments['I'].values())
@@ -197,7 +197,7 @@ class EpidemicModelingSystem:
     ) -> Dict[str, float]:
         """Evaluate intervention impact"""
         baseline_state = {
-            k: {g: v for g, v in comp.items()}
+            k: dict(comp.items())
             for k, comp in self.compartments.items()
         }
 

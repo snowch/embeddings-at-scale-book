@@ -67,7 +67,7 @@ class LearningMethod(Enum):
 class LearningModule:
     """
     Training module
-    
+
     Attributes:
         name: Module name
         track: Which learning track this belongs to
@@ -92,7 +92,7 @@ class LearningModule:
 class Learner:
     """
     Individual learner profile
-    
+
     Attributes:
         name: Learner identifier
         role: Job role
@@ -121,7 +121,7 @@ class Learner:
 class Project:
     """
     Hands-on learning project
-    
+
     Attributes:
         name: Project name
         description: What the project involves
@@ -146,7 +146,7 @@ class Project:
 class TrainingProgram:
     """
     Comprehensive embedding training program
-    
+
     Manages learning tracks, modules, projects, mentorship,
     and competency progression
     """
@@ -181,11 +181,11 @@ class TrainingProgram:
     ) -> List[Dict[str, any]]:
         """
         Recommend next modules for learner
-        
+
         Args:
             learner_name: Learner identifier
             max_recommendations: Maximum modules to recommend
-            
+
         Returns:
             Recommended modules with reasoning
         """
@@ -263,10 +263,10 @@ class TrainingProgram:
     def track_progress(self, learner_name: str) -> Dict[str, any]:
         """
         Track learner progress
-        
+
         Args:
             learner_name: Learner identifier
-            
+
         Returns:
             Progress summary and recommendations
         """
@@ -330,10 +330,10 @@ class TrainingProgram:
     def generate_curriculum(self, track: LearningTrack) -> str:
         """
         Generate curriculum overview for track
-        
+
         Args:
             track: Learning track
-            
+
         Returns:
             Formatted curriculum
         """
@@ -353,7 +353,7 @@ class TrainingProgram:
             by_level[module.level].append(module)
 
         # Format curriculum by level
-        for level in sorted(by_level.keys(), key=lambda l: l.value):
+        for level in sorted(by_level.keys(), key=lambda lvl: lvl.value):
             curriculum += f"## {level.name} Level\n\n"
 
             total_hours = sum(m.duration_hours for m in by_level[level])
@@ -407,7 +407,7 @@ class TrainingProgram:
 
         # Module completion statistics
         dashboard += "\n## Module Completion\n\n"
-        total_completions = sum(len(l.completed_modules) for l in self.learners.values())
+        total_completions = sum(len(learner.completed_modules) for learner in self.learners.values())
         avg_completions = total_completions / len(self.learners) if self.learners else 0
         dashboard += f"- Total completions: {total_completions}\n"
         dashboard += f"- Average per learner: {avg_completions:.1f}\n"
@@ -669,7 +669,7 @@ def create_enterprise_training_program():
 
     # Track progress
     print("\n=== Learner Progress ===\n")
-    for learner_name in program.learners.keys():
+    for learner_name in program.learners:
         progress = program.track_progress(learner_name)
         print(f"{learner_name}:")
         print(f"  Level: {progress['current_level']}")
