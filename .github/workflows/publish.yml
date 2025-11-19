@@ -42,6 +42,10 @@ jobs:
       - name: Install TinyTeX for PDF rendering
         run: quarto install tinytex
 
+      - name: Get commit hash
+        id: git_commit
+        run: echo "GIT_COMMIT_HASH=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
       - name: Render Book (all formats)
         run: quarto render
 
