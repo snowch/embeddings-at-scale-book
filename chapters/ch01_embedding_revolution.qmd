@@ -18,30 +18,111 @@ Here's the key insight: in an embedding space, **similarity in meaning correspon
 ```python
 import numpy as np
 
-# A simple 3-dimensional embedding space
+# A simple 3-dimensional embedding space for illustration
+# Why 3 dimensions? This is deliberately simplified for visualization and pedagogy.
+# Real embeddings typically use 300-1024 dimensions, but 3D allows us to:
+# - Visualize the concept geometrically (x, y, z axes)
+# - Understand the math without getting lost in high-dimensional space
+# - Demonstrate the core principle: semantic similarity = geometric proximity
+
+# How were these values chosen? They're hand-crafted to demonstrate key relationships:
+# - Dimension 0 (~0.9 or ~0.5): Represents "royalty" vs "common"
+# - Dimension 1 (~0.8 or ~0.2): Represents "human" vs "other"
+# - Dimension 2 (~0.1 or ~0.9): Represents "male" vs "female"
+# (In real embeddings, dimensions aren't this interpretable—they're learned automatically)
 word_embeddings = {
-    'king':   np.array([0.9, 0.8, 0.1]),
-    'queen':  np.array([0.9, 0.8, 0.9]),
-    'man':    np.array([0.5, 0.2, 0.1]),
-    'woman':  np.array([0.5, 0.2, 0.9]),
-    'apple':  np.array([0.1, 0.3, 0.5]),
+    'king':   np.array([0.9, 0.8, 0.1]),  # Royal + human + male
+    'queen':  np.array([0.9, 0.8, 0.9]),  # Royal + human + female
+    'man':    np.array([0.5, 0.2, 0.1]),  # Common + human + male
+    'woman':  np.array([0.5, 0.2, 0.9]),  # Common + human + female
+    'apple':  np.array([0.1, 0.3, 0.5]),  # Not royal, not human, neutral
 }
 
-# Calculate similarity using cosine similarity
+# Calculate similarity using cosine similarity (see callout box below)
 from sklearn.metrics.pairwise import cosine_similarity
 
 def similarity(word1, word2):
+    # Reshape from (3,) to (1, 3) - required by cosine_similarity()
+    # Why reshape? cosine_similarity expects 2D arrays where each row is a vector.
+    # Our embeddings are 1D arrays (shape: 3,), so we reshape to 2D (shape: 1, 3)
+    # The -1 in reshape(1, -1) means "infer this dimension" → converts [a,b,c] to [[a,b,c]]
     vec1 = word_embeddings[word1].reshape(1, -1)
     vec2 = word_embeddings[word2].reshape(1, -1)
+
+    # cosine_similarity returns a 2D array, so [0][0] extracts the scalar similarity value
     return cosine_similarity(vec1, vec2)[0][0]
 
-# Related words are similar
-print(f"king vs queen: {similarity('king', 'queen'):.3f}")  # High similarity
-print(f"man vs woman: {similarity('man', 'woman'):.3f}")    # High similarity
-print(f"king vs apple: {similarity('king', 'apple'):.3f}")  # Low similarity
+# Demonstrate that related words have similar embeddings
+print(f"king vs queen: {similarity('king', 'queen'):.3f}")  # High (~0.93) - both royalty
+print(f"man vs woman: {similarity('man', 'woman'):.3f}")    # High (~0.85) - both human
+print(f"king vs apple: {similarity('king', 'apple'):.3f}")  # Low (~0.46) - unrelated concepts
 ```
 
 In this toy example, 'king' and 'queen' have similar embeddings because they're related concepts (both royalty). 'King' and 'apple' are dissimilar because they're unrelated.
+
+:::{.callout-tip icon=false}
+## Understanding Cosine Similarity
+
+Cosine similarity measures how similar two vectors are by calculating the cosine of the angle between them. It's the most common similarity metric for embeddings.
+
+**The Math:**
+$$\text{cosine\_similarity}(\mathbf{A}, \mathbf{B}) = \frac{\mathbf{A} \cdot \mathbf{B}}{||\mathbf{A}|| \times ||\mathbf{B}||} = \frac{\sum_{i=1}^{n} A_i B_i}{\sqrt{\sum_{i=1}^{n} A_i^2} \times \sqrt{\sum_{i=1}^{n} B_i^2}}$$
+
+**Intuition:**
+
+```
+         B (queen)
+        /
+       / θ (small angle)
+      /________________ A (king)
+
+     Cosine of small angle ≈ 1.0 → Similar vectors
+
+
+         C (apple)
+        /
+       /
+      / θ (large angle)
+     /________________ A (king)
+
+     Cosine of large angle ≈ 0.0 → Dissimilar vectors
+```
+
+**Key Properties:**
+
+- **Range**: Returns values from -1 to 1
+  - `1.0`: Vectors point in same direction (identical meaning)
+  - `0.0`: Vectors are orthogonal/perpendicular (unrelated)
+  - `-1.0`: Vectors point in opposite directions (opposite meaning)
+
+- **Magnitude-independent**: Only considers direction, not length
+  - `[1, 2, 3]` and `[2, 4, 6]` have similarity of 1.0 (same direction)
+  - This is why we don't need to normalize our embeddings beforehand
+
+**Concrete Example from our code:**
+
+```python
+# king = [0.9, 0.8, 0.1], queen = [0.9, 0.8, 0.9]
+# Dot product: (0.9×0.9) + (0.8×0.8) + (0.1×0.9) = 0.81 + 0.64 + 0.09 = 1.54
+# ||king|| = √(0.9² + 0.8² + 0.1²) = √0.86 ≈ 0.93
+# ||queen|| = √(0.9² + 0.8² + 0.9²) = √1.66 ≈ 1.29
+# cosine_similarity = 1.54 / (0.93 × 1.29) ≈ 0.928 → Very similar!
+```
+
+**Why use cosine instead of Euclidean distance?**
+
+Euclidean distance measures absolute separation in space:
+```python
+# Euclidean distance: √[(x₁-x₂)² + (y₁-y₂)² + (z₁-z₂)²]
+distance_king_queen = √[(0.9-0.9)² + (0.8-0.8)² + (0.1-0.9)²] = 0.8
+```
+
+But cosine similarity is often better for embeddings because:
+
+1. **Scale-invariant**: "king" mentioned once vs. ten times shouldn't change its meaning
+2. **Captures semantic direction**: Two documents about "cats" are similar even if one is 10× longer
+3. **High-dimensional stability**: Works well even in 300+ dimensions where Euclidean distance suffers from the "curse of dimensionality"
+:::
 
 ### From Discrete to Continuous: Why Embeddings Matter
 
