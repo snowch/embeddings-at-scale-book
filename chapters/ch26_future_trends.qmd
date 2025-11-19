@@ -1628,6 +1628,7 @@ Practical deployment on neuromorphic chips:
 - Best for: Vision applications, edge devices
 
 **Deployment checklist**:
+
 1. Convert trained model to SNN (rate coding or temporal coding)
 2. Map network to hardware constraints (neurons, synapses)
 3. Calibrate spike rates for optimal accuracy-efficiency
@@ -2415,6 +2416,7 @@ def demonstrate_federated_edge_embedding():
 - Connectivity: Intermittent network requires offline capability
 
 **Optimization priorities**:
+
 1. Model compression (quantization, pruning, distillation)
 2. Efficient inference (hardware accelerators, optimized kernels)
 3. Caching (frequently used embeddings)
@@ -3566,6 +3568,7 @@ def demonstrate_agi_embedding():
 - Cognitive architectures with embedded intelligence
 
 **Key principles**:
+
 1. Flexibility: Build systems that can adapt as capabilities improve
 2. Modularity: Separate components that can be upgraded independently
 3. Explainability: Maintain interpretability as complexity grows
@@ -3733,6 +3736,7 @@ class HumanAICollaboration:
 Organizations should prepare embedding systems for AGI transition:
 
 **Architecture principles**:
+
 1. **Modularity**: Separate components can be upgraded without full redesign
 2. **Extensibility**: Support new modalities and capabilities
 3. **Adaptability**: Continual learning without catastrophic forgetting
