@@ -59,19 +59,23 @@ jobs:
           EOF
 
       - name: Render Book (all formats)
-        run: quarto render -M git-commit:${{ steps.git_commit.outputs.COMMIT_HASH }}
+        run: |
+          set -o pipefail
+          quarto render -M git-commit:${{ steps.git_commit.outputs.COMMIT_HASH }} 2>&1 | tee render.log
+          if grep -q "ERROR.*Build failed due to missing include file" render.log; then
+            echo "::error::Build failed due to missing include files"
+            exit 1
+          fi
 
-      # --- NEW STEP STARTS HERE ---
       - name: Upload Render Log on Failure
-        if: failure() 
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: quarto-error-log
-          # Captures index.log or any other log files in the root
           path: |
+             render.log
              index.log
              *.log
-      # --- NEW STEP ENDS HERE ---
 
       - name: Ensure .nojekyll exists
         run: touch _book/.nojekyll
