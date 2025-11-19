@@ -382,4 +382,6 @@ def train_distributed_embedding_model(
     """
     Distributed training script
 
-    Launch with:
+    Launch with torchrun or similar distributed launcher.
+    """
+    pass

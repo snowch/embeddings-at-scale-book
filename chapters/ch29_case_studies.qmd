@@ -1,6 +1,6 @@
-# Case Studies and Lessons Learned {{#sec-case-studies}}
+# Case Studies and Lessons Learned {#sec-case-studies}
 
-:::{{.callout-note}}
+:::{.callout-note}
 ## Chapter Overview
 This chapter covers successful trillion-row deployments, common pitfalls and how to avoid them, and 3 more topics.
 :::

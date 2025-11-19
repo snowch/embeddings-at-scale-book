@@ -426,4 +426,5 @@ class EdgeEmbeddingInference:
 
 ### Federated Learning for Collaborative Edge Embeddings
 
-Federated learning—training models across decentralized devices without centralizing data—enables privacy-preserving collaborative improvement of embedding models while data remains on edge devices.
+# Federated learning trains models across decentralized devices without centralizing data.
+# This enables privacy-preserving collaborative improvement of embedding models while data remains on edge devices.

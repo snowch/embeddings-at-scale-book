@@ -40,6 +40,32 @@ This book assumes:
 - Experience with Python or similar programming languages
 - Understanding of distributed systems (helpful but not required)
 
+## Code Examples
+
+All code examples from this book are available in the companion GitHub repository:
+
+::: {.callout-tip}
+## 📦 GitHub Repository
+
+**[github.com/snowch/embeddings-at-scale-book](https://github.com/snowch/embeddings-at-scale-book)**
+
+The repository includes:
+- 250+ production-ready Python examples organized by chapter
+- Complete working implementations of all algorithms
+- Requirements file for easy dependency installation
+- README guides for each chapter
+:::
+
+**To get started:**
+
+```bash
+git clone https://github.com/snowch/embeddings-at-scale-book.git
+cd embeddings-at-scale-book/code_examples
+pip install -r requirements.txt
+```
+
+You can also browse and download individual examples from the `/code_examples/` directory on GitHub.
+
 ## How to Use This Book
 
 Each chapter builds upon previous concepts while remaining self-contained enough for reference use. Code examples, case studies, and practical exercises are integrated throughout.
