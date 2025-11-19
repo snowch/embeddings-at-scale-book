@@ -14,7 +14,7 @@ Architecture:
 
 Partnership types:
 - Vendor partnerships: Technology providers and platform companies
-- Academic partnerships: Universities and research institutions  
+- Academic partnerships: Universities and research institutions
 - Open source partnerships: Community projects and foundations
 - Industry consortiums: Standards bodies and collaborative initiatives
 - Customer partnerships: Design partners and early adopters
@@ -242,7 +242,7 @@ class PartnershipPortfolio:
 
         # Score each partnership by strategic alignment
         scored_partnerships = []
-        for pid, partnership in self.partnerships.items():
+        for _pid, partnership in self.partnerships.items():
             alignment_score = sum(
                 strategic_priorities.get(area, 0)
                 for area in partnership.collaboration_areas
@@ -332,8 +332,6 @@ def design_partnership_strategy(
     strategic_focus: List[str]
 ) -> Dict[str, any]:
     """Design comprehensive partnership strategy"""
-
-    portfolio = PartnershipPortfolio()
 
     # Vendor partnership allocation (50-60% of budget)
     vendor_budget = annual_partnership_budget * 0.55

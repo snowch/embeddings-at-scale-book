@@ -92,7 +92,7 @@ class Innovation:
 class InnovationPipeline:
     """
     Manage research integration and continuous innovation.
-    
+
     Track innovations from research review through production
     deployment, measure impact, and share learnings.
     """

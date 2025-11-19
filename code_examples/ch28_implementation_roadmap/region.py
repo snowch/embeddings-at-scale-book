@@ -130,7 +130,7 @@ class ScalingPolicy:
 class EnterpriseDeployment:
     """
     Manage enterprise-wide embedding platform deployment.
-    
+
     Handles multi-region, multi-tenant deployment with
     governance, scaling, and cost management.
     """

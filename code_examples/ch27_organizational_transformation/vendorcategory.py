@@ -59,7 +59,7 @@ class RiskLevel(Enum):
 class Requirement:
     """
     Vendor requirement
-    
+
     Attributes:
         name: Requirement identifier
         category: Technical, operational, or business
@@ -79,7 +79,7 @@ class Requirement:
 class Vendor:
     """
     Vendor profile
-    
+
     Attributes:
         name: Vendor name
         category: Primary vendor category
@@ -107,7 +107,7 @@ class Vendor:
 class VendorScore:
     """
     Vendor evaluation score
-    
+
     Attributes:
         vendor_name: Vendor being evaluated
         requirement_scores: Scores for each requirement (0-10)
@@ -129,7 +129,7 @@ class VendorScore:
 class BuildVsBuyAnalysis:
     """
     Analysis for build vs buy decision
-    
+
     Attributes:
         component: What component is being considered
         build_cost_5yr: 5-year cost to build and maintain
@@ -153,7 +153,7 @@ class BuildVsBuyAnalysis:
 class VendorEvaluationFramework:
     """
     Framework for evaluating vendors and build-vs-buy decisions
-    
+
     Manages requirements, vendor scoring, cost analysis, and recommendations
     """
 
@@ -177,12 +177,12 @@ class VendorEvaluationFramework:
     ) -> VendorScore:
         """
         Score vendor against requirements
-        
+
         Args:
             vendor_name: Vendor to score
             requirement_scores: Scores for each requirement (0-10)
             cost_model: Cost breakdown (setup, annual, per_query, etc.)
-            
+
         Returns:
             Vendor evaluation score
         """
@@ -338,13 +338,13 @@ class VendorEvaluationFramework:
     ) -> BuildVsBuyAnalysis:
         """
         Analyze whether to build or buy component
-        
+
         Args:
             component: Component name
             build_estimate: Build cost and timeline
             buy_estimate: Buy cost and timeline
             strategic_factors: Strategic importance, team capability
-            
+
         Returns:
             Build vs buy recommendation
         """

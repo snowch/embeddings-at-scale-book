@@ -1,4 +1,6 @@
-from typing import Tuple
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Dict, List, Tuple
 
 import numpy as np
 
@@ -29,10 +31,6 @@ Future scenarios by industry:
 - Manufacturing: Predictive maintenance, quality prediction, process optimization
 - Media: Content recommendation, automated creation, audience understanding
 """
-
-from dataclasses import dataclass, field
-from enum import Enum
-from typing import Dict, List
 
 
 class TransformationStage(Enum):
