@@ -3,6 +3,7 @@ import torch.nn.functional as F
 # Code from Chapter 06
 # Book: Embeddings at Scale
 
+
 class SiameseANNService:
     """
     Siamese network integrated with Approximate Nearest Neighbor search
@@ -112,7 +113,7 @@ class SiameseANNService:
     def get_statistics(self):
         """Get index statistics"""
         return {
-            'total_items': self.index.ntotal if self.index else 0,
-            'embedding_dim': self.embedding_dim,
-            'cache_stats': self.siamese_service.get_cache_stats()
+            "total_items": self.index.ntotal if self.index else 0,
+            "embedding_dim": self.embedding_dim,
+            "cache_stats": self.siamese_service.get_cache_stats(),
         }

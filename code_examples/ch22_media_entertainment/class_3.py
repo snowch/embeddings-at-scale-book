@@ -58,6 +58,7 @@ class ViewingEvent:
         engagement: Engagement signals
         ad_response: Ad interaction data (if any)
     """
+
     event_id: str
     user_id: str
     content_id: str
@@ -68,6 +69,7 @@ class ViewingEvent:
     context: Dict[str, Any] = field(default_factory=dict)
     engagement: Dict[str, Any] = field(default_factory=dict)
     ad_response: Optional[Dict[str, Any]] = None
+
 
 @dataclass
 class ViewerSegment:
@@ -85,6 +87,7 @@ class ViewerSegment:
         temporal_patterns: When this segment is active
         centroid: Segment centroid in embedding space
     """
+
     segment_id: str
     segment_name: str
     size: int
@@ -94,6 +97,7 @@ class ViewerSegment:
     ad_affinity: Dict[str, float] = field(default_factory=dict)
     temporal_patterns: Dict[str, float] = field(default_factory=dict)
     centroid: Optional[np.ndarray] = None
+
 
 @dataclass
 class AdCampaign:
@@ -109,6 +113,7 @@ class AdCampaign:
         budget: Campaign budget
         performance: Performance metrics
     """
+
     campaign_id: str
     advertiser: str
     product_category: str
@@ -117,16 +122,18 @@ class AdCampaign:
     budget: float = 0.0
     performance: Dict[str, float] = field(default_factory=dict)
 
+
 class BehavioralViewerEncoder(nn.Module):
     """
     Encode viewer behavior into embeddings
     """
+
     def __init__(
         self,
         content_embedding_dim: int = 256,
         hidden_dim: int = 512,
         num_layers: int = 3,
-        embedding_dim: int = 256
+        embedding_dim: int = 256,
     ):
         super().__init__()
 
@@ -136,27 +143,26 @@ class BehavioralViewerEncoder(nn.Module):
             nhead=8,
             dim_feedforward=hidden_dim,
             dropout=0.1,
-            batch_first=True
+            batch_first=True,
         )
-        self.sequence_encoder = nn.TransformerEncoder(
-            encoder_layer,
-            num_layers=num_layers
-        )
+        self.sequence_encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
 
         # Engagement weighting
-        self.engagement_projection = nn.Linear(3, content_embedding_dim)  # duration, completion, signals
+        self.engagement_projection = nn.Linear(
+            3, content_embedding_dim
+        )  # duration, completion, signals
 
         # Temporal pattern encoder
         self.temporal_encoder = nn.Sequential(
             nn.Linear(24 + 7, 64),  # hour of day + day of week
             nn.ReLU(),
-            nn.Linear(64, 128)
+            nn.Linear(64, 128),
         )
 
         # Context encoder
         self.context_encoder = nn.Sequential(
             nn.Embedding(10, 64),  # device types
-            nn.Linear(64, 128)
+            nn.Linear(64, 128),
         )
 
         # Fusion and output
@@ -164,7 +170,7 @@ class BehavioralViewerEncoder(nn.Module):
             nn.Linear(content_embedding_dim + 128 + 128, 512),
             nn.ReLU(),
             nn.Dropout(0.2),
-            nn.Linear(512, embedding_dim)
+            nn.Linear(512, embedding_dim),
         )
 
         # Layer norm
@@ -176,7 +182,7 @@ class BehavioralViewerEncoder(nn.Module):
         engagement_scores: torch.Tensor,
         temporal_features: torch.Tensor,
         device_ids: torch.Tensor,
-        mask: Optional[torch.Tensor] = None
+        mask: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """
         Encode viewer behavior
@@ -198,8 +204,7 @@ class BehavioralViewerEncoder(nn.Module):
         # Encode sequence with Transformer
         if mask is not None:
             sequence_features = self.sequence_encoder(
-                weighted_content,
-                src_key_padding_mask=~mask.bool()
+                weighted_content, src_key_padding_mask=~mask.bool()
             )
         else:
             sequence_features = self.sequence_encoder(weighted_content)
@@ -207,7 +212,9 @@ class BehavioralViewerEncoder(nn.Module):
         # Pool sequence
         if mask is not None:
             mask_expanded = mask.unsqueeze(-1).float()
-            pooled_sequence = (sequence_features * mask_expanded).sum(dim=1) / mask_expanded.sum(dim=1).clamp(min=1)
+            pooled_sequence = (sequence_features * mask_expanded).sum(dim=1) / mask_expanded.sum(
+                dim=1
+            ).clamp(min=1)
         else:
             pooled_sequence = sequence_features.mean(dim=1)
 
@@ -224,16 +231,13 @@ class BehavioralViewerEncoder(nn.Module):
 
         return F.normalize(embedding, p=2, dim=1)
 
+
 class AdResponsePredictor(nn.Module):
     """
     Predict ad response from viewer and ad embeddings
     """
-    def __init__(
-        self,
-        viewer_dim: int = 256,
-        ad_dim: int = 128,
-        hidden_dim: int = 256
-    ):
+
+    def __init__(self, viewer_dim: int = 256, ad_dim: int = 128, hidden_dim: int = 256):
         super().__init__()
 
         # Viewer-ad interaction
@@ -244,14 +248,10 @@ class AdResponsePredictor(nn.Module):
             nn.Linear(hidden_dim, hidden_dim),
             nn.ReLU(),
             nn.Dropout(0.3),
-            nn.Linear(hidden_dim, 1)
+            nn.Linear(hidden_dim, 1),
         )
 
-    def forward(
-        self,
-        viewer_embeddings: torch.Tensor,
-        ad_embeddings: torch.Tensor
-    ) -> torch.Tensor:
+    def forward(self, viewer_embeddings: torch.Tensor, ad_embeddings: torch.Tensor) -> torch.Tensor:
         """
         Predict ad click-through rate
 
@@ -267,15 +267,17 @@ class AdResponsePredictor(nn.Module):
         ctr = torch.sigmoid(logits)
         return ctr
 
+
 class MicroSegmentationEngine:
     """
     Discover and manage viewer micro-segments
     """
+
     def __init__(
         self,
         viewer_encoder: BehavioralViewerEncoder,
         min_segment_size: int = 1000,
-        num_segments: int = 100
+        num_segments: int = 100,
     ):
         self.viewer_encoder = viewer_encoder
         self.min_segment_size = min_segment_size
@@ -285,10 +287,7 @@ class MicroSegmentationEngine:
         self.viewer_ids: List[str] = []
         self.segments: Dict[str, ViewerSegment] = {}
 
-    def update_viewer_embeddings(
-        self,
-        viewer_data: Dict[str, List[ViewingEvent]]
-    ):
+    def update_viewer_embeddings(self, viewer_data: Dict[str, List[ViewingEvent]]):
         """
         Update viewer embeddings from recent viewing data
         """
@@ -303,17 +302,14 @@ class MicroSegmentationEngine:
 
                 # Prepare features
                 content_seq = torch.randn(1, len(events), 256)  # Placeholder
-                engagement = torch.tensor([
-                    [e.duration / 3600, e.completion, 1.0]
-                    for e in events
-                ]).unsqueeze(0)
+                engagement = torch.tensor(
+                    [[e.duration / 3600, e.completion, 1.0] for e in events]
+                ).unsqueeze(0)
                 temporal = torch.randn(1, len(events), 31)  # Placeholder
                 devices = torch.zeros(1, len(events), dtype=torch.long)  # Placeholder
 
                 # Encode
-                embedding = self.viewer_encoder(
-                    content_seq, engagement, temporal, devices
-                )
+                embedding = self.viewer_encoder(content_seq, engagement, temporal, devices)
 
                 embeddings.append(embedding.cpu().numpy())
                 viewer_ids.append(user_id)
@@ -347,15 +343,12 @@ class MicroSegmentationEngine:
                 segment_id=f"segment_{cluster_id}",
                 segment_name=f"Segment {cluster_id}",
                 size=int(segment_size),
-                centroid=kmeans.cluster_centers_[cluster_id]
+                centroid=kmeans.cluster_centers_[cluster_id],
             )
 
             self.segments[segment.segment_id] = segment
 
-    def assign_viewer_to_segment(
-        self,
-        viewer_embedding: np.ndarray
-    ) -> str:
+    def assign_viewer_to_segment(self, viewer_embedding: np.ndarray) -> str:
         """
         Assign viewer to nearest segment
         """
@@ -363,7 +356,7 @@ class MicroSegmentationEngine:
             return "unknown"
 
         # Find nearest segment centroid
-        min_dist = float('inf')
+        min_dist = float("inf")
         nearest_segment = None
 
         for segment in self.segments.values():
@@ -375,6 +368,7 @@ class MicroSegmentationEngine:
 
         return nearest_segment if nearest_segment else "unknown"
 
+
 # Example usage
 def audience_targeting_example():
     """
@@ -385,24 +379,15 @@ def audience_targeting_example():
 
     # Initialize viewer encoder
     viewer_encoder = BehavioralViewerEncoder(
-        content_embedding_dim=256,
-        hidden_dim=512,
-        num_layers=3,
-        embedding_dim=256
+        content_embedding_dim=256, hidden_dim=512, num_layers=3, embedding_dim=256
     )
 
     # Initialize ad response predictor
-    ad_predictor = AdResponsePredictor(
-        viewer_dim=256,
-        ad_dim=128,
-        hidden_dim=256
-    )
+    ad_predictor = AdResponsePredictor(viewer_dim=256, ad_dim=128, hidden_dim=256)
 
     # Initialize segmentation engine
     segmentation_engine = MicroSegmentationEngine(
-        viewer_encoder=viewer_encoder,
-        min_segment_size=1000,
-        num_segments=100
+        viewer_encoder=viewer_encoder, min_segment_size=1000, num_segments=100
     )
 
     # Simulate viewer behavior data
@@ -418,7 +403,7 @@ def audience_targeting_example():
                 timestamp=datetime.now(),
                 duration=float(np.random.randint(60, 3600)),
                 completion=float(np.random.rand()),
-                device="mobile" if np.random.rand() > 0.5 else "tv"
+                device="mobile" if np.random.rand() > 0.5 else "tv",
             )
             for j in range(20)
         ]
@@ -438,7 +423,9 @@ def audience_targeting_example():
     print("Discovering micro-segments...")
     segmentation_engine.discover_segments(method="kmeans")
     print(f"  - Segments discovered: {len(segmentation_engine.segments)}")
-    print(f"  - Average segment size: {np.mean([s.size for s in segmentation_engine.segments.values()]):.0f}")
+    print(
+        f"  - Average segment size: {np.mean([s.size for s in segmentation_engine.segments.values()]):.0f}"
+    )
     print()
 
     # Example segment characteristics
@@ -461,7 +448,9 @@ def audience_targeting_example():
     with torch.no_grad():
         ctr_predictions = ad_predictor(viewer_emb, ad_emb)
 
-    print(f"  - Predicted CTR range: {ctr_predictions.min().item():.3f} - {ctr_predictions.max().item():.3f}")
+    print(
+        f"  - Predicted CTR range: {ctr_predictions.min().item():.3f} - {ctr_predictions.max().item():.3f}"
+    )
     print(f"  - Average predicted CTR: {ctr_predictions.mean().item():.3f}")
     print()
 
@@ -488,6 +477,7 @@ def audience_targeting_example():
     print("  - Brand safety: 98.5% ads in appropriate context")
     print()
     print("→ Behavioral embeddings enable precision audience targeting")
+
 
 # Uncomment to run:
 # audience_targeting_example()

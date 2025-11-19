@@ -25,12 +25,7 @@ class DomainSpecificMLM:
     """
 
     def __init__(
-        self,
-        domain='general',
-        vocab_size=30000,
-        hidden_size=768,
-        num_layers=12,
-        num_heads=12
+        self, domain="general", vocab_size=30000, hidden_size=768, num_layers=12, num_heads=12
     ):
         """
         Args:
@@ -49,14 +44,14 @@ class DomainSpecificMLM:
             num_hidden_layers=num_layers,
             num_attention_heads=num_heads,
             intermediate_size=hidden_size * 4,
-            max_position_embeddings=512
+            max_position_embeddings=512,
         )
 
         # Initialize model
         self.model = BertForMaskedLM(self.config)
         self.tokenizer = None
 
-    def train_tokenizer(self, text_corpus, save_path='./tokenizer'):
+    def train_tokenizer(self, text_corpus, save_path="./tokenizer"):
         """
         Train domain-specific tokenizer
 
@@ -80,7 +75,7 @@ class DomainSpecificMLM:
         trainer = BpeTrainer(
             vocab_size=self.config.vocab_size,
             special_tokens=["[PAD]", "[UNK]", "[CLS]", "[SEP]", "[MASK]"],
-            show_progress=True
+            show_progress=True,
         )
 
         # Train on corpus
@@ -108,33 +103,26 @@ class DomainSpecificMLM:
         from datasets import Dataset
 
         # Create dataset
-        dataset = Dataset.from_dict({'text': texts})
+        dataset = Dataset.from_dict({"text": texts})
 
         # Tokenize
         def tokenize_function(examples):
             return tokenizer(
-                examples['text'],
-                truncation=True,
-                max_length=512,
-                padding='max_length'
+                examples["text"], truncation=True, max_length=512, padding="max_length"
             )
 
-        tokenized_dataset = dataset.map(
-            tokenize_function,
-            batched=True,
-            remove_columns=['text']
-        )
+        tokenized_dataset = dataset.map(tokenize_function, batched=True, remove_columns=["text"])
 
         return tokenized_dataset
 
     def train(
         self,
         train_dataset,
-        output_dir='./mlm_model',
+        output_dir="./mlm_model",
         num_epochs=3,
         batch_size=32,
         learning_rate=5e-5,
-        mlm_probability=0.15
+        mlm_probability=0.15,
     ):
         """
         Train MLM model
@@ -149,9 +137,7 @@ class DomainSpecificMLM:
         """
         # Data collator handles masking
         data_collator = DataCollatorForLanguageModeling(
-            tokenizer=self.tokenizer,
-            mlm=True,
-            mlm_probability=mlm_probability
+            tokenizer=self.tokenizer, mlm=True, mlm_probability=mlm_probability
         )
 
         # Training arguments
@@ -167,7 +153,7 @@ class DomainSpecificMLM:
             save_total_limit=3,
             fp16=torch.cuda.is_available(),  # Mixed precision training
             dataloader_num_workers=4,
-            remove_unused_columns=False
+            remove_unused_columns=False,
         )
 
         # Trainer
@@ -175,7 +161,7 @@ class DomainSpecificMLM:
             model=self.model,
             args=training_args,
             data_collator=data_collator,
-            train_dataset=train_dataset
+            train_dataset=train_dataset,
         )
 
         # Train
@@ -201,19 +187,12 @@ class DomainSpecificMLM:
 
         # Tokenize
         inputs = self.tokenizer(
-            texts,
-            padding=True,
-            truncation=True,
-            max_length=512,
-            return_tensors='pt'
+            texts, padding=True, truncation=True, max_length=512, return_tensors="pt"
         )
 
         # Forward pass
         with torch.no_grad():
-            outputs = self.model.bert(
-                **inputs,
-                output_hidden_states=True
-            )
+            outputs = self.model.bert(**inputs, output_hidden_states=True)
 
         # Extract embeddings from specified layer
         hidden_states = outputs.hidden_states[layer]
@@ -233,12 +212,7 @@ def example_legal_mlm():
     and structure (citations, precedents) that generic models miss.
     """
     # Initialize
-    legal_mlm = DomainSpecificMLM(
-        domain='legal',
-        vocab_size=32000,
-        hidden_size=768,
-        num_layers=12
-    )
+    legal_mlm = DomainSpecificMLM(domain="legal", vocab_size=32000, hidden_size=768, num_layers=12)
 
     # Sample legal texts (in production: millions of documents)
     legal_corpus = [
@@ -250,7 +224,7 @@ def example_legal_mlm():
 
     # Train domain-specific tokenizer
     print("Training legal tokenizer...")
-    legal_mlm.train_tokenizer(legal_corpus, save_path='./legal_tokenizer')
+    legal_mlm.train_tokenizer(legal_corpus, save_path="./legal_tokenizer")
 
     # Prepare dataset
     print("Preparing dataset...")
@@ -258,18 +232,13 @@ def example_legal_mlm():
 
     # Train MLM
     print("Training MLM...")
-    legal_mlm.train(
-        train_dataset,
-        output_dir='./legal_mlm_model',
-        num_epochs=3,
-        batch_size=16
-    )
+    legal_mlm.train(train_dataset, output_dir="./legal_mlm_model", num_epochs=3, batch_size=16)
 
     # Extract embeddings
     print("Extracting embeddings...")
     test_texts = [
         "The defendant's motion to dismiss was denied.",
-        "Statutory interpretation follows the plain meaning rule."
+        "Statutory interpretation follows the plain meaning rule.",
     ]
     embeddings = legal_mlm.get_embeddings(test_texts)
 

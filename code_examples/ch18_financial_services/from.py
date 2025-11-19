@@ -48,6 +48,7 @@ class Security:
         news: Recent news articles
         alternative_data: Non-traditional data (web traffic, sentiment, etc.)
     """
+
     ticker: str
     name: str
     sector: str
@@ -65,6 +66,7 @@ class Security:
         if self.alternative_data is None:
             self.alternative_data = {}
 
+
 @dataclass
 class TradingSignal:
     """
@@ -80,6 +82,7 @@ class TradingSignal:
         position_size: Recommended position size
         explanation: Human-readable explanation
     """
+
     ticker: str
     timestamp: float
     predicted_return: float
@@ -88,6 +91,7 @@ class TradingSignal:
     risk_score: float
     position_size: float
     explanation: str
+
 
 class SecurityEncoder(nn.Module):
     """
@@ -110,7 +114,7 @@ class SecurityEncoder(nn.Module):
         self,
         embedding_dim: int = 256,
         price_lookback: int = 60,  # 60 days
-        num_fundamental_features: int = 50
+        num_fundamental_features: int = 50,
     ):
         super().__init__()
         self.embedding_dim = embedding_dim
@@ -122,7 +126,7 @@ class SecurityEncoder(nn.Module):
             hidden_size=128,
             num_layers=2,
             batch_first=True,
-            dropout=0.2
+            dropout=0.2,
         )
 
         # Fundamental encoder
@@ -130,22 +134,15 @@ class SecurityEncoder(nn.Module):
             nn.Linear(num_fundamental_features, 128),
             nn.ReLU(),
             nn.Dropout(0.2),
-            nn.Linear(128, 128)
+            nn.Linear(128, 128),
         )
 
         # Fusion layer
         self.fusion = nn.Sequential(
-            nn.Linear(256, 256),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(256, embedding_dim)
+            nn.Linear(256, 256), nn.ReLU(), nn.Dropout(0.2), nn.Linear(256, embedding_dim)
         )
 
-    def forward(
-        self,
-        price_history: torch.Tensor,
-        fundamentals: torch.Tensor
-    ) -> torch.Tensor:
+    def forward(self, price_history: torch.Tensor, fundamentals: torch.Tensor) -> torch.Tensor:
         """
         Encode securities
 
@@ -172,6 +169,7 @@ class SecurityEncoder(nn.Module):
 
         return security_emb
 
+
 class MarketRegimeEncoder(nn.Module):
     """
     Encode market regime (bull, bear, volatile, calm)
@@ -195,7 +193,7 @@ class MarketRegimeEncoder(nn.Module):
             nn.Linear(20, 64),  # 20 market indicators
             nn.ReLU(),
             nn.Dropout(0.2),
-            nn.Linear(64, embedding_dim)
+            nn.Linear(64, embedding_dim),
         )
 
     def forward(self, market_indicators: torch.Tensor) -> torch.Tensor:
@@ -211,6 +209,7 @@ class MarketRegimeEncoder(nn.Module):
         regime_emb = self.encoder(market_indicators)
         regime_emb = F.normalize(regime_emb, p=2, dim=1)
         return regime_emb
+
 
 class TradingSignalGenerator(nn.Module):
     """
@@ -228,12 +227,7 @@ class TradingSignalGenerator(nn.Module):
     - Risk score (downside risk)
     """
 
-    def __init__(
-        self,
-        security_dim: int = 256,
-        regime_dim: int = 64,
-        hidden_dim: int = 256
-    ):
+    def __init__(self, security_dim: int = 256, regime_dim: int = 64, hidden_dim: int = 256):
         super().__init__()
 
         # Signal generation network
@@ -244,14 +238,11 @@ class TradingSignalGenerator(nn.Module):
             nn.Linear(hidden_dim, hidden_dim),
             nn.ReLU(),
             nn.Dropout(0.3),
-            nn.Linear(hidden_dim, 3)  # return, confidence, risk
+            nn.Linear(hidden_dim, 3),  # return, confidence, risk
         )
 
     def forward(
-        self,
-        security_emb: torch.Tensor,
-        regime_emb: torch.Tensor,
-        momentum_features: torch.Tensor
+        self, security_emb: torch.Tensor, regime_emb: torch.Tensor, momentum_features: torch.Tensor
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Generate trading signals
@@ -276,6 +267,7 @@ class TradingSignalGenerator(nn.Module):
         risk_score = torch.sigmoid(outputs[:, 2])  # 0-1
 
         return predicted_return, confidence, risk_score
+
 
 # Example: End-to-end trading signal system
 def trading_signal_example():
@@ -377,6 +369,7 @@ def trading_signal_example():
     print("Total exposure: 50% long, 20% short, 30% cash")
     print("Expected return: 12% annualized")
     print("Sharpe ratio: 1.8")
+
 
 # Uncomment to run:
 # trading_signal_example()

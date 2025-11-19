@@ -4,6 +4,7 @@
 # Placeholder class for hierarchical embedding trainer
 class HierarchicalEmbeddingTrainer:
     """Placeholder hierarchical embedding trainer. Replace with actual implementation."""
+
     def __init__(self, taxonomy, embedding_dim=10, curvature=1.0):
         self.taxonomy = taxonomy
         self.embedding_dim = embedding_dim
@@ -13,6 +14,7 @@ class HierarchicalEmbeddingTrainer:
         """Train embeddings. Placeholder implementation."""
         if verbose:
             print(f"Training hierarchical embeddings for {num_epochs} epochs...")
+
 
 def embed_medical_ontology():
     """
@@ -25,29 +27,22 @@ def embed_medical_ontology():
     # Example: Simplified disease taxonomy
     disease_taxonomy = {
         # Cardiovascular diseases
-        'myocardial_infarction': 'ischemic_heart_disease',
-        'angina': 'ischemic_heart_disease',
-        'ischemic_heart_disease': 'cardiovascular_disease',
-
-        'atrial_fibrillation': 'arrhythmia',
-        'ventricular_tachycardia': 'arrhythmia',
-        'arrhythmia': 'cardiovascular_disease',
-
+        "myocardial_infarction": "ischemic_heart_disease",
+        "angina": "ischemic_heart_disease",
+        "ischemic_heart_disease": "cardiovascular_disease",
+        "atrial_fibrillation": "arrhythmia",
+        "ventricular_tachycardia": "arrhythmia",
+        "arrhythmia": "cardiovascular_disease",
         # Respiratory diseases
-        'pneumonia': 'lower_respiratory_infection',
-        'bronchitis': 'lower_respiratory_infection',
-        'lower_respiratory_infection': 'respiratory_disease',
-
-        'asthma': 'chronic_respiratory_disease',
-        'copd': 'chronic_respiratory_disease',
-        'chronic_respiratory_disease': 'respiratory_disease',
+        "pneumonia": "lower_respiratory_infection",
+        "bronchitis": "lower_respiratory_infection",
+        "lower_respiratory_infection": "respiratory_disease",
+        "asthma": "chronic_respiratory_disease",
+        "copd": "chronic_respiratory_disease",
+        "chronic_respiratory_disease": "respiratory_disease",
     }
 
-    trainer = HierarchicalEmbeddingTrainer(
-        disease_taxonomy,
-        embedding_dim=10,
-        curvature=1.0
-    )
+    trainer = HierarchicalEmbeddingTrainer(disease_taxonomy, embedding_dim=10, curvature=1.0)
 
     trainer.train(num_epochs=2000, verbose=True)
 

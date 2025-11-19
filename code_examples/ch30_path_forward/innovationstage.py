@@ -38,6 +38,7 @@ Success metrics:
 
 class InnovationStage(Enum):
     """Stages in innovation pipeline"""
+
     DISCOVERED = "discovered"  # Identified as potentially valuable
     EVALUATING = "evaluating"  # Deep assessment underway
     PROTOTYPING = "prototyping"  # Building minimal implementation
@@ -47,16 +48,20 @@ class InnovationStage(Enum):
     SCALED = "scaled"  # Expanded across organization
     RETIRED = "retired"  # Removed or superseded
 
+
 class InnovationType(Enum):
     """Types of innovations"""
+
     INCREMENTAL = "incremental"  # 10-30% improvement to existing
     ADJACENT = "adjacent"  # New capability related to existing
     BREAKTHROUGH = "breakthrough"  # Fundamentally new approach
     PLATFORM = "platform"  # Enabling technology for many applications
 
+
 @dataclass
 class ResearchItem:
     """Research paper or technique being evaluated"""
+
     title: str
     authors: List[str]
     publication_venue: str
@@ -94,9 +99,11 @@ class ResearchItem:
     notes: str = ""
     metadata: Dict[str, any] = field(default_factory=dict)
 
+
 @dataclass
 class InnovationExperiment:
     """Specific experiment testing innovation hypothesis"""
+
     hypothesis: str
     research_basis: Optional[str]  # Link to ResearchItem
     experiment_owner: str
@@ -124,6 +131,7 @@ class InnovationExperiment:
     expected_roi: Optional[float] = None
 
     completion_date: Optional[datetime] = None
+
 
 @dataclass
 class InnovationPortfolio:
@@ -160,8 +168,7 @@ class InnovationPortfolio:
             return {"balanced": True, "message": "No active innovations"}
 
         actual_percentages = {
-            itype: current_allocation[itype] / total_allocated
-            for itype in InnovationType
+            itype: current_allocation[itype] / total_allocated for itype in InnovationType
         }
 
         targets = {
@@ -171,8 +178,7 @@ class InnovationPortfolio:
         }
 
         imbalances = {
-            itype: actual_percentages.get(itype, 0) - targets.get(itype, 0)
-            for itype in targets
+            itype: actual_percentages.get(itype, 0) - targets.get(itype, 0) for itype in targets
         }
 
         max_imbalance = max(abs(v) for v in imbalances.values())
@@ -184,7 +190,7 @@ class InnovationPortfolio:
             "target_allocation": targets,
             "imbalances": imbalances,
             "max_imbalance": max_imbalance,
-            "recommendation": self._get_rebalancing_recommendation(imbalances)
+            "recommendation": self._get_rebalancing_recommendation(imbalances),
         }
 
     def _get_rebalancing_recommendation(self, imbalances: Dict) -> str:
@@ -194,14 +200,15 @@ class InnovationPortfolio:
         for itype, imbalance in imbalances.items():
             if imbalance > 0.15:
                 recommendations.append(
-                    f"Reduce {itype.value} investments by {imbalance*100:.0f}%"
+                    f"Reduce {itype.value} investments by {imbalance * 100:.0f}%"
                 )
             elif imbalance < -0.15:
                 recommendations.append(
-                    f"Increase {itype.value} investments by {-imbalance*100:.0f}%"
+                    f"Increase {itype.value} investments by {-imbalance * 100:.0f}%"
                 )
 
         return "; ".join(recommendations) if recommendations else "Portfolio balanced"
+
 
 class InnovationPipeline:
     """System for managing research integration and innovation"""
@@ -209,7 +216,7 @@ class InnovationPipeline:
     def __init__(
         self,
         monthly_research_review_capacity: int = 100,
-        quarterly_innovation_budget: float = 1_000_000
+        quarterly_innovation_budget: float = 1_000_000,
     ):
         self.portfolio = InnovationPortfolio()
         self.research_sources: List[str] = []
@@ -217,9 +224,7 @@ class InnovationPipeline:
         self.innovation_budget = quarterly_innovation_budget
 
     def evaluate_research_item(
-        self,
-        item: ResearchItem,
-        evaluation_team: List[str]
+        self, item: ResearchItem, evaluation_team: List[str]
     ) -> Dict[str, any]:
         """Systematic evaluation of research for potential adoption"""
 
@@ -237,10 +242,7 @@ class InnovationPipeline:
 
         # Overall priority score
         priority = (
-            technical_score * 0.3 +
-            business_score * 0.4 +
-            resource_score * 0.2 +
-            risk_score * 0.1
+            technical_score * 0.3 + business_score * 0.4 + resource_score * 0.2 + risk_score * 0.1
         )
 
         # Recommendation
@@ -262,7 +264,7 @@ class InnovationPipeline:
             "priority_score": priority,
             "recommendation": recommendation,
             "evaluation_team": evaluation_team,
-            "evaluation_date": datetime.now()
+            "evaluation_date": datetime.now(),
         }
 
     def _assess_technical_feasibility(self, item: ResearchItem) -> float:
@@ -329,7 +331,7 @@ class InnovationPipeline:
         self,
         research_item: ResearchItem,
         baseline_system: str,
-        success_threshold: float = 0.15  # 15% improvement
+        success_threshold: float = 0.15,  # 15% improvement
     ) -> InnovationExperiment:
         """Design rigorous experiment to validate innovation"""
 
@@ -338,19 +340,19 @@ class InnovationPipeline:
             metrics = {
                 "ndcg@10": success_threshold,
                 "mrr": success_threshold,
-                "user_satisfaction": 0.10
+                "user_satisfaction": 0.10,
             }
         elif "recommendation" in research_item.potential_applications:
             metrics = {
                 "click_through_rate": success_threshold,
                 "conversion_rate": success_threshold * 0.5,
-                "user_engagement": 0.10
+                "user_engagement": 0.10,
             }
         else:
             metrics = {
                 "task_accuracy": success_threshold,
                 "latency_improvement": 0.20,
-                "cost_reduction": 0.15
+                "cost_reduction": 0.15,
             }
 
         # Estimate experiment duration
@@ -374,13 +376,11 @@ class InnovationPipeline:
             success_metrics=metrics,
             team_size=team_size,
             duration_weeks=duration,
-            compute_budget=research_item.estimated_compute_cost
+            compute_budget=research_item.estimated_compute_cost,
         )
 
     def track_experiment_results(
-        self,
-        experiment: InnovationExperiment,
-        results: Dict[str, float]
+        self, experiment: InnovationExperiment, results: Dict[str, float]
     ) -> Dict[str, any]:
         """Analyze experiment results and make go/no-go decision"""
 
@@ -425,7 +425,7 @@ class InnovationPipeline:
             "improvements": improvements,
             "production_ready": experiment.production_decision,
             "expected_roi": experiment.expected_roi,
-            "recommendation": self._get_experiment_recommendation(experiment)
+            "recommendation": self._get_experiment_recommendation(experiment),
         }
 
     def _get_experiment_recommendation(self, experiment: InnovationExperiment) -> str:
@@ -439,18 +439,15 @@ class InnovationPipeline:
             learnings = ", ".join(experiment.qualitative_learnings[:3])
             return f"ARCHIVE: Did not meet success criteria. Learnings: {learnings}"
 
-    def generate_innovation_roadmap(
-        self,
-        quarters: int = 4
-    ) -> Dict[str, any]:
+    def generate_innovation_roadmap(self, quarters: int = 4) -> Dict[str, any]:
         """Generate innovation roadmap for next N quarters"""
 
         roadmap = {
-            f"Q{i+1}": {
+            f"Q{i + 1}": {
                 "incremental_initiatives": [],
                 "adjacent_innovations": [],
                 "breakthrough_experiments": [],
-                "expected_outcomes": []
+                "expected_outcomes": [],
             }
             for i in range(quarters)
         }
@@ -470,25 +467,25 @@ class InnovationPipeline:
                     else:
                         roadmap[quarter_key]["breakthrough_experiments"].append(item.title)
 
-                    roadmap[quarter_key]["expected_outcomes"].append({
-                        "innovation": item.title,
-                        "impact": item.impact_potential,
-                        "applications": list(item.potential_applications)
-                    })
+                    roadmap[quarter_key]["expected_outcomes"].append(
+                        {
+                            "innovation": item.title,
+                            "impact": item.impact_potential,
+                            "applications": list(item.potential_applications),
+                        }
+                    )
 
         return roadmap
 
+
 # Example usage
 def build_innovation_program(
-    organization_size: str,
-    innovation_maturity: str,
-    annual_budget: float
+    organization_size: str, innovation_maturity: str, annual_budget: float
 ) -> Dict[str, any]:
     """Design innovation program appropriate for organization"""
 
     pipeline = InnovationPipeline(
-        monthly_research_review_capacity=100,
-        quarterly_innovation_budget=annual_budget / 4
+        monthly_research_review_capacity=100, quarterly_innovation_budget=annual_budget / 4
     )
 
     # Set portfolio allocation based on maturity
@@ -515,10 +512,10 @@ def build_innovation_program(
         "portfolio_allocation": {
             "incremental": pipeline.portfolio.incremental_allocation,
             "adjacent": pipeline.portfolio.adjacent_allocation,
-            "breakthrough": pipeline.portfolio.breakthrough_allocation
+            "breakthrough": pipeline.portfolio.breakthrough_allocation,
         },
         "roadmap": roadmap,
         "portfolio_balance": balance,
         "organization_size": organization_size,
-        "maturity_level": innovation_maturity
+        "maturity_level": innovation_maturity,
     }

@@ -34,7 +34,7 @@ class MaskedAutoencoderViT(nn.Module):
         num_heads=12,
         decoder_embed_dim=512,
         decoder_depth=8,
-        mask_ratio=0.75
+        mask_ratio=0.75,
     ):
         """
         Args:
@@ -56,38 +56,24 @@ class MaskedAutoencoderViT(nn.Module):
 
         # Patch embedding
         self.patch_embed = nn.Conv2d(
-            in_channels,
-            embed_dim,
-            kernel_size=patch_size,
-            stride=patch_size
+            in_channels, embed_dim, kernel_size=patch_size, stride=patch_size
         )
 
         # Positional embedding
-        self.pos_embed = nn.Parameter(
-            torch.zeros(1, self.num_patches, embed_dim)
-        )
+        self.pos_embed = nn.Parameter(torch.zeros(1, self.num_patches, embed_dim))
 
         # Encoder (ViT blocks)
-        self.encoder = nn.ModuleList([
-            TransformerBlock(embed_dim, num_heads)
-            for _ in range(depth)
-        ])
+        self.encoder = nn.ModuleList([TransformerBlock(embed_dim, num_heads) for _ in range(depth)])
 
         # Decoder
         self.decoder_embed = nn.Linear(embed_dim, decoder_embed_dim)
-        self.decoder_pos_embed = nn.Parameter(
-            torch.zeros(1, self.num_patches, decoder_embed_dim)
+        self.decoder_pos_embed = nn.Parameter(torch.zeros(1, self.num_patches, decoder_embed_dim))
+        self.decoder = nn.ModuleList(
+            [TransformerBlock(decoder_embed_dim, num_heads) for _ in range(decoder_depth)]
         )
-        self.decoder = nn.ModuleList([
-            TransformerBlock(decoder_embed_dim, num_heads)
-            for _ in range(decoder_depth)
-        ])
 
         # Reconstruction head
-        self.decoder_pred = nn.Linear(
-            decoder_embed_dim,
-            patch_size ** 2 * in_channels
-        )
+        self.decoder_pred = nn.Linear(decoder_embed_dim, patch_size**2 * in_channels)
 
         # Mask token (learnable)
         self.mask_token = nn.Parameter(torch.zeros(1, 1, decoder_embed_dim))
@@ -141,10 +127,7 @@ class MaskedAutoencoderViT(nn.Module):
 
         # Keep first subset (visible patches)
         ids_keep = ids_shuffle[:, :num_keep]
-        x_masked = torch.gather(
-            x, dim=1,
-            index=ids_keep.unsqueeze(-1).repeat(1, 1, embed_dim)
-        )
+        x_masked = torch.gather(x, dim=1, index=ids_keep.unsqueeze(-1).repeat(1, 1, embed_dim))
 
         # Create mask (1 = masked, 0 = visible)
         mask = torch.ones([batch_size, num_patches], device=x.device)
@@ -196,17 +179,12 @@ class MaskedAutoencoderViT(nn.Module):
 
         # Append mask tokens
         batch_size = x.shape[0]
-        mask_tokens = self.mask_token.repeat(
-            batch_size,
-            ids_restore.shape[1] - x.shape[1],
-            1
-        )
+        mask_tokens = self.mask_token.repeat(batch_size, ids_restore.shape[1] - x.shape[1], 1)
         x_full = torch.cat([x, mask_tokens], dim=1)
 
         # Restore original order
         x_full = torch.gather(
-            x_full, dim=1,
-            index=ids_restore.unsqueeze(-1).repeat(1, 1, x_full.shape[2])
+            x_full, dim=1, index=ids_restore.unsqueeze(-1).repeat(1, 1, x_full.shape[2])
         )
 
         # Add positional embedding
@@ -278,16 +256,10 @@ class TransformerBlock(nn.Module):
     def __init__(self, embed_dim, num_heads):
         super().__init__()
 
-        self.attention = nn.MultiheadAttention(
-            embed_dim,
-            num_heads,
-            batch_first=True
-        )
+        self.attention = nn.MultiheadAttention(embed_dim, num_heads, batch_first=True)
 
         self.mlp = nn.Sequential(
-            nn.Linear(embed_dim, embed_dim * 4),
-            nn.GELU(),
-            nn.Linear(embed_dim * 4, embed_dim)
+            nn.Linear(embed_dim, embed_dim * 4), nn.GELU(), nn.Linear(embed_dim * 4, embed_dim)
         )
 
         self.norm1 = nn.LayerNorm(embed_dim)
@@ -306,10 +278,7 @@ class TransformerBlock(nn.Module):
 
 
 def train_mae_on_industrial_images(
-    image_dir,
-    output_dir='./mae_model',
-    num_epochs=100,
-    batch_size=256
+    image_dir, output_dir="./mae_model", num_epochs=100, batch_size=256
 ):
     """
     Train MAE on industrial imagery
@@ -321,50 +290,35 @@ def train_mae_on_industrial_images(
         batch_size: Training batch size
     """
     # Initialize model
-    model = MaskedAutoencoderViT(
-        img_size=224,
-        patch_size=16,
-        embed_dim=768,
-        depth=12
-    ).cuda()
+    model = MaskedAutoencoderViT(img_size=224, patch_size=16, embed_dim=768, depth=12).cuda()
 
     # Data augmentation (for self-supervised learning)
-    transform = transforms.Compose([
-        transforms.Resize(256),
-        transforms.RandomCrop(224),
-        transforms.RandomHorizontalFlip(),
-        transforms.ColorJitter(0.4, 0.4, 0.4),
-        transforms.ToTensor(),
-        transforms.Normalize(
-            mean=[0.485, 0.456, 0.406],
-            std=[0.229, 0.224, 0.225]
-        )
-    ])
+    transform = transforms.Compose(
+        [
+            transforms.Resize(256),
+            transforms.RandomCrop(224),
+            transforms.RandomHorizontalFlip(),
+            transforms.ColorJitter(0.4, 0.4, 0.4),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ]
+    )
 
     # Load dataset
     from torchvision.datasets import ImageFolder
+
     dataset = ImageFolder(image_dir, transform=transform)
     dataloader = torch.utils.data.DataLoader(
-        dataset,
-        batch_size=batch_size,
-        shuffle=True,
-        num_workers=8,
-        pin_memory=True
+        dataset, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=True
     )
 
     # Optimizer
     optimizer = torch.optim.AdamW(
-        model.parameters(),
-        lr=1.5e-4,
-        betas=(0.9, 0.95),
-        weight_decay=0.05
+        model.parameters(), lr=1.5e-4, betas=(0.9, 0.95), weight_decay=0.05
     )
 
     # Learning rate scheduler
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-        optimizer,
-        T_max=num_epochs
-    )
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs)
 
     # Training loop
     for epoch in range(num_epochs):
@@ -391,9 +345,6 @@ def train_mae_on_industrial_images(
 
         # Save checkpoint
         if epoch % 10 == 0:
-            torch.save(
-                model.state_dict(),
-                f"{output_dir}/mae_epoch_{epoch}.pt"
-            )
+            torch.save(model.state_dict(), f"{output_dir}/mae_epoch_{epoch}.pt")
 
     print(f"Training complete. Model saved to {output_dir}")

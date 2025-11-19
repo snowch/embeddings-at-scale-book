@@ -1,9 +1,10 @@
 # Code from Chapter 01
 # Book: Embeddings at Scale
 
-def risk_adjusted_roi(potential_benefit, probability_of_success,
-                     implementation_cost, annual_operating_cost,
-                     years=5):
+
+def risk_adjusted_roi(
+    potential_benefit, probability_of_success, implementation_cost, annual_operating_cost, years=5
+):
     """
     Calculate risk-adjusted ROI
 
@@ -24,8 +25,8 @@ def risk_adjusted_roi(potential_benefit, probability_of_success,
     payback_period = implementation_cost / (expected_annual_benefit - annual_operating_cost)
 
     return {
-        'expected_annual_benefit': expected_annual_benefit,
-        'npv': npv,
-        'roi_percent': roi,
-        'payback_period_years': payback_period
+        "expected_annual_benefit": expected_annual_benefit,
+        "npv": npv,
+        "roi_percent": roi,
+        "payback_period_years": payback_period,
     }

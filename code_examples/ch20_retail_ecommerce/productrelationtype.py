@@ -40,6 +40,7 @@ import torch.nn as nn
 
 class ProductRelationType(Enum):
     """Types of product relationships"""
+
     COMPLEMENT = "complement"  # Bought together (camera + lens)
     SUBSTITUTE = "substitute"  # Alternatives (two similar dresses)
     UPGRADE = "upgrade"  # Premium alternative
@@ -47,13 +48,16 @@ class ProductRelationType(Enum):
     BUNDLE = "bundle"  # Frequently bundled
     SEASONAL_PAIR = "seasonal_pair"  # Same season items
 
+
 class TrendStatus(Enum):
     """Product trend status"""
+
     EMERGING = "emerging"  # Gaining popularity
     TRENDING = "trending"  # Currently popular
     STABLE = "stable"  # Consistent demand
     DECLINING = "declining"  # Losing popularity
     SEASONAL = "seasonal"  # Seasonal pattern
+
 
 @dataclass
 class ProductRelationship:
@@ -68,12 +72,14 @@ class ProductRelationship:
         confidence: Confidence in relationship (0-1)
         evidence: What data supports this relationship
     """
+
     product_a: str
     product_b: str
     relation_type: ProductRelationType
     strength: float
     confidence: float
     evidence: Dict[str, float] = field(default_factory=dict)
+
 
 @dataclass
 class ProductCollection:
@@ -91,6 +97,7 @@ class ProductCollection:
         created_at: When collection was created
         performance: Sales, views, conversion metrics
     """
+
     collection_id: str
     name: str
     description: str
@@ -100,6 +107,7 @@ class ProductCollection:
     appeal_score: float
     created_at: datetime
     performance: Dict[str, float] = field(default_factory=dict)
+
 
 @dataclass
 class MerchandisingDecision:
@@ -114,12 +122,14 @@ class MerchandisingDecision:
         expected_impact: Predicted revenue impact
         risk: Decision risk level (0-1)
     """
+
     product_id: str
     action: str
     rationale: str
     urgency: float
     expected_impact: float
     risk: float
+
 
 class ProductRelationshipLearner(nn.Module):
     """
@@ -135,11 +145,7 @@ class ProductRelationshipLearner(nn.Module):
     Output: Graph where edges = relationships, edge weights = strength
     """
 
-    def __init__(
-        self,
-        num_products=1000000,
-        embedding_dim=256
-    ):
+    def __init__(self, num_products=1000000, embedding_dim=256):
         super().__init__()
         self.embedding_dim = embedding_dim
 
@@ -147,10 +153,7 @@ class ProductRelationshipLearner(nn.Module):
         self.product_embeddings = nn.Embedding(num_products, embedding_dim)
 
         # Relationship type embeddings
-        self.relation_embeddings = nn.Embedding(
-            len(ProductRelationType),
-            embedding_dim
-        )
+        self.relation_embeddings = nn.Embedding(len(ProductRelationType), embedding_dim)
 
         # Relationship scorer: product A, relation type, product B → score
         self.relation_scorer = nn.Sequential(
@@ -160,14 +163,11 @@ class ProductRelationshipLearner(nn.Module):
             nn.Linear(512, 256),
             nn.ReLU(),
             nn.Linear(256, 1),
-            nn.Sigmoid()
+            nn.Sigmoid(),
         )
 
     def forward(
-        self,
-        product_a_ids: torch.Tensor,
-        relation_types: torch.Tensor,
-        product_b_ids: torch.Tensor
+        self, product_a_ids: torch.Tensor, relation_types: torch.Tensor, product_b_ids: torch.Tensor
     ) -> torch.Tensor:
         """
         Score relationship between products
@@ -191,10 +191,7 @@ class ProductRelationshipLearner(nn.Module):
         return scores
 
     def find_related_products(
-        self,
-        product_id: int,
-        relation_type: ProductRelationType,
-        top_k: int = 10
+        self, product_id: int, relation_type: ProductRelationType, top_k: int = 10
     ) -> List[Tuple[int, float]]:
         """
         Find top-k products related to given product
@@ -210,16 +207,13 @@ class ProductRelationshipLearner(nn.Module):
             scores = []
 
             for candidate in candidate_products:
-                score = self.forward(
-                    product_tensor,
-                    relation_tensor,
-                    torch.tensor([candidate])
-                )
+                score = self.forward(product_tensor, relation_tensor, torch.tensor([candidate]))
                 scores.append((int(candidate), float(score[0, 0])))
 
             # Return top-k
             scores.sort(key=lambda x: x[1], reverse=True)
             return scores[:top_k]
+
 
 class TrendDetector:
     """
@@ -243,11 +237,7 @@ class TrendDetector:
         self.historical_sales: Dict[str, List[Tuple[datetime, float]]] = defaultdict(list)
 
     def track_product(
-        self,
-        product_id: str,
-        embedding: np.ndarray,
-        sales: float,
-        timestamp: datetime
+        self, product_id: str, embedding: np.ndarray, sales: float, timestamp: datetime
     ):
         """Track product embedding and sales over time"""
         self.historical_embeddings[product_id].append((timestamp, embedding))
@@ -273,8 +263,8 @@ class TrendDetector:
 
         # Calculate trend
         if len(recent_sales) >= 4:
-            first_half = np.mean(recent_sales[:len(recent_sales)//2])
-            second_half = np.mean(recent_sales[len(recent_sales)//2:])
+            first_half = np.mean(recent_sales[: len(recent_sales) // 2])
+            second_half = np.mean(recent_sales[len(recent_sales) // 2 :])
 
             if first_half > 0:
                 momentum = (second_half - first_half) / first_half
@@ -312,6 +302,7 @@ class TrendDetector:
         drift = np.linalg.norm(embeddings[-1] - embeddings[0])
         return float(drift)
 
+
 class CollectionGenerator:
     """
     Automatically generate product collections
@@ -332,9 +323,7 @@ class CollectionGenerator:
     """
 
     def __init__(
-        self,
-        product_embeddings: nn.Embedding,
-        relationship_learner: ProductRelationshipLearner
+        self, product_embeddings: nn.Embedding, relationship_learner: ProductRelationshipLearner
     ):
         self.product_embeddings = product_embeddings
         self.relationship_learner = relationship_learner
@@ -344,7 +333,7 @@ class CollectionGenerator:
         theme: str,
         seed_products: List[str],
         collection_size: int = 10,
-        constraints: Optional[Dict[str, Any]] = None
+        constraints: Optional[Dict[str, Any]] = None,
     ) -> ProductCollection:
         """
         Generate product collection around theme
@@ -368,9 +357,7 @@ class CollectionGenerator:
 
             for product_id in collection_products:
                 complements = self.relationship_learner.find_related_products(
-                    hash(product_id) % 1000000,
-                    ProductRelationType.COMPLEMENT,
-                    top_k=20
+                    hash(product_id) % 1000000, ProductRelationType.COMPLEMENT, top_k=20
                 )
 
                 for candidate_id, score in complements:
@@ -384,10 +371,7 @@ class CollectionGenerator:
             if not candidate_scores:
                 break
 
-            best_candidate = max(
-                candidate_scores.items(),
-                key=lambda x: np.mean(x[1])
-            )
+            best_candidate = max(candidate_scores.items(), key=lambda x: np.mean(x[1]))
             collection_products.append(best_candidate[0])
 
         # Compute collection metrics
@@ -403,7 +387,7 @@ class CollectionGenerator:
             coherence_score=coherence,
             diversity_score=diversity,
             appeal_score=appeal,
-            created_at=datetime.now()
+            created_at=datetime.now(),
         )
 
     def _compute_coherence(self, products: List[str]) -> float:
@@ -414,8 +398,8 @@ class CollectionGenerator:
 
         # Sample pairwise similarities
         similarities = []
-        for i in range(min(10, len(products)-1)):
-            for _j in range(i+1, min(10, len(products))):
+        for i in range(min(10, len(products) - 1)):
+            for _j in range(i + 1, min(10, len(products))):
                 # Simplified similarity (random for demo)
                 sim = np.random.uniform(0.6, 0.9)
                 similarities.append(sim)
@@ -432,6 +416,7 @@ class CollectionGenerator:
         """Predicted customer appeal"""
         # Simplified: random between 0.6-0.95
         return np.random.uniform(0.6, 0.95)
+
 
 class MerchandisingOptimizer:
     """
@@ -453,18 +438,13 @@ class MerchandisingOptimizer:
     """
 
     def __init__(
-        self,
-        trend_detector: TrendDetector,
-        relationship_learner: ProductRelationshipLearner
+        self, trend_detector: TrendDetector, relationship_learner: ProductRelationshipLearner
     ):
         self.trend_detector = trend_detector
         self.relationship_learner = relationship_learner
 
     def optimize_merchandising(
-        self,
-        product_id: str,
-        current_performance: Dict[str, float],
-        inventory: Dict[str, float]
+        self, product_id: str, current_performance: Dict[str, float], inventory: Dict[str, float]
     ) -> MerchandisingDecision:
         """
         Determine optimal merchandising action for product
@@ -481,10 +461,10 @@ class MerchandisingOptimizer:
         trend_status, momentum = self.trend_detector.detect_trend(product_id)
 
         # Extract metrics
-        sales_velocity = current_performance.get('sales_velocity', 0.5)
-        margin = current_performance.get('margin', 0.3)
-        stock_level = inventory.get('stock_level', 1.0)  # 1.0 = optimal
-        turnover_rate = inventory.get('turnover_rate', 1.0)
+        sales_velocity = current_performance.get("sales_velocity", 0.5)
+        margin = current_performance.get("margin", 0.3)
+        stock_level = inventory.get("stock_level", 1.0)  # 1.0 = optimal
+        turnover_rate = inventory.get("turnover_rate", 1.0)
 
         # Decision logic
         if trend_status == TrendStatus.EMERGING and stock_level < 0.8:
@@ -535,8 +515,9 @@ class MerchandisingOptimizer:
             rationale=rationale,
             urgency=urgency,
             expected_impact=expected_impact,
-            risk=risk
+            risk=risk,
         )
+
 
 def dynamic_catalog_example():
     """
@@ -546,27 +527,16 @@ def dynamic_catalog_example():
 
     # Initialize systems
     product_embeddings = nn.Embedding(1000000, 256)
-    relationship_learner = ProductRelationshipLearner(
-        num_products=1000000,
-        embedding_dim=256
-    )
+    relationship_learner = ProductRelationshipLearner(num_products=1000000, embedding_dim=256)
     trend_detector = TrendDetector()
-    collection_generator = CollectionGenerator(
-        product_embeddings,
-        relationship_learner
-    )
-    merchandising_optimizer = MerchandisingOptimizer(
-        trend_detector,
-        relationship_learner
-    )
+    collection_generator = CollectionGenerator(product_embeddings, relationship_learner)
+    merchandising_optimizer = MerchandisingOptimizer(trend_detector, relationship_learner)
 
     # Scenario 1: Auto-generate collection
     print("--- Scenario 1: Automatic Collection Generation ---")
     seed_products = ["DRESS_FLORAL_001", "SANDALS_CASUAL_001"]
     collection = collection_generator.generate_collection(
-        theme="Summer Garden Party",
-        seed_products=seed_products,
-        collection_size=8
+        theme="Summer Garden Party", seed_products=seed_products, collection_size=8
     )
 
     print(f"Collection: {collection.name}")
@@ -586,38 +556,36 @@ def dynamic_catalog_example():
     print("--- Scenario 2: Trend-Based Merchandising Decisions ---")
     products_to_optimize = [
         {
-            'id': 'SNEAKERS_RETRO_001',
-            'name': 'Retro Running Sneakers',
-            'performance': {'sales_velocity': 2.5, 'margin': 0.45},
-            'inventory': {'stock_level': 0.6, 'turnover_rate': 1.8}
+            "id": "SNEAKERS_RETRO_001",
+            "name": "Retro Running Sneakers",
+            "performance": {"sales_velocity": 2.5, "margin": 0.45},
+            "inventory": {"stock_level": 0.6, "turnover_rate": 1.8},
         },
         {
-            'id': 'JEANS_BOOTCUT_001',
-            'name': 'Bootcut Jeans',
-            'performance': {'sales_velocity': 0.3, 'margin': 0.35},
-            'inventory': {'stock_level': 1.8, 'turnover_rate': 0.4}
+            "id": "JEANS_BOOTCUT_001",
+            "name": "Bootcut Jeans",
+            "performance": {"sales_velocity": 0.3, "margin": 0.35},
+            "inventory": {"stock_level": 1.8, "turnover_rate": 0.4},
         },
         {
-            'id': 'WATCH_SMART_001',
-            'name': 'Smart Watch Pro',
-            'performance': {'sales_velocity': 1.2, 'margin': 0.28},
-            'inventory': {'stock_level': 1.4, 'turnover_rate': 0.7}
-        }
+            "id": "WATCH_SMART_001",
+            "name": "Smart Watch Pro",
+            "performance": {"sales_velocity": 1.2, "margin": 0.28},
+            "inventory": {"stock_level": 1.4, "turnover_rate": 0.7},
+        },
     ]
 
     for product in products_to_optimize:
         # Simulate trend tracking
         trend_detector.track_product(
-            product['id'],
+            product["id"],
             np.random.randn(256),
-            product['performance']['sales_velocity'],
-            datetime.now()
+            product["performance"]["sales_velocity"],
+            datetime.now(),
         )
 
         decision = merchandising_optimizer.optimize_merchandising(
-            product['id'],
-            product['performance'],
-            product['inventory']
+            product["id"], product["performance"], product["inventory"]
         )
 
         print(f"{product['name']}:")
@@ -676,6 +644,7 @@ def dynamic_catalog_example():
     print("  - Clearance markdown: -$8M annually")
     print()
     print("→ Automated catalog management scales merchandising")
+
 
 # Uncomment to run:
 # dynamic_catalog_example()

@@ -31,6 +31,7 @@ Production considerations:
 - Online learning: Update models as borrowers repay/default
 """
 
+
 @dataclass
 class Borrower:
     """
@@ -47,6 +48,7 @@ class Borrower:
         relationships: Known relationships (employer, landlord, etc.)
         application: Current loan application details
     """
+
     borrower_id: str
     credit_score: Optional[int] = None
     income: Optional[float] = None
@@ -71,6 +73,7 @@ class Borrower:
         if self.application is None:
             self.application = {}
 
+
 @dataclass
 class CreditDecision:
     """
@@ -86,6 +89,7 @@ class CreditDecision:
         explanation: Explanation for decision
         adverse_action_reasons: Reasons for rejection (if applicable)
     """
+
     borrower_id: str
     decision: str  # approve, reject, review
     interest_rate: Optional[float] = None
@@ -94,6 +98,7 @@ class CreditDecision:
     confidence: float = 0.0
     explanation: str = ""
     adverse_action_reasons: Optional[List[str]] = None
+
 
 class BorrowerEncoder(nn.Module):
     """
@@ -116,17 +121,14 @@ class BorrowerEncoder(nn.Module):
         self,
         embedding_dim: int = 128,
         num_credit_features: int = 30,
-        num_alternative_features: int = 20
+        num_alternative_features: int = 20,
     ):
         super().__init__()
         self.embedding_dim = embedding_dim
 
         # Credit history encoder
         self.credit_encoder = nn.Sequential(
-            nn.Linear(num_credit_features, 64),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(64, 64)
+            nn.Linear(num_credit_features, 64), nn.ReLU(), nn.Dropout(0.2), nn.Linear(64, 64)
         )
 
         # Transaction pattern encoder
@@ -134,15 +136,12 @@ class BorrowerEncoder(nn.Module):
             input_size=10,  # transaction features
             hidden_size=64,
             num_layers=1,
-            batch_first=True
+            batch_first=True,
         )
 
         # Alternative data encoder
         self.alternative_encoder = nn.Sequential(
-            nn.Linear(num_alternative_features, 64),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(64, 64)
+            nn.Linear(num_alternative_features, 64), nn.ReLU(), nn.Dropout(0.2), nn.Linear(64, 64)
         )
 
         # Fusion
@@ -150,14 +149,14 @@ class BorrowerEncoder(nn.Module):
             nn.Linear(192, 128),  # 64 * 3
             nn.ReLU(),
             nn.Dropout(0.2),
-            nn.Linear(128, embedding_dim)
+            nn.Linear(128, embedding_dim),
         )
 
     def forward(
         self,
         credit_features: torch.Tensor,
         transaction_history: torch.Tensor,
-        alternative_features: torch.Tensor
+        alternative_features: torch.Tensor,
     ) -> torch.Tensor:
         """
         Encode borrowers
@@ -189,6 +188,7 @@ class BorrowerEncoder(nn.Module):
 
         return borrower_emb
 
+
 class CreditRiskScorer(nn.Module):
     """
     Score credit risk from borrower embeddings
@@ -213,13 +213,11 @@ class CreditRiskScorer(nn.Module):
             nn.Linear(128, 64),
             nn.ReLU(),
             nn.Dropout(0.3),
-            nn.Linear(64, 3)  # default_prob, expected_loss, confidence
+            nn.Linear(64, 3),  # default_prob, expected_loss, confidence
         )
 
     def forward(
-        self,
-        borrower_emb: torch.Tensor,
-        loan_features: torch.Tensor
+        self, borrower_emb: torch.Tensor, loan_features: torch.Tensor
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Score credit risk
@@ -243,6 +241,7 @@ class CreditRiskScorer(nn.Module):
         confidence = torch.sigmoid(outputs[:, 2])  # 0-1
 
         return default_prob, expected_loss, confidence
+
 
 # Example: Credit risk assessment
 def credit_risk_example():
@@ -341,6 +340,7 @@ def credit_risk_example():
     print("Average interest rate: 10.2%")
     print("Portfolio ROI: 8.5% (vs 7.2% traditional)")
     print("\n→ Expanded access + better risk management")
+
 
 # Uncomment to run:
 # credit_risk_example()

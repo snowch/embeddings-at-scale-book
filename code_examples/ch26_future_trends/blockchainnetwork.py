@@ -37,14 +37,17 @@ from typing import Any, Dict, List, Optional
 
 class BlockchainNetwork(Enum):
     """Blockchain networks"""
+
     ETHEREUM = "ethereum"
     POLYGON = "polygon"
     SOLANA = "solana"
     ARBITRUM = "arbitrum"
 
+
 @dataclass
 class EmbeddingMetadata:
     """Metadata for blockchain-registered embedding"""
+
     embedding_id: str
     provider_address: str
     ipfs_hash: str  # Content address on IPFS
@@ -56,14 +59,17 @@ class EmbeddingMetadata:
     created_at: datetime
     license: str
 
+
 @dataclass
 class EmbeddingContract:
     """Smart contract for embedding access"""
+
     contract_address: str
     provider: str
     embedding_metadata: EmbeddingMetadata
     access_rules: Dict[str, Any]
     payment_terms: Dict[str, float]
+
 
 class DecentralizedEmbeddingRegistry:
     """
@@ -84,10 +90,7 @@ class DecentralizedEmbeddingRegistry:
         self.access_logs: List[Dict] = []
 
     def register_embedding(
-        self,
-        embeddings: np.ndarray,
-        metadata: Dict[str, Any],
-        provider_address: str
+        self, embeddings: np.ndarray, metadata: Dict[str, Any], provider_address: str
     ) -> str:
         """
         Register embeddings on decentralized network
@@ -112,12 +115,12 @@ class DecentralizedEmbeddingRegistry:
             provider_address=provider_address,
             ipfs_hash=ipfs_hash,
             dimension=embeddings.shape[1],
-            embedding_type=metadata.get('type', 'unknown'),
-            quality_score=metadata.get('quality_score', 0.0),
+            embedding_type=metadata.get("type", "unknown"),
+            quality_score=metadata.get("quality_score", 0.0),
             num_samples=len(embeddings),
-            price_per_query=metadata.get('price', 0.0),
+            price_per_query=metadata.get("price", 0.0),
             created_at=datetime.now(),
-            license=metadata.get('license', 'proprietary')
+            license=metadata.get("license", "proprietary"),
         )
 
         # Deploy smart contract
@@ -141,26 +144,22 @@ class DecentralizedEmbeddingRegistry:
         cid = f"Qm{content_hash[:44]}"  # IPFS CID format
         return cid
 
-    def _deploy_contract(
-        self,
-        metadata: EmbeddingMetadata,
-        provider: str
-    ) -> EmbeddingContract:
+    def _deploy_contract(self, metadata: EmbeddingMetadata, provider: str) -> EmbeddingContract:
         """Deploy smart contract for embedding access"""
         contract_address = f"0x{hashlib.sha256(metadata.embedding_id.encode()).hexdigest()[:40]}"
 
         # Access rules
         access_rules = {
-            'require_payment': metadata.price_per_query > 0,
-            'max_queries_per_user': 1000,
-            'require_verification': True
+            "require_payment": metadata.price_per_query > 0,
+            "max_queries_per_user": 1000,
+            "require_verification": True,
         }
 
         # Payment terms
         payment_terms = {
-            'price_per_query': metadata.price_per_query,
-            'provider_share': 0.95,  # Provider gets 95%
-            'protocol_fee': 0.05  # Protocol gets 5%
+            "price_per_query": metadata.price_per_query,
+            "provider_share": 0.95,  # Provider gets 95%
+            "protocol_fee": 0.05,  # Protocol gets 5%
         }
 
         return EmbeddingContract(
@@ -168,13 +167,10 @@ class DecentralizedEmbeddingRegistry:
             provider=provider,
             embedding_metadata=metadata,
             access_rules=access_rules,
-            payment_terms=payment_terms
+            payment_terms=payment_terms,
         )
 
-    def search_embeddings(
-        self,
-        query: Dict[str, Any]
-    ) -> List[EmbeddingMetadata]:
+    def search_embeddings(self, query: Dict[str, Any]) -> List[EmbeddingMetadata]:
         """
         Search decentralized registry
 
@@ -188,20 +184,20 @@ class DecentralizedEmbeddingRegistry:
 
         for _embedding_id, metadata in self.registry.items():
             # Filter by type
-            if 'embedding_type' in query:
-                if metadata.embedding_type != query['embedding_type']:
+            if "embedding_type" in query:
+                if metadata.embedding_type != query["embedding_type"]:
                     continue
 
             # Filter by quality
-            if 'min_quality' in query and metadata.quality_score < query['min_quality']:
+            if "min_quality" in query and metadata.quality_score < query["min_quality"]:
                 continue
 
             # Filter by price
-            if 'max_price' in query and metadata.price_per_query > query['max_price']:
+            if "max_price" in query and metadata.price_per_query > query["max_price"]:
                 continue
 
             # Filter by samples
-            if 'min_samples' in query and metadata.num_samples < query['min_samples']:
+            if "min_samples" in query and metadata.num_samples < query["min_samples"]:
                 continue
 
             results.append(metadata)
@@ -212,10 +208,7 @@ class DecentralizedEmbeddingRegistry:
         return results
 
     def request_access(
-        self,
-        embedding_id: str,
-        user_address: str,
-        num_queries: int = 1
+        self, embedding_id: str, user_address: str, num_queries: int = 1
     ) -> Dict[str, Any]:
         """
         Request access to embeddings
@@ -223,7 +216,7 @@ class DecentralizedEmbeddingRegistry:
         Verifies payment and permissions via smart contract
         """
         if embedding_id not in self.contracts:
-            return {'success': False, 'error': 'Embedding not found'}
+            return {"success": False, "error": "Embedding not found"}
 
         contract = self.contracts[embedding_id]
         metadata = contract.embedding_metadata
@@ -235,25 +228,27 @@ class DecentralizedEmbeddingRegistry:
         payment_verified = self._verify_payment(user_address, total_price)
 
         if not payment_verified:
-            return {'success': False, 'error': 'Payment verification failed'}
+            return {"success": False, "error": "Payment verification failed"}
 
         # Grant access
         access_token = self._generate_access_token(embedding_id, user_address, num_queries)
 
         # Log access
-        self.access_logs.append({
-            'embedding_id': embedding_id,
-            'user_address': user_address,
-            'num_queries': num_queries,
-            'price_paid': total_price,
-            'timestamp': datetime.now()
-        })
+        self.access_logs.append(
+            {
+                "embedding_id": embedding_id,
+                "user_address": user_address,
+                "num_queries": num_queries,
+                "price_paid": total_price,
+                "timestamp": datetime.now(),
+            }
+        )
 
         return {
-            'success': True,
-            'access_token': access_token,
-            'ipfs_hash': metadata.ipfs_hash,
-            'queries_remaining': num_queries
+            "success": True,
+            "access_token": access_token,
+            "ipfs_hash": metadata.ipfs_hash,
+            "queries_remaining": num_queries,
         }
 
     def _verify_payment(self, user_address: str, amount: float) -> bool:
@@ -261,22 +256,13 @@ class DecentralizedEmbeddingRegistry:
         # In practice, verify blockchain transaction
         return True  # Assume payment successful for demo
 
-    def _generate_access_token(
-        self,
-        embedding_id: str,
-        user_address: str,
-        num_queries: int
-    ) -> str:
+    def _generate_access_token(self, embedding_id: str, user_address: str, num_queries: int) -> str:
         """Generate access token for embedding queries"""
         token_data = f"{embedding_id}{user_address}{num_queries}{datetime.now()}"
         token = hashlib.sha256(token_data.encode()).hexdigest()
         return token
 
-    def download_embedding(
-        self,
-        ipfs_hash: str,
-        access_token: str
-    ) -> Optional[np.ndarray]:
+    def download_embedding(self, ipfs_hash: str, access_token: str) -> Optional[np.ndarray]:
         """
         Download embedding from IPFS
 

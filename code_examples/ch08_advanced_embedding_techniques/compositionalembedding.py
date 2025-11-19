@@ -22,12 +22,7 @@ class CompositionalEmbedding(nn.Module):
     - Transaction embeddings (who + what + when + where + how much)
     """
 
-    def __init__(
-        self,
-        component_dims,
-        output_dim=256,
-        composition_type='attention'
-    ):
+    def __init__(self, component_dims, output_dim=256, composition_type="attention"):
         """
         Args:
             component_dims: Dict mapping component name → embedding dimension
@@ -41,33 +36,29 @@ class CompositionalEmbedding(nn.Module):
         self.composition_type = composition_type
 
         # Project each component to common dimension
-        self.component_projections = nn.ModuleDict({
-            name: nn.Linear(dim, output_dim)
-            for name, dim in component_dims.items()
-        })
+        self.component_projections = nn.ModuleDict(
+            {name: nn.Linear(dim, output_dim) for name, dim in component_dims.items()}
+        )
 
-        if composition_type == 'weighted':
+        if composition_type == "weighted":
             # Learned weights for each component
             self.component_weights = nn.Parameter(
                 torch.ones(len(component_dims)) / len(component_dims)
             )
 
-        elif composition_type == 'gated':
+        elif composition_type == "gated":
             # Gate networks for each component
-            self.gates = nn.ModuleDict({
-                name: nn.Sequential(
-                    nn.Linear(output_dim, output_dim),
-                    nn.Sigmoid()
-                )
-                for name in component_dims
-            })
+            self.gates = nn.ModuleDict(
+                {
+                    name: nn.Sequential(nn.Linear(output_dim, output_dim), nn.Sigmoid())
+                    for name in component_dims
+                }
+            )
 
-        elif composition_type == 'attention':
+        elif composition_type == "attention":
             # Multi-head attention for component composition
             self.attention = nn.MultiheadAttention(
-                embed_dim=output_dim,
-                num_heads=4,
-                batch_first=True
+                embed_dim=output_dim, num_heads=4, batch_first=True
             )
 
             # Query: what we're looking for
@@ -90,11 +81,11 @@ class CompositionalEmbedding(nn.Module):
         for name, emb in component_embeddings.items():
             projected[name] = self.component_projections[name](emb)
 
-        if self.composition_type == 'weighted':
+        if self.composition_type == "weighted":
             return self._weighted_composition(projected)
-        elif self.composition_type == 'gated':
+        elif self.composition_type == "gated":
             return self._gated_composition(projected)
-        elif self.composition_type == 'attention':
+        elif self.composition_type == "attention":
             return self._attention_composition(projected, component_mask)
 
     def _weighted_composition(self, projected):
@@ -107,10 +98,7 @@ class CompositionalEmbedding(nn.Module):
         stacked = torch.stack(component_list, dim=1)  # (batch, num_components, dim)
 
         # Weighted sum
-        composed = torch.sum(
-            stacked * weights.view(1, -1, 1),
-            dim=1
-        )
+        composed = torch.sum(stacked * weights.view(1, -1, 1), dim=1)
 
         return composed
 
@@ -152,13 +140,11 @@ class CompositionalEmbedding(nn.Module):
 
         # Multi-head attention
         attended, attention_weights = self.attention(
-            query=query,
-            key=stacked,
-            value=stacked,
-            key_padding_mask=component_mask
+            query=query, key=stacked, value=stacked, key_padding_mask=component_mask
         )
 
         return attended.squeeze(1)  # (batch, dim)
+
 
 class ProductEmbedding(nn.Module):
     """
@@ -180,11 +166,7 @@ class ProductEmbedding(nn.Module):
     """
 
     def __init__(
-        self,
-        num_categories=10000,
-        num_brands=5000,
-        num_attributes=1000,
-        embedding_dim=256
+        self, num_categories=10000, num_brands=5000, num_attributes=1000, embedding_dim=256
     ):
         super().__init__()
 
@@ -202,24 +184,17 @@ class ProductEmbedding(nn.Module):
         # Compositional model
         self.compositor = CompositionalEmbedding(
             component_dims={
-                'category': embedding_dim,
-                'brand': embedding_dim,
-                'attributes': embedding_dim,
-                'reviews': embedding_dim,
-                'image': embedding_dim
+                "category": embedding_dim,
+                "brand": embedding_dim,
+                "attributes": embedding_dim,
+                "reviews": embedding_dim,
+                "image": embedding_dim,
             },
             output_dim=embedding_dim,
-            composition_type='attention'
+            composition_type="attention",
         )
 
-    def forward(
-        self,
-        category_id,
-        brand_id,
-        attribute_ids,
-        review_embedding,
-        image_features
-    ):
+    def forward(self, category_id, brand_id, attribute_ids, review_embedding, image_features):
         """
         Create compositional product embedding
 
@@ -247,16 +222,17 @@ class ProductEmbedding(nn.Module):
 
         # Compose all components
         components = {
-            'category': category_vec,
-            'brand': brand_vec,
-            'attributes': attribute_vec,
-            'reviews': review_vec,
-            'image': image_vec
+            "category": category_vec,
+            "brand": brand_vec,
+            "attributes": attribute_vec,
+            "reviews": review_vec,
+            "image": image_vec,
         }
 
         product_emb = self.compositor(components)
 
         return product_emb
+
 
 class DocumentEmbedding(nn.Module):
     """
@@ -282,52 +258,37 @@ class DocumentEmbedding(nn.Module):
 
         # Different encoders for different text fields
         # Title: capture key concepts
-        self.title_encoder = nn.LSTM(
-            embedding_dim, embedding_dim,
-            num_layers=1, batch_first=True
-        )
+        self.title_encoder = nn.LSTM(embedding_dim, embedding_dim, num_layers=1, batch_first=True)
 
         # Abstract: summary-level encoding
         self.abstract_encoder = nn.LSTM(
-            embedding_dim, embedding_dim,
-            num_layers=2, batch_first=True
+            embedding_dim, embedding_dim, num_layers=2, batch_first=True
         )
 
         # Body: hierarchical encoding (section → paragraph → sentence)
         self.body_encoder = nn.TransformerEncoder(
-            nn.TransformerEncoderLayer(
-                d_model=embedding_dim,
-                nhead=8,
-                batch_first=True
-            ),
-            num_layers=3
+            nn.TransformerEncoderLayer(d_model=embedding_dim, nhead=8, batch_first=True),
+            num_layers=3,
         )
 
         # Metadata encoder
         self.author_emb = nn.Embedding(100000, embedding_dim)  # 100K authors
-        self.venue_emb = nn.Embedding(10000, embedding_dim)    # 10K venues
+        self.venue_emb = nn.Embedding(10000, embedding_dim)  # 10K venues
 
         # Compositional model
         self.compositor = CompositionalEmbedding(
             component_dims={
-                'title': embedding_dim,
-                'abstract': embedding_dim,
-                'body': embedding_dim,
-                'author': embedding_dim,
-                'venue': embedding_dim
+                "title": embedding_dim,
+                "abstract": embedding_dim,
+                "body": embedding_dim,
+                "author": embedding_dim,
+                "venue": embedding_dim,
             },
             output_dim=embedding_dim,
-            composition_type='attention'
+            composition_type="attention",
         )
 
-    def forward(
-        self,
-        title_tokens,
-        abstract_tokens,
-        body_tokens,
-        author_id,
-        venue_id
-    ):
+    def forward(self, title_tokens, abstract_tokens, body_tokens, author_id, venue_id):
         """
         Create compositional document embedding
 
@@ -354,11 +315,11 @@ class DocumentEmbedding(nn.Module):
 
         # Compose
         components = {
-            'title': title_vec,
-            'abstract': abstract_vec,
-            'body': body_vec,
-            'author': author_vec,
-            'venue': venue_vec
+            "title": title_vec,
+            "abstract": abstract_vec,
+            "body": body_vec,
+            "author": author_vec,
+            "venue": venue_vec,
         }
 
         doc_emb = self.compositor(components)

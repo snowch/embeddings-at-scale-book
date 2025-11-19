@@ -4,6 +4,7 @@ import torch
 # Code from Chapter 06
 # Book: Embeddings at Scale
 
+
 class AdaptiveThresholdManager:
     """
     Manage thresholds that adapt to changing data distributions
@@ -69,16 +70,17 @@ class AdaptiveThresholdManager:
 
             # Move toward optimal threshold
             self.base_threshold = (
-                (1 - learning_rate) * self.base_threshold +
-                learning_rate * best_threshold
-            )
+                1 - learning_rate
+            ) * self.base_threshold + learning_rate * best_threshold
 
         # Track performance
-        self.performance_history.append({
-            'threshold': self.base_threshold,
-            'error_rate': error_rate,
-            'timestamp': torch.Tensor([0]).item()  # Use real timestamp in production
-        })
+        self.performance_history.append(
+            {
+                "threshold": self.base_threshold,
+                "error_rate": error_rate,
+                "timestamp": torch.Tensor([0]).item(),  # Use real timestamp in production
+            }
+        )
 
     def _find_optimal_threshold(self, distances, labels):
         """Find threshold that minimizes error rate"""

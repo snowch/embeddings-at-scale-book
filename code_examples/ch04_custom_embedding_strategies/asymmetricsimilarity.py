@@ -4,22 +4,27 @@ from sklearn.metrics.pairwise import cosine_similarity
 # Code from Chapter 04
 # Book: Embeddings at Scale
 
+
 # Placeholder encoder classes
 class QueryEncoder:
     """Placeholder query encoder. Replace with actual model."""
+
     def __init__(self, embedding_dim=512):
         self.embedding_dim = embedding_dim
 
     def encode(self, query_text):
         return np.random.randn(self.embedding_dim).astype(np.float32)
 
+
 class DocumentEncoder:
     """Placeholder document encoder. Replace with actual model."""
+
     def __init__(self, embedding_dim=512):
         self.embedding_dim = embedding_dim
 
     def encode(self, document_text):
         return np.random.randn(self.embedding_dim).astype(np.float32)
+
 
 class AsymmetricSimilarity:
     """
@@ -58,27 +63,27 @@ class AsymmetricSimilarity:
 # Use cases requiring asymmetric similarity:
 asymmetric_use_cases = [
     {
-        'domain': 'Question Answering',
-        'query': 'Short question',
-        'target': 'Long passage with answer',
-        'asymmetry': 'Question seeks answer; answer does not seek question'
+        "domain": "Question Answering",
+        "query": "Short question",
+        "target": "Long passage with answer",
+        "asymmetry": "Question seeks answer; answer does not seek question",
     },
     {
-        'domain': 'Web Search',
-        'query': '2-5 keywords',
-        'target': 'Full web page content',
-        'asymmetry': 'Query is intent; document is content'
+        "domain": "Web Search",
+        "query": "2-5 keywords",
+        "target": "Full web page content",
+        "asymmetry": "Query is intent; document is content",
     },
     {
-        'domain': 'Image Search',
-        'query': 'Text description',
-        'target': 'Image',
-        'asymmetry': 'Cross-modal: text → image different from image → text'
+        "domain": "Image Search",
+        "query": "Text description",
+        "target": "Image",
+        "asymmetry": "Cross-modal: text → image different from image → text",
     },
     {
-        'domain': 'Recommendation',
-        'query': 'User behavior history',
-        'target': 'Product catalog',
-        'asymmetry': 'User history implies preferences; products have features'
-    }
+        "domain": "Recommendation",
+        "query": "User behavior history",
+        "target": "Product catalog",
+        "asymmetry": "User history implies preferences; products have features",
+    },
 ]

@@ -3,6 +3,7 @@ import numpy as np
 # Code from Chapter 02
 # Book: Embeddings at Scale
 
+
 class SparseEmbeddings:
     """Sparse embedding optimization"""
 
@@ -18,7 +19,7 @@ class SparseEmbeddings:
         sparsity = 1 - (k / len(embedding))
 
         return {
-            'sparse_embedding': sparse,
-            'sparsity': sparsity,
-            'storage_savings': sparsity  # Can use sparse storage format
+            "sparse_embedding": sparse,
+            "sparsity": sparsity,
+            "storage_savings": sparsity,  # Can use sparse storage format
         }

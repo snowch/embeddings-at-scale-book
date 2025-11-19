@@ -1,6 +1,7 @@
 # Code from Chapter 02
 # Book: Embeddings at Scale
 
+
 class EmbeddingCompression:
     """Advanced compression techniques"""
 
@@ -28,8 +29,8 @@ class EmbeddingCompression:
         compression_ratio = (dim * 4) / bytes_per_code
 
         return {
-            'codes': codes,
-            'quantizer': pq,
-            'compression_ratio': compression_ratio,
-            'storage_savings': 1 - (1 / compression_ratio)
+            "codes": codes,
+            "quantizer": pq,
+            "compression_ratio": compression_ratio,
+            "storage_savings": 1 - (1 / compression_ratio),
         }

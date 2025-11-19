@@ -1,6 +1,7 @@
 # Code from Chapter 04
 # Book: Embeddings at Scale
 
+
 class MultiObjectiveOptimization:
     """
     Navigate trade-offs between multiple objectives
@@ -22,11 +23,11 @@ class MultiObjectiveOptimization:
 
         for model in models:
             metrics = {
-                'model': model,
-                'relevance': self.evaluate_relevance(model, test_data),
-                'diversity': self.evaluate_diversity(model, test_data),
-                'personalization': self.evaluate_personalization(model, test_data),
-                'business_metrics': self.evaluate_business(model, test_data)
+                "model": model,
+                "relevance": self.evaluate_relevance(model, test_data),
+                "diversity": self.evaluate_diversity(model, test_data),
+                "personalization": self.evaluate_personalization(model, test_data),
+                "business_metrics": self.evaluate_business(model, test_data),
             }
             evaluations.append(metrics)
 
@@ -55,7 +56,7 @@ class MultiObjectiveOptimization:
         """
         Check if eval_a dominates eval_b (better on all objectives)
         """
-        objectives = ['relevance', 'diversity', 'personalization', 'business_metrics']
+        objectives = ["relevance", "diversity", "personalization", "business_metrics"]
 
         # A dominates B if:
         # - A >= B on all objectives
@@ -79,16 +80,16 @@ class MultiObjectiveOptimization:
         weights = business_priorities  # e.g., {'relevance': 0.4, 'business_metrics': 0.4, ...}
 
         best_model = None
-        best_weighted_score = -float('inf')
+        best_weighted_score = -float("inf")
 
         for eval_point in pareto_frontier:
             weighted_score = sum(
                 weights.get(obj, 0) * eval_point[obj]
-                for obj in ['relevance', 'diversity', 'personalization', 'business_metrics']
+                for obj in ["relevance", "diversity", "personalization", "business_metrics"]
             )
 
             if weighted_score > best_weighted_score:
                 best_weighted_score = weighted_score
-                best_model = eval_point['model']
+                best_model = eval_point["model"]
 
         return best_model

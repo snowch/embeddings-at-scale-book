@@ -33,6 +33,7 @@ Production considerations:
 - Fairness: Avoid discriminatory segments
 """
 
+
 @dataclass
 class Customer:
     """
@@ -47,6 +48,7 @@ class Customer:
         lifecycle_stage: Acquisition, growth, mature, at_risk, churned
         embedding: Learned customer embedding
     """
+
     customer_id: str
     demographics: Dict[str, Any]
     products: List[str]
@@ -54,6 +56,7 @@ class Customer:
     interactions: List[Dict[str, Any]]
     lifecycle_stage: Optional[str] = None
     embedding: Optional[np.ndarray] = None
+
 
 class CustomerEncoder(nn.Module):
     """
@@ -72,11 +75,7 @@ class CustomerEncoder(nn.Module):
     - Contrastive: High-LTV customers close together
     """
 
-    def __init__(
-        self,
-        embedding_dim: int = 128,
-        num_products: int = 50
-    ):
+    def __init__(self, embedding_dim: int = 128, num_products: int = 50):
         super().__init__()
         self.embedding_dim = embedding_dim
 
@@ -86,7 +85,7 @@ class CustomerEncoder(nn.Module):
             hidden_size=64,
             num_layers=2,
             batch_first=True,
-            dropout=0.2
+            dropout=0.2,
         )
 
         # Product embeddings
@@ -94,10 +93,7 @@ class CustomerEncoder(nn.Module):
 
         # Interaction encoder
         self.interaction_encoder = nn.Sequential(
-            nn.Linear(30, 64),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(64, 64)
+            nn.Linear(30, 64), nn.ReLU(), nn.Dropout(0.2), nn.Linear(64, 64)
         )
 
         # Fusion
@@ -105,14 +101,14 @@ class CustomerEncoder(nn.Module):
             nn.Linear(160, 128),  # 64 + 32 + 64
             nn.ReLU(),
             nn.Dropout(0.2),
-            nn.Linear(128, embedding_dim)
+            nn.Linear(128, embedding_dim),
         )
 
     def forward(
         self,
         transaction_history: torch.Tensor,
         product_ids: torch.Tensor,
-        interaction_features: torch.Tensor
+        interaction_features: torch.Tensor,
     ) -> torch.Tensor:
         """
         Encode customers
@@ -144,6 +140,7 @@ class CustomerEncoder(nn.Module):
         customer_emb = F.normalize(customer_emb, p=2, dim=1)
 
         return customer_emb
+
 
 # Example: Customer churn prevention
 def churn_prevention_example():
@@ -248,6 +245,7 @@ def churn_prevention_example():
     print("Campaign cost: $4.5M")
     print("ROI: 17x")
     print("\n→ Proactive churn prevention highly profitable")
+
 
 # Uncomment to run:
 # churn_prevention_example()

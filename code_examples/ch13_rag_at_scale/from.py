@@ -39,11 +39,13 @@ class Document:
         embedding: Vector representation
         score: Relevance score (set during retrieval/reranking)
     """
+
     doc_id: str
     content: str
     metadata: Dict[str, Any]
     embedding: Optional[np.ndarray] = None
     score: float = 0.0
+
 
 @dataclass
 class Query:
@@ -58,12 +60,14 @@ class Query:
         expanded_queries: Query variations for retrieval
         filters: Metadata filters (date range, source, etc.)
     """
+
     query_id: str
     text: str
     intent: Optional[str] = None
     entities: List[str] = None
     expanded_queries: List[str] = None
     filters: Dict[str, Any] = None
+
 
 @dataclass
 class RAGResponse:
@@ -78,12 +82,14 @@ class RAGResponse:
         latency_ms: End-to-end latency
         metadata: Retrieval/generation metadata
     """
+
     query_id: str
     answer: str
     sources: List[Document]
     confidence: float
     latency_ms: float
     metadata: Dict[str, Any]
+
 
 class QueryProcessor:
     """
@@ -106,11 +112,11 @@ class QueryProcessor:
         """Initialize query processor"""
         # In production: Load NER model, intent classifier, etc.
         self.supported_intents = [
-            'factual',      # "What is X?"
-            'how-to',       # "How do I do X?"
-            'comparison',   # "What's the difference between X and Y?"
-            'explanation',  # "Why does X happen?"
-            'list'          # "What are the types of X?"
+            "factual",  # "What is X?"
+            "how-to",  # "How do I do X?"
+            "comparison",  # "What's the difference between X and Y?"
+            "explanation",  # "Why does X happen?"
+            "list",  # "What are the types of X?"
         ]
 
         print("Initialized Query Processor")
@@ -145,7 +151,7 @@ class QueryProcessor:
             intent=intent,
             entities=entities,
             expanded_queries=expanded,
-            filters=filters
+            filters=filters,
         )
 
     def _classify_intent(self, query_text: str) -> str:
@@ -162,18 +168,18 @@ class QueryProcessor:
         """
         text_lower = query_text.lower()
 
-        if any(word in text_lower for word in ['what is', 'define', 'meaning of']):
-            return 'factual'
-        elif any(word in text_lower for word in ['how to', 'how do i', 'how can i']):
-            return 'how-to'
-        elif any(word in text_lower for word in ['difference between', 'compare', 'vs']):
-            return 'comparison'
-        elif any(word in text_lower for word in ['why', 'reason', 'cause']):
-            return 'explanation'
-        elif any(word in text_lower for word in ['list', 'what are', 'types of']):
-            return 'list'
+        if any(word in text_lower for word in ["what is", "define", "meaning of"]):
+            return "factual"
+        elif any(word in text_lower for word in ["how to", "how do i", "how can i"]):
+            return "how-to"
+        elif any(word in text_lower for word in ["difference between", "compare", "vs"]):
+            return "comparison"
+        elif any(word in text_lower for word in ["why", "reason", "cause"]):
+            return "explanation"
+        elif any(word in text_lower for word in ["list", "what are", "types of"]):
+            return "list"
         else:
-            return 'factual'
+            return "factual"
 
     def _extract_entities(self, query_text: str) -> List[str]:
         """
@@ -218,14 +224,14 @@ class QueryProcessor:
         expansions = [query_text]  # Include original
 
         # Intent-specific expansions
-        if intent == 'how-to':
+        if intent == "how-to":
             # Add "steps" variation
-            expansions.append(query_text.replace('how to', 'steps to'))
-            expansions.append(query_text.replace('how do I', 'how can I'))
-        elif intent == 'factual':
+            expansions.append(query_text.replace("how to", "steps to"))
+            expansions.append(query_text.replace("how do I", "how can I"))
+        elif intent == "factual":
             # Add "explain" variation
-            expansions.append(query_text.replace('what is', 'explain'))
-            expansions.append(query_text.replace('what is', 'definition of'))
+            expansions.append(query_text.replace("what is", "explain"))
+            expansions.append(query_text.replace("what is", "definition of"))
 
         return expansions
 
@@ -248,18 +254,19 @@ class QueryProcessor:
         # Year extraction
         for year in range(2000, 2030):
             if str(year) in query_text:
-                filters['date_year'] = year
+                filters["date_year"] = year
                 break
 
         # Author extraction (simple pattern)
-        if 'by' in query_text.lower():
-            parts = query_text.lower().split('by')
+        if "by" in query_text.lower():
+            parts = query_text.lower().split("by")
             if len(parts) > 1:
                 author = parts[1].strip().split()[0:2]  # Get up to 2 words
                 if author:
-                    filters['author'] = ' '.join(author)
+                    filters["author"] = " ".join(author)
 
         return filters
+
 
 class RetrievalEngine:
     """
@@ -277,12 +284,7 @@ class RetrievalEngine:
     - Throughput: 10K queries/second
     """
 
-    def __init__(
-        self,
-        vector_index,
-        embedding_model,
-        default_k: int = 100
-    ):
+    def __init__(self, vector_index, embedding_model, default_k: int = 100):
         """
         Args:
             vector_index: Vector search index (HNSW, Faiss, etc.)
@@ -296,11 +298,7 @@ class RetrievalEngine:
         print("Initialized Retrieval Engine")
         print(f"  Default k: {default_k}")
 
-    def retrieve(
-        self,
-        query: Query,
-        k: Optional[int] = None
-    ) -> List[Document]:
+    def retrieve(self, query: Query, k: Optional[int] = None) -> List[Document]:
         """
         Retrieve top-k relevant documents
 
@@ -366,11 +364,7 @@ class RetrievalEngine:
         embedding = embedding / np.linalg.norm(embedding)
         return embedding
 
-    def _apply_filters(
-        self,
-        documents: List[Document],
-        filters: Dict[str, Any]
-    ) -> List[Document]:
+    def _apply_filters(self, documents: List[Document], filters: Dict[str, Any]) -> List[Document]:
         """
         Filter documents by metadata
 
@@ -396,11 +390,7 @@ class RetrievalEngine:
 
         return filtered
 
-    def _merge_results(
-        self,
-        result_lists: List[List[Document]],
-        k: int
-    ) -> List[Document]:
+    def _merge_results(self, result_lists: List[List[Document]], k: int) -> List[Document]:
         """
         Merge results from multiple searches
 
@@ -436,6 +426,7 @@ class RetrievalEngine:
 
         return merged
 
+
 class Reranker:
     """
     Precise reranking of retrieved documents
@@ -460,12 +451,7 @@ class Reranker:
         # In production: Load actual cross-encoder model
         print(f"Initialized Reranker with model: {model_name}")
 
-    def rerank(
-        self,
-        query: Query,
-        documents: List[Document],
-        top_k: int = 10
-    ) -> List[Document]:
+    def rerank(self, query: Query, documents: List[Document], top_k: int = 10) -> List[Document]:
         """
         Rerank documents by relevance
 
@@ -517,6 +503,7 @@ class Reranker:
 
         return overlap / union if union > 0 else 0.0
 
+
 class ContextManager:
     """
     Optimize context window utilization
@@ -533,11 +520,7 @@ class ContextManager:
     - Compression: Remove redundancy across documents
     """
 
-    def __init__(
-        self,
-        max_context_tokens: int = 4096,
-        max_tokens_per_doc: int = 500
-    ):
+    def __init__(self, max_context_tokens: int = 4096, max_tokens_per_doc: int = 500):
         """
         Args:
             max_context_tokens: Maximum context window size
@@ -550,11 +533,7 @@ class ContextManager:
         print(f"  Max context tokens: {max_context_tokens:,}")
         print(f"  Max tokens per doc: {max_tokens_per_doc}")
 
-    def assemble_context(
-        self,
-        query: Query,
-        documents: List[Document]
-    ) -> str:
+    def assemble_context(self, query: Query, documents: List[Document]) -> str:
         """
         Assemble context from documents
 
@@ -593,7 +572,7 @@ class ContextManager:
                 break
 
             # Add document with citation
-            doc_text = f"[Document {i+1}]\n{content}\n"
+            doc_text = f"[Document {i + 1}]\n{content}\n"
             context_parts.append(doc_text)
             total_tokens += doc_tokens
 
@@ -602,6 +581,7 @@ class ContextManager:
         print(f"Assembled context: {total_tokens:,} tokens from {len(context_parts)} documents")
 
         return context
+
 
 class RAGSystem:
     """
@@ -617,12 +597,7 @@ class RAGSystem:
     """
 
     def __init__(
-        self,
-        vector_index,
-        embedding_model,
-        llm,
-        retrieval_k: int = 100,
-        rerank_k: int = 10
+        self, vector_index, embedding_model, llm, retrieval_k: int = 100, rerank_k: int = 10
     ):
         """
         Args:
@@ -633,7 +608,9 @@ class RAGSystem:
             rerank_k: Number of documents to rerank to
         """
         self.query_processor = QueryProcessor()
-        self.retrieval_engine = RetrievalEngine(vector_index, embedding_model, default_k=retrieval_k)
+        self.retrieval_engine = RetrievalEngine(
+            vector_index, embedding_model, default_k=retrieval_k
+        )
         self.reranker = Reranker()
         self.context_manager = ContextManager()
         self.llm = llm
@@ -693,18 +670,14 @@ class RAGSystem:
             confidence=confidence,
             latency_ms=latency_ms,
             metadata={
-                'intent': query.intent,
-                'num_retrieved': len(retrieved_docs),
-                'num_reranked': len(reranked_docs),
-                'context_tokens': len(context) // 4
-            }
+                "intent": query.intent,
+                "num_retrieved": len(retrieved_docs),
+                "num_reranked": len(reranked_docs),
+                "context_tokens": len(context) // 4,
+            },
         )
 
-    def _generate_answer(
-        self,
-        query: Query,
-        context: str
-    ) -> Tuple[str, float]:
+    def _generate_answer(self, query: Query, context: str) -> Tuple[str, float]:
         """
         Generate answer using LLM
 
@@ -723,6 +696,7 @@ class RAGSystem:
         confidence = 0.85
 
         return answer, confidence
+
 
 # Example: Enterprise RAG system
 def rag_system_example():
@@ -745,11 +719,11 @@ def rag_system_example():
                     doc_id=f"doc_{i}",
                     content=f"This is document {i} containing relevant technical information about the topic.",
                     metadata={
-                        'title': f'Document {i}',
-                        'source': 'documentation',
-                        'date_year': 2024
+                        "title": f"Document {i}",
+                        "source": "documentation",
+                        "date_year": 2024,
                     },
-                    score=1.0 - (i * 0.01)  # Decreasing scores
+                    score=1.0 - (i * 0.01),  # Decreasing scores
                 )
                 docs.append(doc)
             return docs
@@ -772,7 +746,7 @@ def rag_system_example():
         embedding_model=embedding_model,
         llm=llm,
         retrieval_k=100,
-        rerank_k=10
+        rerank_k=10,
     )
 
     # Query
@@ -782,18 +756,19 @@ def rag_system_example():
     response = rag_system.answer(query_text)
 
     # Display results
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"Query: {query_text}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"\nAnswer: {response.answer}")
     print(f"\nConfidence: {response.confidence:.2f}")
     print(f"Latency: {response.latency_ms:.1f}ms")
     print("\nSources:")
     for i, doc in enumerate(response.sources[:3]):
-        print(f"  [{i+1}] {doc.metadata.get('title', doc.doc_id)} (score: {doc.score:.3f})")
+        print(f"  [{i + 1}] {doc.metadata.get('title', doc.doc_id)} (score: {doc.score:.3f})")
     print("\nMetadata:")
     for key, value in response.metadata.items():
         print(f"  {key}: {value}")
+
 
 # Uncomment to run:
 # rag_system_example()

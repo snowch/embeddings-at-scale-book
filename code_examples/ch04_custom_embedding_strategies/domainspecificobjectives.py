@@ -4,6 +4,7 @@ import torch.nn.functional as F
 # Code from Chapter 04
 # Book: Embeddings at Scale
 
+
 class DomainSpecificObjectives:
     """
     Domain-specific training objectives beyond standard contrastive learning
@@ -26,10 +27,7 @@ class DomainSpecificObjectives:
             for j in range(i + 1, len(doc_embs)):
                 if relevance_labels[i] > relevance_labels[j]:
                     # Doc i should rank higher than doc j
-                    loss += torch.clamp(
-                        1.0 - (scores[i] - scores[j]),
-                        min=0.0
-                    )
+                    loss += torch.clamp(1.0 - (scores[i] - scores[j]), min=0.0)
 
         return loss / (len(doc_embs) * (len(doc_embs) - 1) / 2)
 

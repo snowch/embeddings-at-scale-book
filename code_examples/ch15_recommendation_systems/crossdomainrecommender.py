@@ -33,19 +33,24 @@ import torch.nn.functional as F
 
 class CollaborativeFilteringModel(nn.Module):
     """Placeholder for CollaborativeFilteringModel."""
+
     def __init__(self):
         super().__init__()
 
     def forward(self, user_ids, item_ids):
         import torch
+
         return torch.randn(len(user_ids))
+
 
 @dataclass
 class Interaction:
     """Placeholder for Interaction."""
+
     user_id: str
     item_id: str
     rating: float = 0.0
+
 
 class CrossDomainRecommender(nn.Module):
     """
@@ -70,7 +75,7 @@ class CrossDomainRecommender(nn.Module):
         self,
         embedding_dim: int = 128,
         num_users: int = 1000000,
-        num_items_per_domain: Dict[str, int] = None
+        num_items_per_domain: Dict[str, int] = None,
     ):
         super().__init__()
         self.embedding_dim = embedding_dim
@@ -85,12 +90,7 @@ class CrossDomainRecommender(nn.Module):
 
         self.domains = list(num_items_per_domain.keys())
 
-    def forward(
-        self,
-        user_ids: torch.Tensor,
-        item_ids: torch.Tensor,
-        domain: str
-    ) -> torch.Tensor:
+    def forward(self, user_ids: torch.Tensor, item_ids: torch.Tensor, domain: str) -> torch.Tensor:
         """
         Predict scores for user-item pairs in given domain
 
@@ -120,14 +120,11 @@ class CrossDomainRecommender(nn.Module):
         user_emb = self.user_encoder(user_ids)
         return F.normalize(user_emb, p=2, dim=1)
 
-    def encode_items(
-        self,
-        item_ids: torch.Tensor,
-        domain: str
-    ) -> torch.Tensor:
+    def encode_items(self, item_ids: torch.Tensor, domain: str) -> torch.Tensor:
         """Encode items in specific domain"""
         item_emb = self.item_encoders[domain](item_ids)
         return F.normalize(item_emb, p=2, dim=1)
+
 
 class TransferLearningRecommender:
     """
@@ -144,10 +141,7 @@ class TransferLearningRecommender:
     - Better cold start performance
     """
 
-    def __init__(
-        self,
-        embedding_dim: int = 128
-    ):
+    def __init__(self, embedding_dim: int = 128):
         self.embedding_dim = embedding_dim
 
         # Source domain model (rich domain)
@@ -158,11 +152,7 @@ class TransferLearningRecommender:
 
         print("Initialized Transfer Learning Recommender")
 
-    def pretrain_source(
-        self,
-        source_interactions: List[Interaction],
-        num_epochs: int = 10
-    ):
+    def pretrain_source(self, source_interactions: List[Interaction], num_epochs: int = 10):
         """
         Pre-train on source domain (rich domain)
 
@@ -178,9 +168,7 @@ class TransferLearningRecommender:
 
         # Initialize source model
         self.source_model = CollaborativeFilteringModel(
-            embedding_dim=self.embedding_dim,
-            num_users=len(user_ids),
-            num_items=len(item_ids)
+            embedding_dim=self.embedding_dim, num_users=len(user_ids), num_items=len(item_ids)
         )
 
         # Train (simplified - in production: full training loop)
@@ -190,7 +178,7 @@ class TransferLearningRecommender:
         self,
         target_interactions: List[Interaction],
         num_epochs: int = 5,
-        freeze_user_encoder: bool = False
+        freeze_user_encoder: bool = False,
     ):
         """
         Transfer to target domain (sparse domain)
@@ -211,15 +199,11 @@ class TransferLearningRecommender:
 
         # Initialize target model
         self.target_model = CollaborativeFilteringModel(
-            embedding_dim=self.embedding_dim,
-            num_users=len(user_ids),
-            num_items=len(item_ids)
+            embedding_dim=self.embedding_dim, num_users=len(user_ids), num_items=len(item_ids)
         )
 
         # Transfer user encoder weights
-        self.target_model.user_encoder.load_state_dict(
-            self.source_model.user_encoder.state_dict()
-        )
+        self.target_model.user_encoder.load_state_dict(self.source_model.user_encoder.state_dict())
 
         # Optionally freeze user encoder
         if freeze_user_encoder:
@@ -229,6 +213,7 @@ class TransferLearningRecommender:
         # Fine-tune on target domain
         # (simplified - in production: full training loop)
         print("✓ Transferred and fine-tuned on target domain")
+
 
 # Example: Movies → Books transfer
 def cross_domain_transfer_example():
@@ -248,9 +233,7 @@ def cross_domain_transfer_example():
 
     # Initialize multi-domain recommender
     model = CrossDomainRecommender(
-        embedding_dim=64,
-        num_users=1000,
-        num_items_per_domain={'movies': 10000, 'books': 5000}
+        embedding_dim=64, num_users=1000, num_items_per_domain={"movies": 10000, "books": 5000}
     )
 
     print("\nModel architecture:")
@@ -272,7 +255,7 @@ def cross_domain_transfer_example():
 
     # Get book embeddings
     book_ids = torch.arange(100)  # Sample 100 books
-    book_embs = model.encode_items(book_ids, domain='books')
+    book_embs = model.encode_items(book_ids, domain="books")
 
     # Compute scores
     scores = torch.matmul(book_embs, user_emb.T).squeeze()
@@ -285,6 +268,7 @@ def cross_domain_transfer_example():
         print(f"  Book {idx.item()}: {score.item():.3f}")
 
     print("\n✓ Cross-domain transfer successful")
+
 
 # Uncomment to run:
 # cross_domain_transfer_example()

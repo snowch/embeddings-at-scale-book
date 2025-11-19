@@ -6,14 +6,17 @@ import numpy as np
 # Code from Chapter 26
 # Book: Embeddings at Scale
 
+
 @dataclass
 class QuantumAnnealingConfig:
     """Configuration for quantum annealing"""
+
     annealer_type: str = "dwave"  # "dwave", "simulator"
     num_reads: int = 1000
     annealing_time: int = 20  # microseconds
     chain_strength: float = 1.0
     auto_scale: bool = True
+
 
 class QuantumEmbeddingClustering:
     """
@@ -27,11 +30,7 @@ class QuantumEmbeddingClustering:
     def __init__(self, config: QuantumAnnealingConfig):
         self.config = config
 
-    def cluster(
-        self,
-        embeddings: np.ndarray,
-        k: int
-    ) -> Dict[str, Any]:
+    def cluster(self, embeddings: np.ndarray, k: int) -> Dict[str, Any]:
         """
         Quantum annealing-based clustering
 
@@ -65,27 +64,25 @@ class QuantumEmbeddingClustering:
 
         # Refine with classical k-means
         from sklearn.cluster import KMeans
-        kmeans = KMeans(n_clusters=k, init='k-means++')
+
+        kmeans = KMeans(n_clusters=k, init="k-means++")
         final_assignments = kmeans.fit_predict(embeddings)
 
         return {
-            'cluster_assignments': final_assignments,
-            'centers': kmeans.cluster_centers_,
-            'inertia': kmeans.inertia_,
-            'quantum_solution': quantum_solution
+            "cluster_assignments": final_assignments,
+            "centers": kmeans.cluster_centers_,
+            "inertia": kmeans.inertia_,
+            "quantum_solution": quantum_solution,
         }
 
     def _compute_distances(self, embeddings: np.ndarray) -> np.ndarray:
         """Compute pairwise Euclidean distances"""
         from scipy.spatial.distance import pdist, squareform
-        distances = squareform(pdist(embeddings, metric='euclidean'))
+
+        distances = squareform(pdist(embeddings, metric="euclidean"))
         return distances
 
-    def _distances_to_qubo(
-        self,
-        distances: np.ndarray,
-        k: int
-    ) -> Dict[Tuple[int, int], float]:
+    def _distances_to_qubo(self, distances: np.ndarray, k: int) -> Dict[Tuple[int, int], float]:
         """
         Convert clustering problem to QUBO formulation
 
@@ -98,7 +95,7 @@ class QuantumEmbeddingClustering:
 
         # Objective: minimize intra-cluster distances
         for i in range(n):
-            for j in range(i+1, n):
+            for j in range(i + 1, n):
                 for c in range(k):
                     var_i = (i, c)
                     var_j = (j, c)
@@ -114,7 +111,7 @@ class QuantumEmbeddingClustering:
                 qubo[(var1, var1)] = qubo.get((var1, var1), 0) - 2 * penalty
 
                 # Quadratic term: P * x_{i,c1} * x_{i,c2}
-                for c2 in range(c1+1, k):
+                for c2 in range(c1 + 1, k):
                     var2 = (i, c2)
                     qubo[(var1, var2)] = qubo.get((var1, var2), 0) + 2 * penalty
 
@@ -122,10 +119,7 @@ class QuantumEmbeddingClustering:
 
         return qubo
 
-    def _solve_qubo(
-        self,
-        qubo: Dict[Tuple[int, int], float]
-    ) -> Dict[int, int]:
+    def _solve_qubo(self, qubo: Dict[Tuple[int, int], float]) -> Dict[int, int]:
         """
         Solve QUBO using quantum annealing (simulated)
 
@@ -162,11 +156,7 @@ class QuantumEmbeddingClustering:
 
         return solution
 
-    def _decode_clustering(
-        self,
-        solution: Dict[int, int],
-        k: int
-    ) -> np.ndarray:
+    def _decode_clustering(self, solution: Dict[int, int], k: int) -> np.ndarray:
         """Decode binary variables to cluster assignments"""
         # Extract assignments from x_{i,c} variables
         point_to_cluster = {}

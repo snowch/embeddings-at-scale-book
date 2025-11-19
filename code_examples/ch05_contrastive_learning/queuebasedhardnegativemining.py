@@ -4,6 +4,7 @@ import torch.nn.functional as F
 # Code from Chapter 05
 # Book: Embeddings at Scale
 
+
 class QueueBasedHardNegativeMining:
     """
     Maintain queue of recent embeddings for hard negative mining
@@ -18,8 +19,7 @@ class QueueBasedHardNegativeMining:
     - Memory overhead
     """
 
-    def __init__(self, embedding_dim, queue_size=65536,
-                 temperature=0.07, momentum=0.999):
+    def __init__(self, embedding_dim, queue_size=65536, temperature=0.07, momentum=0.999):
         """
         Args:
             embedding_dim: Dimension of embeddings
@@ -55,17 +55,17 @@ class QueueBasedHardNegativeMining:
         end_ptr = (self.queue_ptr + batch_size) % self.queue_size
 
         if end_ptr > self.queue_ptr:
-            self.queue[self.queue_ptr:end_ptr] = new_embeddings.detach()
+            self.queue[self.queue_ptr : end_ptr] = new_embeddings.detach()
             if metadata:
-                self.queue_metadata[self.queue_ptr:end_ptr] = metadata
+                self.queue_metadata[self.queue_ptr : end_ptr] = metadata
         else:
             # Wrap around
             first_part = self.queue_size - self.queue_ptr
-            self.queue[self.queue_ptr:] = new_embeddings[:first_part].detach()
+            self.queue[self.queue_ptr :] = new_embeddings[:first_part].detach()
             self.queue[:end_ptr] = new_embeddings[first_part:].detach()
 
             if metadata:
-                self.queue_metadata[self.queue_ptr:] = metadata[:first_part]
+                self.queue_metadata[self.queue_ptr :] = metadata[:first_part]
                 self.queue_metadata[:end_ptr] = metadata[first_part:]
 
         self.queue_ptr = end_ptr
@@ -106,10 +106,7 @@ class QueueBasedHardNegativeMining:
         anchor_emb.shape[0]
 
         # Get hard negatives
-        hard_negs, hard_neg_sims = self.mine_hard_negatives(
-            anchor_emb,
-            k=num_hard_negatives
-        )
+        hard_negs, hard_neg_sims = self.mine_hard_negatives(anchor_emb, k=num_hard_negatives)
 
         # Normalize
         anchor_norm = F.normalize(anchor_emb, dim=1)
@@ -131,9 +128,9 @@ class QueueBasedHardNegativeMining:
         self.update_queue(anchor_emb)
 
         metrics = {
-            'positive_similarity': pos_sim.mean().item(),
-            'hard_negative_similarity': hard_neg_sims.mean().item(),
-            'queue_utilization': min(self.queue_ptr, self.queue_size) / self.queue_size
+            "positive_similarity": pos_sim.mean().item(),
+            "hard_negative_similarity": hard_neg_sims.mean().item(),
+            "queue_utilization": min(self.queue_ptr, self.queue_size) / self.queue_size,
         }
 
         return loss, metrics

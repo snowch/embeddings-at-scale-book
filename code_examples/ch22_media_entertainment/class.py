@@ -65,6 +65,7 @@ class MediaContent:
         engagement_score: Computed engagement metric
         embedding: Learned content embedding
     """
+
     content_id: str
     title: str
     description: str
@@ -86,6 +87,7 @@ class MediaContent:
     engagement_score: float = 0.0
     embedding: Optional[np.ndarray] = None
 
+
 @dataclass
 class ViewingSession:
     """
@@ -106,6 +108,7 @@ class ViewingSession:
         rating: Explicit rating (if provided)
         engagement_signals: Likes, shares, saves
     """
+
     session_id: str
     user_id: str
     content_id: str
@@ -119,6 +122,7 @@ class ViewingSession:
     next_content: Optional[str] = None
     rating: Optional[float] = None
     engagement_signals: Dict[str, bool] = field(default_factory=dict)
+
 
 @dataclass
 class UserProfile:
@@ -138,6 +142,7 @@ class UserProfile:
         discovery_affinity: Preference for popular vs niche
         embedding: Learned user preference embedding
     """
+
     user_id: str
     viewing_history: List[str] = field(default_factory=list)  # content_ids
     preferences: Dict[str, Any] = field(default_factory=dict)
@@ -150,61 +155,47 @@ class UserProfile:
     discovery_affinity: float = 0.5  # 0=popular, 1=niche
     embedding: Optional[np.ndarray] = None
 
+
 class MultiModalContentEncoder(nn.Module):
     """
     Multi-modal content encoder combining video, audio, and text
     """
+
     def __init__(
         self,
         video_dim: int = 2048,
         audio_dim: int = 512,
         text_dim: int = 768,
-        embedding_dim: int = 256
+        embedding_dim: int = 256,
     ):
         super().__init__()
 
         # Video encoder (pretrained 3D CNN features)
         self.video_encoder = nn.Sequential(
-            nn.Linear(video_dim, 512),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(512, 256)
+            nn.Linear(video_dim, 512), nn.ReLU(), nn.Dropout(0.2), nn.Linear(512, 256)
         )
 
         # Audio encoder
         self.audio_encoder = nn.Sequential(
-            nn.Linear(audio_dim, 256),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(256, 128)
+            nn.Linear(audio_dim, 256), nn.ReLU(), nn.Dropout(0.2), nn.Linear(256, 128)
         )
 
         # Text encoder (BERT features)
         self.text_encoder = nn.Sequential(
-            nn.Linear(text_dim, 384),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(384, 256)
+            nn.Linear(text_dim, 384), nn.ReLU(), nn.Dropout(0.2), nn.Linear(384, 256)
         )
 
         # Fusion layer with attention
-        self.attention = nn.MultiheadAttention(
-            embed_dim=256,
-            num_heads=8,
-            batch_first=True
-        )
+        self.attention = nn.MultiheadAttention(embed_dim=256, num_heads=8, batch_first=True)
 
         # Output projection
-        self.output_proj = nn.Sequential(
-            nn.Linear(256, embedding_dim),
-            nn.LayerNorm(embedding_dim)
-        )
+        self.output_proj = nn.Sequential(nn.Linear(256, embedding_dim), nn.LayerNorm(embedding_dim))
 
     def forward(
         self,
         video_features: torch.Tensor,
         audio_features: torch.Tensor,
-        text_features: torch.Tensor
+        text_features: torch.Tensor,
     ) -> torch.Tensor:
         """
         Encode multi-modal content
@@ -237,16 +228,18 @@ class MultiModalContentEncoder(nn.Module):
 
         return F.normalize(embedding, p=2, dim=1)
 
+
 class SequentialViewerEncoder(nn.Module):
     """
     Sequential viewer encoder modeling viewing history
     """
+
     def __init__(
         self,
         content_embedding_dim: int = 256,
         hidden_dim: int = 512,
         num_layers: int = 2,
-        embedding_dim: int = 256
+        embedding_dim: int = 256,
     ):
         super().__init__()
 
@@ -256,12 +249,9 @@ class SequentialViewerEncoder(nn.Module):
             nhead=8,
             dim_feedforward=hidden_dim,
             dropout=0.1,
-            batch_first=True
+            batch_first=True,
         )
-        self.transformer = nn.TransformerEncoder(
-            encoder_layer,
-            num_layers=num_layers
-        )
+        self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
 
         # Positional encoding for recency
         self.positional_encoding = nn.Parameter(
@@ -273,15 +263,14 @@ class SequentialViewerEncoder(nn.Module):
 
         # Output projection
         self.output_proj = nn.Sequential(
-            nn.Linear(content_embedding_dim, embedding_dim),
-            nn.LayerNorm(embedding_dim)
+            nn.Linear(content_embedding_dim, embedding_dim), nn.LayerNorm(embedding_dim)
         )
 
     def forward(
         self,
         content_embeddings: torch.Tensor,
         engagement_scores: torch.Tensor,
-        mask: Optional[torch.Tensor] = None
+        mask: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """
         Encode viewing history sequence
@@ -322,15 +311,17 @@ class SequentialViewerEncoder(nn.Module):
 
         return F.normalize(user_embedding, p=2, dim=1)
 
+
 class TwoTowerRecommender(nn.Module):
     """
     Two-tower recommendation model: content tower and user tower
     """
+
     def __init__(
         self,
         content_encoder: MultiModalContentEncoder,
         user_encoder: SequentialViewerEncoder,
-        temperature: float = 0.07
+        temperature: float = 0.07,
     ):
         super().__init__()
         self.content_encoder = content_encoder
@@ -346,7 +337,7 @@ class TwoTowerRecommender(nn.Module):
         # User history
         history_embeddings: torch.Tensor,
         history_engagement: torch.Tensor,
-        history_mask: Optional[torch.Tensor] = None
+        history_mask: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Forward pass for training
@@ -357,14 +348,10 @@ class TwoTowerRecommender(nn.Module):
             similarity_scores: [batch_size, batch_size]
         """
         # Encode content
-        content_emb = self.content_encoder(
-            video_features, audio_features, text_features
-        )
+        content_emb = self.content_encoder(video_features, audio_features, text_features)
 
         # Encode user
-        user_emb = self.user_encoder(
-            history_embeddings, history_engagement, history_mask
-        )
+        user_emb = self.user_encoder(history_embeddings, history_engagement, history_mask)
 
         # Compute similarity matrix
         similarity = torch.matmul(user_emb, content_emb.t()) / self.temperature
@@ -372,10 +359,7 @@ class TwoTowerRecommender(nn.Module):
         return content_emb, user_emb, similarity
 
     def recommend(
-        self,
-        user_embedding: torch.Tensor,
-        candidate_embeddings: torch.Tensor,
-        top_k: int = 10
+        self, user_embedding: torch.Tensor, candidate_embeddings: torch.Tensor, top_k: int = 10
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Generate recommendations
@@ -390,20 +374,17 @@ class TwoTowerRecommender(nn.Module):
             top_scores: [top_k] similarity scores
         """
         # Compute similarities
-        similarities = torch.matmul(
-            user_embedding.unsqueeze(0),
-            candidate_embeddings.t()
-        ).squeeze(0)
+        similarities = torch.matmul(user_embedding.unsqueeze(0), candidate_embeddings.t()).squeeze(
+            0
+        )
 
         # Get top-k
         top_scores, top_indices = torch.topk(similarities, k=top_k)
 
         return top_indices, top_scores
 
-def contrastive_loss(
-    similarity_matrix: torch.Tensor,
-    temperature: float = 0.07
-) -> torch.Tensor:
+
+def contrastive_loss(similarity_matrix: torch.Tensor, temperature: float = 0.07) -> torch.Tensor:
     """
     InfoNCE contrastive loss for two-tower model
 
@@ -427,6 +408,7 @@ def contrastive_loss(
 
     return loss
 
+
 # Example usage and training loop
 def content_recommendation_example():
     """
@@ -437,23 +419,15 @@ def content_recommendation_example():
 
     # Initialize model
     content_encoder = MultiModalContentEncoder(
-        video_dim=2048,
-        audio_dim=512,
-        text_dim=768,
-        embedding_dim=256
+        video_dim=2048, audio_dim=512, text_dim=768, embedding_dim=256
     )
 
     user_encoder = SequentialViewerEncoder(
-        content_embedding_dim=256,
-        hidden_dim=512,
-        num_layers=2,
-        embedding_dim=256
+        content_embedding_dim=256, hidden_dim=512, num_layers=2, embedding_dim=256
     )
 
     model = TwoTowerRecommender(
-        content_encoder=content_encoder,
-        user_encoder=user_encoder,
-        temperature=0.07
+        content_encoder=content_encoder, user_encoder=user_encoder, temperature=0.07
     )
 
     # Training data shapes
@@ -472,8 +446,12 @@ def content_recommendation_example():
 
     # Forward pass
     content_emb, user_emb, similarity = model(
-        video_features, audio_features, text_features,
-        history_embeddings, history_engagement, history_mask
+        video_features,
+        audio_features,
+        text_features,
+        history_embeddings,
+        history_engagement,
+        history_mask,
     )
 
     # Compute loss
@@ -498,9 +476,7 @@ def content_recommendation_example():
         candidate_emb = F.normalize(candidate_emb, p=2, dim=1)
 
         # Get top-10 recommendations
-        top_indices, top_scores = model.recommend(
-            user_emb_single, candidate_emb, top_k=10
-        )
+        top_indices, top_scores = model.recommend(user_emb_single, candidate_emb, top_k=10)
 
         print("Recommendations:")
         print(f"  - Candidate pool: {num_candidates} items")
@@ -524,6 +500,7 @@ def content_recommendation_example():
     print("  - Diversity: +45% genre variety in recommendations")
     print()
     print("→ Multi-modal embeddings enable semantic content discovery")
+
 
 # Uncomment to run:
 # content_recommendation_example()

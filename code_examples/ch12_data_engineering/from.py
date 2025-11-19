@@ -35,11 +35,13 @@ class DataRecord:
         timestamp: When record was created
         metadata: Additional context
     """
+
     record_id: str
     data: Dict[str, Any]
     source: str
     timestamp: datetime
     metadata: Dict[str, Any]
+
 
 @dataclass
 class EmbeddingFeatures:
@@ -54,12 +56,14 @@ class EmbeddingFeatures:
         labels: Labels for supervised learning (optional)
         data_hash: Hash for duplicate detection
     """
+
     record_id: str
     text_features: Optional[str] = None
     structured_features: Optional[Dict[str, float]] = None
     context_features: Optional[Dict[str, Any]] = None
     labels: Optional[List[str]] = None
     data_hash: Optional[str] = None
+
 
 class EmbeddingETLPipeline:
     """
@@ -84,10 +88,7 @@ class EmbeddingETLPipeline:
     """
 
     def __init__(
-        self,
-        output_path: str,
-        checkpoint_path: Optional[str] = None,
-        batch_size: int = 10000
+        self, output_path: str, checkpoint_path: Optional[str] = None, batch_size: int = 10000
     ):
         """
         Args:
@@ -114,11 +115,7 @@ class EmbeddingETLPipeline:
         if self.last_checkpoint_id:
             print(f"  Resuming from checkpoint: {self.last_checkpoint_id}")
 
-    def extract(
-        self,
-        source_iterator,
-        start_time: Optional[datetime] = None
-    ) -> List[DataRecord]:
+    def extract(self, source_iterator, start_time: Optional[datetime] = None) -> List[DataRecord]:
         """
         Extract data from source system
 
@@ -138,17 +135,17 @@ class EmbeddingETLPipeline:
 
         for raw_record in source_iterator:
             # Skip records before checkpoint (incremental processing)
-            if start_time and raw_record.get('timestamp') < start_time:
+            if start_time and raw_record.get("timestamp") < start_time:
                 continue
 
             # Parse into DataRecord
             try:
                 record = DataRecord(
-                    record_id=raw_record['id'],
-                    data=raw_record.get('data', {}),
-                    source=raw_record.get('source', 'unknown'),
-                    timestamp=raw_record.get('timestamp', datetime.now()),
-                    metadata=raw_record.get('metadata', {})
+                    record_id=raw_record["id"],
+                    data=raw_record.get("data", {}),
+                    source=raw_record.get("source", "unknown"),
+                    timestamp=raw_record.get("timestamp", datetime.now()),
+                    metadata=raw_record.get("metadata", {}),
                 )
                 records.append(record)
 
@@ -160,10 +157,7 @@ class EmbeddingETLPipeline:
         print(f"Extracted {len(records):,} records from source")
         return records
 
-    def transform(
-        self,
-        records: List[DataRecord]
-    ) -> List[EmbeddingFeatures]:
+    def transform(self, records: List[DataRecord]) -> List[EmbeddingFeatures]:
         """
         Transform raw records into embedding features
 
@@ -216,10 +210,7 @@ class EmbeddingETLPipeline:
 
         return features_list
 
-    def _extract_features(
-        self,
-        record: DataRecord
-    ) -> EmbeddingFeatures:
+    def _extract_features(self, record: DataRecord) -> EmbeddingFeatures:
         """
         Extract features from raw record
 
@@ -236,7 +227,7 @@ class EmbeddingETLPipeline:
         """
         # Text features: Combine multiple text fields
         text_parts = []
-        for field in ['title', 'description', 'content', 'tags']:
+        for field in ["title", "description", "content", "tags"]:
             if field in record.data and record.data[field]:
                 text_parts.append(str(record.data[field]))
 
@@ -250,20 +241,20 @@ class EmbeddingETLPipeline:
 
         # Context features: Metadata that provides additional signal
         context_features = {
-            'source': record.source,
-            'timestamp': record.timestamp.isoformat(),
-            **record.metadata
+            "source": record.source,
+            "timestamp": record.timestamp.isoformat(),
+            **record.metadata,
         }
 
         # Labels: Extract from metadata if available
-        labels = record.metadata.get('labels', None)
+        labels = record.metadata.get("labels", None)
 
         return EmbeddingFeatures(
             record_id=record.record_id,
             text_features=text_features,
             structured_features=structured_features if structured_features else None,
             context_features=context_features,
-            labels=labels
+            labels=labels,
         )
 
     def _compute_hash(self, features: EmbeddingFeatures) -> str:
@@ -284,10 +275,7 @@ class EmbeddingETLPipeline:
         Returns:
             Hash string
         """
-        hash_input = {
-            'text': features.text_features,
-            'structured': features.structured_features
-        }
+        hash_input = {"text": features.text_features, "structured": features.structured_features}
 
         hash_str = json.dumps(hash_input, sort_keys=True)
         return hashlib.md5(hash_str.encode()).hexdigest()
@@ -335,11 +323,7 @@ class EmbeddingETLPipeline:
 
         return True
 
-    def load(
-        self,
-        features_list: List[EmbeddingFeatures],
-        output_format: str = 'jsonl'
-    ):
+    def load(self, features_list: List[EmbeddingFeatures], output_format: str = "jsonl"):
         """
         Load features to output destination
 
@@ -361,9 +345,9 @@ class EmbeddingETLPipeline:
         # Create output directory
         self.output_path.mkdir(parents=True, exist_ok=True)
 
-        if output_format == 'jsonl':
+        if output_format == "jsonl":
             self._load_jsonl(features_list)
-        elif output_format == 'parquet':
+        elif output_format == "parquet":
             self._load_parquet(features_list)
         else:
             raise ValueError(f"Unsupported output format: {output_format}")
@@ -372,19 +356,21 @@ class EmbeddingETLPipeline:
 
     def _load_jsonl(self, features_list: List[EmbeddingFeatures]):
         """Write features as JSON Lines"""
-        output_file = self.output_path / f"features_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jsonl"
+        output_file = (
+            self.output_path / f"features_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jsonl"
+        )
 
-        with open(output_file, 'w') as f:
+        with open(output_file, "w") as f:
             for features in features_list:
                 record = {
-                    'record_id': features.record_id,
-                    'text_features': features.text_features,
-                    'structured_features': features.structured_features,
-                    'context_features': features.context_features,
-                    'labels': features.labels,
-                    'data_hash': features.data_hash
+                    "record_id": features.record_id,
+                    "text_features": features.text_features,
+                    "structured_features": features.structured_features,
+                    "context_features": features.context_features,
+                    "labels": features.labels,
+                    "data_hash": features.data_hash,
                 }
-                f.write(json.dumps(record) + '\n')
+                f.write(json.dumps(record) + "\n")
 
         print(f"  Wrote {output_file}")
 
@@ -393,28 +379,27 @@ class EmbeddingETLPipeline:
         # Convert to DataFrame
         records = []
         for features in features_list:
-            records.append({
-                'record_id': features.record_id,
-                'text_features': features.text_features,
-                'structured_features': json.dumps(features.structured_features),
-                'context_features': json.dumps(features.context_features),
-                'labels': json.dumps(features.labels),
-                'data_hash': features.data_hash
-            })
+            records.append(
+                {
+                    "record_id": features.record_id,
+                    "text_features": features.text_features,
+                    "structured_features": json.dumps(features.structured_features),
+                    "context_features": json.dumps(features.context_features),
+                    "labels": json.dumps(features.labels),
+                    "data_hash": features.data_hash,
+                }
+            )
 
         df = pd.DataFrame(records)
 
-        output_file = self.output_path / f"features_{datetime.now().strftime('%Y%m%d_%H%M%S')}.parquet"
+        output_file = (
+            self.output_path / f"features_{datetime.now().strftime('%Y%m%d_%H%M%S')}.parquet"
+        )
         df.to_parquet(output_file, index=False)
 
         print(f"  Wrote {output_file}")
 
-    def run(
-        self,
-        source_iterator,
-        incremental: bool = True,
-        output_format: str = 'jsonl'
-    ):
+    def run(self, source_iterator, incremental: bool = True, output_format: str = "jsonl"):
         """
         Run complete ETL pipeline
 
@@ -457,7 +442,9 @@ class EmbeddingETLPipeline:
         print("\n✓ ETL pipeline complete")
         print(f"  Duration: {elapsed:.1f}s")
         print(f"  Throughput: {self.records_processed / elapsed:.0f} records/sec")
-        print(f"  Success rate: {self.records_processed / (self.records_processed + self.records_failed):.2%}")
+        print(
+            f"  Success rate: {self.records_processed / (self.records_processed + self.records_failed):.2%}"
+        )
 
     def _save_checkpoint(self, last_record_id: Optional[str]):
         """Save checkpoint for incremental processing"""
@@ -467,15 +454,15 @@ class EmbeddingETLPipeline:
         self.checkpoint_path.mkdir(parents=True, exist_ok=True)
 
         checkpoint = {
-            'last_record_id': last_record_id,
-            'timestamp': datetime.now().isoformat(),
-            'records_processed': self.records_processed,
-            'records_skipped': self.records_skipped,
-            'records_failed': self.records_failed
+            "last_record_id": last_record_id,
+            "timestamp": datetime.now().isoformat(),
+            "records_processed": self.records_processed,
+            "records_skipped": self.records_skipped,
+            "records_failed": self.records_failed,
         }
 
-        checkpoint_file = self.checkpoint_path / 'checkpoint.json'
-        with open(checkpoint_file, 'w') as f:
+        checkpoint_file = self.checkpoint_path / "checkpoint.json"
+        with open(checkpoint_file, "w") as f:
             json.dump(checkpoint, f, indent=2)
 
         print(f"✓ Saved checkpoint: {last_record_id}")
@@ -485,14 +472,15 @@ class EmbeddingETLPipeline:
         if not self.checkpoint_path:
             return
 
-        checkpoint_file = self.checkpoint_path / 'checkpoint.json'
+        checkpoint_file = self.checkpoint_path / "checkpoint.json"
         if not checkpoint_file.exists():
             return
 
         with open(checkpoint_file) as f:
             checkpoint = json.load(f)
 
-        self.last_checkpoint_id = checkpoint.get('last_record_id')
+        self.last_checkpoint_id = checkpoint.get("last_record_id")
+
 
 class DistributedETLPipeline:
     """
@@ -515,11 +503,7 @@ class DistributedETLPipeline:
     - 1000-node cluster: 100M records/sec
     """
 
-    def __init__(
-        self,
-        num_partitions: int = 100,
-        output_path: str = "s3://embeddings/features/"
-    ):
+    def __init__(self, num_partitions: int = 100, output_path: str = "s3://embeddings/features/"):
         """
         Args:
             num_partitions: Number of partitions for parallel processing
@@ -533,9 +517,7 @@ class DistributedETLPipeline:
         print(f"  Output: {output_path}")
 
     def partition_data(
-        self,
-        records: List[DataRecord],
-        partition_key: str = 'hash'
+        self, records: List[DataRecord], partition_key: str = "hash"
     ) -> Dict[int, List[DataRecord]]:
         """
         Partition data for parallel processing
@@ -555,12 +537,12 @@ class DistributedETLPipeline:
         partitions = {i: [] for i in range(self.num_partitions)}
 
         for record in records:
-            if partition_key == 'hash':
+            if partition_key == "hash":
                 partition_id = hash(record.record_id) % self.num_partitions
-            elif partition_key == 'date':
+            elif partition_key == "date":
                 partition_id = record.timestamp.day % self.num_partitions
             else:
-                partition_id = hash(str(record.data.get(partition_key, ''))) % self.num_partitions
+                partition_id = hash(str(record.data.get(partition_key, ""))) % self.num_partitions
 
             partitions[partition_id].append(record)
 
@@ -568,14 +550,14 @@ class DistributedETLPipeline:
 
         # Print partition sizes
         sizes = [len(p) for p in partitions.values()]
-        print(f"  Partition sizes: min={min(sizes)}, max={max(sizes)}, avg={sum(sizes)/len(sizes):.0f}")
+        print(
+            f"  Partition sizes: min={min(sizes)}, max={max(sizes)}, avg={sum(sizes) / len(sizes):.0f}"
+        )
 
         return partitions
 
     def process_partition(
-        self,
-        partition_id: int,
-        records: List[DataRecord]
+        self, partition_id: int, records: List[DataRecord]
     ) -> List[EmbeddingFeatures]:
         """
         Process single partition (runs on worker node)
@@ -591,14 +573,14 @@ class DistributedETLPipeline:
 
         # Create single-node pipeline for this partition
         pipeline = EmbeddingETLPipeline(
-            output_path=f"{self.output_path}/partition_{partition_id}",
-            batch_size=10000
+            output_path=f"{self.output_path}/partition_{partition_id}", batch_size=10000
         )
 
         # Transform records
         features_list = pipeline.transform(records)
 
         return features_list
+
 
 # Example: E-commerce product ETL
 def ecommerce_etl_example():
@@ -617,39 +599,34 @@ def ecommerce_etl_example():
         """Simulate product catalog records"""
         for i in range(count):
             yield {
-                'id': f'product_{i}',
-                'data': {
-                    'title': f'Product {i}',
-                    'description': f'This is a great product for {i % 10} use cases',
-                    'category': ['Electronics', 'Clothing', 'Books'][i % 3],
-                    'price': 10.0 + (i % 100),
-                    'rating': 3.0 + (i % 5) * 0.5,
-                    'tags': ['tag1', 'tag2', 'tag3']
+                "id": f"product_{i}",
+                "data": {
+                    "title": f"Product {i}",
+                    "description": f"This is a great product for {i % 10} use cases",
+                    "category": ["Electronics", "Clothing", "Books"][i % 3],
+                    "price": 10.0 + (i % 100),
+                    "rating": 3.0 + (i % 5) * 0.5,
+                    "tags": ["tag1", "tag2", "tag3"],
                 },
-                'source': 'product_db',
-                'timestamp': datetime.now() - timedelta(hours=i % 24),
-                'metadata': {
-                    'labels': [['Electronics', 'Clothing', 'Books'][i % 3]]
-                }
+                "source": "product_db",
+                "timestamp": datetime.now() - timedelta(hours=i % 24),
+                "metadata": {"labels": [["Electronics", "Clothing", "Books"][i % 3]]},
             }
 
     # Initialize pipeline
     pipeline = EmbeddingETLPipeline(
-        output_path='/tmp/embeddings/features',
-        checkpoint_path='/tmp/embeddings/checkpoints',
-        batch_size=100
+        output_path="/tmp/embeddings/features",
+        checkpoint_path="/tmp/embeddings/checkpoints",
+        batch_size=100,
     )
 
     # Run ETL
     source_iterator = generate_source_records(1000)
-    pipeline.run(
-        source_iterator,
-        incremental=True,
-        output_format='jsonl'
-    )
+    pipeline.run(source_iterator, incremental=True, output_format="jsonl")
 
     print("\n✓ E-commerce ETL complete")
     print(f"  Output: {pipeline.output_path}")
+
 
 # Uncomment to run:
 # ecommerce_etl_example()

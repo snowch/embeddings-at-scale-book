@@ -8,13 +8,17 @@ import numpy as np
 # Placeholder encoders
 class PlaceholderTextEncoder:
     """Placeholder text encoder. Replace with actual model."""
+
     def encode(self, text):
         return np.random.randn(768).astype(np.float32)
 
+
 class PlaceholderImageEncoder:
     """Placeholder image encoder. Replace with actual model."""
+
     def encode(self, image):
         return np.random.randn(768).astype(np.float32)
+
 
 text_encoder = PlaceholderTextEncoder()
 image_encoder = PlaceholderImageEncoder()
@@ -25,10 +29,12 @@ index = faiss.IndexFlatL2(768)
 # Example image path
 inspiration_image = "example_inspiration.jpg"
 
+
 # Placeholder embedding combination function
 def combine_embeddings(text_emb, image_emb):
     """Combine embeddings. Placeholder implementation."""
     return (text_emb + image_emb) / 2.0
+
 
 # User query: "red summer dress" + uploads inspiration image
 query_text_emb = text_encoder.encode("red summer dress")

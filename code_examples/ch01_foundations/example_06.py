@@ -3,7 +3,7 @@
 
 from sentence_transformers import SentenceTransformer
 
-model = SentenceTransformer('all-mpnet-base-v2')
+model = SentenceTransformer("all-mpnet-base-v2")
 
 # Same word, different contexts, different embeddings
 sentence1 = "The bank approved my loan application."

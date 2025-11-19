@@ -25,51 +25,56 @@ import numpy as np
 @dataclass
 class SearchResult:
     """Placeholder for SearchResult."""
+
     indices: np.ndarray
     scores: np.ndarray
     latency_ms: float
 
+
 class OptimizedExactSearch:
     """Placeholder for OptimizedExactSearch."""
+
     def __init__(self):
         pass
 
     def search(self, query_vector, k=10):
-        return SearchResult(
-            indices=np.array([0]),
-            scores=np.array([1.0]),
-            latency_ms=0.1
-        )
+        return SearchResult(indices=np.array([0]), scores=np.array([1.0]), latency_ms=0.1)
+
 
 # Placeholder for GPUVectorSearch - see gpuvectorsearch.py for full implementation
 class GPUVectorSearch:
     """Placeholder for GPUVectorSearch."""
+
     def __init__(self, embedding_dim=768):
         self.embedding_dim = embedding_dim
 
     def search(self, query, k=10):
         return SearchResult(
             indices=np.array(list(range(k))),
-            scores=np.array([1.0 - i*0.1 for i in range(k)]),
-            latency_ms=1.0
+            scores=np.array([1.0 - i * 0.1 for i in range(k)]),
+            latency_ms=1.0,
         )
 
 
 @dataclass
 class Query:
     """Query request"""
+
     query_id: str
     vector: np.ndarray
     k: int = 10
     timestamp: float = 0.0
 
+
 @dataclass
 class QueryResponse:
     """Query response"""
+
     query_id: str
     indices: np.ndarray
     scores: np.ndarray
     latency_ms: float
+
 
 class ParallelVectorSearch:
     """
@@ -96,11 +101,7 @@ class ParallelVectorSearch:
     - Load testing (simulate concurrent load)
     """
 
-    def __init__(
-        self,
-        index,
-        num_workers: int = 8
-    ):
+    def __init__(self, index, num_workers: int = 8):
         """
         Args:
             index: Search index (OptimizedExactSearch, IVFIndex, etc.)
@@ -114,10 +115,7 @@ class ParallelVectorSearch:
 
         print(f"Initialized parallel search with {num_workers} workers")
 
-    def process_queries(
-        self,
-        queries: List[Query]
-    ) -> List[QueryResponse]:
+    def process_queries(self, queries: List[Query]) -> List[QueryResponse]:
         """
         Process multiple queries in parallel
 
@@ -131,8 +129,7 @@ class ParallelVectorSearch:
 
         # Submit all queries to thread pool
         futures = {
-            self.executor.submit(self._process_single_query, query): query
-            for query in queries
+            self.executor.submit(self._process_single_query, query): query for query in queries
         }
 
         # Collect results as they complete
@@ -170,12 +167,13 @@ class ParallelVectorSearch:
             query_id=query.query_id,
             indices=result.indices,
             scores=result.scores,
-            latency_ms=latency_ms
+            latency_ms=latency_ms,
         )
 
     def shutdown(self):
         """Shutdown thread pool"""
         self.executor.shutdown(wait=True)
+
 
 class BatchedQueryProcessor:
     """
@@ -203,9 +201,9 @@ class BatchedQueryProcessor:
 
     def __init__(
         self,
-        gpu_index: 'GPUVectorSearch',
+        gpu_index: "GPUVectorSearch",
         max_batch_size: int = 1000,
-        max_wait_time_ms: float = 20.0
+        max_wait_time_ms: float = 20.0,
     ):
         """
         Args:
@@ -241,11 +239,7 @@ class BatchedQueryProcessor:
         self.processing_thread.join()
         print("Stopped batch processing thread")
 
-    def submit_query(
-        self,
-        query: Query,
-        response_callback: Callable[[QueryResponse], None]
-    ):
+    def submit_query(self, query: Query, response_callback: Callable[[QueryResponse], None]):
         """
         Submit query for batched processing
 
@@ -289,11 +283,7 @@ class BatchedQueryProcessor:
             if batch_queries:
                 self._process_batch(batch_queries, batch_callbacks)
 
-    def _process_batch(
-        self,
-        batch_queries: List[Query],
-        batch_callbacks: List[Callable]
-    ):
+    def _process_batch(self, batch_queries: List[Query], batch_callbacks: List[Callable]):
         """
         Process batch of queries on GPU
 
@@ -313,9 +303,10 @@ class BatchedQueryProcessor:
                 query_id=query.query_id,
                 indices=result.indices[i] if result.indices.ndim > 1 else result.indices,
                 scores=result.scores[i] if result.scores.ndim > 1 else result.scores,
-                latency_ms=result.latency_ms / len(batch_queries)
+                latency_ms=result.latency_ms / len(batch_queries),
             )
             batch_callbacks[i](response)
+
 
 class LoadBalancedSearchCluster:
     """
@@ -356,11 +347,7 @@ class LoadBalancedSearchCluster:
 
         print(f"Initialized load-balanced cluster with {self.num_replicas} replicas")
 
-    def search(
-        self,
-        query: np.ndarray,
-        k: int = 10
-    ) -> SearchResult:
+    def search(self, query: np.ndarray, k: int = 10) -> SearchResult:
         """
         Search using load balancing
 
@@ -400,6 +387,7 @@ class LoadBalancedSearchCluster:
             # Retry on another replica
             return self.search(query, k=k)
 
+
 # Example: Parallel query processing
 def parallel_processing_example():
     """
@@ -420,11 +408,7 @@ def parallel_processing_example():
     # Generate queries
     num_queries = 1000
     queries = [
-        Query(
-            query_id=f"query_{i}",
-            vector=np.random.randn(dim).astype(np.float32),
-            k=10
-        )
+        Query(query_id=f"query_{i}", vector=np.random.randn(dim).astype(np.float32), k=10)
         for i in range(num_queries)
     ]
 
@@ -445,6 +429,7 @@ def parallel_processing_example():
     parallel_search.shutdown()
 
     print(f"Speedup: {seq_elapsed / (sum(r.latency_ms for r in responses) / len(responses)):.1f}×")
+
 
 # Uncomment to run:
 # parallel_processing_example()

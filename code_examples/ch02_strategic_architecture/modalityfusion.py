@@ -4,6 +4,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 # Code from Chapter 02
 # Book: Embeddings at Scale
 
+
 class ModalityFusion:
     """Strategies for combining multi-modal embeddings"""
 
@@ -28,8 +29,10 @@ class ModalityFusion:
         Best for: Queries with variable modalities
         """
         if weights is None:
-            weights = {modality: 1.0 / len(candidate_embs_by_modality)
-                      for modality in candidate_embs_by_modality}
+            weights = {
+                modality: 1.0 / len(candidate_embs_by_modality)
+                for modality in candidate_embs_by_modality
+            }
 
         # Calculate similarity per modality
         similarities = {}
@@ -52,10 +55,7 @@ class ModalityFusion:
         stacked = torch.stack(modality_embeddings)  # (num_modalities, embedding_dim)
 
         # Attention mechanism
-        attention_weights = torch.softmax(
-            torch.matmul(stacked, stacked.transpose(0, 1)),
-            dim=-1
-        )
+        attention_weights = torch.softmax(torch.matmul(stacked, stacked.transpose(0, 1)), dim=-1)
 
         # Weighted combination
         attended = torch.matmul(attention_weights, stacked)
@@ -71,17 +71,11 @@ class ModalityFusion:
         """
         # Text attends to image
         text_to_image = torch.matmul(text_emb, image_emb.transpose(-2, -1))
-        text_attended = torch.matmul(
-            torch.softmax(text_to_image, dim=-1),
-            image_emb
-        )
+        text_attended = torch.matmul(torch.softmax(text_to_image, dim=-1), image_emb)
 
         # Image attends to text
         image_to_text = torch.matmul(image_emb, text_emb.transpose(-2, -1))
-        image_attended = torch.matmul(
-            torch.softmax(image_to_text, dim=-1),
-            text_emb
-        )
+        image_attended = torch.matmul(torch.softmax(image_to_text, dim=-1), text_emb)
 
         # Combine
         fused = torch.cat([text_attended, image_attended], dim=-1)

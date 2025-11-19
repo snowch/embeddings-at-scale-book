@@ -17,11 +17,9 @@ class SimCLRTextEmbedding(nn.Module):
     - Larger projection head for text (768 → 128 works well)
     """
 
-    def __init__(self,
-                 base_model='bert-base-uncased',
-                 projection_dim=128,
-                 hidden_dim=512,
-                 temperature=0.07):
+    def __init__(
+        self, base_model="bert-base-uncased", projection_dim=128, hidden_dim=512, temperature=0.07
+    ):
         super().__init__()
 
         # Base encoder (frozen or fine-tuned)
@@ -34,9 +32,7 @@ class SimCLRTextEmbedding(nn.Module):
         # SimCLR paper shows projection head is essential
         # Without it, performance drops 10-20%
         self.projection_head = nn.Sequential(
-            nn.Linear(encoder_dim, hidden_dim),
-            nn.ReLU(),
-            nn.Linear(hidden_dim, projection_dim)
+            nn.Linear(encoder_dim, hidden_dim), nn.ReLU(), nn.Linear(hidden_dim, projection_dim)
         )
 
         self.temperature = temperature
@@ -54,10 +50,7 @@ class SimCLRTextEmbedding(nn.Module):
             representations: (batch_size, encoder_dim) - before projection
         """
         # Encode text
-        outputs = self.encoder(
-            input_ids=input_ids,
-            attention_mask=attention_mask
-        )
+        outputs = self.encoder(input_ids=input_ids, attention_mask=attention_mask)
 
         # Use [CLS] token representation or mean pooling
         # [CLS] token: outputs.last_hidden_state[:, 0]
@@ -95,13 +88,15 @@ class SimCLRTextEmbedding(nn.Module):
         similarity_matrix = torch.matmul(embeddings, embeddings.T) / self.temperature
 
         # Create labels: for each 2i, positive is 2i+1 and vice versa
-        labels = torch.cat([
-            torch.arange(batch_size, 2*batch_size),  # For first half
-            torch.arange(0, batch_size)  # For second half
-        ]).to(embeddings.device)
+        labels = torch.cat(
+            [
+                torch.arange(batch_size, 2 * batch_size),  # For first half
+                torch.arange(0, batch_size),  # For second half
+            ]
+        ).to(embeddings.device)
 
         # Mask out self-similarities
-        mask = torch.eye(2*batch_size, dtype=torch.bool, device=embeddings.device)
+        mask = torch.eye(2 * batch_size, dtype=torch.bool, device=embeddings.device)
         similarity_matrix.masked_fill_(mask, -9e15)
 
         # Cross-entropy loss
@@ -114,16 +109,16 @@ class SimCLRTextEmbedding(nn.Module):
 
             # Positive similarities
             positive_mask = torch.zeros_like(similarity_matrix, dtype=torch.bool)
-            positive_mask[torch.arange(2*batch_size), labels] = True
+            positive_mask[torch.arange(2 * batch_size), labels] = True
             positive_sim = similarity_matrix[positive_mask].mean()
 
             # Negative similarities
             negative_sim = similarity_matrix[~positive_mask & ~mask].mean()
 
         metrics = {
-            'accuracy': accuracy.item(),
-            'positive_similarity': positive_sim.item(),
-            'negative_similarity': negative_sim.item()
+            "accuracy": accuracy.item(),
+            "positive_similarity": positive_sim.item(),
+            "negative_similarity": negative_sim.item(),
         }
 
         return loss, metrics
@@ -139,14 +134,14 @@ class TextAugmentation:
 
     def __init__(self):
         self.augmentation_methods = [
-            'synonym_replacement',
-            'back_translation',
-            'random_deletion',
-            'random_swap',
-            'paraphrase_generation'
+            "synonym_replacement",
+            "back_translation",
+            "random_deletion",
+            "random_swap",
+            "paraphrase_generation",
         ]
 
-    def augment_simple(self, text, method='random_deletion', p=0.1):
+    def augment_simple(self, text, method="random_deletion", p=0.1):
         """
         Simple augmentation: deletion, swapping, synonym replacement
 
@@ -160,10 +155,9 @@ class TextAugmentation:
         """
         import random
 
-
         words = text.split()
 
-        if method == 'random_deletion':
+        if method == "random_deletion":
             # Randomly delete words
             if len(words) == 1:
                 return text
@@ -174,9 +168,9 @@ class TextAugmentation:
             if len(new_words) == 0:
                 return random.choice(words)
 
-            return ' '.join(new_words)
+            return " ".join(new_words)
 
-        elif method == 'random_swap':
+        elif method == "random_swap":
             # Randomly swap word positions
             new_words = words.copy()
             for i in range(len(new_words)):
@@ -184,9 +178,9 @@ class TextAugmentation:
                     swap_idx = random.randint(0, len(new_words) - 1)
                     new_words[i], new_words[swap_idx] = new_words[swap_idx], new_words[i]
 
-            return ' '.join(new_words)
+            return " ".join(new_words)
 
-        elif method == 'synonym_replacement':
+        elif method == "synonym_replacement":
             # Replace words with synonyms
             new_words = []
             for word in words:
@@ -199,11 +193,11 @@ class TextAugmentation:
                 else:
                     new_words.append(word)
 
-            return ' '.join(new_words)
+            return " ".join(new_words)
 
         return text
 
-    def augment_with_llm(self, text, model='gpt-3.5-turbo'):
+    def augment_with_llm(self, text, model="gpt-3.5-turbo"):
         """
         Use LLM to generate paraphrases (higher quality, more expensive)
 
@@ -226,7 +220,7 @@ Paraphrase:"""
             model=model,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=len(text.split()) * 2,
-            temperature=0.7
+            temperature=0.7,
         )
 
         paraphrase = response.choices[0].message.content.strip()
@@ -239,7 +233,7 @@ Paraphrase:"""
         synonyms = set()
         for syn in wordnet.synsets(word):
             for lemma in syn.lemmas():
-                synonym = lemma.name().replace('_', ' ')
+                synonym = lemma.name().replace("_", " ")
                 if synonym.lower() != word.lower():
                     synonyms.add(synonym)
 
@@ -257,26 +251,22 @@ def train_simclr_epoch(model, dataloader, optimizer, device):
     augmenter = TextAugmentation()
 
     for batch in dataloader:
-        texts = batch['text']
+        texts = batch["text"]
 
         # Generate two augmented views for each text
         augmented_texts = []
         for text in texts:
-            aug1 = augmenter.augment_simple(text, method='random_deletion')
-            aug2 = augmenter.augment_simple(text, method='synonym_replacement')
+            aug1 = augmenter.augment_simple(text, method="random_deletion")
+            aug2 = augmenter.augment_simple(text, method="synonym_replacement")
             augmented_texts.extend([aug1, aug2])
 
         # Tokenize both views
         encoded = model.tokenizer(
-            augmented_texts,
-            padding=True,
-            truncation=True,
-            max_length=128,
-            return_tensors='pt'
+            augmented_texts, padding=True, truncation=True, max_length=128, return_tensors="pt"
         ).to(device)
 
         # Forward pass
-        embeddings, _ = model(encoded['input_ids'], encoded['attention_mask'])
+        embeddings, _ = model(encoded["input_ids"], encoded["attention_mask"])
 
         # Compute loss
         loss, metrics = model.compute_simclr_loss(embeddings)
@@ -287,7 +277,7 @@ def train_simclr_epoch(model, dataloader, optimizer, device):
         optimizer.step()
 
         total_loss += loss.item()
-        total_accuracy += metrics['accuracy']
+        total_accuracy += metrics["accuracy"]
 
     avg_loss = total_loss / len(dataloader)
     avg_accuracy = total_accuracy / len(dataloader)
@@ -297,10 +287,8 @@ def train_simclr_epoch(model, dataloader, optimizer, device):
 
 # Example usage
 model = SimCLRTextEmbedding(
-    base_model='bert-base-uncased',
-    projection_dim=128,
-    temperature=0.07
-).to('cuda')
+    base_model="bert-base-uncased", projection_dim=128, temperature=0.07
+).to("cuda")
 
 optimizer = torch.optim.AdamW(model.parameters(), lr=2e-5)
 

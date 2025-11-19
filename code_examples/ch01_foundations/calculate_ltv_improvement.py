@@ -1,6 +1,7 @@
 # Code from Chapter 01
 # Book: Embeddings at Scale
 
+
 def calculate_ltv_improvement(current_ltv, churn_reduction, customer_base):
     """
     Embedding improvements often reduce churn
@@ -16,7 +17,4 @@ def calculate_ltv_improvement(current_ltv, churn_reduction, customer_base):
     # Apply to customer base (existing + new customers)
     annual_value = ltv_increase * customer_base * 0.25  # 25% annual customer base turnover
 
-    return {
-        'ltv_improvement': ltv_increase,
-        'annual_value': annual_value
-    }
+    return {"ltv_improvement": ltv_increase, "annual_value": annual_value}

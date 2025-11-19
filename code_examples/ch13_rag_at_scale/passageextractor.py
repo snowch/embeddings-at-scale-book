@@ -24,15 +24,18 @@ import numpy as np
 @dataclass
 class Document:
     """Placeholder for Document."""
+
     doc_id: str
     content: str
     metadata: Dict[str, Any]
     embedding: Optional[np.ndarray] = None
     score: float = 0.0
 
+
 @dataclass
 class Query:
     """Placeholder for Query."""
+
     query_id: str
     text: str
     intent: Optional[str] = None
@@ -44,6 +47,7 @@ class Query:
 # Placeholder class
 class ContextManager:
     """Placeholder for ContextManager."""
+
     def __init__(self, max_context_tokens=4096, max_tokens_per_doc=400):
         self.max_context_tokens = max_context_tokens
         self.max_tokens_per_doc = max_tokens_per_doc
@@ -75,11 +79,7 @@ class PassageExtractor:
         self.max_sentences_per_doc = max_sentences_per_doc
         print(f"Initialized Passage Extractor (max {max_sentences_per_doc} sentences/doc)")
 
-    def extract(
-        self,
-        query: str,
-        document: str
-    ) -> str:
+    def extract(self, query: str, document: str) -> str:
         """
         Extract most relevant passages
 
@@ -103,7 +103,7 @@ class PassageExtractor:
             scores.append(score)
 
         # Get top sentences
-        top_indices = np.argsort(scores)[-self.max_sentences_per_doc:]
+        top_indices = np.argsort(scores)[-self.max_sentences_per_doc :]
         top_indices = sorted(top_indices)  # Maintain order
 
         # Extract top sentences
@@ -114,7 +114,7 @@ class PassageExtractor:
     def _split_sentences(self, text: str) -> List[str]:
         """Split text into sentences"""
         # Simple sentence splitting (production: use nltk or spacy)
-        sentences = re.split(r'[.!?]+', text)
+        sentences = re.split(r"[.!?]+", text)
         sentences = [s.strip() for s in sentences if s.strip()]
         return sentences
 
@@ -137,6 +137,7 @@ class PassageExtractor:
 
         overlap = len(query_words & sent_words)
         return overlap
+
 
 class ContextDeduplicator:
     """
@@ -195,7 +196,7 @@ class ContextDeduplicator:
 
     def _split_sentences(self, text: str) -> List[str]:
         """Split text into sentences"""
-        sentences = re.split(r'[.!?]+', text)
+        sentences = re.split(r"[.!?]+", text)
         sentences = [s.strip() for s in sentences if s.strip()]
         return sentences
 
@@ -214,6 +215,7 @@ class ContextDeduplicator:
             True if duplicate
         """
         return sentence in seen
+
 
 class HierarchicalContextAssembler:
     """
@@ -243,11 +245,7 @@ class HierarchicalContextAssembler:
         print("Initialized Hierarchical Context Assembler")
         print(f"  Max tokens: {max_tokens:,}")
 
-    def assemble(
-        self,
-        query: str,
-        documents: List[Document]
-    ) -> str:
+    def assemble(self, query: str, documents: List[Document]) -> str:
         """
         Assemble context hierarchically
 
@@ -268,9 +266,9 @@ class HierarchicalContextAssembler:
 
         # Level 1: Titles and metadata
         for i, doc in enumerate(documents):
-            title = doc.metadata.get('title', f'Document {i+1}')
-            source = doc.metadata.get('source', 'unknown')
-            header = f"[{i+1}] {title} (Source: {source})"
+            title = doc.metadata.get("title", f"Document {i + 1}")
+            source = doc.metadata.get("source", "unknown")
+            header = f"[{i + 1}] {title} (Source: {source})"
 
             header_tokens = len(header) // 4
             if current_tokens + header_tokens < self.max_tokens:
@@ -284,7 +282,7 @@ class HierarchicalContextAssembler:
             passages_tokens = len(passages) // 4
 
             if current_tokens + passages_tokens < self.max_tokens * 0.8:  # Leave 20% buffer
-                context_parts.append(f"\nKey points from Document {i+1}:")
+                context_parts.append(f"\nKey points from Document {i + 1}:")
                 context_parts.append(passages)
                 current_tokens += passages_tokens
             else:
@@ -297,9 +295,12 @@ class HierarchicalContextAssembler:
         deduplicated = self.deduplicator.deduplicate(context_parts)
         context = "\n".join(deduplicated)
 
-        print(f"Assembled hierarchical context: {current_tokens:,} tokens from {len(documents)} docs")
+        print(
+            f"Assembled hierarchical context: {current_tokens:,} tokens from {len(documents)} docs"
+        )
 
         return context
+
 
 # Example: Context window optimization
 def context_optimization_example():
@@ -328,10 +329,7 @@ def context_optimization_example():
             Background: Development started in 2023.
             Context: The project aims to solve real-world problems.
             Summary: This represents a significant advancement.""",
-            metadata={
-                'title': f'Technical Report {i}',
-                'source': 'documentation'
-            }
+            metadata={"title": f"Technical Report {i}", "source": "documentation"},
         )
         documents.append(doc)
 
@@ -340,20 +338,18 @@ def context_optimization_example():
     # Standard assembly (truncation)
     print("=== Standard Assembly (Truncation) ===")
     context_manager = ContextManager(max_context_tokens=4096, max_tokens_per_doc=400)
-    standard_context = context_manager.assemble_context(
-        Query(query_id="q1", text=query),
-        documents
-    )
-    print(f"Context length: {len(standard_context)} chars (~{len(standard_context)//4} tokens)")
+    standard_context = context_manager.assemble_context(Query(query_id="q1", text=query), documents)
+    print(f"Context length: {len(standard_context)} chars (~{len(standard_context) // 4} tokens)")
 
     # Optimized assembly (hierarchical + extraction)
     print("\n=== Optimized Assembly (Hierarchical) ===")
     hierarchical_assembler = HierarchicalContextAssembler(max_tokens=4096)
     optimized_context = hierarchical_assembler.assemble(query, documents)
-    print(f"Context length: {len(optimized_context)} chars (~{len(optimized_context)//4} tokens)")
+    print(f"Context length: {len(optimized_context)} chars (~{len(optimized_context) // 4} tokens)")
 
     print("\nSample optimized context:")
     print(optimized_context[:500] + "...")
+
 
 # Uncomment to run:
 # context_optimization_example()

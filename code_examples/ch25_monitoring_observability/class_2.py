@@ -35,6 +35,7 @@ from typing import Dict, List, Optional
 @dataclass
 class ResourceUsage:
     """Resource usage for a single operation"""
+
     timestamp: datetime
     operation_type: str  # "training", "inference", "query", "storage"
 
@@ -61,30 +62,34 @@ class ResourceUsage:
     user: str = "unknown"
     environment: str = "production"  # "production", "staging", "development"
 
+
 @dataclass
 class CostRates:
     """Cost rates per resource unit (USD)"""
+
     # Compute costs (per hour)
-    cpu_hour: float = 0.10          # $0.10/CPU-hour (typical cloud instance)
-    gpu_hour: float = 2.50          # $2.50/GPU-hour (A100 GPU)
-    memory_gb_hour: float = 0.01    # $0.01/GB-hour of memory
+    cpu_hour: float = 0.10  # $0.10/CPU-hour (typical cloud instance)
+    gpu_hour: float = 2.50  # $2.50/GPU-hour (A100 GPU)
+    memory_gb_hour: float = 0.01  # $0.01/GB-hour of memory
 
     # Storage costs (per GB-month, converted to per hour)
     storage_standard_gb_hour: float = 0.023 / 730  # $0.023/GB-month ÷ 730 hours/month
-    storage_ssd_gb_hour: float = 0.10 / 730        # $0.10/GB-month for SSD
-    storage_memory_gb_hour: float = 0.15 / 730     # $0.15/GB-month for in-memory
+    storage_ssd_gb_hour: float = 0.10 / 730  # $0.10/GB-month for SSD
+    storage_memory_gb_hour: float = 0.15 / 730  # $0.15/GB-month for in-memory
 
     # Network costs (per GB)
-    network_ingress_gb: float = 0.0   # Usually free
-    network_egress_gb: float = 0.09   # $0.09/GB egress (typical cloud)
+    network_ingress_gb: float = 0.0  # Usually free
+    network_egress_gb: float = 0.09  # $0.09/GB egress (typical cloud)
 
     # API costs (for managed services)
     embedding_api_call: float = 0.0001  # $0.0001 per embedding generated
-    search_api_call: float = 0.00001    # $0.00001 per search query
+    search_api_call: float = 0.00001  # $0.00001 per search query
+
 
 @dataclass
 class CostSummary:
     """Cost summary for a time period"""
+
     start_time: datetime
     end_time: datetime
 
@@ -112,6 +117,7 @@ class CostSummary:
     cost_per_embedding: float = 0.0
     cost_per_query: float = 0.0
 
+
 class CostTracker:
     """
     Comprehensive cost tracking and optimization system
@@ -124,7 +130,7 @@ class CostTracker:
         self,
         cost_rates: Optional[CostRates] = None,
         budget_limits: Optional[Dict[str, float]] = None,
-        alert_callback: Optional[callable] = None
+        alert_callback: Optional[callable] = None,
     ):
         """
         Initialize cost tracker
@@ -142,7 +148,9 @@ class CostTracker:
         self.usage_history: List[ResourceUsage] = []
 
         # Aggregated costs
-        self.current_period_start = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        self.current_period_start = datetime.now().replace(
+            day=1, hour=0, minute=0, second=0, microsecond=0
+        )
         self.cost_cache: Dict[str, CostSummary] = {}
 
     def record_usage(self, usage: ResourceUsage):
@@ -159,7 +167,7 @@ class CostTracker:
         memory_gb: float,
         team: str,
         project: str,
-        embeddings_generated: int = 0
+        embeddings_generated: int = 0,
     ):
         """Convenience method to record model training"""
         usage = ResourceUsage(
@@ -170,7 +178,7 @@ class CostTracker:
             memory_gb_hours=memory_gb * duration_hours,
             embeddings_generated=embeddings_generated,
             team=team,
-            project=project
+            project=project,
         )
         self.record_usage(usage)
 
@@ -181,7 +189,7 @@ class CostTracker:
         duration_hours: float,
         team: str,
         project: str,
-        user: str = "unknown"
+        user: str = "unknown",
     ):
         """Convenience method to record embedding generation"""
         usage = ResourceUsage(
@@ -192,7 +200,7 @@ class CostTracker:
             embeddings_generated=num_embeddings,
             team=team,
             project=project,
-            user=user
+            user=user,
         )
         self.record_usage(usage)
 
@@ -203,11 +211,13 @@ class CostTracker:
         cache_hit_rate: float,
         team: str,
         project: str,
-        user: str = "unknown"
+        user: str = "unknown",
     ):
         """Convenience method to record query execution"""
         # Adjust CPU hours by cache hit rate (cache hits are cheaper)
-        effective_duration = duration_hours * (1 - cache_hit_rate * 0.9)  # Cache hits save 90% compute
+        effective_duration = duration_hours * (
+            1 - cache_hit_rate * 0.9
+        )  # Cache hits save 90% compute
 
         usage = ResourceUsage(
             timestamp=datetime.now(),
@@ -216,7 +226,7 @@ class CostTracker:
             queries_executed=num_queries,
             team=team,
             project=project,
-            user=user
+            user=user,
         )
         self.record_usage(usage)
 
@@ -226,7 +236,7 @@ class CostTracker:
         duration_hours: float,
         storage_type: str,  # "standard", "ssd", "memory"
         team: str,
-        project: str
+        project: str,
     ):
         """Convenience method to record storage costs"""
         usage = ResourceUsage(
@@ -234,13 +244,17 @@ class CostTracker:
             operation_type="storage",
             storage_gb_hours=storage_gb * duration_hours,
             team=team,
-            project=project
+            project=project,
         )
         # Adjust rate based on storage type
         if storage_type == "ssd":
-            usage.storage_gb_hours *= (self.cost_rates.storage_ssd_gb_hour / self.cost_rates.storage_standard_gb_hour)
+            usage.storage_gb_hours *= (
+                self.cost_rates.storage_ssd_gb_hour / self.cost_rates.storage_standard_gb_hour
+            )
         elif storage_type == "memory":
-            usage.storage_gb_hours *= (self.cost_rates.storage_memory_gb_hour / self.cost_rates.storage_standard_gb_hour)
+            usage.storage_gb_hours *= (
+                self.cost_rates.storage_memory_gb_hour / self.cost_rates.storage_standard_gb_hour
+            )
 
         self.record_usage(usage)
 
@@ -269,9 +283,7 @@ class CostTracker:
         return cost
 
     def get_cost_summary(
-        self,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None
+        self, start_time: Optional[datetime] = None, end_time: Optional[datetime] = None
     ) -> CostSummary:
         """
         Get cost summary for time period
@@ -289,8 +301,7 @@ class CostTracker:
             end_time = datetime.now()
 
         # Filter usage records to time period
-        period_usage = [u for u in self.usage_history
-                       if start_time <= u.timestamp <= end_time]
+        period_usage = [u for u in self.usage_history if start_time <= u.timestamp <= end_time]
 
         # Initialize summary
         summary = CostSummary(start_time=start_time, end_time=end_time)
@@ -310,16 +321,22 @@ class CostTracker:
                 summary.storage_cost += cost
 
             # Add network costs separately
-            network_cost = (usage.network_gb_ingress * self.cost_rates.network_ingress_gb +
-                           usage.network_gb_egress * self.cost_rates.network_egress_gb)
+            network_cost = (
+                usage.network_gb_ingress * self.cost_rates.network_ingress_gb
+                + usage.network_gb_egress * self.cost_rates.network_egress_gb
+            )
             summary.network_cost += network_cost
 
             summary.total_cost += cost
 
             # Attribution
             summary.cost_by_team[usage.team] = summary.cost_by_team.get(usage.team, 0) + cost
-            summary.cost_by_project[usage.project] = summary.cost_by_project.get(usage.project, 0) + cost
-            summary.cost_by_environment[usage.environment] = summary.cost_by_environment.get(usage.environment, 0) + cost
+            summary.cost_by_project[usage.project] = (
+                summary.cost_by_project.get(usage.project, 0) + cost
+            )
+            summary.cost_by_environment[usage.environment] = (
+                summary.cost_by_environment.get(usage.environment, 0) + cost
+            )
 
             # Usage statistics
             summary.total_embeddings_generated += usage.embeddings_generated
@@ -348,7 +365,9 @@ class CostTracker:
                 team_name = team[5:]
                 team_cost = current_month_summary.cost_by_team.get(team_name, 0)
                 if team_cost > budget:
-                    alerts.append(f"Team '{team_name}' exceeded budget: ${team_cost:.2f} > ${budget:.2f}")
+                    alerts.append(
+                        f"Team '{team_name}' exceeded budget: ${team_cost:.2f} > ${budget:.2f}"
+                    )
 
         # Check project budgets
         for project, budget in self.budget_limits.items():
@@ -356,12 +375,16 @@ class CostTracker:
                 project_name = project[8:]
                 project_cost = current_month_summary.cost_by_project.get(project_name, 0)
                 if project_cost > budget:
-                    alerts.append(f"Project '{project_name}' exceeded budget: ${project_cost:.2f} > ${budget:.2f}")
+                    alerts.append(
+                        f"Project '{project_name}' exceeded budget: ${project_cost:.2f} > ${budget:.2f}"
+                    )
 
         # Check total budget
         if "total" in self.budget_limits:
             if current_month_summary.total_cost > self.budget_limits["total"]:
-                alerts.append(f"Total budget exceeded: ${current_month_summary.total_cost:.2f} > ${self.budget_limits['total']:.2f}")
+                alerts.append(
+                    f"Total budget exceeded: ${current_month_summary.total_cost:.2f} > ${self.budget_limits['total']:.2f}"
+                )
 
         # Trigger alerts
         if alerts and self.alert_callback:
@@ -372,17 +395,17 @@ class CostTracker:
         report = f"""
 Embedding System Cost Report
 =============================
-Period: {summary.start_time.strftime('%Y-%m-%d')} to {summary.end_time.strftime('%Y-%m-%d')}
+Period: {summary.start_time.strftime("%Y-%m-%d")} to {summary.end_time.strftime("%Y-%m-%d")}
 
 Total Cost: ${summary.total_cost:.2f}
 
 Cost Breakdown by Category:
 ---------------------------
-Training:     ${summary.training_cost:>10.2f} ({summary.training_cost/max(summary.total_cost, 1)*100:>5.1f}%)
-Inference:    ${summary.inference_cost:>10.2f} ({summary.inference_cost/max(summary.total_cost, 1)*100:>5.1f}%)
-Query:        ${summary.query_cost:>10.2f} ({summary.query_cost/max(summary.total_cost, 1)*100:>5.1f}%)
-Storage:      ${summary.storage_cost:>10.2f} ({summary.storage_cost/max(summary.total_cost, 1)*100:>5.1f}%)
-Network:      ${summary.network_cost:>10.2f} ({summary.network_cost/max(summary.total_cost, 1)*100:>5.1f}%)
+Training:     ${summary.training_cost:>10.2f} ({summary.training_cost / max(summary.total_cost, 1) * 100:>5.1f}%)
+Inference:    ${summary.inference_cost:>10.2f} ({summary.inference_cost / max(summary.total_cost, 1) * 100:>5.1f}%)
+Query:        ${summary.query_cost:>10.2f} ({summary.query_cost / max(summary.total_cost, 1) * 100:>5.1f}%)
+Storage:      ${summary.storage_cost:>10.2f} ({summary.storage_cost / max(summary.total_cost, 1) * 100:>5.1f}%)
+Network:      ${summary.network_cost:>10.2f} ({summary.network_cost / max(summary.total_cost, 1) * 100:>5.1f}%)
 
 Resource Usage:
 --------------
@@ -401,12 +424,16 @@ Cost by Team:
 ------------
 """
         for team, cost in sorted(summary.cost_by_team.items(), key=lambda x: x[1], reverse=True):
-            report += f"{team:>20s}: ${cost:>10.2f} ({cost/max(summary.total_cost, 1)*100:>5.1f}%)\n"
+            report += (
+                f"{team:>20s}: ${cost:>10.2f} ({cost / max(summary.total_cost, 1) * 100:>5.1f}%)\n"
+            )
 
         report += "\nCost by Project:\n"
         report += "----------------\n"
-        for project, cost in sorted(summary.cost_by_project.items(), key=lambda x: x[1], reverse=True):
-            report += f"{project:>20s}: ${cost:>10.2f} ({cost/max(summary.total_cost, 1)*100:>5.1f}%)\n"
+        for project, cost in sorted(
+            summary.cost_by_project.items(), key=lambda x: x[1], reverse=True
+        ):
+            report += f"{project:>20s}: ${cost:>10.2f} ({cost / max(summary.total_cost, 1) * 100:>5.1f}%)\n"
 
         return report
 
@@ -417,7 +444,7 @@ Cost by Team:
         # High GPU costs
         if summary.training_cost > summary.total_cost * 0.5:
             recommendations.append(
-                f"Training costs are {summary.training_cost/max(summary.total_cost, 1)*100:.1f}% of total. "
+                f"Training costs are {summary.training_cost / max(summary.total_cost, 1) * 100:.1f}% of total. "
                 "Consider: (1) Using spot instances for training (60-90% savings), "
                 "(2) Optimizing hyperparameters to reduce training time, "
                 "(3) Using smaller models or transfer learning"
@@ -426,7 +453,7 @@ Cost by Team:
         # High query costs
         if summary.query_cost > summary.total_cost * 0.3:
             recommendations.append(
-                f"Query costs are {summary.query_cost/max(summary.total_cost, 1)*100:.1f}% of total. "
+                f"Query costs are {summary.query_cost / max(summary.total_cost, 1) * 100:.1f}% of total. "
                 "Consider: (1) Increasing cache hit rate through better caching strategies, "
                 "(2) Using approximate nearest neighbor (ANN) algorithms, "
                 "(3) Implementing query result caching"
@@ -435,7 +462,7 @@ Cost by Team:
         # High storage costs
         if summary.storage_cost > summary.total_cost * 0.3:
             recommendations.append(
-                f"Storage costs are {summary.storage_cost/max(summary.total_cost, 1)*100:.1f}% of total. "
+                f"Storage costs are {summary.storage_cost / max(summary.total_cost, 1) * 100:.1f}% of total. "
                 "Consider: (1) Implementing vector quantization (4-8× compression), "
                 "(2) Using tiered storage (hot/warm/cold), "
                 "(3) Reducing embedding dimensionality through PCA"
@@ -460,7 +487,9 @@ Cost by Team:
             )
 
         if not recommendations:
-            recommendations.append("Cost structure looks efficient. Continue monitoring for optimization opportunities.")
+            recommendations.append(
+                "Cost structure looks efficient. Continue monitoring for optimization opportunities."
+            )
 
         return recommendations
 
@@ -485,12 +514,12 @@ if __name__ == "__main__":
     # Initialize cost tracker with budgets
     tracker = CostTracker(
         budget_limits={
-            "total": 10000.0,           # $10k/month total
+            "total": 10000.0,  # $10k/month total
             "team:ml-platform": 5000.0,  # $5k/month for ML platform team
-            "team:search": 3000.0,       # $3k/month for search team
-            "project:recommendation": 2000.0  # $2k/month for recommendation project
+            "team:search": 3000.0,  # $3k/month for search team
+            "project:recommendation": 2000.0,  # $2k/month for recommendation project
         },
-        alert_callback=lambda alerts, summary: print("\n🚨 BUDGET ALERT:\n" + "\n".join(alerts))
+        alert_callback=lambda alerts, summary: print("\n🚨 BUDGET ALERT:\n" + "\n".join(alerts)),
     )
 
     # Simulate various operations
@@ -503,7 +532,7 @@ if __name__ == "__main__":
         memory_gb=256,
         team="ml-platform",
         project="recommendation",
-        embeddings_generated=0
+        embeddings_generated=0,
     )
     print("Recorded training: 24 hours × 8 GPUs")
 
@@ -513,7 +542,7 @@ if __name__ == "__main__":
         use_gpu=True,
         duration_hours=2.0,
         team="ml-platform",
-        project="recommendation"
+        project="recommendation",
     )
     print("Recorded inference: 1M embeddings generated")
 
@@ -523,7 +552,7 @@ if __name__ == "__main__":
         duration_hours=5.0,
         cache_hit_rate=0.75,
         team="search",
-        project="semantic-search"
+        project="semantic-search",
     )
     print("Recorded queries: 10M queries with 75% cache hit rate")
 
@@ -533,18 +562,18 @@ if __name__ == "__main__":
         duration_hours=24 * 30,  # 1 month
         storage_type="ssd",
         team="ml-platform",
-        project="recommendation"
+        project="recommendation",
     )
     print("Recorded storage: 5TB SSD for 1 month")
 
     # Generate cost report
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     summary = tracker.get_cost_summary()
     print(tracker.generate_cost_report(summary))
 
     # Optimization recommendations
     print("\nCost Optimization Recommendations:")
-    print("="*70)
+    print("=" * 70)
     recommendations = tracker.get_optimization_recommendations(summary)
     for i, rec in enumerate(recommendations, 1):
         print(f"\n{i}. {rec}")

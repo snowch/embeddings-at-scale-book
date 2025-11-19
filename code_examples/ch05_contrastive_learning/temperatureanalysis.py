@@ -30,17 +30,17 @@ class TemperatureAnalysis:
 
             # Plot
             ax = axes[idx]
-            colors = ['green'] + ['red'] * 9  # Positive green, negatives red
+            colors = ["green"] + ["red"] * 9  # Positive green, negatives red
             ax.bar(range(10), probs, color=colors, alpha=0.6)
-            ax.set_title(f'Temperature τ={tau}\nP(positive)={probs[0]:.3f}')
-            ax.set_xlabel('Example index')
-            ax.set_ylabel('Probability')
+            ax.set_title(f"Temperature τ={tau}\nP(positive)={probs[0]:.3f}")
+            ax.set_xlabel("Example index")
+            ax.set_ylabel("Probability")
             ax.set_ylim(0, 1)
 
         plt.tight_layout()
         return fig
 
-    def recommend_temperature(self, batch_size, data_quality='high'):
+    def recommend_temperature(self, batch_size, data_quality="high"):
         """
         Recommend temperature based on batch size and data quality
 
@@ -53,14 +53,14 @@ class TemperatureAnalysis:
         """
         if batch_size >= 4096:
             # Very large batches: many high-quality negatives available
-            if data_quality == 'high':
+            if data_quality == "high":
                 return 0.03, "Large batch + high quality → very low temperature for hard negatives"
             else:
                 return 0.05, "Large batch but lower quality → slightly higher temperature"
 
         elif batch_size >= 1024:
             # Large batches: good number of negatives
-            if data_quality == 'high':
+            if data_quality == "high":
                 return 0.05, "Large batch + high quality → low temperature"
             else:
                 return 0.07, "Standard setting for large batches"
@@ -71,7 +71,7 @@ class TemperatureAnalysis:
 
         elif batch_size >= 64:
             # Small batches: need softer distribution
-            if data_quality == 'low':
+            if data_quality == "low":
                 return 0.15, "Small batch + noisy data → higher temperature for stability"
             else:
                 return 0.1, "Small batch → moderately high temperature"
@@ -86,7 +86,7 @@ analyzer = TemperatureAnalysis()
 
 # Get recommendation for your setup
 batch_size = 512
-data_quality = 'high'
+data_quality = "high"
 
 temp, reasoning = analyzer.recommend_temperature(batch_size, data_quality)
 print(f"Recommended temperature: {temp}")

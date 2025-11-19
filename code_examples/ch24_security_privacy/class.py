@@ -55,6 +55,7 @@ class EncryptionConfig:
         enable_packing: Pack multiple vectors in single ciphertext
         enable_batching: Batch operations for efficiency
     """
+
     scheme: str = "ckks"  # "ckks", "sgx", "ope", "hybrid"
     key_size: int = 2048
     security_level: int = 128
@@ -62,6 +63,7 @@ class EncryptionConfig:
     precision: int = 40
     enable_packing: bool = True
     enable_batching: bool = True
+
 
 @dataclass
 class EncryptedEmbedding:
@@ -76,6 +78,7 @@ class EncryptedEmbedding:
         dimension: Original embedding dimension
         encrypted_at: Encryption timestamp
     """
+
     id: str
     ciphertext: bytes
     public_key_id: str
@@ -83,45 +86,36 @@ class EncryptedEmbedding:
     dimension: int = 768
     encrypted_at: datetime = field(default_factory=datetime.now)
 
+
 class SecureEmbeddingStore(ABC):
     """
     Abstract interface for secure embedding storage and computation
     """
 
     @abstractmethod
-    def encrypt_embedding(
-        self,
-        embedding: np.ndarray,
-        embedding_id: str
-    ) -> EncryptedEmbedding:
+    def encrypt_embedding(self, embedding: np.ndarray, embedding_id: str) -> EncryptedEmbedding:
         """Encrypt an embedding vector"""
         pass
 
     @abstractmethod
-    def decrypt_embedding(
-        self,
-        encrypted: EncryptedEmbedding
-    ) -> np.ndarray:
+    def decrypt_embedding(self, encrypted: EncryptedEmbedding) -> np.ndarray:
         """Decrypt an embedding vector"""
         pass
 
     @abstractmethod
     def encrypted_similarity(
-        self,
-        query_encrypted: EncryptedEmbedding,
-        candidate_encrypted: EncryptedEmbedding
+        self, query_encrypted: EncryptedEmbedding, candidate_encrypted: EncryptedEmbedding
     ) -> float:
         """Compute similarity between encrypted embeddings"""
         pass
 
     @abstractmethod
     def secure_nearest_neighbors(
-        self,
-        query_encrypted: EncryptedEmbedding,
-        k: int = 10
+        self, query_encrypted: EncryptedEmbedding, k: int = 10
     ) -> List[Tuple[str, float]]:
         """Find k nearest neighbors in encrypted space"""
         pass
+
 
 class CKKSEmbeddingStore(SecureEmbeddingStore):
     """
@@ -173,11 +167,7 @@ class CKKSEmbeddingStore(SecureEmbeddingStore):
         print(f"  Precision: {self.config.precision} bits")
         print(f"  Noise budget: {self.config.noise_budget}")
 
-    def encrypt_embedding(
-        self,
-        embedding: np.ndarray,
-        embedding_id: str
-    ) -> EncryptedEmbedding:
+    def encrypt_embedding(self, embedding: np.ndarray, embedding_id: str) -> EncryptedEmbedding:
         """
         Encrypt embedding with CKKS
 
@@ -203,18 +193,11 @@ class CKKSEmbeddingStore(SecureEmbeddingStore):
         embedding_bytes = embedding.tobytes()
 
         # Simulated CKKS encryption (use proper library in production)
-        cipher = hmac.new(
-            self.secret_key,
-            embedding_bytes,
-            hashlib.sha256
-        ).digest()
+        cipher = hmac.new(self.secret_key, embedding_bytes, hashlib.sha256).digest()
 
         # Add noise based on noise budget
-        noise = np.random.randint(
-            0, 2**self.config.noise_budget,
-            size=len(cipher)
-        ).tobytes()
-        ciphertext = bytes(a ^ b for a, b in zip(cipher, noise[:len(cipher)]))
+        noise = np.random.randint(0, 2**self.config.noise_budget, size=len(cipher)).tobytes()
+        ciphertext = bytes(a ^ b for a, b in zip(cipher, noise[: len(cipher)]))
 
         encrypted = EncryptedEmbedding(
             id=embedding_id,
@@ -224,17 +207,14 @@ class CKKSEmbeddingStore(SecureEmbeddingStore):
             encryption_metadata={
                 "scheme": "ckks",
                 "precision": self.config.precision,
-                "noise_budget": self.config.noise_budget
-            }
+                "noise_budget": self.config.noise_budget,
+            },
         )
 
         self.encrypted_store[embedding_id] = encrypted
         return encrypted
 
-    def decrypt_embedding(
-        self,
-        encrypted: EncryptedEmbedding
-    ) -> np.ndarray:
+    def decrypt_embedding(self, encrypted: EncryptedEmbedding) -> np.ndarray:
         """
         Decrypt CKKS-encrypted embedding
 
@@ -250,14 +230,10 @@ class CKKSEmbeddingStore(SecureEmbeddingStore):
 
         # Simplified decryption (demonstration only)
         # Real CKKS decryption requires secret key and proper scheme
-        raise NotImplementedError(
-            "Decryption requires proper CKKS library (TenSEAL, SEAL, etc.)"
-        )
+        raise NotImplementedError("Decryption requires proper CKKS library (TenSEAL, SEAL, etc.)")
 
     def encrypted_similarity(
-        self,
-        query_encrypted: EncryptedEmbedding,
-        candidate_encrypted: EncryptedEmbedding
+        self, query_encrypted: EncryptedEmbedding, candidate_encrypted: EncryptedEmbedding
     ) -> float:
         """
         Compute cosine similarity between encrypted vectors
@@ -293,9 +269,7 @@ class CKKSEmbeddingStore(SecureEmbeddingStore):
         )
 
     def secure_nearest_neighbors(
-        self,
-        query_encrypted: EncryptedEmbedding,
-        k: int = 10
+        self, query_encrypted: EncryptedEmbedding, k: int = 10
     ) -> List[Tuple[str, float]]:
         """
         Find k nearest neighbors in encrypted space
@@ -331,6 +305,7 @@ class CKKSEmbeddingStore(SecureEmbeddingStore):
         similarities.sort(key=lambda x: x[1], reverse=True)
 
         return similarities[:k]
+
 
 class SGXEmbeddingStore(SecureEmbeddingStore):
     """
@@ -398,11 +373,7 @@ class SGXEmbeddingStore(SecureEmbeddingStore):
         # return 'sgx' in info.get('flags', [])
         return False  # Simulation mode for demonstration
 
-    def encrypt_embedding(
-        self,
-        embedding: np.ndarray,
-        embedding_id: str
-    ) -> EncryptedEmbedding:
+    def encrypt_embedding(self, embedding: np.ndarray, embedding_id: str) -> EncryptedEmbedding:
         """
         Seal embedding for SGX enclave
 
@@ -424,7 +395,7 @@ class SGXEmbeddingStore(SecureEmbeddingStore):
         sealed = hmac.new(
             b"sgx_sealing_key",  # In production: enclave-specific key
             embedding_bytes,
-            hashlib.sha256
+            hashlib.sha256,
         ).digest()
 
         encrypted = EncryptedEmbedding(
@@ -432,19 +403,13 @@ class SGXEmbeddingStore(SecureEmbeddingStore):
             ciphertext=sealed + embedding_bytes,  # Seal + data
             public_key_id="sgx_enclave",
             dimension=len(embedding),
-            encryption_metadata={
-                "scheme": "sgx",
-                "platform": "simulated"
-            }
+            encryption_metadata={"scheme": "sgx", "platform": "simulated"},
         )
 
         self.encrypted_store[embedding_id] = encrypted
         return encrypted
 
-    def decrypt_embedding(
-        self,
-        encrypted: EncryptedEmbedding
-    ) -> np.ndarray:
+    def decrypt_embedding(self, encrypted: EncryptedEmbedding) -> np.ndarray:
         """
         Unseal embedding within SGX enclave
 
@@ -462,12 +427,10 @@ class SGXEmbeddingStore(SecureEmbeddingStore):
 
         # Reconstruct vector
         embedding = np.frombuffer(embedding_bytes, dtype=np.float32)
-        return embedding[:encrypted.dimension]
+        return embedding[: encrypted.dimension]
 
     def encrypted_similarity(
-        self,
-        query_encrypted: EncryptedEmbedding,
-        candidate_encrypted: EncryptedEmbedding
+        self, query_encrypted: EncryptedEmbedding, candidate_encrypted: EncryptedEmbedding
     ) -> float:
         """
         Compute similarity within SGX enclave
@@ -489,16 +452,12 @@ class SGXEmbeddingStore(SecureEmbeddingStore):
         candidate = self.decrypt_embedding(candidate_encrypted)
 
         # Compute similarity (protected by enclave)
-        similarity = np.dot(query, candidate) / (
-            np.linalg.norm(query) * np.linalg.norm(candidate)
-        )
+        similarity = np.dot(query, candidate) / (np.linalg.norm(query) * np.linalg.norm(candidate))
 
         return float(similarity)
 
     def secure_nearest_neighbors(
-        self,
-        query_encrypted: EncryptedEmbedding,
-        k: int = 10
+        self, query_encrypted: EncryptedEmbedding, k: int = 10
     ) -> List[Tuple[str, float]]:
         """
         Find k nearest neighbors within SGX enclave
@@ -522,14 +481,13 @@ class SGXEmbeddingStore(SecureEmbeddingStore):
         for emb_id, candidate_enc in self.encrypted_store.items():
             candidate = self.decrypt_embedding(candidate_enc)
 
-            sim = np.dot(query, candidate) / (
-                np.linalg.norm(query) * np.linalg.norm(candidate)
-            )
+            sim = np.dot(query, candidate) / (np.linalg.norm(query) * np.linalg.norm(candidate))
             similarities.append((emb_id, float(sim)))
 
         # Sort and return top-k
         similarities.sort(key=lambda x: x[1], reverse=True)
         return similarities[:k]
+
 
 class HybridSecureStore(SecureEmbeddingStore):
     """
@@ -557,24 +515,16 @@ class HybridSecureStore(SecureEmbeddingStore):
 
         # Choose primary based on availability
         self.primary_store = (
-            self.sgx_store if self.sgx_store.enclave_initialized
-            else self.ckks_store
+            self.sgx_store if self.sgx_store.enclave_initialized else self.ckks_store
         )
 
         print(f"Hybrid store initialized, primary: {type(self.primary_store).__name__}")
 
-    def encrypt_embedding(
-        self,
-        embedding: np.ndarray,
-        embedding_id: str
-    ) -> EncryptedEmbedding:
+    def encrypt_embedding(self, embedding: np.ndarray, embedding_id: str) -> EncryptedEmbedding:
         """Use primary store for encryption"""
         return self.primary_store.encrypt_embedding(embedding, embedding_id)
 
-    def decrypt_embedding(
-        self,
-        encrypted: EncryptedEmbedding
-    ) -> np.ndarray:
+    def decrypt_embedding(self, encrypted: EncryptedEmbedding) -> np.ndarray:
         """Route to appropriate store based on encryption scheme"""
         scheme = encrypted.encryption_metadata.get("scheme")
         if scheme == "sgx":
@@ -585,27 +535,20 @@ class HybridSecureStore(SecureEmbeddingStore):
             return self.primary_store.decrypt_embedding(encrypted)
 
     def encrypted_similarity(
-        self,
-        query_encrypted: EncryptedEmbedding,
-        candidate_encrypted: EncryptedEmbedding
+        self, query_encrypted: EncryptedEmbedding, candidate_encrypted: EncryptedEmbedding
     ) -> float:
         """Use SGX if available for best performance"""
         if self.sgx_store.enclave_initialized:
-            return self.sgx_store.encrypted_similarity(
-                query_encrypted, candidate_encrypted
-            )
+            return self.sgx_store.encrypted_similarity(query_encrypted, candidate_encrypted)
         else:
-            return self.ckks_store.encrypted_similarity(
-                query_encrypted, candidate_encrypted
-            )
+            return self.ckks_store.encrypted_similarity(query_encrypted, candidate_encrypted)
 
     def secure_nearest_neighbors(
-        self,
-        query_encrypted: EncryptedEmbedding,
-        k: int = 10
+        self, query_encrypted: EncryptedEmbedding, k: int = 10
     ) -> List[Tuple[str, float]]:
         """Use primary store for search"""
         return self.primary_store.secure_nearest_neighbors(query_encrypted, k)
+
 
 # Example usage
 def secure_embedding_example():
@@ -619,7 +562,7 @@ def secure_embedding_example():
     config = EncryptionConfig(
         scheme="sgx",  # Use SGX for demonstration
         security_level=128,
-        precision=40
+        precision=40,
     )
 
     # Initialize secure store
@@ -629,10 +572,7 @@ def secure_embedding_example():
     # Generate sample embeddings
     print("Encrypting embeddings...")
     np.random.seed(42)
-    embeddings = {
-        f"emb_{i}": np.random.randn(768).astype(np.float32)
-        for i in range(100)
-    }
+    embeddings = {f"emb_{i}": np.random.randn(768).astype(np.float32) for i in range(100)}
 
     # Normalize embeddings
     for emb_id in embeddings:
@@ -671,6 +611,7 @@ def secure_embedding_example():
     print("Top 10 neighbors (plaintext):")
     for rank, (emb_id, score) in enumerate(plaintext_scores[:10], 1):
         print(f"  {rank}. {emb_id}: {score:.4f}")
+
 
 if __name__ == "__main__":
     secure_embedding_example()

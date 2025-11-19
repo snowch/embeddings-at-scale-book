@@ -38,18 +38,22 @@ import torch.nn as nn
 
 class MachineStatus(Enum):
     """Machine operational status"""
+
     RUNNING = "running"
     IDLE = "idle"
     MAINTENANCE = "maintenance"
     FAILED = "failed"
     OFFLINE = "offline"
 
+
 class MaintenanceType(Enum):
     """Types of maintenance"""
+
     PREVENTIVE = "preventive"
     PREDICTIVE = "predictive"
     CORRECTIVE = "corrective"
     EMERGENCY = "emergency"
+
 
 @dataclass
 class MachineState:
@@ -68,6 +72,7 @@ class MachineState:
         last_maintenance: Last maintenance timestamp
         embedding: Learned state embedding
     """
+
     machine_id: str
     timestamp: datetime
     status: MachineStatus
@@ -78,6 +83,7 @@ class MachineState:
     cycles_completed: int = 0
     last_maintenance: Optional[datetime] = None
     embedding: Optional[np.ndarray] = None
+
 
 @dataclass
 class MaintenancePrediction:
@@ -96,6 +102,7 @@ class MaintenancePrediction:
         cost_if_delayed: Estimated cost of delaying maintenance
         parts_needed: Predicted parts to order
     """
+
     machine_id: str
     prediction_time: datetime
     remaining_useful_life: float  # hours
@@ -106,6 +113,7 @@ class MaintenancePrediction:
     optimal_timing: datetime
     cost_if_delayed: float
     parts_needed: List[str] = field(default_factory=list)
+
 
 @dataclass
 class Job:
@@ -123,6 +131,7 @@ class Job:
         setup_time: Machine setup time
         quality_requirements: Quality specifications
     """
+
     job_id: str
     part_id: str
     quantity: int
@@ -133,6 +142,7 @@ class Job:
     setup_time: float = 0.0
     quality_requirements: Dict[str, Any] = field(default_factory=dict)
 
+
 class MachineStateEncoder(nn.Module):
     """
     Encode machine sensor streams to state embeddings
@@ -140,6 +150,7 @@ class MachineStateEncoder(nn.Module):
     Similar to quality control sensor encoder, but specialized
     for equipment state representation and degradation patterns.
     """
+
     def __init__(
         self,
         num_sensors: int,
@@ -147,7 +158,7 @@ class MachineStateEncoder(nn.Module):
         num_heads: int = 8,
         num_layers: int = 3,
         embedding_dim: int = 512,
-        dropout: float = 0.1
+        dropout: float = 0.1,
     ):
         super().__init__()
 
@@ -160,18 +171,15 @@ class MachineStateEncoder(nn.Module):
             nhead=num_heads,
             dim_feedforward=hidden_dim * 4,
             dropout=dropout,
-            batch_first=True
+            batch_first=True,
         )
-        self.transformer = nn.TransformerEncoder(
-            encoder_layer,
-            num_layers=num_layers
-        )
+        self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
 
         # Operating parameters encoder
         self.param_encoder = nn.Sequential(
             nn.Linear(10, hidden_dim),  # 10 operating parameters
             nn.ReLU(),
-            nn.Dropout(dropout)
+            nn.Dropout(dropout),
         )
 
         # Final projection
@@ -180,14 +188,10 @@ class MachineStateEncoder(nn.Module):
             nn.ReLU(),
             nn.Dropout(dropout),
             nn.Linear(hidden_dim, embedding_dim),
-            nn.LayerNorm(embedding_dim)
+            nn.LayerNorm(embedding_dim),
         )
 
-    def forward(
-        self,
-        sensor_data: torch.Tensor,
-        operating_params: torch.Tensor
-    ) -> torch.Tensor:
+    def forward(self, sensor_data: torch.Tensor, operating_params: torch.Tensor) -> torch.Tensor:
         """
         Args:
             sensor_data: [batch, time_steps, num_sensors]
@@ -213,6 +217,7 @@ class MachineStateEncoder(nn.Module):
 
         return embeddings
 
+
 class DegradationModel(nn.Module):
     """
     Predict remaining useful life from state trajectory
@@ -220,11 +225,12 @@ class DegradationModel(nn.Module):
     Uses survival analysis approach - predicts probability distribution
     over time-to-failure rather than point estimate.
     """
+
     def __init__(
         self,
         embedding_dim: int = 512,
         num_time_bins: int = 100,  # Discretize RUL into bins
-        hidden_dim: int = 512
+        hidden_dim: int = 512,
     ):
         super().__init__()
 
@@ -236,7 +242,7 @@ class DegradationModel(nn.Module):
             hidden_size=hidden_dim,
             num_layers=2,
             batch_first=True,
-            dropout=0.1
+            dropout=0.1,
         )
 
         # Survival distribution predictor
@@ -244,13 +250,10 @@ class DegradationModel(nn.Module):
             nn.Linear(hidden_dim, hidden_dim),
             nn.ReLU(),
             nn.Dropout(0.1),
-            nn.Linear(hidden_dim, num_time_bins)
+            nn.Linear(hidden_dim, num_time_bins),
         )
 
-    def forward(
-        self,
-        state_trajectory: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, state_trajectory: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Args:
             state_trajectory: [batch, sequence_length, embedding_dim]
@@ -277,6 +280,7 @@ class DegradationModel(nn.Module):
 
         return survival_curve, expected_rul
 
+
 class SchedulingOptimizer(nn.Module):
     """
     Optimize job scheduling using reinforcement learning
@@ -285,12 +289,8 @@ class SchedulingOptimizer(nn.Module):
     Action: Assign job to machine
     Reward: Throughput, on-time delivery, machine utilization
     """
-    def __init__(
-        self,
-        state_dim: int,
-        num_machines: int,
-        hidden_dim: int = 512
-    ):
+
+    def __init__(self, state_dim: int, num_machines: int, hidden_dim: int = 512):
         super().__init__()
 
         self.num_machines = num_machines
@@ -303,21 +303,15 @@ class SchedulingOptimizer(nn.Module):
             nn.Linear(hidden_dim, hidden_dim),
             nn.ReLU(),
             nn.Dropout(0.1),
-            nn.Linear(hidden_dim, num_machines)
+            nn.Linear(hidden_dim, num_machines),
         )
 
         # Value network (estimated future reward)
         self.value = nn.Sequential(
-            nn.Linear(state_dim, hidden_dim),
-            nn.ReLU(),
-            nn.Dropout(0.1),
-            nn.Linear(hidden_dim, 1)
+            nn.Linear(state_dim, hidden_dim), nn.ReLU(), nn.Dropout(0.1), nn.Linear(hidden_dim, 1)
         )
 
-    def forward(
-        self,
-        state: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, state: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Args:
             state: [batch, state_dim]
@@ -328,6 +322,7 @@ class SchedulingOptimizer(nn.Module):
         action_logits = self.policy(state)
         value = self.value(state)
         return action_logits, value
+
 
 class EquipmentOptimizationSystem:
     """
@@ -340,12 +335,13 @@ class EquipmentOptimizationSystem:
     - Energy efficiency optimization
     - Overall equipment effectiveness (OEE) tracking
     """
+
     def __init__(
         self,
         state_encoder: MachineStateEncoder,
         degradation_model: DegradationModel,
         scheduler: SchedulingOptimizer,
-        device: str = 'cuda'
+        device: str = "cuda",
     ):
         self.state_encoder = state_encoder.to(device)
         self.degradation_model = degradation_model.to(device)
@@ -359,19 +355,14 @@ class EquipmentOptimizationSystem:
         # Job queue
         self.pending_jobs: List[Job] = []
 
-    def register_machine(
-        self,
-        machine_id: str,
-        machine_type: str,
-        capabilities: List[str]
-    ):
+    def register_machine(self, machine_id: str, machine_type: str, capabilities: List[str]):
         """Register machine in system"""
         self.machines[machine_id] = {
-            'type': machine_type,
-            'capabilities': capabilities,
-            'status': MachineStatus.IDLE,
-            'runtime_hours': 0.0,
-            'last_maintenance': datetime.now() - timedelta(days=90)
+            "type": machine_type,
+            "capabilities": capabilities,
+            "status": MachineStatus.IDLE,
+            "runtime_hours": 0.0,
+            "last_maintenance": datetime.now() - timedelta(days=90),
         }
         self.state_history[machine_id] = []
 
@@ -381,8 +372,8 @@ class EquipmentOptimizationSystem:
             raise ValueError(f"Unknown machine: {state.machine_id}")
 
         # Update machine info
-        self.machines[state.machine_id]['status'] = state.status
-        self.machines[state.machine_id]['runtime_hours'] = state.runtime_hours
+        self.machines[state.machine_id]["status"] = state.status
+        self.machines[state.machine_id]["runtime_hours"] = state.runtime_hours
 
         # Store state history
         self.state_history[state.machine_id].append(state)
@@ -391,10 +382,7 @@ class EquipmentOptimizationSystem:
         if len(self.state_history[state.machine_id]) > 1000:
             self.state_history[state.machine_id] = self.state_history[state.machine_id][-1000:]
 
-    def predict_maintenance(
-        self,
-        machine_id: str
-    ) -> Optional[MaintenancePrediction]:
+    def predict_maintenance(self, machine_id: str) -> Optional[MaintenancePrediction]:
         """
         Predict maintenance needs for machine
         """
@@ -452,15 +440,12 @@ class EquipmentOptimizationSystem:
             recommended_maintenance=maintenance_type,
             optimal_timing=optimal_timing,
             cost_if_delayed=cost_if_delayed,
-            parts_needed=["bearing_set_A", "lubricant_premium"]
+            parts_needed=["bearing_set_A", "lubricant_premium"],
         )
 
         return prediction
 
-    def optimize_schedule(
-        self,
-        jobs: List[Job]
-    ) -> Dict[str, List[str]]:
+    def optimize_schedule(self, jobs: List[Job]) -> Dict[str, List[str]]:
         """
         Optimize job-to-machine assignments
 
@@ -469,27 +454,22 @@ class EquipmentOptimizationSystem:
         # In production, use RL-based scheduler
         # Here using simplified heuristic
 
-        schedule: Dict[str, List[str]] = {
-            machine_id: [] for machine_id in self.machines
-        }
+        schedule: Dict[str, List[str]] = {machine_id: [] for machine_id in self.machines}
 
         # Sort jobs by priority and due date
-        sorted_jobs = sorted(
-            jobs,
-            key=lambda j: (-j.priority, j.due_date or datetime.max)
-        )
+        sorted_jobs = sorted(jobs, key=lambda j: (-j.priority, j.due_date or datetime.max))
 
         for job in sorted_jobs:
             # Find best machine
             best_machine = None
-            min_completion_time = float('inf')
+            min_completion_time = float("inf")
 
             for machine_id in job.eligible_machines:
                 if machine_id not in self.machines:
                     continue
 
                 machine = self.machines[machine_id]
-                if machine['status'] not in [MachineStatus.RUNNING, MachineStatus.IDLE]:
+                if machine["status"] not in [MachineStatus.RUNNING, MachineStatus.IDLE]:
                     continue
 
                 # Estimate completion time
@@ -506,9 +486,7 @@ class EquipmentOptimizationSystem:
         return schedule
 
     def calculate_oee(
-        self,
-        machine_id: str,
-        time_period: timedelta = timedelta(hours=24)
+        self, machine_id: str, time_period: timedelta = timedelta(hours=24)
     ) -> Dict[str, float]:
         """
         Calculate Overall Equipment Effectiveness (OEE)
@@ -520,20 +498,18 @@ class EquipmentOptimizationSystem:
 
         # Get states in time period
         cutoff = datetime.now() - time_period
-        recent_states = [
-            s for s in self.state_history[machine_id]
-            if s.timestamp > cutoff
-        ]
+        recent_states = [s for s in self.state_history[machine_id] if s.timestamp > cutoff]
 
         if not recent_states:
             return {}
 
         # Calculate availability
         total_time = time_period.total_seconds() / 3600  # hours
-        running_time = sum(
-            1 for s in recent_states
-            if s.status == MachineStatus.RUNNING
-        ) / len(recent_states) * total_time
+        running_time = (
+            sum(1 for s in recent_states if s.status == MachineStatus.RUNNING)
+            / len(recent_states)
+            * total_time
+        )
         availability = running_time / total_time
 
         # Calculate performance (actual vs ideal cycle time)
@@ -547,13 +523,14 @@ class EquipmentOptimizationSystem:
         oee = availability * performance * quality
 
         return {
-            'oee': oee,
-            'availability': availability,
-            'performance': performance,
-            'quality': quality,
-            'running_hours': running_time,
-            'downtime_hours': total_time - running_time
+            "oee": oee,
+            "availability": availability,
+            "performance": performance,
+            "quality": quality,
+            "running_hours": running_time,
+            "downtime_hours": total_time - running_time,
         }
+
 
 def equipment_optimization_example():
     """
@@ -579,7 +556,7 @@ def equipment_optimization_example():
         state_encoder=state_encoder,
         degradation_model=degradation_model,
         scheduler=scheduler,
-        device='cpu'
+        device="cpu",
     )
 
     print("System initialized:")
@@ -592,9 +569,9 @@ def equipment_optimization_example():
     print("Registering machines...")
     for i in range(10):
         opt_system.register_machine(
-            machine_id=f"CNC_{i+1:02d}",
+            machine_id=f"CNC_{i + 1:02d}",
             machine_type="5-axis CNC",
-            capabilities=["milling", "drilling", "boring"]
+            capabilities=["milling", "drilling", "boring"],
         )
     print(f"  - Registered {len(opt_system.machines)} machines")
     print()
@@ -610,10 +587,10 @@ def equipment_optimization_example():
         for t in range(100):
             state = MachineState(
                 machine_id=machine_id,
-                timestamp=datetime.now() - timedelta(hours=100-t),
+                timestamp=datetime.now() - timedelta(hours=100 - t),
                 status=MachineStatus.RUNNING,
-                sensors={f'sensor_{i}': np.random.randn() for i in range(40)},
-                runtime_hours=1000 + t
+                sensors={f"sensor_{i}": np.random.randn() for i in range(40)},
+                runtime_hours=1000 + t,
             )
             opt_system.update_machine_state(state)
 
@@ -625,7 +602,9 @@ def equipment_optimization_example():
 
             print(f"Machine: {machine_id}")
             print(f"  Remaining useful life: {prediction.remaining_useful_life:.1f} hours")
-            print(f"  Confidence interval: {prediction.confidence_interval[0]:.0f}-{prediction.confidence_interval[1]:.0f} hours")
+            print(
+                f"  Confidence interval: {prediction.confidence_interval[0]:.0f}-{prediction.confidence_interval[1]:.0f} hours"
+            )
             print(f"  Severity: {prediction.severity.upper()}")
             print(f"  Failure mode: {prediction.failure_mode}")
             print(f"  Recommended maintenance: {prediction.recommended_maintenance.value}")
@@ -647,13 +626,13 @@ def equipment_optimization_example():
     jobs = []
     for i in range(20):
         job = Job(
-            job_id=f"JOB_{i+1:03d}",
-            part_id=f"PART_{(i%5)+1}",
+            job_id=f"JOB_{i + 1:03d}",
+            part_id=f"PART_{(i % 5) + 1}",
             quantity=100,
             estimated_duration=2.0 + np.random.rand() * 3.0,
-            eligible_machines=[f"CNC_{j+1:02d}" for j in range(10) if j % 3 == i % 3],
+            eligible_machines=[f"CNC_{j + 1:02d}" for j in range(10) if j % 3 == i % 3],
             priority=np.random.randint(1, 11),
-            due_date=datetime.now() + timedelta(days=np.random.randint(1, 15))
+            due_date=datetime.now() + timedelta(days=np.random.randint(1, 15)),
         )
         jobs.append(job)
 
@@ -681,16 +660,16 @@ def equipment_optimization_example():
         if oee_metrics:
             oee_results.append((machine_id, oee_metrics))
             print(f"{machine_id}:")
-            print(f"  OEE: {oee_metrics['oee']*100:.1f}%")
-            print(f"    - Availability: {oee_metrics['availability']*100:.1f}%")
-            print(f"    - Performance: {oee_metrics['performance']*100:.1f}%")
-            print(f"    - Quality: {oee_metrics['quality']*100:.1f}%")
+            print(f"  OEE: {oee_metrics['oee'] * 100:.1f}%")
+            print(f"    - Availability: {oee_metrics['availability'] * 100:.1f}%")
+            print(f"    - Performance: {oee_metrics['performance'] * 100:.1f}%")
+            print(f"    - Quality: {oee_metrics['quality'] * 100:.1f}%")
             print(f"  Running hours: {oee_metrics['running_hours']:.1f}")
             print(f"  Downtime hours: {oee_metrics['downtime_hours']:.1f}")
             print()
 
-    avg_oee = np.mean([m['oee'] for _, m in oee_results])
-    print(f"Fleet average OEE: {avg_oee*100:.1f}%")
+    avg_oee = np.mean([m["oee"] for _, m in oee_results])
+    print(f"Fleet average OEE: {avg_oee * 100:.1f}%")
     print()
 
     # Summary
@@ -713,6 +692,7 @@ def equipment_optimization_example():
     print("  - Production throughput: +17%")
     print()
     print("→ Equipment optimization maximizes asset utilization and uptime")
+
 
 # Uncomment to run:
 # equipment_optimization_example()

@@ -1,4 +1,3 @@
-
 # Code from Chapter 13
 # Book: Embeddings at Scale
 
@@ -41,12 +40,14 @@ class EvaluationSample:
         generated_answer: System generated answer
         citations: Document IDs cited in answer
     """
+
     query: str
     ground_truth_answer: str
     ground_truth_doc_ids: Set[str]
     retrieved_doc_ids: List[str]
     generated_answer: str
     citations: List[str]
+
 
 class RAGEvaluator:
     """
@@ -75,10 +76,7 @@ class RAGEvaluator:
         """Initialize evaluator"""
         print("Initialized RAG Evaluator")
 
-    def evaluate(
-        self,
-        samples: List[EvaluationSample]
-    ) -> Dict[str, float]:
+    def evaluate(self, samples: List[EvaluationSample]) -> Dict[str, float]:
         """
         Evaluate RAG system on sample set
 
@@ -100,25 +98,18 @@ class RAGEvaluator:
         attribution_metrics = self._evaluate_attribution(samples)
 
         # Combine all metrics
-        metrics = {
-            **retrieval_metrics,
-            **answer_metrics,
-            **attribution_metrics
-        }
+        metrics = {**retrieval_metrics, **answer_metrics, **attribution_metrics}
 
         # Print results
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print("Evaluation Results")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
         for metric, value in metrics.items():
             print(f"{metric:30s}: {value:.3f}")
 
         return metrics
 
-    def _evaluate_retrieval(
-        self,
-        samples: List[EvaluationSample]
-    ) -> Dict[str, float]:
+    def _evaluate_retrieval(self, samples: List[EvaluationSample]) -> Dict[str, float]:
         """
         Evaluate retrieval quality
 
@@ -142,7 +133,11 @@ class RAGEvaluator:
             retrieved_set = set(sample.retrieved_doc_ids)
             relevant_retrieved = retrieved_set & sample.ground_truth_doc_ids
 
-            recall = len(relevant_retrieved) / len(sample.ground_truth_doc_ids) if sample.ground_truth_doc_ids else 0
+            recall = (
+                len(relevant_retrieved) / len(sample.ground_truth_doc_ids)
+                if sample.ground_truth_doc_ids
+                else 0
+            )
             recalls.append(recall)
 
             # Precision@k: % of retrieved docs that are relevant
@@ -158,15 +153,12 @@ class RAGEvaluator:
             reciprocal_ranks.append(rr)
 
         return {
-            'recall@k': np.mean(recalls),
-            'precision@k': np.mean(precisions),
-            'mrr': np.mean(reciprocal_ranks)
+            "recall@k": np.mean(recalls),
+            "precision@k": np.mean(precisions),
+            "mrr": np.mean(reciprocal_ranks),
         }
 
-    def _evaluate_answers(
-        self,
-        samples: List[EvaluationSample]
-    ) -> Dict[str, float]:
+    def _evaluate_answers(self, samples: List[EvaluationSample]) -> Dict[str, float]:
         """
         Evaluate answer quality
 
@@ -189,8 +181,7 @@ class RAGEvaluator:
             # Accuracy: Compare to ground truth
             # Production: Use LLM-as-judge or human evaluation
             accuracy = self._semantic_similarity(
-                sample.generated_answer,
-                sample.ground_truth_answer
+                sample.generated_answer, sample.ground_truth_answer
             )
             accuracies.append(accuracy)
 
@@ -204,15 +195,12 @@ class RAGEvaluator:
             completeness_scores.append(completeness)
 
         return {
-            'accuracy': np.mean(accuracies),
-            'faithfulness': np.mean(faithfulness_scores),
-            'completeness': np.mean(completeness_scores)
+            "accuracy": np.mean(accuracies),
+            "faithfulness": np.mean(faithfulness_scores),
+            "completeness": np.mean(completeness_scores),
         }
 
-    def _evaluate_attribution(
-        self,
-        samples: List[EvaluationSample]
-    ) -> Dict[str, float]:
+    def _evaluate_attribution(self, samples: List[EvaluationSample]) -> Dict[str, float]:
         """
         Evaluate citation quality
 
@@ -247,8 +235,8 @@ class RAGEvaluator:
             citation_precisions.append(precision)
 
         return {
-            'citation_recall': np.mean(citation_recalls),
-            'citation_precision': np.mean(citation_precisions)
+            "citation_recall": np.mean(citation_recalls),
+            "citation_precision": np.mean(citation_precisions),
         }
 
     def _semantic_similarity(self, text1: str, text2: str) -> float:
@@ -290,8 +278,7 @@ class RAGEvaluator:
         # Placeholder: Check if answer mentions retrieved docs
         # In production: Use entailment checking
         mentioned_docs = sum(
-            1 for doc_id in sample.retrieved_doc_ids
-            if doc_id in sample.generated_answer
+            1 for doc_id in sample.retrieved_doc_ids if doc_id in sample.generated_answer
         )
 
         return min(mentioned_docs / 3, 1.0)  # Expect ~3 doc mentions
@@ -317,6 +304,7 @@ class RAGEvaluator:
             return 0.5
         return 0.8
 
+
 # Example: RAG evaluation
 def rag_evaluation_example():
     """
@@ -330,27 +318,27 @@ def rag_evaluation_example():
         EvaluationSample(
             query="What is RAG?",
             ground_truth_answer="RAG (Retrieval-Augmented Generation) combines retrieval and generation.",
-            ground_truth_doc_ids={'doc_1', 'doc_5'},
-            retrieved_doc_ids=['doc_1', 'doc_2', 'doc_5', 'doc_8'],
+            ground_truth_doc_ids={"doc_1", "doc_5"},
+            retrieved_doc_ids=["doc_1", "doc_2", "doc_5", "doc_8"],
             generated_answer="RAG combines retrieval and generation using retrieved context. [doc_1]",
-            citations=['doc_1']
+            citations=["doc_1"],
         ),
         EvaluationSample(
             query="How does vector search work?",
             ground_truth_answer="Vector search finds similar items using embedding similarity.",
-            ground_truth_doc_ids={'doc_3', 'doc_7'},
-            retrieved_doc_ids=['doc_3', 'doc_4', 'doc_7', 'doc_9'],
+            ground_truth_doc_ids={"doc_3", "doc_7"},
+            retrieved_doc_ids=["doc_3", "doc_4", "doc_7", "doc_9"],
             generated_answer="Vector search uses embeddings to find similar items efficiently. [doc_3] [doc_7]",
-            citations=['doc_3', 'doc_7']
+            citations=["doc_3", "doc_7"],
         ),
         EvaluationSample(
             query="What are the benefits of embeddings?",
             ground_truth_answer="Embeddings capture semantic meaning and enable similarity search.",
-            ground_truth_doc_ids={'doc_2', 'doc_6'},
-            retrieved_doc_ids=['doc_2', 'doc_3', 'doc_6', 'doc_10'],
+            ground_truth_doc_ids={"doc_2", "doc_6"},
+            retrieved_doc_ids=["doc_2", "doc_3", "doc_6", "doc_10"],
             generated_answer="Embeddings provide semantic representations for ML tasks. [doc_2]",
-            citations=['doc_2']
-        )
+            citations=["doc_2"],
+        ),
     ]
 
     # Evaluate
@@ -358,19 +346,20 @@ def rag_evaluation_example():
     metrics = evaluator.evaluate(samples)
 
     # Analyze results
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("Analysis")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
-    if metrics['recall@k'] < 0.8:
+    if metrics["recall@k"] < 0.8:
         print("⚠️  Low recall: Retrieval missing relevant documents")
-    if metrics['faithfulness'] < 0.8:
+    if metrics["faithfulness"] < 0.8:
         print("⚠️  Low faithfulness: Answers may contain hallucinations")
-    if metrics['citation_recall'] < 0.7:
+    if metrics["citation_recall"] < 0.7:
         print("⚠️  Low citation recall: Facts not properly attributed")
 
-    if metrics['recall@k'] >= 0.8 and metrics['accuracy'] >= 0.8 and metrics['faithfulness'] >= 0.8:
+    if metrics["recall@k"] >= 0.8 and metrics["accuracy"] >= 0.8 and metrics["faithfulness"] >= 0.8:
         print("✓ System performing well across all metrics")
+
 
 # Uncomment to run:
 # rag_evaluation_example()

@@ -18,10 +18,12 @@ class DeploymentStrategy(Enum):
     3. SHADOW: Run new model in shadow mode, compare before switching
     4. CANARY: Route small % of traffic to new model, monitor metrics
     """
+
     BLUE_GREEN = "blue_green"
     INCREMENTAL = "incremental"
     SHADOW = "shadow"
     CANARY = "canary"
+
 
 class EmbeddingVersionCoordinator:
     """
@@ -54,10 +56,7 @@ class EmbeddingVersionCoordinator:
         self.traffic_routing: Dict[str, float] = {}
 
     def deploy_new_version(
-        self,
-        new_model_id: str,
-        strategy: DeploymentStrategy,
-        corpus_iterator=None
+        self, new_model_id: str, strategy: DeploymentStrategy, corpus_iterator=None
     ):
         """
         Deploy new embedding model version
@@ -83,12 +82,7 @@ class EmbeddingVersionCoordinator:
         elif strategy == DeploymentStrategy.CANARY:
             self._deploy_canary(new_model_id, new_model)
 
-    def _deploy_blue_green(
-        self,
-        new_model_id: str,
-        new_model,
-        corpus_iterator
-    ):
+    def _deploy_blue_green(self, new_model_id: str, new_model, corpus_iterator):
         """
         Blue-Green Deployment
 
@@ -115,11 +109,7 @@ class EmbeddingVersionCoordinator:
         self._create_new_index(green_index_name)
 
         # Re-embed entire corpus into GREEN
-        self._reembed_corpus(
-            new_model,
-            corpus_iterator,
-            target_index=green_index_name
-        )
+        self._reembed_corpus(new_model, corpus_iterator, target_index=green_index_name)
 
         # Validate GREEN index
         validation_passed = self._validate_index_quality(green_index_name)
@@ -135,10 +125,7 @@ class EmbeddingVersionCoordinator:
 
         # Switch traffic: BLUE → GREEN
         print("Switching traffic from BLUE → GREEN...")
-        self._switch_traffic(
-            from_index=blue_index_name,
-            to_index=green_index_name
-        )
+        self._switch_traffic(from_index=blue_index_name, to_index=green_index_name)
 
         # Register new version
         self.version_to_index[new_model_id] = green_index_name
@@ -147,12 +134,7 @@ class EmbeddingVersionCoordinator:
         # Keep BLUE as rollback target (don't delete yet)
         print("✓ Deployment complete. GREEN active, BLUE retained for rollback.")
 
-    def _deploy_incremental(
-        self,
-        new_model_id: str,
-        new_model,
-        corpus_iterator
-    ):
+    def _deploy_incremental(self, new_model_id: str, new_model, corpus_iterator):
         """
         Incremental Deployment
 
@@ -180,10 +162,7 @@ class EmbeddingVersionCoordinator:
 
         # Start re-embedding in background
         self._start_background_reembedding(
-            new_model,
-            corpus_iterator,
-            target_index=new_index_name,
-            rate_limit_items_per_sec=1000
+            new_model, corpus_iterator, target_index=new_index_name, rate_limit_items_per_sec=1000
         )
 
         # Route queries to BOTH old and new indices
@@ -197,11 +176,7 @@ class EmbeddingVersionCoordinator:
         print("  Re-embedding progress tracked in background")
         print("  Queries served from both OLD and NEW indices during transition")
 
-    def _deploy_shadow(
-        self,
-        new_model_id: str,
-        new_model
-    ):
+    def _deploy_shadow(self, new_model_id: str, new_model):
         """
         Shadow Deployment
 
@@ -226,9 +201,7 @@ class EmbeddingVersionCoordinator:
 
         # Register shadow model (doesn't serve production traffic)
         self.active_versions[new_model_id] = VersionDeployment(
-            model_id=new_model_id,
-            status=DeploymentStatus.SHADOW,
-            traffic_percentage=0.0
+            model_id=new_model_id, status=DeploymentStatus.SHADOW, traffic_percentage=0.0
         )
 
         # Shadow traffic logs comparisons but doesn't serve
@@ -239,11 +212,7 @@ class EmbeddingVersionCoordinator:
         print("  OLD model: Serving 100% production traffic")
         print("  Comparison metrics being collected")
 
-    def _deploy_canary(
-        self,
-        new_model_id: str,
-        new_model
-    ):
+    def _deploy_canary(self, new_model_id: str, new_model):
         """
         Canary Deployment
 
@@ -271,7 +240,7 @@ class EmbeddingVersionCoordinator:
         self.active_versions[new_model_id] = VersionDeployment(
             model_id=new_model_id,
             status=DeploymentStatus.CANARY,
-            traffic_percentage=initial_canary_percentage
+            traffic_percentage=initial_canary_percentage,
         )
 
         self.traffic_routing[new_model_id] = initial_canary_percentage
@@ -367,9 +336,13 @@ class EmbeddingVersionCoordinator:
         passed = test_recall >= min_recall and test_latency_p99_ms <= max_latency_ms
 
         if passed:
-            print(f"✓ Validation passed (recall={test_recall:.3f}, latency={test_latency_p99_ms}ms)")
+            print(
+                f"✓ Validation passed (recall={test_recall:.3f}, latency={test_latency_p99_ms}ms)"
+            )
         else:
-            print(f"✗ Validation failed (recall={test_recall:.3f}, latency={test_latency_p99_ms}ms)")
+            print(
+                f"✗ Validation failed (recall={test_recall:.3f}, latency={test_latency_p99_ms}ms)"
+            )
 
         return passed
 
@@ -386,7 +359,9 @@ class EmbeddingVersionCoordinator:
     def _write_to_index(self, index_name: str, embeddings: np.ndarray):
         pass
 
-    def _start_background_reembedding(self, model, corpus_iterator, target_index: str, rate_limit_items_per_sec: int):
+    def _start_background_reembedding(
+        self, model, corpus_iterator, target_index: str, rate_limit_items_per_sec: int
+    ):
         pass
 
     def _enable_dual_index_routing(self, old_index: str, new_index: str):
@@ -395,11 +370,13 @@ class EmbeddingVersionCoordinator:
     def _enable_shadow_mode(self, model_id: str):
         pass
 
+
 @dataclass
 class VersionDeployment:
     model_id: str
-    status: 'DeploymentStatus'
+    status: "DeploymentStatus"
     traffic_percentage: float
+
 
 class DeploymentStatus(Enum):
     STAGING = "staging"

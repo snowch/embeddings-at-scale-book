@@ -24,21 +24,21 @@ import numpy as np
 @dataclass
 class SearchResult:
     """Placeholder for SearchResult."""
+
     indices: np.ndarray
     scores: np.ndarray
     latency_ms: float
 
+
 class OptimizedExactSearch:
     """Placeholder for OptimizedExactSearch."""
+
     def __init__(self):
         pass
 
     def search(self, query_vector, k=10):
-        return SearchResult(
-            indices=np.array([0]),
-            scores=np.array([1.0]),
-            latency_ms=0.1
-        )
+        return SearchResult(indices=np.array([0]), scores=np.array([1.0]), latency_ms=0.1)
+
 
 class IVFIndex:
     """
@@ -67,11 +67,7 @@ class IVFIndex:
     - 1B vectors: C=100000, P=100 → 1000× speedup, 99% recall
     """
 
-    def __init__(
-        self,
-        num_clusters: int = 1000,
-        num_probes: int = 10
-    ):
+    def __init__(self, num_clusters: int = 1000, num_probes: int = 10):
         """
         Args:
             num_clusters: Number of clusters (more = better recall, slower build)
@@ -106,11 +102,7 @@ class IVFIndex:
         num_vectors, dim = corpus.shape
 
         # Initialize centroids randomly
-        centroid_indices = np.random.choice(
-            num_vectors,
-            size=self.num_clusters,
-            replace=False
-        )
+        centroid_indices = np.random.choice(num_vectors, size=self.num_clusters, replace=False)
         self.centroids = corpus[centroid_indices].copy()
 
         # K-means clustering
@@ -165,10 +157,7 @@ class IVFIndex:
         return assignments
 
     def search(
-        self,
-        query: np.ndarray,
-        k: int = 10,
-        num_probes: Optional[int] = None
+        self, query: np.ndarray, k: int = 10, num_probes: Optional[int] = None
     ) -> SearchResult:
         """
         Search for k nearest neighbors using IVF
@@ -214,11 +203,8 @@ class IVFIndex:
 
         latency_ms = (time.time() - start_time) * 1000
 
-        return SearchResult(
-            indices=top_indices,
-            scores=top_scores,
-            latency_ms=latency_ms
-        )
+        return SearchResult(indices=top_indices, scores=top_scores, latency_ms=latency_ms)
+
 
 class HNSWIndex:
     """
@@ -265,7 +251,7 @@ class HNSWIndex:
         M: int = 16,
         ef_construction: int = 200,
         ef_search: int = 50,
-        max_layer: int = 5
+        max_layer: int = 5,
     ):
         """
         Args:
@@ -329,16 +315,13 @@ class HNSWIndex:
         for lc in range(self.entry_layer, -1, -1):
             # Navigate to nearest neighbor at this layer
             current_nearest = self._search_layer(
-                vector,
-                current_nearest,
-                layer=lc,
-                ef=self.ef_construction
+                vector, current_nearest, layer=lc, ef=self.ef_construction
             )
 
             # If this layer <= node's layer, create connections
             if lc <= layer:
                 # Get M nearest neighbors
-                neighbors = current_nearest[:self.M]
+                neighbors = current_nearest[: self.M]
 
                 # Add bidirectional connections
                 for neighbor_id in neighbors:
@@ -362,11 +345,7 @@ class HNSWIndex:
         return layer
 
     def _search_layer(
-        self,
-        query: np.ndarray,
-        entry_points: List[int],
-        layer: int,
-        ef: int
+        self, query: np.ndarray, entry_points: List[int], layer: int, ef: int
     ) -> List[int]:
         """
         Greedy search within single layer
@@ -432,21 +411,13 @@ class HNSWIndex:
 
         # Compute similarities
         node_vector = self.vectors[node_id]
-        similarities = [
-            (np.dot(node_vector, self.vectors[n_id]), n_id)
-            for n_id in neighbors
-        ]
+        similarities = [(np.dot(node_vector, self.vectors[n_id]), n_id) for n_id in neighbors]
 
         # Keep M best
         similarities.sort(reverse=True)
-        self.graph[layer][node_id] = [n_id for _, n_id in similarities[:self.M]]
+        self.graph[layer][node_id] = [n_id for _, n_id in similarities[: self.M]]
 
-    def search(
-        self,
-        query: np.ndarray,
-        k: int = 10,
-        ef: Optional[int] = None
-    ) -> SearchResult:
+    def search(self, query: np.ndarray, k: int = 10, ef: Optional[int] = None) -> SearchResult:
         """
         Search for k nearest neighbors
 
@@ -464,11 +435,7 @@ class HNSWIndex:
             ef = self.ef_search
 
         if len(self.vectors) == 0:
-            return SearchResult(
-                indices=np.array([]),
-                scores=np.array([]),
-                latency_ms=0.0
-            )
+            return SearchResult(indices=np.array([]), scores=np.array([]), latency_ms=0.0)
 
         # Normalize query
         query = query / np.linalg.norm(query)
@@ -479,10 +446,7 @@ class HNSWIndex:
         # Navigate down through layers
         for layer in range(self.entry_layer, -1, -1):
             current_nearest = self._search_layer(
-                query,
-                current_nearest,
-                layer=layer,
-                ef=ef if layer == 0 else 1
+                query, current_nearest, layer=layer, ef=ef if layer == 0 else 1
             )
 
         # Extract top-k
@@ -492,11 +456,8 @@ class HNSWIndex:
 
         latency_ms = (time.time() - start_time) * 1000
 
-        return SearchResult(
-            indices=top_indices,
-            scores=top_scores,
-            latency_ms=latency_ms
-        )
+        return SearchResult(indices=top_indices, scores=top_scores, latency_ms=latency_ms)
+
 
 # Example: Compare IVF vs HNSW
 def ann_comparison_example():
@@ -581,8 +542,13 @@ def ann_comparison_example():
     # Summary
     print("\n=== Comparison ===")
     print(f"{'Method':<10} {'Build (s)':<12} {'Search (ms)':<14} {'Recall@10':<12}")
-    print(f"{'IVF':<10} {ivf_build_time:<12.1f} {np.mean(ivf_latencies):<14.2f} {np.mean(ivf_recalls):<12.3f}")
-    print(f"{'HNSW':<10} {hnsw_build_time:<12.1f} {np.mean(hnsw_latencies):<14.2f} {np.mean(hnsw_recalls):<12.3f}")
+    print(
+        f"{'IVF':<10} {ivf_build_time:<12.1f} {np.mean(ivf_latencies):<14.2f} {np.mean(ivf_recalls):<12.3f}"
+    )
+    print(
+        f"{'HNSW':<10} {hnsw_build_time:<12.1f} {np.mean(hnsw_latencies):<14.2f} {np.mean(hnsw_recalls):<12.3f}"
+    )
+
 
 # Uncomment to run:
 # ann_comparison_example()

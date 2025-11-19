@@ -7,6 +7,7 @@ from dataclasses import dataclass
 @dataclass
 class GPUInstance:
     """Cloud GPU instance configuration"""
+
     name: str
     gpu_type: str
     num_gpus: int
@@ -14,41 +15,43 @@ class GPUInstance:
     cost_per_hour: float
     tflops_fp16: float  # Peak FP16 throughput
 
+
 # Cloud GPU pricing (approximate, as of 2024)
 CLOUD_INSTANCES = {
-    'aws_p4d_24xlarge': GPUInstance(
-        name='p4d.24xlarge',
-        gpu_type='A100',
+    "aws_p4d_24xlarge": GPUInstance(
+        name="p4d.24xlarge",
+        gpu_type="A100",
         num_gpus=8,
         memory_gb=640,
         cost_per_hour=32.77,
-        tflops_fp16=1248  # 8× A100 × 156 TFLOPS
+        tflops_fp16=1248,  # 8× A100 × 156 TFLOPS
     ),
-    'aws_p3_16xlarge': GPUInstance(
-        name='p3.16xlarge',
-        gpu_type='V100',
+    "aws_p3_16xlarge": GPUInstance(
+        name="p3.16xlarge",
+        gpu_type="V100",
         num_gpus=8,
         memory_gb=488,
         cost_per_hour=24.48,
-        tflops_fp16=1000  # 8× V100 × 125 TFLOPS
+        tflops_fp16=1000,  # 8× V100 × 125 TFLOPS
     ),
-    'gcp_a2_ultra': GPUInstance(
-        name='a2-ultragpu-8g',
-        gpu_type='A100',
+    "gcp_a2_ultra": GPUInstance(
+        name="a2-ultragpu-8g",
+        gpu_type="A100",
         num_gpus=8,
         memory_gb=680,
         cost_per_hour=30.00,
-        tflops_fp16=1248
+        tflops_fp16=1248,
     ),
-    'azure_nd96amsr_v4': GPUInstance(
-        name='Standard_ND96amsr_A100_v4',
-        gpu_type='A100',
+    "azure_nd96amsr_v4": GPUInstance(
+        name="Standard_ND96amsr_A100_v4",
+        gpu_type="A100",
         num_gpus=8,
         memory_gb=900,
         cost_per_hour=27.20,
-        tflops_fp16=1248
-    )
+        tflops_fp16=1248,
+    ),
 }
+
 
 class CostOptimizer:
     """
@@ -65,10 +68,7 @@ class CostOptimizer:
 
     @staticmethod
     def estimate_training_time(
-        dataset_size: int,
-        batch_size: int,
-        epochs: int,
-        samples_per_second: float
+        dataset_size: int, batch_size: int, epochs: int, samples_per_second: float
     ) -> float:
         """
         Estimate training time in hours
@@ -88,9 +88,7 @@ class CostOptimizer:
 
     @staticmethod
     def estimate_cost(
-        instance: GPUInstance,
-        training_hours: float,
-        spot_instance: bool = False
+        instance: GPUInstance, training_hours: float, spot_instance: bool = False
     ) -> float:
         """
         Estimate training cost
@@ -113,9 +111,7 @@ class CostOptimizer:
 
     @staticmethod
     def compare_strategies(
-        dataset_size: int = 1_000_000_000,
-        batch_size: int = 32768,
-        epochs: int = 10
+        dataset_size: int = 1_000_000_000, batch_size: int = 32768, epochs: int = 10
     ):
         """
         Compare cost across different instance types and strategies
@@ -136,10 +132,10 @@ class CostOptimizer:
 
         strategies = [
             # (instance_key, throughput_samples_per_sec, use_spot)
-            ('aws_p4d_24xlarge', 50000, False),  # A100, on-demand
-            ('aws_p4d_24xlarge', 50000, True),   # A100, spot
-            ('aws_p3_16xlarge', 30000, False),   # V100, on-demand
-            ('aws_p3_16xlarge', 30000, True),    # V100, spot
+            ("aws_p4d_24xlarge", 50000, False),  # A100, on-demand
+            ("aws_p4d_24xlarge", 50000, True),  # A100, spot
+            ("aws_p3_16xlarge", 30000, False),  # V100, on-demand
+            ("aws_p3_16xlarge", 30000, True),  # V100, spot
         ]
 
         results = []
@@ -155,14 +151,18 @@ class CostOptimizer:
             # Estimate cost
             cost = CostOptimizer.estimate_cost(instance, hours, use_spot)
 
-            results.append({
-                'instance': instance.name,
-                'gpu': instance.gpu_type,
-                'pricing': 'Spot' if use_spot else 'On-Demand',
-                'hours': hours,
-                'cost': cost,
-                'cost_per_hour': instance.cost_per_hour if not use_spot else instance.cost_per_hour * 0.4
-            })
+            results.append(
+                {
+                    "instance": instance.name,
+                    "gpu": instance.gpu_type,
+                    "pricing": "Spot" if use_spot else "On-Demand",
+                    "hours": hours,
+                    "cost": cost,
+                    "cost_per_hour": instance.cost_per_hour
+                    if not use_spot
+                    else instance.cost_per_hour * 0.4,
+                }
+            )
 
         # Print results
         for r in results:
@@ -173,8 +173,9 @@ class CostOptimizer:
             print()
 
         # Find best option
-        best = min(results, key=lambda x: x['cost'])
+        best = min(results, key=lambda x: x["cost"])
         print(f"💰 Best option: {best['instance']} ({best['pricing']}) - ${best['cost']:.2f}")
+
 
 # Uncomment to run:
 # CostOptimizer.compare_strategies()

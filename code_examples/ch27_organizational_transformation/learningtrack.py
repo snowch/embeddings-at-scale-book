@@ -39,21 +39,26 @@ from typing import Dict, List, Optional, Set
 
 class LearningTrack(Enum):
     """Training tracks for different roles"""
+
     ML_ENGINEER = "ml_engineer"
     INFRASTRUCTURE = "infrastructure"
     DATA_ENGINEER = "data_engineer"
     PRODUCT_MANAGER = "product_manager"
     BUSINESS_STAKEHOLDER = "business_stakeholder"
 
+
 class CompetencyLevel(Enum):
     """Competency levels"""
+
     NOVICE = 1
     COMPETENT = 2
     PROFICIENT = 3
     EXPERT = 4
 
+
 class LearningMethod(Enum):
     """Learning delivery methods"""
+
     SELF_PACED_VIDEO = "self_paced_video"
     DOCUMENTATION = "documentation"
     LIVE_WORKSHOP = "live_workshop"
@@ -62,6 +67,7 @@ class LearningMethod(Enum):
     HACKATHON = "hackathon"
     CONFERENCE_TALK = "conference_talk"
     READING_GROUP = "reading_group"
+
 
 @dataclass
 class LearningModule:
@@ -78,6 +84,7 @@ class LearningModule:
         delivery_methods: How content is delivered
         assessment: How competency is validated
     """
+
     name: str
     track: LearningTrack
     level: CompetencyLevel
@@ -87,6 +94,7 @@ class LearningModule:
     delivery_methods: Set[LearningMethod]
     assessment: str
     completed_by: Set[str] = field(default_factory=set)
+
 
 @dataclass
 class Learner:
@@ -103,6 +111,7 @@ class Learner:
         mentor: Assigned mentor (if any)
         learning_goals: Personal learning objectives
     """
+
     name: str
     role: str
     primary_track: LearningTrack
@@ -116,6 +125,7 @@ class Learner:
         """Mark module as completed"""
         if module_name not in self.completed_modules:
             self.completed_modules.append(module_name)
+
 
 @dataclass
 class Project:
@@ -133,6 +143,7 @@ class Project:
         mentors_available: Mentors who can guide
         participants: Current participants
     """
+
     name: str
     description: str
     track: LearningTrack
@@ -142,6 +153,7 @@ class Project:
     real_world_application: bool
     mentors_available: List[str]
     participants: List[str] = field(default_factory=list)
+
 
 class TrainingProgram:
     """
@@ -175,9 +187,7 @@ class TrainingProgram:
         self.mentors.add(mentor_name)
 
     def recommend_modules(
-        self,
-        learner_name: str,
-        max_recommendations: int = 5
+        self, learner_name: str, max_recommendations: int = 5
     ) -> List[Dict[str, any]]:
         """
         Recommend next modules for learner
@@ -193,10 +203,7 @@ class TrainingProgram:
         recommendations = []
 
         # Get modules for learner's track
-        track_modules = [
-            m for m in self.modules.values()
-            if m.track == learner.primary_track
-        ]
+        track_modules = [m for m in self.modules.values() if m.track == learner.primary_track]
 
         for module in track_modules:
             # Skip if already completed
@@ -205,8 +212,7 @@ class TrainingProgram:
 
             # Check prerequisites
             missing_prereqs = [
-                p for p in module.prerequisites
-                if p not in learner.completed_modules
+                p for p in module.prerequisites if p not in learner.completed_modules
             ]
 
             if missing_prereqs:
@@ -220,26 +226,25 @@ class TrainingProgram:
             if module.level.value == learner.current_level.value + 1:
                 relevance_score += 5  # Bonus for next level
 
-            recommendations.append({
-                'module': module.name,
-                'track': module.track.value,
-                'level': module.level.name,
-                'duration_hours': module.duration_hours,
-                'relevance_score': relevance_score,
-                'reasoning': self._generate_recommendation_reasoning(
-                    learner, module, missing_prereqs
-                )
-            })
+            recommendations.append(
+                {
+                    "module": module.name,
+                    "track": module.track.value,
+                    "level": module.level.name,
+                    "duration_hours": module.duration_hours,
+                    "relevance_score": relevance_score,
+                    "reasoning": self._generate_recommendation_reasoning(
+                        learner, module, missing_prereqs
+                    ),
+                }
+            )
 
         # Sort by relevance and return top recommendations
-        recommendations.sort(key=lambda x: x['relevance_score'], reverse=True)
+        recommendations.sort(key=lambda x: x["relevance_score"], reverse=True)
         return recommendations[:max_recommendations]
 
     def _generate_recommendation_reasoning(
-        self,
-        learner: Learner,
-        module: LearningModule,
-        missing_prereqs: List[str]
+        self, learner: Learner, module: LearningModule, missing_prereqs: List[str]
     ) -> str:
         """Generate explanation for recommendation"""
 
@@ -273,22 +278,15 @@ class TrainingProgram:
         learner = self.learners[learner_name]
 
         # Count modules by level
-        track_modules = [
-            m for m in self.modules.values()
-            if m.track == learner.primary_track
-        ]
+        track_modules = [m for m in self.modules.values() if m.track == learner.primary_track]
 
         modules_by_level = {}
         completed_by_level = {}
 
         for level in CompetencyLevel:
-            modules_at_level = [
-                m for m in track_modules
-                if m.level == level
-            ]
+            modules_at_level = [m for m in track_modules if m.level == level]
             completed_at_level = [
-                m for m in modules_at_level
-                if m.name in learner.completed_modules
+                m for m in modules_at_level if m.name in learner.completed_modules
             ]
 
             modules_by_level[level] = len(modules_at_level)
@@ -304,27 +302,26 @@ class TrainingProgram:
         current_level_completed = completed_by_level.get(learner.current_level, 0)
 
         ready_for_advancement = (
-            current_level_modules > 0 and
-            current_level_completed / current_level_modules >= 0.8
+            current_level_modules > 0 and current_level_completed / current_level_modules >= 0.8
         )
 
         return {
-            'learner': learner_name,
-            'current_level': learner.current_level.name,
-            'modules_completed': total_completed,
-            'total_modules': total_modules,
-            'completion_percentage': completion_percentage,
-            'modules_by_level': {
+            "learner": learner_name,
+            "current_level": learner.current_level.name,
+            "modules_completed": total_completed,
+            "total_modules": total_modules,
+            "completion_percentage": completion_percentage,
+            "modules_by_level": {
                 level.name: {
-                    'total': modules_by_level.get(level, 0),
-                    'completed': completed_by_level.get(level, 0)
+                    "total": modules_by_level.get(level, 0),
+                    "completed": completed_by_level.get(level, 0),
                 }
                 for level in CompetencyLevel
             },
-            'ready_for_advancement': ready_for_advancement,
-            'active_projects': len(learner.active_projects),
-            'has_mentor': learner.mentor is not None,
-            'recommendations': self.recommend_modules(learner_name, max_recommendations=3)
+            "ready_for_advancement": ready_for_advancement,
+            "active_projects": len(learner.active_projects),
+            "has_mentor": learner.mentor is not None,
+            "recommendations": self.recommend_modules(learner_name, max_recommendations=3),
         }
 
     def generate_curriculum(self, track: LearningTrack) -> str:
@@ -340,10 +337,7 @@ class TrainingProgram:
         curriculum = f"# {track.value.replace('_', ' ').title()} Curriculum\n\n"
 
         # Get modules for track
-        track_modules = [
-            m for m in self.modules.values()
-            if m.track == track
-        ]
+        track_modules = [m for m in self.modules.values() if m.track == track]
 
         # Group by level
         by_level = {}
@@ -407,7 +401,9 @@ class TrainingProgram:
 
         # Module completion statistics
         dashboard += "\n## Module Completion\n\n"
-        total_completions = sum(len(learner.completed_modules) for learner in self.learners.values())
+        total_completions = sum(
+            len(learner.completed_modules) for learner in self.learners.values()
+        )
         avg_completions = total_completions / len(self.learners) if self.learners else 0
         dashboard += f"- Total completions: {total_completions}\n"
         dashboard += f"- Average per learner: {avg_completions:.1f}\n"
@@ -420,11 +416,7 @@ class TrainingProgram:
 
         if module_popularity:
             dashboard += "\n### Most Completed Modules\n\n"
-            top_modules = sorted(
-                module_popularity.items(),
-                key=lambda x: x[1],
-                reverse=True
-            )[:5]
+            top_modules = sorted(module_popularity.items(), key=lambda x: x[1], reverse=True)[:5]
 
             for module_name, count in top_modules:
                 dashboard += f"- {module_name}: {count} completions\n"
@@ -451,13 +443,10 @@ def create_enterprise_training_program():
             learning_objectives=[
                 "Understand vector representations and similarity",
                 "Know common embedding models (Word2Vec, BERT, etc.)",
-                "Compute and interpret embedding similarities"
+                "Compute and interpret embedding similarities",
             ],
-            delivery_methods={
-                LearningMethod.SELF_PACED_VIDEO,
-                LearningMethod.DOCUMENTATION
-            },
-            assessment="Quiz and simple embedding generation exercise"
+            delivery_methods={LearningMethod.SELF_PACED_VIDEO, LearningMethod.DOCUMENTATION},
+            assessment="Quiz and simple embedding generation exercise",
         ),
         LearningModule(
             name="Contrastive Learning Deep Dive",
@@ -469,13 +458,10 @@ def create_enterprise_training_program():
                 "Implement SimCLR and MoCo architectures",
                 "Design effective data augmentation strategies",
                 "Optimize contrastive learning hyperparameters",
-                "Train custom embeddings on domain data"
+                "Train custom embeddings on domain data",
             ],
-            delivery_methods={
-                LearningMethod.LIVE_WORKSHOP,
-                LearningMethod.HANDS_ON_PROJECT
-            },
-            assessment="Train custom embedding model achieving target performance"
+            delivery_methods={LearningMethod.LIVE_WORKSHOP, LearningMethod.HANDS_ON_PROJECT},
+            assessment="Train custom embedding model achieving target performance",
         ),
         LearningModule(
             name="Production Embedding Systems",
@@ -487,15 +473,15 @@ def create_enterprise_training_program():
                 "Design end-to-end embedding pipelines",
                 "Implement quality monitoring and drift detection",
                 "Optimize for latency and cost at scale",
-                "Handle embedding versioning and rollback"
+                "Handle embedding versioning and rollback",
             ],
             delivery_methods={
                 LearningMethod.LIVE_WORKSHOP,
                 LearningMethod.HANDS_ON_PROJECT,
-                LearningMethod.MENTORSHIP
+                LearningMethod.MENTORSHIP,
             },
-            assessment="Deploy production embedding system with monitoring"
-        )
+            assessment="Deploy production embedding system with monitoring",
+        ),
     ]
 
     # Infrastructure track modules
@@ -509,13 +495,10 @@ def create_enterprise_training_program():
             learning_objectives=[
                 "Understand vector indexing algorithms (HNSW, IVF)",
                 "Set up and configure vector databases",
-                "Optimize queries for latency and throughput"
+                "Optimize queries for latency and throughput",
             ],
-            delivery_methods={
-                LearningMethod.SELF_PACED_VIDEO,
-                LearningMethod.LIVE_WORKSHOP
-            },
-            assessment="Deploy and benchmark vector database"
+            delivery_methods={LearningMethod.SELF_PACED_VIDEO, LearningMethod.LIVE_WORKSHOP},
+            assessment="Deploy and benchmark vector database",
         ),
         LearningModule(
             name="Scaling to Trillions of Vectors",
@@ -527,15 +510,15 @@ def create_enterprise_training_program():
                 "Design distributed vector systems",
                 "Implement sharding and replication strategies",
                 "Optimize for global deployment",
-                "Handle failure modes and disaster recovery"
+                "Handle failure modes and disaster recovery",
             ],
             delivery_methods={
                 LearningMethod.LIVE_WORKSHOP,
                 LearningMethod.HANDS_ON_PROJECT,
-                LearningMethod.MENTORSHIP
+                LearningMethod.MENTORSHIP,
             },
-            assessment="Architecture design for trillion-row system"
-        )
+            assessment="Architecture design for trillion-row system",
+        ),
     ]
 
     # Product Manager track modules
@@ -550,13 +533,10 @@ def create_enterprise_training_program():
                 "Understand what embeddings enable",
                 "Identify high-impact use cases",
                 "Evaluate embedding system capabilities",
-                "Define success metrics for embedding products"
+                "Define success metrics for embedding products",
             ],
-            delivery_methods={
-                LearningMethod.SELF_PACED_VIDEO,
-                LearningMethod.LIVE_WORKSHOP
-            },
-            assessment="Use case proposal with metrics"
+            delivery_methods={LearningMethod.SELF_PACED_VIDEO, LearningMethod.LIVE_WORKSHOP},
+            assessment="Use case proposal with metrics",
         ),
         LearningModule(
             name="Building Embedding-Powered Products",
@@ -568,14 +548,11 @@ def create_enterprise_training_program():
                 "Design user experiences leveraging embeddings",
                 "Balance technical constraints with user needs",
                 "Run A/B tests on embedding systems",
-                "Measure and optimize product impact"
+                "Measure and optimize product impact",
             ],
-            delivery_methods={
-                LearningMethod.LIVE_WORKSHOP,
-                LearningMethod.HANDS_ON_PROJECT
-            },
-            assessment="Product spec and A/B test plan"
-        )
+            delivery_methods={LearningMethod.LIVE_WORKSHOP, LearningMethod.HANDS_ON_PROJECT},
+            assessment="Product spec and A/B test plan",
+        ),
     ]
 
     # Add all modules
@@ -597,10 +574,10 @@ def create_enterprise_training_program():
             learning_outcomes=[
                 "Train custom product embeddings",
                 "Integrate with vector database",
-                "Deploy and monitor in production"
+                "Deploy and monitor in production",
             ],
             real_world_application=True,
-            mentors_available=["Senior ML Engineer Alice"]
+            mentors_available=["Senior ML Engineer Alice"],
         ),
         Project(
             name="Scale Vector Database to 10B Embeddings",
@@ -611,11 +588,11 @@ def create_enterprise_training_program():
             learning_outcomes=[
                 "Design distributed architecture",
                 "Implement sharding strategy",
-                "Optimize query performance"
+                "Optimize query performance",
             ],
             real_world_application=True,
-            mentors_available=["Staff SRE Bob"]
-        )
+            mentors_available=["Staff SRE Bob"],
+        ),
     ]
 
     for project in projects:
@@ -630,8 +607,8 @@ def create_enterprise_training_program():
             current_level=CompetencyLevel.NOVICE,
             learning_goals=[
                 "Master contrastive learning",
-                "Deploy first production embedding system"
-            ]
+                "Deploy first production embedding system",
+            ],
         ),
         Learner(
             name="Senior Backend Engineer Eve",
@@ -639,21 +616,15 @@ def create_enterprise_training_program():
             primary_track=LearningTrack.INFRASTRUCTURE,
             current_level=CompetencyLevel.COMPETENT,
             completed_modules=["Vector Database Fundamentals"],
-            learning_goals=[
-                "Design trillion-scale systems",
-                "Become vector database expert"
-            ]
+            learning_goals=["Design trillion-scale systems", "Become vector database expert"],
         ),
         Learner(
             name="Product Manager Frank",
             role="Product Manager",
             primary_track=LearningTrack.PRODUCT_MANAGER,
             current_level=CompetencyLevel.NOVICE,
-            learning_goals=[
-                "Identify embedding opportunities",
-                "Launch embedding-powered feature"
-            ]
-        )
+            learning_goals=["Identify embedding opportunities", "Launch embedding-powered feature"],
+        ),
     ]
 
     for learner in learners:
@@ -673,17 +644,20 @@ def create_enterprise_training_program():
         progress = program.track_progress(learner_name)
         print(f"{learner_name}:")
         print(f"  Level: {progress['current_level']}")
-        print(f"  Progress: {progress['modules_completed']}/{progress['total_modules']} modules ({progress['completion_percentage']:.1f}%)")
+        print(
+            f"  Progress: {progress['modules_completed']}/{progress['total_modules']} modules ({progress['completion_percentage']:.1f}%)"
+        )
         print(f"  Ready for advancement: {progress['ready_for_advancement']}")
-        if progress['recommendations']:
+        if progress["recommendations"]:
             print("  Next recommended modules:")
-            for rec in progress['recommendations']:
+            for rec in progress["recommendations"]:
                 print(f"    - {rec['module']} ({rec['reasoning']})")
         print()
 
     # Display dashboard
     print("=== Program Dashboard ===\n")
     print(program.create_program_dashboard())
+
 
 if __name__ == "__main__":
     create_enterprise_training_program()

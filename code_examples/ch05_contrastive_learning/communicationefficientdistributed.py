@@ -4,6 +4,7 @@ import torch.distributed as dist
 # Code from Chapter 05
 # Book: Embeddings at Scale
 
+
 class CommunicationEfficientDistributed:
     """
     Reduce communication overhead in distributed training

@@ -31,6 +31,7 @@ Production considerations:
 - Temporal decay: Recent sentiment more important than old
 """
 
+
 @dataclass
 class SentimentSignal:
     """
@@ -46,6 +47,7 @@ class SentimentSignal:
         volume: Number of mentions
         predicted_impact: Expected price impact
     """
+
     ticker: str
     timestamp: float
     sentiment_score: float
@@ -54,6 +56,7 @@ class SentimentSignal:
     aspects: Dict[str, float]
     volume: int
     predicted_impact: float
+
 
 class FinancialTextEncoder(nn.Module):
     """
@@ -73,7 +76,7 @@ class FinancialTextEncoder(nn.Module):
     def __init__(
         self,
         embedding_dim: int = 256,
-        pretrained_model: str = "finbert"  # Financial BERT
+        pretrained_model: str = "finbert",  # Financial BERT
     ):
         super().__init__()
         self.embedding_dim = embedding_dim
@@ -84,10 +87,7 @@ class FinancialTextEncoder(nn.Module):
 
         # Projection to target dimension
         self.projection = nn.Sequential(
-            nn.Linear(self.bert_dim, 512),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(512, embedding_dim)
+            nn.Linear(self.bert_dim, 512), nn.ReLU(), nn.Dropout(0.2), nn.Linear(512, embedding_dim)
         )
 
     def forward(self, text_embeddings: torch.Tensor) -> torch.Tensor:
@@ -108,6 +108,7 @@ class FinancialTextEncoder(nn.Module):
 
         return text_emb
 
+
 class SentimentClassifier(nn.Module):
     """
     Classify sentiment from text embeddings
@@ -126,21 +127,15 @@ class SentimentClassifier(nn.Module):
             nn.Linear(embedding_dim, 128),
             nn.ReLU(),
             nn.Dropout(0.3),
-            nn.Linear(128, 2)  # sentiment, confidence
+            nn.Linear(128, 2),  # sentiment, confidence
         )
 
         # Aspect-specific sentiment
         self.aspect_head = nn.Sequential(
-            nn.Linear(embedding_dim, 128),
-            nn.ReLU(),
-            nn.Dropout(0.3),
-            nn.Linear(128, num_aspects)
+            nn.Linear(embedding_dim, 128), nn.ReLU(), nn.Dropout(0.3), nn.Linear(128, num_aspects)
         )
 
-    def forward(
-        self,
-        text_emb: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward(self, text_emb: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Classify sentiment
 
@@ -159,6 +154,7 @@ class SentimentClassifier(nn.Module):
         aspect_sentiment = torch.tanh(self.aspect_head(text_emb))  # -1 to +1
 
         return sentiment_score, confidence, aspect_sentiment
+
 
 # Example: News-driven trading
 def sentiment_trading_example():
@@ -278,6 +274,7 @@ def sentiment_trading_example():
     print("Average return per trade: 1.8%")
     print("Sharpe ratio: 2.1")
     print("\n→ Sentiment provides measurable alpha")
+
 
 # Uncomment to run:
 # sentiment_trading_example()

@@ -46,6 +46,7 @@ class ScientificPaper:
         entities: Extracted entities (chemicals, genes, etc.)
         embedding: Cached embedding
     """
+
     paper_id: str
     title: str
     abstract: str
@@ -64,6 +65,7 @@ class ScientificPaper:
             self.cited_by = []
         if self.entities is None:
             self.entities = {}
+
 
 class ScientificSearchEngine:
     """
@@ -201,7 +203,7 @@ class ScientificSearchEngine:
         top_k: int = 20,
         min_year: Optional[int] = None,
         author_filter: Optional[str] = None,
-        boost_citations: bool = True
+        boost_citations: bool = True,
     ) -> List[Tuple[ScientificPaper, float]]:
         """
         Search for papers
@@ -254,9 +256,7 @@ class ScientificSearchEngine:
         return final_scores[:top_k]
 
     def find_related_by_citations(
-        self,
-        paper_id: str,
-        top_k: int = 10
+        self, paper_id: str, top_k: int = 10
     ) -> List[Tuple[ScientificPaper, float]]:
         """
         Find related papers based on citation patterns
@@ -308,10 +308,7 @@ class ScientificSearchEngine:
         return results
 
     def search_by_entity(
-        self,
-        entity_type: str,
-        entity_value: str,
-        top_k: int = 20
+        self, entity_type: str, entity_value: str, top_k: int = 20
     ) -> List[ScientificPaper]:
         """
         Search papers by entity (chemical, gene, etc.)
@@ -337,6 +334,7 @@ class ScientificSearchEngine:
 
         return papers[:top_k]
 
+
 # Example: Scientific literature search
 def scientific_search_example():
     """
@@ -354,47 +352,47 @@ def scientific_search_example():
     # Create sample papers
     papers = [
         ScientificPaper(
-            paper_id='paper_1',
-            title='Deep Learning for Protein Structure Prediction',
-            abstract='We present a novel deep learning approach for predicting protein structures from amino acid sequences using transformers.',
-            authors=['Alice Smith', 'Bob Johnson'],
+            paper_id="paper_1",
+            title="Deep Learning for Protein Structure Prediction",
+            abstract="We present a novel deep learning approach for predicting protein structures from amino acid sequences using transformers.",
+            authors=["Alice Smith", "Bob Johnson"],
             year=2023,
-            venue='Nature',
-            citations=['paper_4'],
-            entities={'protein': ['AlphaFold'], 'method': ['transformer']},
-            cited_by=['paper_2', 'paper_3']
+            venue="Nature",
+            citations=["paper_4"],
+            entities={"protein": ["AlphaFold"], "method": ["transformer"]},
+            cited_by=["paper_2", "paper_3"],
         ),
         ScientificPaper(
-            paper_id='paper_2',
-            title='Improved Protein Folding with Attention Mechanisms',
-            abstract='Building on recent work, we improve protein folding predictions using multi-head attention and residual connections.',
-            authors=['Charlie Brown'],
+            paper_id="paper_2",
+            title="Improved Protein Folding with Attention Mechanisms",
+            abstract="Building on recent work, we improve protein folding predictions using multi-head attention and residual connections.",
+            authors=["Charlie Brown"],
             year=2024,
-            venue='Science',
-            citations=['paper_1', 'paper_4'],
-            entities={'protein': ['AlphaFold'], 'method': ['attention']}
+            venue="Science",
+            citations=["paper_1", "paper_4"],
+            entities={"protein": ["AlphaFold"], "method": ["attention"]},
         ),
         ScientificPaper(
-            paper_id='paper_3',
-            title='Applications of AI in Drug Discovery',
-            abstract='We survey recent applications of artificial intelligence in drug discovery, including protein structure prediction and molecular docking.',
-            authors=['Diana Prince', 'Alice Smith'],
+            paper_id="paper_3",
+            title="Applications of AI in Drug Discovery",
+            abstract="We survey recent applications of artificial intelligence in drug discovery, including protein structure prediction and molecular docking.",
+            authors=["Diana Prince", "Alice Smith"],
             year=2024,
-            venue='Nature Reviews Drug Discovery',
-            citations=['paper_1'],
-            entities={'application': ['drug discovery']}
+            venue="Nature Reviews Drug Discovery",
+            citations=["paper_1"],
+            entities={"application": ["drug discovery"]},
         ),
         ScientificPaper(
-            paper_id='paper_4',
-            title='Transformers for Sequence Modeling',
-            abstract='A general framework for using transformers to model biological sequences including DNA, RNA, and proteins.',
-            authors=['Eve Martinez'],
+            paper_id="paper_4",
+            title="Transformers for Sequence Modeling",
+            abstract="A general framework for using transformers to model biological sequences including DNA, RNA, and proteins.",
+            authors=["Eve Martinez"],
             year=2022,
-            venue='NeurIPS',
+            venue="NeurIPS",
             citations=[],
-            entities={'method': ['transformer']},
-            cited_by=['paper_1', 'paper_2']
-        )
+            entities={"method": ["transformer"]},
+            cited_by=["paper_1", "paper_2"],
+        ),
     ]
 
     # Initialize search engine
@@ -405,7 +403,7 @@ def scientific_search_example():
 
     # Search: Find papers on protein structure prediction
     print("\n=== Query: 'protein structure prediction' ===")
-    results = engine.search('protein structure prediction', top_k=3, boost_citations=True)
+    results = engine.search("protein structure prediction", top_k=3, boost_citations=True)
 
     for paper, score in results:
         print(f"\n{paper.title}")
@@ -416,7 +414,7 @@ def scientific_search_example():
 
     # Find related papers by co-citation
     print("\n\n=== Papers related to 'paper_1' (by co-citation) ===")
-    related = engine.find_related_by_citations('paper_1', top_k=3)
+    related = engine.find_related_by_citations("paper_1", top_k=3)
 
     for paper, score in related:
         print(f"\n{paper.title}")
@@ -424,10 +422,11 @@ def scientific_search_example():
 
     # Search by entity
     print("\n\n=== Papers mentioning 'AlphaFold' ===")
-    entity_results = engine.search_by_entity('protein', 'AlphaFold', top_k=5)
+    entity_results = engine.search_by_entity("protein", "AlphaFold", top_k=5)
 
     for paper in entity_results:
         print(f"\n{paper.title} ({paper.year})")
+
 
 # Uncomment to run:
 # scientific_search_example()

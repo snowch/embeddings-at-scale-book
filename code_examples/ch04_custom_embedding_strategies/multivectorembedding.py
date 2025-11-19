@@ -7,27 +7,33 @@ import numpy as np
 # Placeholder encoder classes for different vector types
 class SemanticEncoder:
     """Placeholder semantic encoder. Replace with actual model."""
+
     def __init__(self, dim=512):
         self.dim = dim
 
     def encode(self, text):
         return np.random.randn(self.dim).astype(np.float32)
 
+
 class StructuralEncoder:
     """Placeholder structural encoder. Replace with actual model."""
+
     def __init__(self, dim=256):
         self.dim = dim
 
     def encode(self, attributes):
         return np.random.randn(self.dim).astype(np.float32)
 
+
 class BehavioralEncoder:
     """Placeholder behavioral encoder. Replace with actual model."""
+
     def __init__(self, dim=256):
         self.dim = dim
 
     def encode(self, interactions):
         return np.random.randn(self.dim).astype(np.float32)
+
 
 class MultiVectorEmbedding:
     """
@@ -36,7 +42,7 @@ class MultiVectorEmbedding:
 
     def __init__(self):
         # Different encoders for different aspects
-        self.semantic_encoder = SemanticEncoder(dim=512)     # Semantic meaning
+        self.semantic_encoder = SemanticEncoder(dim=512)  # Semantic meaning
         self.structural_encoder = StructuralEncoder(dim=256)  # Structured attributes
         self.behavioral_encoder = BehavioralEncoder(dim=256)  # User interaction patterns
 
@@ -47,27 +53,27 @@ class MultiVectorEmbedding:
         vectors = {}
 
         # Semantic vector: text content
-        vectors['semantic'] = self.semantic_encoder.encode(
-            item['title'] + ' ' + item['description']
+        vectors["semantic"] = self.semantic_encoder.encode(
+            item["title"] + " " + item["description"]
         )
 
         # Structural vector: categorical attributes
-        vectors['structural'] = self.structural_encoder.encode({
-            'category': item['category'],
-            'brand': item['brand'],
-            'price_tier': self.discretize_price(item['price']),
-            'rating': item['avg_rating']
-        })
+        vectors["structural"] = self.structural_encoder.encode(
+            {
+                "category": item["category"],
+                "brand": item["brand"],
+                "price_tier": self.discretize_price(item["price"]),
+                "rating": item["avg_rating"],
+            }
+        )
 
         # Behavioral vector: how users interact with this item
-        if 'user_interactions' in item:
-            vectors['behavioral'] = self.behavioral_encoder.encode(
-                item['user_interactions']
-            )
+        if "user_interactions" in item:
+            vectors["behavioral"] = self.behavioral_encoder.encode(item["user_interactions"])
 
         return vectors
 
-    def search(self, query, user_context=None, objective='balanced'):
+    def search(self, query, user_context=None, objective="balanced"):
         """
         Search with different objectives
         """
@@ -75,25 +81,24 @@ class MultiVectorEmbedding:
         query_vectors = self.encode_query(query, user_context)
 
         # Different objectives use different vector combinations
-        if objective == 'relevance':
+        if objective == "relevance":
             # Focus on semantic similarity
-            weights = {'semantic': 1.0, 'structural': 0.2, 'behavioral': 0.1}
-        elif objective == 'personalization':
+            weights = {"semantic": 1.0, "structural": 0.2, "behavioral": 0.1}
+        elif objective == "personalization":
             # Focus on behavioral patterns
-            weights = {'semantic': 0.3, 'structural': 0.2, 'behavioral': 1.0}
-        elif objective == 'balanced':
+            weights = {"semantic": 0.3, "structural": 0.2, "behavioral": 1.0}
+        elif objective == "balanced":
             # Balance all factors
-            weights = {'semantic': 0.5, 'structural': 0.3, 'behavioral': 0.2}
-        elif objective == 'exploration':
+            weights = {"semantic": 0.5, "structural": 0.3, "behavioral": 0.2}
+        elif objective == "exploration":
             # Emphasize diversity (structural differences)
-            weights = {'semantic': 0.3, 'structural': 0.7, 'behavioral': 0.1}
+            weights = {"semantic": 0.3, "structural": 0.7, "behavioral": 0.1}
 
         # Search each vector space
         results_by_vector = {}
         for vector_type, query_vec in query_vectors.items():
             results_by_vector[vector_type] = self.search_vector_space(
-                query_vec,
-                vector_space=vector_type
+                query_vec, vector_space=vector_type
             )
 
         # Combine results with objective-specific weights

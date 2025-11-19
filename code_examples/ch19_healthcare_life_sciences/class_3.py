@@ -31,9 +31,11 @@ Production considerations:
 - Privacy: Aggregate mobility data, no individual tracking
 """
 
+
 @dataclass
 class PopulationGroup:
     """Population subgroup for epidemic modeling"""
+
     group_id: str
     name: str
     size: int
@@ -50,9 +52,11 @@ class PopulationGroup:
         if self.mobility is None:
             self.mobility = {}
 
+
 @dataclass
 class Pathogen:
     """Disease pathogen characteristics"""
+
     pathogen_id: str
     name: str
     r0: float
@@ -68,9 +72,11 @@ class Pathogen:
         if self.variants is None:
             self.variants = []
 
+
 @dataclass
 class Intervention:
     """Public health intervention"""
+
     intervention_id: str
     name: str
     type: str
@@ -84,9 +90,11 @@ class Intervention:
         if self.side_effects is None:
             self.side_effects = []
 
+
 @dataclass
 class EpidemicForecast:
     """Epidemic forecast output"""
+
     forecast_date: datetime
     horizon: int
     predicted_cases: List[float]
@@ -97,21 +105,22 @@ class EpidemicForecast:
     recommended_strategy: Optional[str] = None
     confidence_intervals: Optional[Dict[str, List[Tuple[float, float]]]] = None
 
+
 class EpidemicModelingSystem:
     """Complete epidemic modeling and response system"""
 
-    def __init__(self, embedding_dim: int = 128, device: str = 'cpu'):
+    def __init__(self, embedding_dim: int = 128, device: str = "cpu"):
         self.embedding_dim = embedding_dim
         self.device = device
 
         self.populations: Dict[str, PopulationGroup] = {}
 
         self.compartments = {
-            'S': {},  # Susceptible
-            'E': {},  # Exposed
-            'I': {},  # Infectious
-            'R': {},  # Recovered
-            'D': {}   # Dead
+            "S": {},  # Susceptible
+            "E": {},  # Exposed
+            "I": {},  # Infectious
+            "R": {},  # Recovered
+            "D": {},  # Dead
         }
 
     def initialize_population(self, groups: List[PopulationGroup]):
@@ -119,47 +128,42 @@ class EpidemicModelingSystem:
         for group in groups:
             self.populations[group.group_id] = group
 
-            self.compartments['S'][group.group_id] = group.size
-            self.compartments['E'][group.group_id] = 0
-            self.compartments['I'][group.group_id] = 0
-            self.compartments['R'][group.group_id] = 0
-            self.compartments['D'][group.group_id] = 0
+            self.compartments["S"][group.group_id] = group.size
+            self.compartments["E"][group.group_id] = 0
+            self.compartments["I"][group.group_id] = 0
+            self.compartments["R"][group.group_id] = 0
+            self.compartments["D"][group.group_id] = 0
 
     def seed_infection(self, group_id: str, initial_cases: int):
         """Seed initial infections"""
-        if group_id in self.compartments['S']:
-            self.compartments['S'][group_id] -= initial_cases
-            self.compartments['I'][group_id] += initial_cases
+        if group_id in self.compartments["S"]:
+            self.compartments["S"][group_id] -= initial_cases
+            self.compartments["I"][group_id] += initial_cases
 
     def simulate_transmission(
-        self,
-        pathogen: Pathogen,
-        days: int,
-        interventions: Optional[List[Intervention]] = None
+        self, pathogen: Pathogen, days: int, interventions: Optional[List[Intervention]] = None
     ) -> Dict[str, List[float]]:
         """Simulate disease transmission"""
         effective_r = pathogen.r0
 
         if interventions:
             for intervention in interventions:
-                effective_r *= (1 - intervention.effectiveness)
+                effective_r *= 1 - intervention.effectiveness
 
-        time_series = {
-            'S': [], 'E': [], 'I': [], 'R': [], 'D': []
-        }
+        time_series = {"S": [], "E": [], "I": [], "R": [], "D": []}
 
         for _day in range(days):
-            total_S = sum(self.compartments['S'].values())
-            total_E = sum(self.compartments['E'].values())
-            total_I = sum(self.compartments['I'].values())
-            total_R = sum(self.compartments['R'].values())
-            total_D = sum(self.compartments['D'].values())
+            total_S = sum(self.compartments["S"].values())
+            total_E = sum(self.compartments["E"].values())
+            total_I = sum(self.compartments["I"].values())
+            total_R = sum(self.compartments["R"].values())
+            total_D = sum(self.compartments["D"].values())
 
-            time_series['S'].append(total_S)
-            time_series['E'].append(total_E)
-            time_series['I'].append(total_I)
-            time_series['R'].append(total_R)
-            time_series['D'].append(total_D)
+            time_series["S"].append(total_S)
+            time_series["E"].append(total_E)
+            time_series["I"].append(total_I)
+            time_series["R"].append(total_R)
+            time_series["D"].append(total_D)
 
             total_pop = total_S + total_E + total_I + total_R
 
@@ -181,30 +185,34 @@ class EpidemicModelingSystem:
                     group_pop = self.populations[group_id].size
                     prop = group_pop / total_pop if total_pop > 0 else 0
 
-                    self.compartments['S'][group_id] = max(0, self.compartments['S'][group_id] - new_E * prop)
-                    self.compartments['E'][group_id] = max(0, self.compartments['E'][group_id] + new_E * prop - new_I * prop)
-                    self.compartments['I'][group_id] = max(0, self.compartments['I'][group_id] + new_I * prop - new_R * prop - new_D * prop)
-                    self.compartments['R'][group_id] += new_R * prop
-                    self.compartments['D'][group_id] += new_D * prop
+                    self.compartments["S"][group_id] = max(
+                        0, self.compartments["S"][group_id] - new_E * prop
+                    )
+                    self.compartments["E"][group_id] = max(
+                        0, self.compartments["E"][group_id] + new_E * prop - new_I * prop
+                    )
+                    self.compartments["I"][group_id] = max(
+                        0,
+                        self.compartments["I"][group_id]
+                        + new_I * prop
+                        - new_R * prop
+                        - new_D * prop,
+                    )
+                    self.compartments["R"][group_id] += new_R * prop
+                    self.compartments["D"][group_id] += new_D * prop
 
         return time_series
 
     def evaluate_intervention(
-        self,
-        pathogen: Pathogen,
-        intervention: Intervention,
-        duration: int = 180
+        self, pathogen: Pathogen, intervention: Intervention, duration: int = 180
     ) -> Dict[str, float]:
         """Evaluate intervention impact"""
-        baseline_state = {
-            k: dict(comp.items())
-            for k, comp in self.compartments.items()
-        }
+        baseline_state = {k: dict(comp.items()) for k, comp in self.compartments.items()}
 
         baseline_ts = self.simulate_transmission(pathogen, duration, interventions=None)
 
-        baseline_cases = baseline_ts['I'][-1] + baseline_ts['R'][-1] + baseline_ts['D'][-1]
-        baseline_deaths = baseline_ts['D'][-1]
+        baseline_cases = baseline_ts["I"][-1] + baseline_ts["R"][-1] + baseline_ts["D"][-1]
+        baseline_deaths = baseline_ts["D"][-1]
 
         self.compartments = baseline_state
 
@@ -212,26 +220,30 @@ class EpidemicModelingSystem:
             pathogen, duration, interventions=[intervention]
         )
 
-        intervention_cases = intervention_ts['I'][-1] + intervention_ts['R'][-1] + intervention_ts['D'][-1]
-        intervention_deaths = intervention_ts['D'][-1]
+        intervention_cases = (
+            intervention_ts["I"][-1] + intervention_ts["R"][-1] + intervention_ts["D"][-1]
+        )
+        intervention_deaths = intervention_ts["D"][-1]
 
         self.compartments = baseline_state
 
         return {
-            'baseline_cases': baseline_cases,
-            'baseline_deaths': baseline_deaths,
-            'intervention_cases': intervention_cases,
-            'intervention_deaths': intervention_deaths,
-            'cases_averted': baseline_cases - intervention_cases,
-            'deaths_averted': baseline_deaths - intervention_deaths,
-            'percent_reduction': (baseline_cases - intervention_cases) / baseline_cases if baseline_cases > 0 else 0
+            "baseline_cases": baseline_cases,
+            "baseline_deaths": baseline_deaths,
+            "intervention_cases": intervention_cases,
+            "intervention_deaths": intervention_deaths,
+            "cases_averted": baseline_cases - intervention_cases,
+            "deaths_averted": baseline_deaths - intervention_deaths,
+            "percent_reduction": (baseline_cases - intervention_cases) / baseline_cases
+            if baseline_cases > 0
+            else 0,
         }
 
     def optimize_intervention_strategy(
         self,
         pathogen: Pathogen,
         available_interventions: List[Intervention],
-        budget_constraint: Optional[float] = None
+        budget_constraint: Optional[float] = None,
     ) -> List[Intervention]:
         """Find optimal combination of interventions"""
         evaluations = []
@@ -240,26 +252,25 @@ class EpidemicModelingSystem:
             impact = self.evaluate_intervention(pathogen, intervention)
 
             if intervention.cost and intervention.cost > 0:
-                cost_per_death_averted = intervention.cost / max(impact['deaths_averted'], 1)
+                cost_per_death_averted = intervention.cost / max(impact["deaths_averted"], 1)
             else:
                 cost_per_death_averted = 0
 
-            evaluations.append({
-                'intervention': intervention,
-                'impact': impact,
-                'cost_effectiveness': cost_per_death_averted
-            })
+            evaluations.append(
+                {
+                    "intervention": intervention,
+                    "impact": impact,
+                    "cost_effectiveness": cost_per_death_averted,
+                }
+            )
 
-        evaluations.sort(
-            key=lambda x: x['impact']['deaths_averted'],
-            reverse=True
-        )
+        evaluations.sort(key=lambda x: x["impact"]["deaths_averted"], reverse=True)
 
         selected = []
         total_cost = 0
 
         for eval_data in evaluations:
-            intervention = eval_data['intervention']
+            intervention = eval_data["intervention"]
 
             if budget_constraint is None:
                 selected.append(intervention)
@@ -271,6 +282,7 @@ class EpidemicModelingSystem:
                 selected.append(intervention)
 
         return selected
+
 
 def epidemic_modeling_example():
     """Example: COVID-19-like outbreak response"""
@@ -284,7 +296,7 @@ def epidemic_modeling_example():
         incubation_period=5.0,
         infectious_period=10.0,
         severity=0.01,
-        immunity_duration=365.0
+        immunity_duration=365.0,
     )
 
     print(f"Pathogen: {pathogen.name}")
@@ -297,38 +309,38 @@ def epidemic_modeling_example():
             group_id="urban_young",
             name="Urban 18-35",
             size=2_000_000,
-            demographics={'age_range': '18-35', 'density': 'high'},
+            demographics={"age_range": "18-35", "density": "high"},
             contact_rate=20.0,
             vulnerability=0.8,
-            compliance=0.6
+            compliance=0.6,
         ),
         PopulationGroup(
             group_id="urban_middle",
             name="Urban 36-64",
             size=3_000_000,
-            demographics={'age_range': '36-64', 'density': 'high'},
+            demographics={"age_range": "36-64", "density": "high"},
             contact_rate=15.0,
             vulnerability=1.0,
-            compliance=0.7
+            compliance=0.7,
         ),
         PopulationGroup(
             group_id="urban_elderly",
             name="Urban 65+",
             size=1_000_000,
-            demographics={'age_range': '65+', 'density': 'high'},
+            demographics={"age_range": "65+", "density": "high"},
             contact_rate=8.0,
             vulnerability=2.0,
-            compliance=0.85
+            compliance=0.85,
         ),
         PopulationGroup(
             group_id="rural",
             name="Rural (all ages)",
             size=4_000_000,
-            demographics={'density': 'low'},
+            demographics={"density": "low"},
             contact_rate=10.0,
             vulnerability=1.0,
-            compliance=0.5
-        )
+            compliance=0.5,
+        ),
     ]
 
     total_pop = sum(p.size for p in populations)
@@ -344,7 +356,7 @@ def epidemic_modeling_example():
             type="NPI",
             effectiveness=0.30,
             compliance_required=0.6,
-            cost=50_000_000
+            cost=50_000_000,
         ),
         Intervention(
             intervention_id="INT_002",
@@ -352,7 +364,7 @@ def epidemic_modeling_example():
             type="NPI",
             effectiveness=0.20,
             compliance_required=0.5,
-            cost=10_000_000
+            cost=10_000_000,
         ),
         Intervention(
             intervention_id="INT_003",
@@ -360,7 +372,7 @@ def epidemic_modeling_example():
             type="NPI",
             effectiveness=0.15,
             compliance_required=0.9,
-            cost=80_000_000
+            cost=80_000_000,
         ),
         Intervention(
             intervention_id="INT_004",
@@ -368,7 +380,7 @@ def epidemic_modeling_example():
             type="Vaccine",
             effectiveness=0.70,
             compliance_required=0.6,
-            cost=200_000_000
+            cost=200_000_000,
         ),
         Intervention(
             intervention_id="INT_005",
@@ -376,8 +388,8 @@ def epidemic_modeling_example():
             type="Surveillance",
             effectiveness=0.25,
             compliance_required=0.7,
-            cost=30_000_000
-        )
+            cost=30_000_000,
+        ),
     ]
 
     print(f"\nAvailable interventions: {len(interventions)}")
@@ -397,10 +409,10 @@ def epidemic_modeling_example():
 
     baseline_ts = system.simulate_transmission(pathogen, days=180)
 
-    peak_day = np.argmax(baseline_ts['I'])
-    peak_cases = baseline_ts['I'][peak_day]
-    total_infections = baseline_ts['R'][-1] + baseline_ts['D'][-1]
-    total_deaths = baseline_ts['D'][-1]
+    peak_day = np.argmax(baseline_ts["I"])
+    peak_cases = baseline_ts["I"][peak_day]
+    total_infections = baseline_ts["R"][-1] + baseline_ts["D"][-1]
+    total_deaths = baseline_ts["D"][-1]
     attack_rate = total_infections / total_pop
 
     print(f"Peak infections: Day {peak_day}, {peak_cases:,.0f} active cases")
@@ -426,8 +438,8 @@ def epidemic_modeling_example():
         print(f"  Reduction: {impact['percent_reduction']:.1%}")
         if intervention.cost:
             print(f"  Cost: ${intervention.cost:,.0f}/month")
-            if impact['deaths_averted'] > 0:
-                cost_per_death = intervention.cost / impact['deaths_averted']
+            if impact["deaths_averted"] > 0:
+                cost_per_death = intervention.cost / impact["deaths_averted"]
                 print(f"  Cost per death averted: ${cost_per_death:,.0f}")
         print()
 
@@ -437,9 +449,7 @@ def epidemic_modeling_example():
     system.seed_infection("urban_young", initial_cases=100)
 
     optimal_strategy = system.optimize_intervention_strategy(
-        pathogen=pathogen,
-        available_interventions=interventions,
-        budget_constraint=300_000_000
+        pathogen=pathogen, available_interventions=interventions, budget_constraint=300_000_000
     )
 
     print("Recommended strategy (within budget):")
@@ -456,15 +466,15 @@ def epidemic_modeling_example():
 
     optimal_ts = system.simulate_transmission(pathogen, days=180, interventions=optimal_strategy)
 
-    optimal_peak_day = np.argmax(optimal_ts['I'])
-    optimal_peak_cases = optimal_ts['I'][optimal_peak_day]
-    optimal_total_infections = optimal_ts['R'][-1] + optimal_ts['D'][-1]
-    optimal_total_deaths = optimal_ts['D'][-1]
+    optimal_peak_day = np.argmax(optimal_ts["I"])
+    optimal_peak_cases = optimal_ts["I"][optimal_peak_day]
+    optimal_total_infections = optimal_ts["R"][-1] + optimal_ts["D"][-1]
+    optimal_total_deaths = optimal_ts["D"][-1]
 
     print("\n--- Results with Optimal Strategy ---\n")
     print(f"Peak infections: Day {optimal_peak_day}, {optimal_peak_cases:,.0f} active cases")
     print(f"  (Baseline: Day {peak_day}, {peak_cases:,.0f} cases)")
-    print(f"  Peak reduction: {(1 - optimal_peak_cases/peak_cases):.1%}")
+    print(f"  Peak reduction: {(1 - optimal_peak_cases / peak_cases):.1%}")
 
     print(f"\nTotal infections: {optimal_total_infections:,.0f}")
     print(f"  (Baseline: {total_infections:,.0f})")
@@ -492,10 +502,11 @@ def epidemic_modeling_example():
     print("  • Population-specific interventions")
     print("  • Proactive forecasting (simulate before implementing)")
     print("  • Cost-optimal resource allocation")
-    print(f"  • {(1 - optimal_total_deaths/total_deaths):.0%} reduction in deaths")
+    print(f"  • {(1 - optimal_total_deaths / total_deaths):.0%} reduction in deaths")
     print("  • Flattened epidemic curve (healthcare capacity preserved)")
     print()
     print("→ Data-driven response saves lives and reduces economic impact")
+
 
 # Uncomment to run:
 # epidemic_modeling_example()

@@ -5,6 +5,7 @@ import torch.nn.functional as F
 # Code from Chapter 06
 # Book: Embeddings at Scale
 
+
 class TripletLoss(nn.Module):
     """
     Triplet loss for learning embeddings
@@ -16,7 +17,7 @@ class TripletLoss(nn.Module):
     The goal: d(anchor, positive) + margin < d(anchor, negative)
     """
 
-    def __init__(self, margin=1.0, distance_metric='euclidean'):
+    def __init__(self, margin=1.0, distance_metric="euclidean"):
         """
         Args:
             margin: Minimum difference between positive and negative distances
@@ -39,10 +40,10 @@ class TripletLoss(nn.Module):
             loss: Scalar tensor
             metrics: Dict with distances and statistics
         """
-        if self.distance_metric == 'euclidean':
+        if self.distance_metric == "euclidean":
             pos_distance = F.pairwise_distance(anchor, positive, p=2)
             neg_distance = F.pairwise_distance(anchor, negative, p=2)
-        elif self.distance_metric == 'cosine':
+        elif self.distance_metric == "cosine":
             pos_distance = 1 - F.cosine_similarity(anchor, positive)
             neg_distance = 1 - F.cosine_similarity(anchor, negative)
         else:
@@ -65,12 +66,12 @@ class TripletLoss(nn.Module):
             accuracy = (pos_distance < neg_distance).float().mean()
 
             metrics = {
-                'loss': loss.item(),
-                'accuracy': accuracy.item(),
-                'hard_triplets_fraction': hard_triplets.item(),
-                'avg_pos_distance': avg_pos_distance.item(),
-                'avg_neg_distance': avg_neg_distance.item(),
-                'avg_margin': (avg_neg_distance - avg_pos_distance).item()
+                "loss": loss.item(),
+                "accuracy": accuracy.item(),
+                "hard_triplets_fraction": hard_triplets.item(),
+                "avg_pos_distance": avg_pos_distance.item(),
+                "avg_neg_distance": avg_neg_distance.item(),
+                "avg_margin": (avg_neg_distance - avg_pos_distance).item(),
             }
 
         return loss, metrics

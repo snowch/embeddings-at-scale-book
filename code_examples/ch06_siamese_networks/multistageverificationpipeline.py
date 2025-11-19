@@ -3,9 +3,11 @@ import torch.nn.functional as F
 # Code from Chapter 06
 # Book: Embeddings at Scale
 
+
 # Placeholder Siamese ANN service
 class SiameseANNService:
     """Placeholder Siamese ANN service. Replace with actual implementation."""
+
     def __init__(self, siamese_service, embedding_dim=512):
         self.siamese_service = siamese_service
         self.embedding_dim = embedding_dim
@@ -14,6 +16,7 @@ class SiameseANNService:
         """Search for similar items. Placeholder implementation."""
         # Return dummy results
         return [(f"item_{i}", 0.9 - i * 0.01) for i in range(top_k)]
+
 
 class MultiStageVerificationPipeline:
     """
@@ -31,17 +34,14 @@ class MultiStageVerificationPipeline:
         siamese_service,
         stage1_threshold=0.7,  # Recall-optimized
         stage2_threshold=0.9,  # Precision-optimized
-        use_ann=True
+        use_ann=True,
     ):
         self.siamese_service = siamese_service
         self.stage1_threshold = stage1_threshold
         self.stage2_threshold = stage2_threshold
 
         if use_ann:
-            self.ann_service = SiameseANNService(
-                siamese_service,
-                embedding_dim=512
-            )
+            self.ann_service = SiameseANNService(siamese_service, embedding_dim=512)
         else:
             self.ann_service = None
 
@@ -72,8 +72,7 @@ class MultiStageVerificationPipeline:
             # Use ANN search for fast filtering
             stage1_results = self.ann_service.search(query, top_k=100)
             stage1_candidates = [
-                (item_id, sim) for item_id, sim in stage1_results
-                if sim >= self.stage1_threshold
+                (item_id, sim) for item_id, sim in stage1_results if sim >= self.stage1_threshold
             ]
         else:
             # Linear search through candidate pool
@@ -81,14 +80,10 @@ class MultiStageVerificationPipeline:
                 raise ValueError("Must provide candidate_pool or use ANN")
 
             query_embedding = self.siamese_service.get_embedding(query)
-            candidate_embeddings = self.siamese_service.get_embeddings_batch(
-                candidate_pool
-            )
+            candidate_embeddings = self.siamese_service.get_embeddings_batch(candidate_pool)
 
             similarities = F.cosine_similarity(
-                query_embedding.unsqueeze(0),
-                candidate_embeddings,
-                dim=1
+                query_embedding.unsqueeze(0), candidate_embeddings, dim=1
             )
 
             stage1_candidates = [
@@ -100,12 +95,7 @@ class MultiStageVerificationPipeline:
         self.stage1_candidates += len(stage1_candidates)
 
         if len(stage1_candidates) == 0:
-            return {
-                'matched': False,
-                'match_id': None,
-                'confidence': 0.0,
-                'stage': 1
-            }
+            return {"matched": False, "match_id": None, "confidence": 0.0, "stage": 1}
 
         # Stage 2: Detailed verification
         # For production, this might involve:
@@ -119,28 +109,23 @@ class MultiStageVerificationPipeline:
         if similarity >= self.stage2_threshold:
             # High confidence match
             self.stage2_matches += 1
-            return {
-                'matched': True,
-                'match_id': match_id,
-                'confidence': similarity,
-                'stage': 2
-            }
+            return {"matched": True, "match_id": match_id, "confidence": similarity, "stage": 2}
         else:
             # Borderline case - needs human review
             self.human_review_cases += 1
             return {
-                'matched': 'needs_review',
-                'match_id': match_id,
-                'confidence': similarity,
-                'stage': 2,
-                'review_reason': 'confidence_below_threshold'
+                "matched": "needs_review",
+                "match_id": match_id,
+                "confidence": similarity,
+                "stage": 2,
+                "review_reason": "confidence_below_threshold",
             }
 
     def get_statistics(self):
         """Get pipeline statistics"""
         return {
-            'stage1_candidates': self.stage1_candidates,
-            'stage2_matches': self.stage2_matches,
-            'human_review_cases': self.human_review_cases,
-            'human_review_rate': self.human_review_cases / max(self.stage1_candidates, 1)
+            "stage1_candidates": self.stage1_candidates,
+            "stage2_matches": self.stage2_matches,
+            "human_review_cases": self.human_review_cases,
+            "human_review_rate": self.human_review_cases / max(self.stage1_candidates, 1),
         }

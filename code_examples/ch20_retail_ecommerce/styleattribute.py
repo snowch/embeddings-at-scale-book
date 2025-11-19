@@ -38,6 +38,7 @@ import torch.nn.functional as F
 
 class StyleAttribute(Enum):
     """Visual style attributes"""
+
     COLOR = "color"
     PATTERN = "pattern"
     TEXTURE = "texture"
@@ -45,6 +46,7 @@ class StyleAttribute(Enum):
     MATERIAL = "material"
     FORMALITY = "formality"
     SEASON = "season"
+
 
 @dataclass
 class VisualQuery:
@@ -61,6 +63,7 @@ class VisualQuery:
         embedding: Computed visual embedding
         detected_attributes: Extracted visual attributes
     """
+
     query_id: str
     user_id: str
     image: Any  # In production: PIL Image or image path
@@ -69,6 +72,7 @@ class VisualQuery:
     timestamp: Optional[float] = None
     embedding: Optional[np.ndarray] = None
     detected_attributes: Dict[str, Any] = field(default_factory=dict)
+
 
 @dataclass
 class StyleTransferQuery:
@@ -81,10 +85,12 @@ class StyleTransferQuery:
         style_attributes: Specific attributes to transfer
         intensity: How strongly to apply style (0-1)
     """
+
     content_product_id: str
     style_image: Any
     style_attributes: List[StyleAttribute] = field(default_factory=list)
     intensity: float = 0.5
+
 
 class VisualEncoder(nn.Module):
     """
@@ -115,11 +121,7 @@ class VisualEncoder(nn.Module):
         self.global_pool = nn.AdaptiveAvgPool2d((1, 1))
 
         # Multi-head attention for spatial pooling
-        self.spatial_attention = nn.MultiheadAttention(
-            embed_dim=512,
-            num_heads=8,
-            batch_first=True
-        )
+        self.spatial_attention = nn.MultiheadAttention(embed_dim=512, num_heads=8, batch_first=True)
 
         self.fc = nn.Linear(512, embedding_dim)
 
@@ -149,9 +151,7 @@ class VisualEncoder(nn.Module):
         features_flat = features.view(batch, channels, h * w).permute(0, 2, 1)
 
         # Spatial attention pooling
-        attended, _ = self.spatial_attention(
-            features_flat, features_flat, features_flat
-        )
+        attended, _ = self.spatial_attention(features_flat, features_flat, features_flat)
 
         # Global pooling
         pooled = attended.mean(dim=1)  # [batch, channels]
@@ -159,6 +159,7 @@ class VisualEncoder(nn.Module):
         # Final projection
         embedding = self.fc(pooled)
         return F.normalize(embedding, p=2, dim=1)
+
 
 class StyleAttributeExtractor(nn.Module):
     """
@@ -188,32 +189,24 @@ class StyleAttributeExtractor(nn.Module):
             nn.MaxPool2d(2),
             nn.Conv2d(128, 256, 3, padding=1),
             nn.ReLU(),
-            nn.AdaptiveAvgPool2d((7, 7))
+            nn.AdaptiveAvgPool2d((7, 7)),
         )
 
         # Attribute-specific heads
         self.color_head = nn.Sequential(
-            nn.Linear(256 * 7 * 7, 512),
-            nn.ReLU(),
-            nn.Linear(512, attribute_dim)
+            nn.Linear(256 * 7 * 7, 512), nn.ReLU(), nn.Linear(512, attribute_dim)
         )
 
         self.pattern_head = nn.Sequential(
-            nn.Linear(256 * 7 * 7, 512),
-            nn.ReLU(),
-            nn.Linear(512, attribute_dim)
+            nn.Linear(256 * 7 * 7, 512), nn.ReLU(), nn.Linear(512, attribute_dim)
         )
 
         self.silhouette_head = nn.Sequential(
-            nn.Linear(256 * 7 * 7, 512),
-            nn.ReLU(),
-            nn.Linear(512, attribute_dim)
+            nn.Linear(256 * 7 * 7, 512), nn.ReLU(), nn.Linear(512, attribute_dim)
         )
 
         self.material_head = nn.Sequential(
-            nn.Linear(256 * 7 * 7, 512),
-            nn.ReLU(),
-            nn.Linear(512, attribute_dim)
+            nn.Linear(256 * 7 * 7, 512), nn.ReLU(), nn.Linear(512, attribute_dim)
         )
 
     def forward(self, images: torch.Tensor) -> Dict[str, torch.Tensor]:
@@ -229,11 +222,12 @@ class StyleAttributeExtractor(nn.Module):
 
         # Extract each attribute
         return {
-            'color': F.normalize(self.color_head(features_flat), p=2, dim=1),
-            'pattern': F.normalize(self.pattern_head(features_flat), p=2, dim=1),
-            'silhouette': F.normalize(self.silhouette_head(features_flat), p=2, dim=1),
-            'material': F.normalize(self.material_head(features_flat), p=2, dim=1)
+            "color": F.normalize(self.color_head(features_flat), p=2, dim=1),
+            "pattern": F.normalize(self.pattern_head(features_flat), p=2, dim=1),
+            "silhouette": F.normalize(self.silhouette_head(features_flat), p=2, dim=1),
+            "material": F.normalize(self.material_head(features_flat), p=2, dim=1),
         }
+
 
 class CrossDomainAdapter(nn.Module):
     """
@@ -264,15 +258,12 @@ class CrossDomainAdapter(nn.Module):
             nn.Linear(256, 128),
             nn.ReLU(),
             nn.Linear(128, 1),
-            nn.Sigmoid()
+            nn.Sigmoid(),
         )
 
         # Adapter: user domain → catalog domain
         self.adapter = nn.Sequential(
-            nn.Linear(embedding_dim, 512),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(512, embedding_dim)
+            nn.Linear(embedding_dim, 512), nn.ReLU(), nn.Dropout(0.2), nn.Linear(512, embedding_dim)
         )
 
     def forward(self, user_embeddings: torch.Tensor) -> torch.Tensor:
@@ -290,6 +281,7 @@ class CrossDomainAdapter(nn.Module):
     def discriminate(self, embeddings: torch.Tensor) -> torch.Tensor:
         """Predict if embedding is from user photo (0) or catalog (1)"""
         return self.discriminator(embeddings)
+
 
 class StyleTransferEngine(nn.Module):
     """
@@ -320,7 +312,7 @@ class StyleTransferEngine(nn.Module):
             nn.Linear(embedding_dim + attribute_dim * 4, 1024),
             nn.ReLU(),
             nn.Dropout(0.2),
-            nn.Linear(1024, embedding_dim)
+            nn.Linear(1024, embedding_dim),
         )
 
     def transfer_style(
@@ -328,7 +320,7 @@ class StyleTransferEngine(nn.Module):
         content_image: torch.Tensor,
         style_image: torch.Tensor,
         style_attributes: List[StyleAttribute] = None,
-        intensity: float = 0.5
+        intensity: float = 0.5,
     ) -> torch.Tensor:
         """
         Transfer style from style_image to content_image
@@ -351,24 +343,27 @@ class StyleTransferEngine(nn.Module):
         # Select which attributes to transfer
         if style_attributes is None:
             # Transfer all attributes
-            style_vector = torch.cat([
-                style_attrs['color'],
-                style_attrs['pattern'],
-                style_attrs['silhouette'],
-                style_attrs['material']
-            ], dim=1)
+            style_vector = torch.cat(
+                [
+                    style_attrs["color"],
+                    style_attrs["pattern"],
+                    style_attrs["silhouette"],
+                    style_attrs["material"],
+                ],
+                dim=1,
+            )
         else:
             # Transfer only specified attributes
             attr_vectors = []
             for attr in style_attributes:
                 if attr == StyleAttribute.COLOR:
-                    attr_vectors.append(style_attrs['color'])
+                    attr_vectors.append(style_attrs["color"])
                 elif attr == StyleAttribute.PATTERN:
-                    attr_vectors.append(style_attrs['pattern'])
+                    attr_vectors.append(style_attrs["pattern"])
                 elif attr == StyleAttribute.SILHOUETTE:
-                    attr_vectors.append(style_attrs['silhouette'])
+                    attr_vectors.append(style_attrs["silhouette"])
                 elif attr == StyleAttribute.MATERIAL:
-                    attr_vectors.append(style_attrs['material'])
+                    attr_vectors.append(style_attrs["material"])
             style_vector = torch.cat(attr_vectors, dim=1)
 
         # Combine content + style
@@ -379,6 +374,7 @@ class StyleTransferEngine(nn.Module):
         transferred = intensity * transferred + (1 - intensity) * content_emb
 
         return F.normalize(transferred, p=2, dim=1)
+
 
 class VisualSearchSystem:
     """
@@ -403,10 +399,7 @@ class VisualSearchSystem:
         self.product_metadata = {}
 
     def search_by_image(
-        self,
-        query_image: torch.Tensor,
-        top_k: int = 20,
-        is_user_photo: bool = True
+        self, query_image: torch.Tensor, top_k: int = 20, is_user_photo: bool = True
     ) -> List[Dict[str, Any]]:
         """
         Search for products matching uploaded image
@@ -433,14 +426,16 @@ class VisualSearchSystem:
         results = []
         for product_id, product_emb in self.product_embeddings.items():
             similarity = np.dot(query_emb, product_emb)
-            results.append({
-                'product_id': product_id,
-                'similarity': float(similarity),
-                'product': self.product_metadata[product_id]
-            })
+            results.append(
+                {
+                    "product_id": product_id,
+                    "similarity": float(similarity),
+                    "product": self.product_metadata[product_id],
+                }
+            )
 
         # Sort by similarity
-        results.sort(key=lambda x: x['similarity'], reverse=True)
+        results.sort(key=lambda x: x["similarity"], reverse=True)
         return results[:top_k]
 
     def search_with_style_transfer(
@@ -448,7 +443,7 @@ class VisualSearchSystem:
         content_product_id: str,
         style_image: torch.Tensor,
         style_attributes: List[StyleAttribute] = None,
-        top_k: int = 20
+        top_k: int = 20,
     ) -> List[Dict[str, Any]]:
         """
         Find products like content_product with style from style_image
@@ -461,10 +456,7 @@ class VisualSearchSystem:
         with torch.no_grad():
             # Generate transferred embedding
             transferred_emb = self.style_transfer.transfer_style(
-                content_image,
-                style_image,
-                style_attributes=style_attributes,
-                intensity=0.7
+                content_image, style_image, style_attributes=style_attributes, intensity=0.7
             )
             transferred_emb = transferred_emb.cpu().numpy()[0]
 
@@ -472,14 +464,17 @@ class VisualSearchSystem:
         results = []
         for product_id, product_emb in self.product_embeddings.items():
             similarity = np.dot(transferred_emb, product_emb)
-            results.append({
-                'product_id': product_id,
-                'similarity': float(similarity),
-                'product': self.product_metadata[product_id]
-            })
+            results.append(
+                {
+                    "product_id": product_id,
+                    "similarity": float(similarity),
+                    "product": self.product_metadata[product_id],
+                }
+            )
 
-        results.sort(key=lambda x: x['similarity'], reverse=True)
+        results.sort(key=lambda x: x["similarity"], reverse=True)
         return results[:top_k]
+
 
 def visual_search_example():
     """
@@ -534,7 +529,7 @@ def visual_search_example():
         content_product_id="JEANS_BASE",
         style_image=style_image,
         style_attributes=[StyleAttribute.COLOR],
-        top_k=5
+        top_k=5,
     )
 
     print("Matching jeans:")
@@ -588,6 +583,7 @@ def visual_search_example():
     print("- Returns: -15% (better expectations)")
     print()
     print("→ Visual search transforms product discovery")
+
 
 # Uncomment to run:
 # visual_search_example()

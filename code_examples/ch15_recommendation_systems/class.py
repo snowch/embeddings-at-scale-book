@@ -29,19 +29,24 @@ import torch.nn.functional as F
 
 class CollaborativeFilteringModel(nn.Module):
     """Placeholder for CollaborativeFilteringModel."""
+
     def __init__(self):
         super().__init__()
 
     def forward(self, user_ids, item_ids):
         import torch
+
         return torch.randn(len(user_ids))
+
 
 @dataclass
 class Interaction:
     """Placeholder for Interaction."""
+
     user_id: str
     item_id: str
     rating: float = 0.0
+
 
 class ContentBasedItemEmbedding(nn.Module):
     """
@@ -60,19 +65,12 @@ class ContentBasedItemEmbedding(nn.Module):
     3. Insert into recommendation index immediately
     """
 
-    def __init__(
-        self,
-        content_dim: int = 512,
-        embedding_dim: int = 128
-    ):
+    def __init__(self, content_dim: int = 512, embedding_dim: int = 128):
         super().__init__()
 
         # Content encoder
         self.content_encoder = nn.Sequential(
-            nn.Linear(content_dim, 256),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(256, embedding_dim)
+            nn.Linear(content_dim, 256), nn.ReLU(), nn.Dropout(0.2), nn.Linear(256, embedding_dim)
         )
 
     def forward(self, content_features: torch.Tensor) -> torch.Tensor:
@@ -88,6 +86,7 @@ class ContentBasedItemEmbedding(nn.Module):
         emb = self.content_encoder(content_features)
         emb = F.normalize(emb, p=2, dim=1)
         return emb
+
 
 class MetaLearningRecommender(nn.Module):
     """
@@ -111,11 +110,7 @@ class MetaLearningRecommender(nn.Module):
     - Generate recommendations
     """
 
-    def __init__(
-        self,
-        embedding_dim: int = 128,
-        num_items: int = 10000
-    ):
+    def __init__(self, embedding_dim: int = 128, num_items: int = 10000):
         super().__init__()
         self.embedding_dim = embedding_dim
 
@@ -124,16 +119,10 @@ class MetaLearningRecommender(nn.Module):
 
         # User preference model (learns from support set)
         self.preference_model = nn.Sequential(
-            nn.Linear(embedding_dim, 128),
-            nn.ReLU(),
-            nn.Linear(128, 1)
+            nn.Linear(embedding_dim, 128), nn.ReLU(), nn.Linear(128, 1)
         )
 
-    def forward(
-        self,
-        item_ids: torch.Tensor,
-        user_context: torch.Tensor
-    ) -> torch.Tensor:
+    def forward(self, item_ids: torch.Tensor, user_context: torch.Tensor) -> torch.Tensor:
         """
         Predict preferences given user context
 
@@ -161,7 +150,7 @@ class MetaLearningRecommender(nn.Module):
         support_items: torch.Tensor,
         support_labels: torch.Tensor,
         num_steps: int = 5,
-        learning_rate: float = 0.01
+        learning_rate: float = 0.01,
     ) -> torch.Tensor:
         """
         Adapt to new user from support set
@@ -196,6 +185,7 @@ class MetaLearningRecommender(nn.Module):
 
         return user_context.detach()
 
+
 class HybridRecommender:
     """
     Hybrid collaborative + content-based recommender
@@ -221,7 +211,7 @@ class HybridRecommender:
         self,
         collaborative_model: CollaborativeFilteringModel,
         content_model: ContentBasedItemEmbedding,
-        cold_start_threshold: int = 10
+        cold_start_threshold: int = 10,
     ):
         """
         Args:
@@ -250,10 +240,7 @@ class HybridRecommender:
         return min(num_interactions / self.cold_start_threshold, 1.0)
 
     def recommend_hybrid(
-        self,
-        user_id: str,
-        item_features: Dict[str, np.ndarray],
-        top_k: int = 10
+        self, user_id: str, item_features: Dict[str, np.ndarray], top_k: int = 10
     ) -> List[Tuple[str, float]]:
         """
         Generate recommendations with hybrid approach
@@ -303,6 +290,7 @@ class HybridRecommender:
         sorted_items = sorted(recommendations.items(), key=lambda x: x[1], reverse=True)
         return sorted_items[:top_k]
 
+
 # Example: Cold start for new user
 def cold_start_example():
     """
@@ -333,12 +321,7 @@ def cold_start_example():
     print("  Movie 12 (Action)")
 
     # Adapt to user preferences
-    user_context = model.adapt(
-        support_items,
-        support_labels,
-        num_steps=10,
-        learning_rate=0.01
-    )
+    user_context = model.adapt(support_items, support_labels, num_steps=10, learning_rate=0.01)
 
     print("\n✓ Adapted user context from 2 examples")
 
@@ -353,6 +336,7 @@ def cold_start_example():
 
     for idx, score in zip(top_indices, top_scores):
         print(f"  Movie {idx.item()}: score = {score.item():.3f}")
+
 
 # Uncomment to run:
 # cold_start_example()

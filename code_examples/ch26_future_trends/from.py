@@ -29,6 +29,7 @@ import numpy as np
 @dataclass
 class DynamicEmbeddingContext:
     """Context for dynamic embedding generation"""
+
     conversation_history: List[str]
     task_description: str
     user_preferences: Dict[str, Any]
@@ -36,15 +37,18 @@ class DynamicEmbeddingContext:
     timestamp: datetime
     causal_graph: Optional[Dict] = None
 
+
 @dataclass
 class ContextualEmbedding:
     """Embedding with context and metadata"""
+
     vector: np.ndarray
     context: DynamicEmbeddingContext
     confidence: float
     explanation: str
     alternatives: List[Tuple[np.ndarray, float]]  # Alternative embeddings with probabilities
     causal_factors: Dict[str, float]  # Causal attribution
+
 
 class AGIEmbeddingSystem:
     """
@@ -59,12 +63,7 @@ class AGIEmbeddingSystem:
     - Explanation generation
     """
 
-    def __init__(
-        self,
-        base_dim: int = 1024,
-        memory_size: int = 10000,
-        num_modalities: int = 5
-    ):
+    def __init__(self, base_dim: int = 1024, memory_size: int = 10000, num_modalities: int = 5):
         self.base_dim = base_dim
         self.memory_size = memory_size
         self.num_modalities = num_modalities
@@ -88,7 +87,7 @@ class AGIEmbeddingSystem:
     def embed_with_context(
         self,
         content: Dict[str, np.ndarray],  # Multi-modal content
-        context: DynamicEmbeddingContext
+        context: DynamicEmbeddingContext,
     ) -> ContextualEmbedding:
         """
         Generate context-aware embedding for multi-modal content
@@ -112,36 +111,29 @@ class AGIEmbeddingSystem:
 
         # Compute alternative embeddings (uncertainty)
         alternatives = self._generate_alternatives(
-            integrated_embedding,
-            context_vector,
-            num_alternatives=3
+            integrated_embedding, context_vector, num_alternatives=3
         )
 
         # Estimate confidence
-        confidence = self._estimate_confidence(
-            contextualized,
-            relevant_memories,
-            alternatives
-        )
+        confidence = self._estimate_confidence(contextualized, relevant_memories, alternatives)
 
         # Generate explanation
         explanation = self._generate_explanation(
-            content,
-            context,
-            contextualized,
-            relevant_memories
+            content, context, contextualized, relevant_memories
         )
 
         # Causal attribution
         causal_factors = self._attribute_causes(content, context)
 
         # Store in episodic memory for future learning
-        self._store_episode({
-            'content': content,
-            'context': context,
-            'embedding': contextualized,
-            'timestamp': datetime.now()
-        })
+        self._store_episode(
+            {
+                "content": content,
+                "context": context,
+                "embedding": contextualized,
+                "timestamp": datetime.now(),
+            }
+        )
 
         return ContextualEmbedding(
             vector=contextualized,
@@ -149,13 +141,10 @@ class AGIEmbeddingSystem:
             confidence=confidence,
             explanation=explanation,
             alternatives=alternatives,
-            causal_factors=causal_factors
+            causal_factors=causal_factors,
         )
 
-    def _integrate_modalities(
-        self,
-        content: Dict[str, np.ndarray]
-    ) -> np.ndarray:
+    def _integrate_modalities(self, content: Dict[str, np.ndarray]) -> np.ndarray:
         """
         Integrate multi-modal content into unified embedding
 
@@ -185,11 +174,7 @@ class AGIEmbeddingSystem:
 
         return integrated
 
-    def _project_to_shared_space(
-        self,
-        features: np.ndarray,
-        modality: str
-    ) -> np.ndarray:
+    def _project_to_shared_space(self, features: np.ndarray, modality: str) -> np.ndarray:
         """Project modality-specific features to shared semantic space"""
         # Learned projection (in practice, neural network)
         # For simplicity, use random projection
@@ -201,20 +186,13 @@ class AGIEmbeddingSystem:
 
         return projected / (np.linalg.norm(projected) + 1e-10)
 
-    def _compute_modality_weight(
-        self,
-        modality: str,
-        features: np.ndarray
-    ) -> float:
+    def _compute_modality_weight(self, modality: str, features: np.ndarray) -> float:
         """Compute attention weight for modality"""
         # Simple heuristic: weight by feature magnitude
         weight = np.linalg.norm(features)
         return weight / (1 + weight)  # Normalize to [0, 1]
 
-    def _encode_context(
-        self,
-        context: DynamicEmbeddingContext
-    ) -> np.ndarray:
+    def _encode_context(self, context: DynamicEmbeddingContext) -> np.ndarray:
         """Encode context into vector representation"""
         context_embedding = np.zeros(self.base_dim)
 
@@ -235,11 +213,7 @@ class AGIEmbeddingSystem:
 
         return context_embedding
 
-    def _apply_context(
-        self,
-        embedding: np.ndarray,
-        context: np.ndarray
-    ) -> np.ndarray:
+    def _apply_context(self, embedding: np.ndarray, context: np.ndarray) -> np.ndarray:
         """Apply context transformation to embedding"""
         # Context-dependent transformation
         # In practice: attention mechanism or conditional layer norm
@@ -253,10 +227,7 @@ class AGIEmbeddingSystem:
 
         return contextualized
 
-    def _retrieve_memories(
-        self,
-        context: DynamicEmbeddingContext
-    ) -> List[Dict]:
+    def _retrieve_memories(self, context: DynamicEmbeddingContext) -> List[Dict]:
         """Retrieve relevant memories from semantic memory"""
         # Encode context query
         query = self._encode_context(context)
@@ -270,7 +241,7 @@ class AGIEmbeddingSystem:
         relevant_episodes = []
         for episode in reversed(self.episodic_memory[-100:]):
             # Check relevance
-            episode_emb = episode.get('embedding', np.random.randn(self.base_dim))
+            episode_emb = episode.get("embedding", np.random.randn(self.base_dim))
             relevance = np.dot(episode_emb, query)
             if relevance > 0.7:
                 relevant_episodes.append(episode)
@@ -280,10 +251,7 @@ class AGIEmbeddingSystem:
         return relevant_episodes
 
     def _generate_alternatives(
-        self,
-        base_embedding: np.ndarray,
-        context: np.ndarray,
-        num_alternatives: int = 3
+        self, base_embedding: np.ndarray, context: np.ndarray, num_alternatives: int = 3
     ) -> List[Tuple[np.ndarray, float]]:
         """Generate alternative embeddings with probabilities"""
         alternatives = []
@@ -310,7 +278,7 @@ class AGIEmbeddingSystem:
         self,
         embedding: np.ndarray,
         memories: List[Dict],
-        alternatives: List[Tuple[np.ndarray, float]]
+        alternatives: List[Tuple[np.ndarray, float]],
     ) -> float:
         """Estimate confidence in embedding"""
         # Factors:
@@ -321,8 +289,7 @@ class AGIEmbeddingSystem:
         # Memory consistency
         if memories:
             memory_similarities = [
-                np.dot(embedding, m.get('embedding', embedding))
-                for m in memories
+                np.dot(embedding, m.get("embedding", embedding)) for m in memories
             ]
             memory_confidence = np.mean(memory_similarities)
         else:
@@ -344,16 +311,20 @@ class AGIEmbeddingSystem:
         content: Dict[str, np.ndarray],
         context: DynamicEmbeddingContext,
         embedding: np.ndarray,
-        memories: List[Dict]
+        memories: List[Dict],
     ) -> str:
         """Generate human-readable explanation of embedding"""
         # In practice, use language model to generate explanation
 
         modalities = list(content.keys())
-        explanation = f"Embedding integrates {len(modalities)} modalities: {', '.join(modalities)}. "
+        explanation = (
+            f"Embedding integrates {len(modalities)} modalities: {', '.join(modalities)}. "
+        )
 
         if context.conversation_history:
-            explanation += f"Informed by {len(context.conversation_history)} previous interactions. "
+            explanation += (
+                f"Informed by {len(context.conversation_history)} previous interactions. "
+            )
 
         if memories:
             explanation += f"Connected to {len(memories)} relevant memories. "
@@ -363,9 +334,7 @@ class AGIEmbeddingSystem:
         return explanation
 
     def _attribute_causes(
-        self,
-        content: Dict[str, np.ndarray],
-        context: DynamicEmbeddingContext
+        self, content: Dict[str, np.ndarray], context: DynamicEmbeddingContext
     ) -> Dict[str, float]:
         """Attribute causal factors to embedding"""
         # Simplified causal attribution
@@ -402,46 +371,42 @@ class AGIEmbeddingSystem:
     def _consolidate_to_semantic_memory(self, episodes: List[Dict]):
         """Consolidate episodic memories to semantic memory"""
         # Extract embeddings
-        embeddings = [e.get('embedding', np.zeros(self.base_dim)) for e in episodes]
+        embeddings = [e.get("embedding", np.zeros(self.base_dim)) for e in episodes]
 
         # Update semantic memory (simplified)
         for i, embedding in enumerate(embeddings):
             if i < len(self.semantic_memory):
                 # Incremental update
-                self.semantic_memory[i] = (
-                    (1 - self.forgetting_rate) * self.semantic_memory[i] +
-                    self.forgetting_rate * embedding
-                )
+                self.semantic_memory[i] = (1 - self.forgetting_rate) * self.semantic_memory[
+                    i
+                ] + self.forgetting_rate * embedding
 
-    def continual_learn(
-        self,
-        feedback: Dict[str, Any]
-    ):
+    def continual_learn(self, feedback: Dict[str, Any]):
         """
         Continual learning from feedback
 
         Updates system based on user feedback, corrections, or outcomes
         """
         # Extract learning signal
-        if 'correct_embedding' in feedback:
-            target = feedback['correct_embedding']
-            predicted = feedback['predicted_embedding']
+        if "correct_embedding" in feedback:
+            target = feedback["correct_embedding"]
+            predicted = feedback["predicted_embedding"]
 
             # Compute gradient direction
             gradient = target - predicted
 
             # Update recent memories
             for episode in self.episodic_memory[-10:]:
-                if 'embedding' in episode:
-                    episode['embedding'] += self.adaptation_rate * gradient
+                if "embedding" in episode:
+                    episode["embedding"] += self.adaptation_rate * gradient
                     # Normalize
-                    episode['embedding'] = episode['embedding'] / (
-                        np.linalg.norm(episode['embedding']) + 1e-10
+                    episode["embedding"] = episode["embedding"] / (
+                        np.linalg.norm(episode["embedding"]) + 1e-10
                     )
 
         # Update causal graph
-        if 'causal_link' in feedback:
-            cause, effect = feedback['causal_link']
+        if "causal_link" in feedback:
+            cause, effect = feedback["causal_link"]
             if cause not in self.causal_graph:
                 self.causal_graph[cause] = []
             if effect not in self.causal_graph[cause]:
@@ -457,9 +422,9 @@ def demonstrate_agi_embedding():
 
     # Multi-modal content
     content = {
-        'text': np.random.randn(512),
-        'vision': np.random.randn(512),
-        'audio': np.random.randn(512)
+        "text": np.random.randn(512),
+        "vision": np.random.randn(512),
+        "audio": np.random.randn(512),
     }
 
     # Rich context
@@ -467,18 +432,12 @@ def demonstrate_agi_embedding():
         conversation_history=[
             "Tell me about machine learning",
             "I'm interested in neural networks",
-            "How do embeddings work?"
+            "How do embeddings work?",
         ],
         task_description="Educational Q&A about AI concepts",
-        user_preferences={
-            'expertise_level': 'intermediate',
-            'preferred_modality': 'visual'
-        },
-        environmental_state={
-            'time_of_day': 'afternoon',
-            'device': 'laptop'
-        },
-        timestamp=datetime.now()
+        user_preferences={"expertise_level": "intermediate", "preferred_modality": "visual"},
+        environmental_state={"time_of_day": "afternoon", "device": "laptop"},
+        timestamp=datetime.now(),
     )
 
     # Generate contextual embedding
@@ -495,13 +454,13 @@ def demonstrate_agi_embedding():
 
     print("\nAlternative Embeddings (uncertainty):")
     for i, (_alt_emb, prob) in enumerate(result.alternatives):
-        print(f"  Alternative {i+1}: probability = {prob:.3f}")
+        print(f"  Alternative {i + 1}: probability = {prob:.3f}")
 
     # Simulate feedback and continual learning
     feedback = {
-        'predicted_embedding': result.vector,
-        'correct_embedding': result.vector + np.random.randn(512) * 0.05,
-        'causal_link': ('text_modality', 'understanding_quality')
+        "predicted_embedding": result.vector,
+        "correct_embedding": result.vector + np.random.randn(512) * 0.05,
+        "causal_link": ("text_modality", "understanding_quality"),
     }
 
     system.continual_learn(feedback)

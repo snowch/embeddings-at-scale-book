@@ -33,6 +33,7 @@ Production considerations:
 - Auditability: Explain why violations were flagged
 """
 
+
 @dataclass
 class ComplianceRule:
     """
@@ -47,6 +48,7 @@ class ComplianceRule:
         actions: Actions to take when triggered
         embedding: Learned rule embedding
     """
+
     rule_id: str
     rule_type: str
     description: str
@@ -54,6 +56,7 @@ class ComplianceRule:
     severity: str
     actions: List[str]
     embedding: Optional[np.ndarray] = None
+
 
 @dataclass
 class ComplianceEvent:
@@ -70,6 +73,7 @@ class ComplianceEvent:
         risk_score: Compliance risk score (0-1)
         requires_review: Whether manual review needed
     """
+
     event_id: str
     event_type: str
     timestamp: float
@@ -78,6 +82,7 @@ class ComplianceEvent:
     matched_rules: List[str]
     risk_score: float
     requires_review: bool
+
 
 class ComplianceEncoder(nn.Module):
     """
@@ -102,29 +107,21 @@ class ComplianceEncoder(nn.Module):
             hidden_size=256,
             num_layers=2,
             batch_first=True,
-            dropout=0.2
+            dropout=0.2,
         )
 
         # Structured data encoder (for transaction features)
         self.structured_encoder = nn.Sequential(
-            nn.Linear(50, 128),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(128, 256)
+            nn.Linear(50, 128), nn.ReLU(), nn.Dropout(0.2), nn.Linear(128, 256)
         )
 
         # Fusion
         self.fusion = nn.Sequential(
-            nn.Linear(512, 256),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(256, embedding_dim)
+            nn.Linear(512, 256), nn.ReLU(), nn.Dropout(0.2), nn.Linear(256, embedding_dim)
         )
 
     def forward(
-        self,
-        text_embeddings: torch.Tensor,
-        structured_features: torch.Tensor
+        self, text_embeddings: torch.Tensor, structured_features: torch.Tensor
     ) -> torch.Tensor:
         """
         Encode compliance rules or events
@@ -151,6 +148,7 @@ class ComplianceEncoder(nn.Module):
         compliance_emb = F.normalize(compliance_emb, p=2, dim=1)
 
         return compliance_emb
+
 
 # Example: AML transaction monitoring
 def aml_monitoring_example():
@@ -239,6 +237,7 @@ def aml_monitoring_example():
     print("SAR filings: 600 per day")
     print("Regulatory compliance: 100%")
     print("\n→ Effective detection with manageable false positives")
+
 
 # Uncomment to run:
 # aml_monitoring_example()

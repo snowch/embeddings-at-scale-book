@@ -42,15 +42,10 @@ class ContrastiveDataset(data.Dataset):
             self.cache[idx] = text
 
         # Generate two augmented views
-        view1 = self.augmenter.augment_simple(text, method='random_deletion')
-        view2 = self.augmenter.augment_simple(text, method='synonym_replacement')
+        view1 = self.augmenter.augment_simple(text, method="random_deletion")
+        view2 = self.augmenter.augment_simple(text, method="synonym_replacement")
 
-        return {
-            'view1': view1,
-            'view2': view2,
-            'original': text,
-            'idx': idx
-        }
+        return {"view1": view1, "view2": view2, "original": text, "idx": idx}
 
 
 class DistributedContrastiveDataLoader:
@@ -75,10 +70,7 @@ class DistributedContrastiveDataLoader:
 
         # Sampler ensures each GPU gets different data
         self.sampler = torch.utils.data.distributed.DistributedSampler(
-            dataset,
-            num_replicas=world_size,
-            rank=rank,
-            shuffle=True
+            dataset, num_replicas=world_size, rank=rank, shuffle=True
         )
 
         self.dataloader = torch.utils.data.DataLoader(
@@ -87,7 +79,7 @@ class DistributedContrastiveDataLoader:
             sampler=self.sampler,
             num_workers=4,
             pin_memory=True,
-            drop_last=True  # Important for contrastive learning
+            drop_last=True,  # Important for contrastive learning
         )
 
     def __iter__(self):

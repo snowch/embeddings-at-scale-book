@@ -4,6 +4,7 @@
 # Placeholder cache class
 class EmbeddingCache:
     """Simple cache for embeddings. Placeholder implementation."""
+
     def __init__(self, max_size=10_000_000):
         self.cache = {}
         self.max_size = max_size
@@ -14,6 +15,7 @@ class EmbeddingCache:
     def put(self, key, value):
         if len(self.cache) < self.max_size:
             self.cache[key] = value
+
 
 class EfficientMultiModalEncoding:
     """Optimize multi-modal encoding costs"""
@@ -28,7 +30,7 @@ class EfficientMultiModalEncoding:
     def encode_batch(self, items, modalities=None):
         """Encode multiple items in batch"""
         if modalities is None:
-            modalities = ['text', 'image']
+            modalities = ["text", "image"]
         results = []
 
         for modality in modalities:
@@ -53,9 +55,9 @@ class EfficientMultiModalEncoding:
 
             # Encode uncached data in batch
             if uncached_data:
-                if modality == 'text':
+                if modality == "text":
                     embeddings = self.text_encoder.encode(uncached_data, batch_size=self.batch_size)
-                elif modality == 'image':
+                elif modality == "image":
                     embeddings = self.image_encoder.encode_batch(uncached_data)
 
                 # Cache and store results

@@ -71,12 +71,14 @@ class EmbeddingNet(nn.Module):
         prev_dim = input_dim
 
         for hidden_dim in hidden_dims:
-            layers.extend([
-                nn.Linear(prev_dim, hidden_dim),
-                nn.BatchNorm1d(hidden_dim),
-                nn.ReLU(),
-                nn.Dropout(0.3)
-            ])
+            layers.extend(
+                [
+                    nn.Linear(prev_dim, hidden_dim),
+                    nn.BatchNorm1d(hidden_dim),
+                    nn.ReLU(),
+                    nn.Dropout(0.3),
+                ]
+            )
             prev_dim = hidden_dim
 
         # Final embedding layer
@@ -98,7 +100,7 @@ class EmbeddingNet(nn.Module):
 
 
 # Example: Building a Siamese network for enterprise use
-def create_enterprise_siamese_network(input_type='tabular', input_dim=None):
+def create_enterprise_siamese_network(input_type="tabular", input_dim=None):
     """
     Factory function for creating Siamese networks
 
@@ -110,26 +112,26 @@ def create_enterprise_siamese_network(input_type='tabular', input_dim=None):
         SiameseNetwork instance configured for the input type
     """
 
-    if input_type == 'tabular':
+    if input_type == "tabular":
         if input_dim is None:
             raise ValueError("input_dim required for tabular data")
         embedding_net = EmbeddingNet(
-            input_dim=input_dim,
-            embedding_dim=512,
-            hidden_dims=[1024, 768, 512]
+            input_dim=input_dim, embedding_dim=512, hidden_dims=[1024, 768, 512]
         )
 
-    elif input_type == 'image':
+    elif input_type == "image":
         # Use pre-trained ResNet
         import torchvision.models as models
+
         resnet = models.resnet50(pretrained=True)
         # Remove classification head
         embedding_net = nn.Sequential(*list(resnet.children())[:-1])
 
-    elif input_type == 'text':
+    elif input_type == "text":
         # Use transformer-based encoder
         from transformers import AutoModel
-        embedding_net = AutoModel.from_pretrained('bert-base-uncased')
+
+        embedding_net = AutoModel.from_pretrained("bert-base-uncased")
 
     else:
         raise ValueError(f"Unknown input_type: {input_type}")

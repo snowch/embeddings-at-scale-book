@@ -12,6 +12,7 @@ def keyword_search(query, documents):
             results.append((doc, score))
     return sorted(results, key=lambda x: x[1], reverse=True)
 
+
 # Problems:
 # - "laptop" doesn't match "notebook computer"
 # - "running shoes" doesn't match "athletic footwear"

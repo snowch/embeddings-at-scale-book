@@ -3,6 +3,7 @@ import torch.nn.functional as F
 # Code from Chapter 05
 # Book: Embeddings at Scale
 
+
 class DebiasedHardNegativeMining:
     """
     Filter out false negatives from hard negative candidates
@@ -23,8 +24,7 @@ class DebiasedHardNegativeMining:
         self.embedding_dim = embedding_dim
         self.cross_encoder = cross_encoder
 
-    def filter_with_cross_encoder(self, anchor_texts, negative_candidates,
-                                  threshold=0.3):
+    def filter_with_cross_encoder(self, anchor_texts, negative_candidates, threshold=0.3):
         """
         Use cross-encoder to filter out false negatives
 
@@ -49,17 +49,13 @@ class DebiasedHardNegativeMining:
             scores = self.cross_encoder.predict(pairs)
 
             # Filter out candidates with high similarity (likely false negatives)
-            filtered = [
-                cand for cand, score in zip(candidates, scores)
-                if score < threshold
-            ]
+            filtered = [cand for cand, score in zip(candidates, scores) if score < threshold]
 
             filtered_negatives.append(filtered)
 
         return filtered_negatives
 
-    def filter_with_clustering(self, embeddings, hard_negative_indices,
-                              cluster_threshold=0.8):
+    def filter_with_clustering(self, embeddings, hard_negative_indices, cluster_threshold=0.8):
         """
         Filter negatives that cluster with positives
 
@@ -78,9 +74,7 @@ class DebiasedHardNegativeMining:
 
         # Cluster embeddings
         clustering = AgglomerativeClustering(
-            n_clusters=None,
-            distance_threshold=1 - cluster_threshold,
-            linkage='average'
+            n_clusters=None, distance_threshold=1 - cluster_threshold, linkage="average"
         )
 
         labels = clustering.fit_predict(embeddings)
@@ -92,17 +86,15 @@ class DebiasedHardNegativeMining:
             query_cluster = labels[query_idx]
 
             # Keep negatives from different clusters
-            filtered = [
-                neg_idx for neg_idx in neg_indices
-                if labels[neg_idx] != query_cluster
-            ]
+            filtered = [neg_idx for neg_idx in neg_indices if labels[neg_idx] != query_cluster]
 
             filtered_indices.append(filtered)
 
         return filtered_indices
 
-    def confidence_based_filtering(self, anchor_emb, positive_emb,
-                                   negative_candidates, min_margin=0.1):
+    def confidence_based_filtering(
+        self, anchor_emb, positive_emb, negative_candidates, min_margin=0.1
+    ):
         """
         Filter negatives too similar to positive
 
@@ -128,11 +120,7 @@ class DebiasedHardNegativeMining:
 
         for i in range(len(anchor_emb)):
             # Negative similarities
-            neg_sims = F.cosine_similarity(
-                anchor_norm[i:i+1],
-                negative_candidates[i],
-                dim=1
-            )
+            neg_sims = F.cosine_similarity(anchor_norm[i : i + 1], negative_candidates[i], dim=1)
 
             # Filter: keep negatives with sim < pos_sim - margin
             threshold = pos_sim[i] - min_margin

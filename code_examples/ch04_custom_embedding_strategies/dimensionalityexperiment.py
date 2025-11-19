@@ -3,6 +3,7 @@ import pandas as pd
 # Code from Chapter 04
 # Book: Embeddings at Scale
 
+
 class DimensionalityExperiment:
     """
     Systematically evaluate different embedding dimensions
@@ -29,14 +30,16 @@ class DimensionalityExperiment:
             storage_gb = self.estimate_storage(dim, num_embeddings=100_000_000)
             latency_ms = self.measure_latency(model)
 
-            results.append({
-                'dimension': dim,
-                'recall@10': metrics['recall@10'],
-                'mrr': metrics['mrr'],
-                'storage_gb': storage_gb,
-                'p99_latency_ms': latency_ms,
-                'cost_per_1m_queries': self.estimate_query_cost(dim)
-            })
+            results.append(
+                {
+                    "dimension": dim,
+                    "recall@10": metrics["recall@10"],
+                    "mrr": metrics["mrr"],
+                    "storage_gb": storage_gb,
+                    "p99_latency_ms": latency_ms,
+                    "cost_per_1m_queries": self.estimate_query_cost(dim),
+                }
+            )
 
         return pd.DataFrame(results)
 
@@ -52,17 +55,17 @@ class DimensionalityExperiment:
             Optimal dimension
         """
         # Normalize quality metrics to [0, 1]
-        max_recall = results['recall@10'].max()
-        results['normalized_quality'] = results['recall@10'] / max_recall
+        max_recall = results["recall@10"].max()
+        results["normalized_quality"] = results["recall@10"] / max_recall
 
         # Filter to dimensions meeting quality threshold
-        acceptable = results[results['normalized_quality'] >= quality_threshold]
+        acceptable = results[results["normalized_quality"] >= quality_threshold]
 
         if acceptable.empty:
-            return results.loc[results['recall@10'].idxmax(), 'dimension']
+            return results.loc[results["recall@10"].idxmax(), "dimension"]
 
         # Among acceptable dimensions, choose smallest (cheapest)
-        optimal_dim = acceptable.loc[acceptable['dimension'].idxmin(), 'dimension']
+        optimal_dim = acceptable.loc[acceptable["dimension"].idxmin(), "dimension"]
 
         return optimal_dim
 

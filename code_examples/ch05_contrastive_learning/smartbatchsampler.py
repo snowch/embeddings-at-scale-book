@@ -1,6 +1,7 @@
 # Code from Chapter 05
 # Book: Embeddings at Scale
 
+
 class SmartBatchSampler:
     """
     Intelligent batch composition for contrastive learning
@@ -53,10 +54,7 @@ class SmartBatchSampler:
 
             for idx in remaining_indices:
                 # Similarities to all selected examples
-                sims = cosine_similarity(
-                    embeddings[idx:idx+1],
-                    embeddings[selected_indices]
-                )[0]
+                sims = cosine_similarity(embeddings[idx : idx + 1], embeddings[selected_indices])[0]
 
                 # Minimum similarity (most dissimilar from closest)
                 min_sim = sims.min()
@@ -71,8 +69,9 @@ class SmartBatchSampler:
 
         return selected_indices
 
-    def difficulty_balanced_batch(self, difficulty_scores, batch_size,
-                                  easy_ratio=0.3, medium_ratio=0.5):
+    def difficulty_balanced_batch(
+        self, difficulty_scores, batch_size, easy_ratio=0.3, medium_ratio=0.5
+    ):
         """
         Sample batch with balanced difficulty
 

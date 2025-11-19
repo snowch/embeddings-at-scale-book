@@ -55,6 +55,7 @@ class CacheEntry:
         version: Data version (for invalidation)
         compressed: Whether value is compressed
     """
+
     key: str
     value: Any
     size_bytes: int
@@ -64,6 +65,7 @@ class CacheEntry:
     ttl_seconds: Optional[int] = None
     version: int = 1
     compressed: bool = False
+
 
 @dataclass
 class CacheStats:
@@ -80,6 +82,7 @@ class CacheStats:
         avg_lookup_ms: Average lookup latency
         entries: Number of cached entries
     """
+
     hits: int = 0
     misses: int = 0
     evictions: int = 0
@@ -94,6 +97,7 @@ class CacheStats:
         total = self.hits + self.misses
         return self.hits / total if total > 0 else 0.0
 
+
 class MultiTierCache:
     """
     Multi-tier LRU cache for hot embeddings
@@ -107,10 +111,10 @@ class MultiTierCache:
 
     def __init__(
         self,
-        l1_capacity_mb: float = 1024,      # 1GB L1
-        l2_capacity_mb: float = 10240,     # 10GB L2
-        l3_capacity_mb: float = 102400,    # 100GB L3
-        enable_compression: bool = True
+        l1_capacity_mb: float = 1024,  # 1GB L1
+        l2_capacity_mb: float = 10240,  # 10GB L2
+        l3_capacity_mb: float = 102400,  # 100GB L3
+        enable_compression: bool = True,
     ):
         self.l1_capacity_bytes = int(l1_capacity_mb * 1024 * 1024)
         self.l2_capacity_bytes = int(l2_capacity_mb * 1024 * 1024)
@@ -131,10 +135,10 @@ class MultiTierCache:
 
         # Statistics
         self.stats = {
-            'l1': CacheStats(),
-            'l2': CacheStats(),
-            'l3': CacheStats(),
-            'total': CacheStats()
+            "l1": CacheStats(),
+            "l2": CacheStats(),
+            "l3": CacheStats(),
+            "total": CacheStats(),
         }
 
         # Access frequency tracking for promotion/demotion
@@ -162,9 +166,9 @@ class MultiTierCache:
             # Move to end (most recently used)
             self.l1_cache.move_to_end(key)
 
-            self.stats['l1'].hits += 1
-            self.stats['total'].hits += 1
-            self._update_latency(start_time, 'l1')
+            self.stats["l1"].hits += 1
+            self.stats["total"].hits += 1
+            self._update_latency(start_time, "l1")
 
             return entry.value
 
@@ -177,14 +181,14 @@ class MultiTierCache:
 
             self.l2_cache.move_to_end(key)
 
-            self.stats['l2'].hits += 1
-            self.stats['total'].hits += 1
+            self.stats["l2"].hits += 1
+            self.stats["total"].hits += 1
 
             # Promote to L1 if accessed frequently
             if entry.access_count >= 10:
                 self._promote_to_l1(key, entry)
 
-            self._update_latency(start_time, 'l2')
+            self._update_latency(start_time, "l2")
             return entry.value
 
         # Check L3 cache
@@ -196,8 +200,8 @@ class MultiTierCache:
 
             self.l3_cache.move_to_end(key)
 
-            self.stats['l3'].hits += 1
-            self.stats['total'].hits += 1
+            self.stats["l3"].hits += 1
+            self.stats["total"].hits += 1
 
             # Decompress if needed
             value = entry.value
@@ -208,23 +212,18 @@ class MultiTierCache:
             if entry.access_count >= 5:
                 self._promote_to_l2(key, entry)
 
-            self._update_latency(start_time, 'l3')
+            self._update_latency(start_time, "l3")
             return value
 
         # Cache miss
-        self.stats['l1'].misses += 1
-        self.stats['l2'].misses += 1
-        self.stats['l3'].misses += 1
-        self.stats['total'].misses += 1
+        self.stats["l1"].misses += 1
+        self.stats["l2"].misses += 1
+        self.stats["l3"].misses += 1
+        self.stats["total"].misses += 1
 
         return None
 
-    def put(
-        self,
-        key: str,
-        value: Any,
-        tier: str = 'l1'
-    ) -> None:
+    def put(self, key: str, value: Any, tier: str = "l1") -> None:
         """
         Put value into cache at specified tier
 
@@ -237,18 +236,14 @@ class MultiTierCache:
         size_bytes = self._estimate_size(value)
 
         # Create entry
-        entry = CacheEntry(
-            key=key,
-            value=value,
-            size_bytes=size_bytes
-        )
+        entry = CacheEntry(key=key, value=value, size_bytes=size_bytes)
 
         # Put into appropriate tier
-        if tier == 'l1':
+        if tier == "l1":
             self._put_l1(key, entry)
-        elif tier == 'l2':
+        elif tier == "l2":
             self._put_l2(key, entry)
-        elif tier == 'l3':
+        elif tier == "l3":
             # Compress for L3 if enabled
             if self.enable_compression and isinstance(value, np.ndarray):
                 entry.value = self._compress(value)
@@ -267,8 +262,8 @@ class MultiTierCache:
         # Add entry
         self.l1_cache[key] = entry
         self.l1_size_bytes += entry.size_bytes
-        self.stats['l1'].entries += 1
-        self.stats['l1'].total_size_bytes = self.l1_size_bytes
+        self.stats["l1"].entries += 1
+        self.stats["l1"].total_size_bytes = self.l1_size_bytes
 
     def _put_l2(self, key: str, entry: CacheEntry) -> None:
         """Put entry into L2 cache"""
@@ -279,8 +274,8 @@ class MultiTierCache:
 
         self.l2_cache[key] = entry
         self.l2_size_bytes += entry.size_bytes
-        self.stats['l2'].entries += 1
-        self.stats['l2'].total_size_bytes = self.l2_size_bytes
+        self.stats["l2"].entries += 1
+        self.stats["l2"].total_size_bytes = self.l2_size_bytes
 
     def _put_l3(self, key: str, entry: CacheEntry) -> None:
         """Put entry into L3 cache"""
@@ -291,15 +286,15 @@ class MultiTierCache:
 
         self.l3_cache[key] = entry
         self.l3_size_bytes += entry.size_bytes
-        self.stats['l3'].entries += 1
-        self.stats['l3'].total_size_bytes = self.l3_size_bytes
+        self.stats["l3"].entries += 1
+        self.stats["l3"].total_size_bytes = self.l3_size_bytes
 
     def _evict_l1(self) -> None:
         """Evict LRU entry from L1, demote to L2"""
         key, entry = self.l1_cache.popitem(last=False)
         self.l1_size_bytes -= entry.size_bytes
-        self.stats['l1'].evictions += 1
-        self.stats['l1'].entries -= 1
+        self.stats["l1"].evictions += 1
+        self.stats["l1"].entries -= 1
 
         # Demote to L2
         self._put_l2(key, entry)
@@ -308,8 +303,8 @@ class MultiTierCache:
         """Evict LRU entry from L2, demote to L3"""
         key, entry = self.l2_cache.popitem(last=False)
         self.l2_size_bytes -= entry.size_bytes
-        self.stats['l2'].evictions += 1
-        self.stats['l2'].entries -= 1
+        self.stats["l2"].evictions += 1
+        self.stats["l2"].entries -= 1
 
         # Demote to L3
         self._put_l3(key, entry)
@@ -318,8 +313,8 @@ class MultiTierCache:
         """Evict LRU entry from L3"""
         key, entry = self.l3_cache.popitem(last=False)
         self.l3_size_bytes -= entry.size_bytes
-        self.stats['l3'].evictions += 1
-        self.stats['l3'].entries -= 1
+        self.stats["l3"].evictions += 1
+        self.stats["l3"].entries -= 1
 
     def _promote_to_l1(self, key: str, entry: CacheEntry) -> None:
         """Promote entry from L2 to L1"""
@@ -327,7 +322,7 @@ class MultiTierCache:
         if key in self.l2_cache:
             del self.l2_cache[key]
             self.l2_size_bytes -= entry.size_bytes
-            self.stats['l2'].entries -= 1
+            self.stats["l2"].entries -= 1
 
             # Add to L1
             self._put_l1(key, entry)
@@ -344,7 +339,7 @@ class MultiTierCache:
         if key in self.l3_cache:
             del self.l3_cache[key]
             self.l3_size_bytes -= entry.size_bytes
-            self.stats['l3'].entries -= 1
+            self.stats["l3"].entries -= 1
 
             # Add to L2
             self._put_l2(key, entry)
@@ -360,22 +355,22 @@ class MultiTierCache:
         if key in self.l1_cache:
             entry = self.l1_cache.pop(key)
             self.l1_size_bytes -= entry.size_bytes
-            self.stats['l1'].invalidations += 1
-            self.stats['l1'].entries -= 1
+            self.stats["l1"].invalidations += 1
+            self.stats["l1"].entries -= 1
 
         # Remove from L2
         if key in self.l2_cache:
             entry = self.l2_cache.pop(key)
             self.l2_size_bytes -= entry.size_bytes
-            self.stats['l2'].invalidations += 1
-            self.stats['l2'].entries -= 1
+            self.stats["l2"].invalidations += 1
+            self.stats["l2"].entries -= 1
 
         # Remove from L3
         if key in self.l3_cache:
             entry = self.l3_cache.pop(key)
             self.l3_size_bytes -= entry.size_bytes
-            self.stats['l3'].invalidations += 1
-            self.stats['l3'].entries -= 1
+            self.stats["l3"].invalidations += 1
+            self.stats["l3"].entries -= 1
 
         # Remove from frequency tracking
         if key in self.access_freq:
@@ -429,25 +424,20 @@ class MultiTierCache:
         # Exponential moving average
         alpha = 0.1
         current_avg = self.stats[tier].avg_lookup_ms
-        self.stats[tier].avg_lookup_ms = (
-            alpha * latency_ms + (1 - alpha) * current_avg
-        )
+        self.stats[tier].avg_lookup_ms = alpha * latency_ms + (1 - alpha) * current_avg
 
     def get_stats(self) -> Dict[str, CacheStats]:
         """Get cache statistics"""
         # Update total stats
-        self.stats['total'].entries = (
-            self.stats['l1'].entries +
-            self.stats['l2'].entries +
-            self.stats['l3'].entries
+        self.stats["total"].entries = (
+            self.stats["l1"].entries + self.stats["l2"].entries + self.stats["l3"].entries
         )
-        self.stats['total'].total_size_bytes = (
-            self.l1_size_bytes +
-            self.l2_size_bytes +
-            self.l3_size_bytes
+        self.stats["total"].total_size_bytes = (
+            self.l1_size_bytes + self.l2_size_bytes + self.l3_size_bytes
         )
 
         return self.stats
+
 
 class QueryResultCache:
     """
@@ -463,10 +453,7 @@ class QueryResultCache:
         self.stats = CacheStats()
 
     def get(
-        self,
-        query_vector: np.ndarray,
-        k: int,
-        filters: Optional[Dict[str, Any]] = None
+        self, query_vector: np.ndarray, k: int, filters: Optional[Dict[str, Any]] = None
     ) -> Optional[List[Tuple[str, float]]]:
         """
         Get cached query results
@@ -500,7 +487,7 @@ class QueryResultCache:
         query_vector: np.ndarray,
         k: int,
         filters: Optional[Dict[str, Any]],
-        results: List[Tuple[str, float]]
+        results: List[Tuple[str, float]],
     ) -> None:
         """
         Cache query results
@@ -523,22 +510,13 @@ class QueryResultCache:
             self._evict()
 
         # Create entry
-        entry = CacheEntry(
-            key=key,
-            value=results,
-            size_bytes=size_bytes
-        )
+        entry = CacheEntry(key=key, value=results, size_bytes=size_bytes)
 
         self.cache[key] = entry
         self.size_bytes += size_bytes
         self.stats.entries += 1
 
-    def _make_key(
-        self,
-        query_vector: np.ndarray,
-        k: int,
-        filters: Optional[Dict[str, Any]]
-    ) -> str:
+    def _make_key(self, query_vector: np.ndarray, k: int, filters: Optional[Dict[str, Any]]) -> str:
         """
         Create cache key from query parameters
 
@@ -563,6 +541,7 @@ class QueryResultCache:
         self.stats.evictions += 1
         self.stats.entries -= 1
 
+
 class AdaptivePrefetcher:
     """
     Adaptive prefetching based on query patterns
@@ -573,9 +552,7 @@ class AdaptivePrefetcher:
     def __init__(self, cache: MultiTierCache):
         self.cache = cache
         self.query_history: List[str] = []
-        self.transition_probs: Dict[str, Dict[str, float]] = defaultdict(
-            lambda: defaultdict(float)
-        )
+        self.transition_probs: Dict[str, Dict[str, float]] = defaultdict(lambda: defaultdict(float))
         self.history_size = 1000
 
     def record_access(self, key: str) -> None:
@@ -595,7 +572,7 @@ class AdaptivePrefetcher:
 
         # Trim history
         if len(self.query_history) > self.history_size:
-            self.query_history = self.query_history[-self.history_size:]
+            self.query_history = self.query_history[-self.history_size :]
 
     def prefetch(self, current_key: str, n: int = 10) -> List[str]:
         """
@@ -619,17 +596,10 @@ class AdaptivePrefetcher:
         if total == 0:
             return []
 
-        normalized = {
-            k: v / total
-            for k, v in transitions.items()
-        }
+        normalized = {k: v / total for k, v in transitions.items()}
 
         # Sort by probability
-        sorted_keys = sorted(
-            normalized.items(),
-            key=lambda x: x[1],
-            reverse=True
-        )
+        sorted_keys = sorted(normalized.items(), key=lambda x: x[1], reverse=True)
 
         # Return top-n
         return [k for k, _ in sorted_keys[:n]]

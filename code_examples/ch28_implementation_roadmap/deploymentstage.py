@@ -36,13 +36,16 @@ Key components:
 
 class DeploymentStage(Enum):
     """Deployment stages for pilot"""
+
     DEVELOPMENT = "development"
     STAGING = "staging"
     CANARY = "canary"
     PRODUCTION = "production"
 
+
 class PerformanceMetric(Enum):
     """Key performance metrics"""
+
     QUERY_LATENCY_P50 = "query_latency_p50"
     QUERY_LATENCY_P95 = "query_latency_p95"
     QUERY_LATENCY_P99 = "query_latency_p99"
@@ -52,9 +55,11 @@ class PerformanceMetric(Enum):
     EMBEDDING_QUALITY = "embedding_quality"
     CACHE_HIT_RATE = "cache_hit_rate"
 
+
 @dataclass
 class ServiceLevelObjective:
     """Service Level Objective (SLO) definition"""
+
     name: str
     metric: PerformanceMetric
     target_value: float
@@ -84,9 +89,11 @@ class ServiceLevelObjective:
             return "WARNING"
         return None
 
+
 @dataclass
 class PilotConfiguration:
     """Configuration for pilot deployment"""
+
     pilot_name: str
     start_date: datetime
     target_duration_weeks: int
@@ -112,6 +119,7 @@ class PilotConfiguration:
     rollback_triggers: List[str]
     escalation_contacts: List[Dict[str, str]]
 
+
 class PilotMonitor:
     """
     Monitor pilot deployment performance and health.
@@ -127,10 +135,7 @@ class PilotMonitor:
         self.user_feedback: List[Dict[str, any]] = []
 
     def record_metric(
-        self,
-        metric: PerformanceMetric,
-        value: float,
-        timestamp: Optional[datetime] = None
+        self, metric: PerformanceMetric, value: float, timestamp: Optional[datetime] = None
     ) -> None:
         """Record metric value"""
         if timestamp is None:
@@ -159,17 +164,13 @@ class PilotMonitor:
             "slo": slo.name,
             "current": slo.current_value,
             "target": slo.target_value,
-            "message": f"SLO {slo.name} {level}: {slo.current_value} vs target {slo.target_value}"
+            "message": f"SLO {slo.name} {level}: {slo.current_value} vs target {slo.target_value}",
         }
         print(f"ALERT [{level}]: {alert['message']}")
         # In production: Send to PagerDuty, Slack, etc.
 
     def record_incident(
-        self,
-        title: str,
-        severity: str,
-        description: str,
-        resolution: Optional[str] = None
+        self, title: str, severity: str, description: str, resolution: Optional[str] = None
     ) -> None:
         """Record incident during pilot"""
         incident = {
@@ -178,7 +179,7 @@ class PilotMonitor:
             "severity": severity,
             "description": description,
             "resolution": resolution,
-            "resolved": resolution is not None
+            "resolved": resolution is not None,
         }
         self.incidents.append(incident)
 
@@ -187,7 +188,7 @@ class PilotMonitor:
         user_id: str,
         rating: int,  # 1-5
         feedback: str,
-        context: Optional[Dict[str, any]] = None
+        context: Optional[Dict[str, any]] = None,
     ) -> None:
         """Record user feedback"""
         feedback_record = {
@@ -195,16 +196,13 @@ class PilotMonitor:
             "user_id": user_id,
             "rating": rating,
             "feedback": feedback,
-            "context": context or {}
+            "context": context or {},
         }
         self.user_feedback.append(feedback_record)
 
     def check_slo_compliance(self) -> Dict[str, bool]:
         """Check if all SLOs are being met"""
-        return {
-            slo.name: slo.is_met()
-            for slo in self.config.slos
-        }
+        return {slo.name: slo.is_met() for slo in self.config.slos}
 
     def calculate_user_satisfaction(self) -> Optional[float]:
         """Calculate average user satisfaction score"""
@@ -223,7 +221,7 @@ class PilotMonitor:
             "ready": True,
             "blockers": [],
             "warnings": [],
-            "metrics": {}
+            "metrics": {},
         }
 
         # Check SLO compliance
@@ -237,12 +235,10 @@ class PilotMonitor:
 
         # Check incident rate
         recent_incidents = [
-            i for i in self.incidents
-            if (datetime.now() - i["timestamp"]) < timedelta(days=7)
+            i for i in self.incidents if (datetime.now() - i["timestamp"]) < timedelta(days=7)
         ]
         critical_incidents = [
-            i for i in recent_incidents
-            if i["severity"] == "CRITICAL" and not i["resolved"]
+            i for i in recent_incidents if i["severity"] == "CRITICAL" and not i["resolved"]
         ]
 
         assessment["metrics"]["incidents_7d"] = len(recent_incidents)
@@ -254,9 +250,7 @@ class PilotMonitor:
                 f"{len(critical_incidents)} unresolved critical incidents"
             )
         elif len(recent_incidents) > 5:
-            assessment["warnings"].append(
-                f"High incident rate: {len(recent_incidents)} in 7 days"
-            )
+            assessment["warnings"].append(f"High incident rate: {len(recent_incidents)} in 7 days")
 
         # Check user satisfaction
         satisfaction = self.calculate_user_satisfaction()
@@ -264,9 +258,7 @@ class PilotMonitor:
 
         if satisfaction and satisfaction < 3.5:
             assessment["ready"] = False
-            assessment["blockers"].append(
-                f"User satisfaction too low: {satisfaction:.2f}/5.0"
-            )
+            assessment["blockers"].append(f"User satisfaction too low: {satisfaction:.2f}/5.0")
         elif satisfaction and satisfaction < 4.0:
             assessment["warnings"].append(
                 f"User satisfaction below target: {satisfaction:.2f}/5.0 (target: 4.0+)"
@@ -290,14 +282,18 @@ class PilotMonitor:
         report.append("## Pilot Overview\n\n")
         report.append(f"- Start date: {self.config.start_date.date()}\n")
         report.append(f"- Duration: {duration} days\n")
-        report.append(f"- User percentage: {self.config.initial_user_percentage}% → {self.config.max_user_percentage}%\n\n")
+        report.append(
+            f"- User percentage: {self.config.initial_user_percentage}% → {self.config.max_user_percentage}%\n\n"
+        )
 
         # SLO compliance
         report.append("## SLO Compliance\n\n")
         slo_compliance = self.check_slo_compliance()
         for slo in self.config.slos:
             status = "✓" if slo_compliance[slo.name] else "✗"
-            report.append(f"- {status} **{slo.name}**: {slo.current_value} (target: {slo.target_value})\n")
+            report.append(
+                f"- {status} **{slo.name}**: {slo.current_value} (target: {slo.target_value})\n"
+            )
         report.append("\n")
 
         # Incidents
@@ -353,7 +349,7 @@ def example_pilot_deployment():
         target_duration_weeks=8,
         cohort_definitions=[
             {"name": "power_users", "criteria": "orders > 10"},
-            {"name": "mobile_users", "criteria": "device == 'mobile'"}
+            {"name": "mobile_users", "criteria": "device == 'mobile'"},
         ],
         initial_user_percentage=5.0,
         max_user_percentage=20.0,
@@ -361,32 +357,32 @@ def example_pilot_deployment():
             {"week": 1, "percentage": 5},
             {"week": 2, "percentage": 10},
             {"week": 4, "percentage": 15},
-            {"week": 6, "percentage": 20}
+            {"week": 6, "percentage": 20},
         ],
         features_enabled={
             "semantic_search": True,
             "visual_search": False,  # Phase 3
-            "personalization": False  # Phase 3
+            "personalization": False,  # Phase 3
         },
         experiment_variants=["control", "treatment"],
         success_metrics={
             "search_success_rate": 0.80,  # 80% of searches lead to engagement
             "zero_result_rate": 0.15,  # <15% zero results
             "conversion_lift": 0.15,  # 15% lift over baseline
-            "user_satisfaction": 4.0  # 4.0/5.0 rating
+            "user_satisfaction": 4.0,  # 4.0/5.0 rating
         },
         go_live_criteria=[
             "All SLOs met for 2+ weeks",
             "Zero critical incidents in last week",
             "User satisfaction > 4.0",
-            "Conversion lift > 10% (significant)"
+            "Conversion lift > 10% (significant)",
         ],
         rollback_triggers=[
             "Availability < 99.5%",
             "p99 latency > 200ms",
             "Error rate > 1%",
-            "User satisfaction < 3.0"
-        ]
+            "User satisfaction < 3.0",
+        ],
     )
 
     # Define SLOs
@@ -397,7 +393,7 @@ def example_pilot_deployment():
             target_value=50.0,  # ms
             warning_threshold=45.0,
             critical_threshold=60.0,
-            measurement_window=timedelta(minutes=5)
+            measurement_window=timedelta(minutes=5),
         ),
         ServiceLevelObjective(
             name="Query Latency p99",
@@ -405,7 +401,7 @@ def example_pilot_deployment():
             target_value=100.0,  # ms
             warning_threshold=90.0,
             critical_threshold=150.0,
-            measurement_window=timedelta(minutes=5)
+            measurement_window=timedelta(minutes=5),
         ),
         ServiceLevelObjective(
             name="Availability",
@@ -413,7 +409,7 @@ def example_pilot_deployment():
             target_value=99.9,  # %
             warning_threshold=99.8,
             critical_threshold=99.5,
-            measurement_window=timedelta(hours=1)
+            measurement_window=timedelta(hours=1),
         ),
         ServiceLevelObjective(
             name="Error Rate",
@@ -421,8 +417,8 @@ def example_pilot_deployment():
             target_value=0.1,  # %
             warning_threshold=0.5,
             critical_threshold=1.0,
-            measurement_window=timedelta(minutes=5)
-        )
+            measurement_window=timedelta(minutes=5),
+        ),
     ]
 
     # Create monitor
@@ -439,7 +435,7 @@ def example_pilot_deployment():
         title="Vector DB high latency spike",
         severity="WARNING",
         description="p99 latency spiked to 180ms for 5 minutes",
-        resolution="Auto-scaled vector DB cluster, added cache warming"
+        resolution="Auto-scaled vector DB cluster, added cache warming",
     )
 
     # Record user feedback
@@ -447,19 +443,16 @@ def example_pilot_deployment():
         user_id="user_123",
         rating=5,
         feedback="Much better search results! Finally found what I needed.",
-        context={"query": "wireless headphones for running"}
+        context={"query": "wireless headphones for running"},
     )
     monitor.record_user_feedback(
         user_id="user_456",
         rating=4,
         feedback="Good improvement, but still some irrelevant results",
-        context={"query": "laptop case 15 inch"}
+        context={"query": "laptop case 15 inch"},
     )
     monitor.record_user_feedback(
-        user_id="user_789",
-        rating=3,
-        feedback="Slower than before",
-        context={"latency_ms": 120}
+        user_id="user_789", rating=3, feedback="Slower than before", context={"latency_ms": 120}
     )
 
     # Generate report
@@ -467,7 +460,7 @@ def example_pilot_deployment():
 
     # Check readiness
     assessment = monitor.assess_rollout_readiness()
-    print("\n" + "="*80 + "\n")
+    print("\n" + "=" * 80 + "\n")
     print(f"Rollout Ready: {assessment['ready']}")
     if assessment["blockers"]:
         print("Blockers:")

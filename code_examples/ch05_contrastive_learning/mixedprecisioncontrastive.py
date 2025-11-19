@@ -32,10 +32,10 @@ class MixedPrecisionContrastive:
         Training step with mixed precision
         """
         # Move batch to device
-        anchor_ids = batch['anchor_ids'].to(device)
-        anchor_mask = batch['anchor_mask'].to(device)
-        positive_ids = batch['positive_ids'].to(device)
-        positive_mask = batch['positive_mask'].to(device)
+        anchor_ids = batch["anchor_ids"].to(device)
+        anchor_mask = batch["anchor_mask"].to(device)
+        positive_ids = batch["positive_ids"].to(device)
+        positive_mask = batch["positive_mask"].to(device)
 
         # Forward pass in FP16
         with autocast():

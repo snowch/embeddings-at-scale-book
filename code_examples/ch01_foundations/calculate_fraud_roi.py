@@ -1,11 +1,15 @@
 # Code from Chapter 01
 # Book: Embeddings at Scale
 
-def calculate_fraud_roi(current_loss_rate, target_loss_rate,
-                       annual_transaction_volume,
-                       false_positive_rate_current,
-                       false_positive_rate_target,
-                       cost_per_false_positive):
+
+def calculate_fraud_roi(
+    current_loss_rate,
+    target_loss_rate,
+    annual_transaction_volume,
+    false_positive_rate_current,
+    false_positive_rate_target,
+    cost_per_false_positive,
+):
     """
     Calculate ROI from improved fraud detection
     """
@@ -22,7 +26,7 @@ def calculate_fraud_roi(current_loss_rate, target_loss_rate,
     fp_savings = fp_reduction * cost_per_false_positive
 
     return {
-        'fraud_loss_reduction': fraud_savings,
-        'false_positive_savings': fp_savings,
-        'total_annual_benefit': fraud_savings + fp_savings
+        "fraud_loss_reduction": fraud_savings,
+        "false_positive_savings": fp_savings,
+        "total_annual_benefit": fraud_savings + fp_savings,
     }

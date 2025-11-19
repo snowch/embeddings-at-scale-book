@@ -25,8 +25,8 @@ class EnterpriseSelfsupervisedPipeline:
         data_source,
         batch_size=256,
         num_workers=8,
-        checkpoint_dir='./checkpoints',
-        log_dir='./logs'
+        checkpoint_dir="./checkpoints",
+        log_dir="./logs",
     ):
         self.model = model
         self.data_source = data_source
@@ -42,15 +42,12 @@ class EnterpriseSelfsupervisedPipeline:
     def setup_distributed(self):
         """Initialize distributed training"""
         if self.is_distributed:
-            dist.init_process_group(backend='nccl')
+            dist.init_process_group(backend="nccl")
             local_rank = dist.get_rank()
             torch.cuda.set_device(local_rank)
 
             # Wrap model in DDP
-            self.model = DistributedDataParallel(
-                self.model,
-                device_ids=[local_rank]
-            )
+            self.model = DistributedDataParallel(self.model, device_ids=[local_rank])
 
     def create_dataloader(self):
         """Create efficient dataloader for unlabeled data"""
@@ -68,7 +65,7 @@ class EnterpriseSelfsupervisedPipeline:
             sampler=sampler,
             num_workers=self.num_workers,
             pin_memory=True,
-            prefetch_factor=2
+            prefetch_factor=2,
         )
 
         return dataloader
@@ -84,17 +81,10 @@ class EnterpriseSelfsupervisedPipeline:
         # Setup
         self.setup_distributed()
         dataloader = self.create_dataloader()
-        optimizer = torch.optim.AdamW(
-            self.model.parameters(),
-            lr=learning_rate,
-            weight_decay=0.01
-        )
+        optimizer = torch.optim.AdamW(self.model.parameters(), lr=learning_rate, weight_decay=0.01)
 
         # Learning rate scheduler
-        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-            optimizer,
-            T_max=num_epochs
-        )
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs)
 
         # Training loop
         for epoch in range(num_epochs):
@@ -135,11 +125,7 @@ class EnterpriseSelfsupervisedPipeline:
 
     def save_checkpoint(self, epoch, loss):
         """Save model checkpoint"""
-        checkpoint = {
-            'epoch': epoch,
-            'model_state_dict': self.model.state_dict(),
-            'loss': loss
-        }
+        checkpoint = {"epoch": epoch, "model_state_dict": self.model.state_dict(), "loss": loss}
 
         path = f"{self.checkpoint_dir}/checkpoint_epoch_{epoch}.pt"
         torch.save(checkpoint, path)
@@ -148,9 +134,9 @@ class EnterpriseSelfsupervisedPipeline:
     def load_checkpoint(self, path):
         """Load model checkpoint"""
         checkpoint = torch.load(path)
-        self.model.load_state_dict(checkpoint['model_state_dict'])
+        self.model.load_state_dict(checkpoint["model_state_dict"])
         print(f"Checkpoint loaded from {path}")
-        return checkpoint['epoch'], checkpoint['loss']
+        return checkpoint["epoch"], checkpoint["loss"]
 
     def _log_metrics(self, epoch, loss, lr):
         """Log training metrics"""
@@ -179,7 +165,7 @@ class UnlabeledEnterpriseDataset(torch.utils.data.Dataset):
         """Discover available data files"""
         # In production: list files from data lake
         # For now, return dummy list
-        return ['file1.parquet', 'file2.parquet']
+        return ["file1.parquet", "file2.parquet"]
 
     def __len__(self):
         # Return total number of samples

@@ -47,6 +47,7 @@ class CompressionConfig:
         searchable: Whether search can operate on compressed vectors
         training_required: Whether method requires training phase
     """
+
     method: str
     compression_ratio: float = 8.0
     accuracy_loss_tolerance: float = 0.05
@@ -54,6 +55,7 @@ class CompressionConfig:
     decode_time_ms: float = 1.0
     searchable: bool = False
     training_required: bool = True
+
 
 @dataclass
 class CompressionMetrics:
@@ -69,6 +71,7 @@ class CompressionMetrics:
         decode_time_ms: Actual decoding time
         memory_savings_pct: Percentage memory saved
     """
+
     original_size_bytes: int
     compressed_size_bytes: int
     compression_ratio: float
@@ -80,6 +83,7 @@ class CompressionMetrics:
     def memory_savings_pct(self) -> float:
         """Calculate percentage memory saved"""
         return (1.0 - 1.0 / self.compression_ratio) * 100
+
 
 class ProductQuantizer:
     """
@@ -95,12 +99,7 @@ class ProductQuantizer:
     - Ratio: 32× for 8 subvectors × 8 bits
     """
 
-    def __init__(
-        self,
-        n_subvectors: int = 8,
-        n_bits: int = 8,
-        n_iterations: int = 20
-    ):
+    def __init__(self, n_subvectors: int = 8, n_bits: int = 8, n_iterations: int = 20):
         """
         Args:
             n_subvectors: Number of subvectors (M)
@@ -109,18 +108,14 @@ class ProductQuantizer:
         """
         self.n_subvectors = n_subvectors
         self.n_bits = n_bits
-        self.n_centroids = 2 ** n_bits  # 256 for 8 bits
+        self.n_centroids = 2**n_bits  # 256 for 8 bits
         self.n_iterations = n_iterations
 
         self.codebooks: List[np.ndarray] = []  # One per subvector
         self.subvector_dim: Optional[int] = None
         self.trained = False
 
-    def train(
-        self,
-        vectors: np.ndarray,
-        sample_size: Optional[int] = None
-    ) -> None:
+    def train(self, vectors: np.ndarray, sample_size: Optional[int] = None) -> None:
         """
         Train PQ codebooks using k-means on subvectors
 
@@ -132,9 +127,7 @@ class ProductQuantizer:
 
         # Check divisibility
         if dim % self.n_subvectors != 0:
-            raise ValueError(
-                f"Dimension {dim} not divisible by {self.n_subvectors}"
-            )
+            raise ValueError(f"Dimension {dim} not divisible by {self.n_subvectors}")
 
         self.subvector_dim = dim // self.n_subvectors
 
@@ -158,7 +151,7 @@ class ProductQuantizer:
                 n_clusters=self.n_centroids,
                 max_iter=self.n_iterations,
                 batch_size=min(10000, len(subvectors)),
-                random_state=42
+                random_state=42,
             )
             kmeans.fit(subvectors)
 
@@ -195,8 +188,7 @@ class ProductQuantizer:
             # Compute distances to all centroids
             # Shape: (n_samples, n_centroids)
             distances = np.linalg.norm(
-                subvectors[:, np.newaxis, :] - codebook[np.newaxis, :, :],
-                axis=2
+                subvectors[:, np.newaxis, :] - codebook[np.newaxis, :, :], axis=2
             )
 
             # Find nearest centroid
@@ -229,11 +221,7 @@ class ProductQuantizer:
 
         return vectors
 
-    def compute_distance(
-        self,
-        query: np.ndarray,
-        codes: np.ndarray
-    ) -> np.ndarray:
+    def compute_distance(self, query: np.ndarray, codes: np.ndarray) -> np.ndarray:
         """
         Compute distances between query and PQ-encoded vectors
 
@@ -262,10 +250,7 @@ class ProductQuantizer:
 
             # Distance to each centroid
             # Shape: (n_centroids,)
-            centroid_distances = np.linalg.norm(
-                self.codebooks[i] - query_subvector,
-                axis=1
-            )
+            centroid_distances = np.linalg.norm(self.codebooks[i] - query_subvector, axis=1)
 
             # Look up distances for each code
             # Shape: (n_samples,)
@@ -274,10 +259,7 @@ class ProductQuantizer:
 
         return np.sqrt(distances)
 
-    def get_metrics(
-        self,
-        original_vectors: np.ndarray
-    ) -> CompressionMetrics:
+    def get_metrics(self, original_vectors: np.ndarray) -> CompressionMetrics:
         """
         Compute compression metrics
 
@@ -295,17 +277,12 @@ class ProductQuantizer:
 
         # Compute accuracy loss (relative error)
         original_norms = np.linalg.norm(original_vectors, axis=1)
-        reconstruction_error = np.linalg.norm(
-            original_vectors - reconstructed,
-            axis=1
-        )
+        reconstruction_error = np.linalg.norm(original_vectors - reconstructed, axis=1)
         relative_error = np.mean(reconstruction_error / original_norms)
 
         # Size comparison
         original_size = original_vectors.nbytes
-        compressed_size = codes.nbytes + sum(
-            cb.nbytes for cb in self.codebooks
-        )
+        compressed_size = codes.nbytes + sum(cb.nbytes for cb in self.codebooks)
 
         return CompressionMetrics(
             original_size_bytes=original_size,
@@ -313,8 +290,9 @@ class ProductQuantizer:
             compression_ratio=original_size / compressed_size,
             accuracy_loss=relative_error,
             encode_time_ms=0.0,  # Would measure in production
-            decode_time_ms=0.0
+            decode_time_ms=0.0,
         )
+
 
 class ScalarQuantizer:
     """
@@ -333,7 +311,7 @@ class ScalarQuantizer:
             n_bits: Bits per dimension (8 or 16 typical)
         """
         self.n_bits = n_bits
-        self.n_levels = 2 ** n_bits
+        self.n_levels = 2**n_bits
 
         if n_bits == 8:
             self.dtype = np.uint8
@@ -373,9 +351,7 @@ class ScalarQuantizer:
             raise ValueError("Must train quantizer before encoding")
 
         # Normalize to [0, 1]
-        normalized = (vectors - self.min_vals) / (
-            self.max_vals - self.min_vals + 1e-8
-        )
+        normalized = (vectors - self.min_vals) / (self.max_vals - self.min_vals + 1e-8)
 
         # Clip to [0, 1]
         normalized = np.clip(normalized, 0.0, 1.0)
@@ -399,16 +375,11 @@ class ScalarQuantizer:
         normalized = quantized.astype(np.float32) / (self.n_levels - 1)
 
         # Denormalize
-        vectors = (
-            normalized * (self.max_vals - self.min_vals) + self.min_vals
-        )
+        vectors = normalized * (self.max_vals - self.min_vals) + self.min_vals
 
         return vectors
 
-    def get_metrics(
-        self,
-        original_vectors: np.ndarray
-    ) -> CompressionMetrics:
+    def get_metrics(self, original_vectors: np.ndarray) -> CompressionMetrics:
         """Compute compression metrics"""
         quantized = self.encode(original_vectors)
         reconstructed = self.decode(quantized)
@@ -420,11 +391,7 @@ class ScalarQuantizer:
 
         # Size comparison
         original_size = original_vectors.nbytes
-        compressed_size = (
-            quantized.nbytes +
-            self.min_vals.nbytes +
-            self.max_vals.nbytes
-        )
+        compressed_size = quantized.nbytes + self.min_vals.nbytes + self.max_vals.nbytes
 
         return CompressionMetrics(
             original_size_bytes=original_size,
@@ -432,8 +399,9 @@ class ScalarQuantizer:
             compression_ratio=original_size / compressed_size,
             accuracy_loss=accuracy_loss,
             encode_time_ms=0.0,
-            decode_time_ms=0.0
+            decode_time_ms=0.0,
         )
+
 
 class BinaryQuantizer:
     """
@@ -474,11 +442,7 @@ class BinaryQuantizer:
         """
         return binary.astype(np.float32) * 2 - 1  # Map {0, 1} to {-1, +1}
 
-    def hamming_distance(
-        self,
-        query: np.ndarray,
-        binary_vectors: np.ndarray
-    ) -> np.ndarray:
+    def hamming_distance(self, query: np.ndarray, binary_vectors: np.ndarray) -> np.ndarray:
         """
         Compute Hamming distance between query and binary vectors
 
@@ -499,10 +463,7 @@ class BinaryQuantizer:
 
         return distances
 
-    def get_metrics(
-        self,
-        original_vectors: np.ndarray
-    ) -> CompressionMetrics:
+    def get_metrics(self, original_vectors: np.ndarray) -> CompressionMetrics:
         """Compute compression metrics"""
         binary = self.encode(original_vectors)
         reconstructed = self.decode(binary)
@@ -523,8 +484,9 @@ class BinaryQuantizer:
             compression_ratio=original_size / compressed_size,
             accuracy_loss=accuracy_loss,
             encode_time_ms=0.0,
-            decode_time_ms=0.0
+            decode_time_ms=0.0,
         )
+
 
 class DimensionalityReducer:
     """
@@ -537,7 +499,7 @@ class DimensionalityReducer:
     def __init__(
         self,
         target_dim: int = 256,
-        method: str = "pca"  # "pca" or "random"
+        method: str = "pca",  # "pca" or "random"
     ):
         """
         Args:
@@ -550,11 +512,7 @@ class DimensionalityReducer:
         self.mean: Optional[np.ndarray] = None
         self.trained = False
 
-    def train(
-        self,
-        vectors: np.ndarray,
-        sample_size: Optional[int] = None
-    ) -> None:
+    def train(self, vectors: np.ndarray, sample_size: Optional[int] = None) -> None:
         """
         Learn projection matrix
 
@@ -580,14 +538,13 @@ class DimensionalityReducer:
             U, S, Vt = np.linalg.svd(centered, full_matrices=False)
 
             # Take top target_dim components
-            self.projection_matrix = Vt[:self.target_dim].T
+            self.projection_matrix = Vt[: self.target_dim].T
 
         elif self.method == "random":
             # Random projection (Johnson-Lindenstrauss)
-            self.projection_matrix = np.random.randn(
-                original_dim,
+            self.projection_matrix = np.random.randn(original_dim, self.target_dim) / np.sqrt(
                 self.target_dim
-            ) / np.sqrt(self.target_dim)
+            )
 
         else:
             raise ValueError(f"Unknown method: {self.method}")
@@ -613,19 +570,14 @@ class DimensionalityReducer:
 
         return projected.astype(np.float32)
 
-    def get_metrics(
-        self,
-        original_vectors: np.ndarray
-    ) -> CompressionMetrics:
+    def get_metrics(self, original_vectors: np.ndarray) -> CompressionMetrics:
         """Compute compression metrics"""
         projected = self.encode(original_vectors)
 
         # Compute variance preserved (for PCA)
         if self.method == "pca":
             # Reconstruct
-            reconstructed = (
-                projected @ self.projection_matrix.T + self.mean
-            )
+            reconstructed = projected @ self.projection_matrix.T + self.mean
             mse = np.mean((original_vectors - reconstructed) ** 2)
             original_variance = np.var(original_vectors)
             accuracy_loss = mse / original_variance
@@ -635,11 +587,7 @@ class DimensionalityReducer:
 
         # Size comparison
         original_size = original_vectors.nbytes
-        compressed_size = (
-            projected.nbytes +
-            self.projection_matrix.nbytes +
-            self.mean.nbytes
-        )
+        compressed_size = projected.nbytes + self.projection_matrix.nbytes + self.mean.nbytes
 
         return CompressionMetrics(
             original_size_bytes=original_size,
@@ -647,5 +595,5 @@ class DimensionalityReducer:
             compression_ratio=original_size / compressed_size,
             accuracy_loss=accuracy_loss,
             encode_time_ms=0.0,
-            decode_time_ms=0.0
+            decode_time_ms=0.0,
         )

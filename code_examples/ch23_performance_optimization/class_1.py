@@ -53,6 +53,7 @@ class WorkloadProfile:
         storage_budget_gb: Available disk for vectors
         has_gpu: Whether GPU acceleration available
     """
+
     total_vectors: int
     vector_dim: int
     queries_per_second: float
@@ -66,6 +67,7 @@ class WorkloadProfile:
     memory_budget_gb: float = 32.0
     storage_budget_gb: float = 1000.0
     has_gpu: bool = False
+
 
 @dataclass
 class IndexConfig:
@@ -84,6 +86,7 @@ class IndexConfig:
         expected_recall: Expected recall at these latencies
         expected_throughput: Expected queries per second
     """
+
     index_type: str
     parameters: Dict[str, Any] = field(default_factory=dict)
     hardware: str = "cpu"
@@ -94,6 +97,7 @@ class IndexConfig:
     expected_latency_p99: float = 50.0
     expected_recall: float = 0.95
     expected_throughput: float = 1000.0
+
 
 class HNSWTuner:
     """
@@ -185,9 +189,7 @@ class HNSWTuner:
 
         # Weighted average
         total = sum(self.profile.k_distribution.values())
-        avg_k = sum(
-            k * prob for k, prob in self.profile.k_distribution.items()
-        ) / total
+        avg_k = sum(k * prob for k, prob in self.profile.k_distribution.items()) / total
 
         return int(avg_k)
 
@@ -199,25 +201,17 @@ class HNSWTuner:
         """
         # Vector storage
         vector_memory = (
-            self.profile.total_vectors *
-            self.profile.vector_dim *
-            4 / 1024**3  # float32 in GB
+            self.profile.total_vectors * self.profile.vector_dim * 4 / 1024**3  # float32 in GB
         )
 
         # Graph structure (adjacency lists)
         avg_layers = np.log2(self.profile.total_vectors) / np.log2(1.0 / np.log(2))
         graph_memory = (
-            self.profile.total_vectors *
-            M * avg_layers *
-            8 / 1024**3  # Pointers in GB
+            self.profile.total_vectors * M * avg_layers * 8 / 1024**3  # Pointers in GB
         )
 
         # Construction buffers
-        construction_memory = (
-            ef_construction *
-            self.profile.vector_dim *
-            4 / 1024**3
-        )
+        construction_memory = ef_construction * self.profile.vector_dim * 4 / 1024**3
 
         return vector_memory + graph_memory + construction_memory
 
@@ -235,18 +229,9 @@ class HNSWTuner:
         base_time_per_million = 0.1  # hours per million vectors
         complexity_factor = (M / 32) * (ef_construction / 200)
 
-        return (
-            self.profile.total_vectors / 1e6 *
-            base_time_per_million *
-            complexity_factor
-        )
+        return self.profile.total_vectors / 1e6 * base_time_per_million * complexity_factor
 
-    def _estimate_latency(
-        self,
-        M: float,
-        ef_search: float,
-        percentile: int
-    ) -> float:
+    def _estimate_latency(self, M: float, ef_search: float, percentile: int) -> float:
         """
         Estimate query latency at given percentile
 
@@ -287,6 +272,7 @@ class HNSWTuner:
         else:
             return 0.85
 
+
 class IVFTuner:
     """
     IVF (Inverted File Index) parameter tuning
@@ -314,16 +300,10 @@ class IVFTuner:
             n_clusters = max(int(np.sqrt(self.profile.total_vectors)), 256)
         elif self.profile.recall_requirement >= 0.95:
             # Moderate clusters
-            n_clusters = max(
-                int(np.sqrt(self.profile.total_vectors) * 2),
-                512
-            )
+            n_clusters = max(int(np.sqrt(self.profile.total_vectors) * 2), 512)
         else:
             # Many clusters for speed
-            n_clusters = max(
-                int(np.sqrt(self.profile.total_vectors) * 4),
-                1024
-            )
+            n_clusters = max(int(np.sqrt(self.profile.total_vectors) * 4), 1024)
 
         # Cap at reasonable maximum
         n_clusters = min(n_clusters, 65536)
@@ -343,10 +323,7 @@ class IVFTuner:
             n_probe = max(n_probe // 2, 5)
 
         # Training size (typically 10-100× n_clusters)
-        training_size = min(
-            n_clusters * 50,
-            int(self.profile.total_vectors * 0.1)
-        )
+        training_size = min(n_clusters * 50, int(self.profile.total_vectors * 0.1))
 
         # Estimate resources
         memory_gb = self._estimate_memory(n_clusters)
@@ -381,9 +358,7 @@ class IVFTuner:
         if not self.profile.k_distribution:
             return 10
         total = sum(self.profile.k_distribution.values())
-        avg_k = sum(
-            k * prob for k, prob in self.profile.k_distribution.items()
-        ) / total
+        avg_k = sum(k * prob for k, prob in self.profile.k_distribution.items()) / total
         return int(avg_k)
 
     def _estimate_memory(self, n_clusters: int) -> float:
@@ -393,23 +368,14 @@ class IVFTuner:
         Memory = vectors + centroids + inverted lists
         """
         # Vector storage
-        vector_memory = (
-            self.profile.total_vectors *
-            self.profile.vector_dim *
-            4 / 1024**3
-        )
+        vector_memory = self.profile.total_vectors * self.profile.vector_dim * 4 / 1024**3
 
         # Centroid storage
-        centroid_memory = (
-            n_clusters *
-            self.profile.vector_dim *
-            4 / 1024**3
-        )
+        centroid_memory = n_clusters * self.profile.vector_dim * 4 / 1024**3
 
         # Inverted list pointers
         list_memory = (
-            self.profile.total_vectors *
-            8 / 1024**3  # Pointer per vector
+            self.profile.total_vectors * 8 / 1024**3  # Pointer per vector
         )
 
         return vector_memory + centroid_memory + list_memory
@@ -418,11 +384,7 @@ class IVFTuner:
         """Estimate disk storage"""
         return self._estimate_memory(n_clusters) * 0.9
 
-    def _estimate_build_time(
-        self,
-        n_clusters: int,
-        training_size: int
-    ) -> float:
+    def _estimate_build_time(self, n_clusters: int, training_size: int) -> float:
         """
         Estimate build time
 
@@ -432,26 +394,16 @@ class IVFTuner:
         n_iterations = 20
 
         # Time per iteration (empirical)
-        time_per_iteration = (
-            training_size * n_clusters * self.profile.vector_dim * 1e-9
-        )  # hours
+        time_per_iteration = training_size * n_clusters * self.profile.vector_dim * 1e-9  # hours
 
         kmeans_time = n_iterations * time_per_iteration
 
         # Assignment time (assign all vectors to clusters)
-        assignment_time = (
-            self.profile.total_vectors * n_clusters *
-            self.profile.vector_dim * 1e-10
-        )
+        assignment_time = self.profile.total_vectors * n_clusters * self.profile.vector_dim * 1e-10
 
         return kmeans_time + assignment_time
 
-    def _estimate_latency(
-        self,
-        n_clusters: int,
-        n_probe: int,
-        percentile: int
-    ) -> float:
+    def _estimate_latency(self, n_clusters: int, n_probe: int, percentile: int) -> float:
         """Estimate query latency"""
         # Coarse quantization cost (find nearest centroids)
         coarse_cost = n_clusters * self.profile.vector_dim * 1e-6
@@ -482,6 +434,7 @@ class IVFTuner:
             return 0.90
         else:
             return 0.85
+
 
 class IndexSelector:
     """
@@ -536,28 +489,18 @@ class IndexSelector:
 
         # Latency penalty
         if config.expected_latency_p50 > self.profile.latency_p50_requirement:
-            score -= 30 * (
-                config.expected_latency_p50 /
-                self.profile.latency_p50_requirement - 1
-            )
+            score -= 30 * (config.expected_latency_p50 / self.profile.latency_p50_requirement - 1)
 
         if config.expected_latency_p99 > self.profile.latency_p99_requirement:
-            score -= 20 * (
-                config.expected_latency_p99 /
-                self.profile.latency_p99_requirement - 1
-            )
+            score -= 20 * (config.expected_latency_p99 / self.profile.latency_p99_requirement - 1)
 
         # Recall penalty
         if config.expected_recall < self.profile.recall_requirement:
-            score -= 50 * (
-                self.profile.recall_requirement - config.expected_recall
-            )
+            score -= 50 * (self.profile.recall_requirement - config.expected_recall)
 
         # Memory penalty
         if config.memory_gb > self.profile.memory_budget_gb:
-            score -= 25 * (
-                config.memory_gb / self.profile.memory_budget_gb - 1
-            )
+            score -= 25 * (config.memory_gb / self.profile.memory_budget_gb - 1)
 
         # Build time penalty (minor)
         if config.build_time_hours > 24:

@@ -5,6 +5,7 @@ import torch.nn.functional as F
 # Code from Chapter 06
 # Book: Embeddings at Scale
 
+
 class AdvancedTripletLoss(nn.Module):
     """
     Advanced triplet loss with multiple optimization techniques
@@ -19,9 +20,9 @@ class AdvancedTripletLoss(nn.Module):
     def __init__(
         self,
         margin=1.0,
-        mining_strategy='semi-hard',  # 'hard', 'semi-hard', 'all'
+        mining_strategy="semi-hard",  # 'hard', 'semi-hard', 'all'
         use_soft_margin=False,
-        distance_metric='euclidean'
+        distance_metric="euclidean",
     ):
         super().__init__()
         self.margin = margin
@@ -44,7 +45,7 @@ class AdvancedTripletLoss(nn.Module):
         embeddings.shape[0]
 
         # Compute pairwise distances
-        if self.distance_metric == 'euclidean':
+        if self.distance_metric == "euclidean":
             distances = torch.cdist(embeddings, embeddings, p=2)
         else:  # cosine
             # Normalize embeddings
@@ -57,9 +58,9 @@ class AdvancedTripletLoss(nn.Module):
         if len(triplets) == 0:
             # No valid triplets found
             return torch.tensor(0.0, device=embeddings.device), {
-                'loss': 0.0,
-                'num_triplets': 0,
-                'hard_triplets_fraction': 0.0
+                "loss": 0.0,
+                "num_triplets": 0,
+                "hard_triplets_fraction": 0.0,
             }
 
         # Extract distances for valid triplets
@@ -82,11 +83,11 @@ class AdvancedTripletLoss(nn.Module):
             hard_triplets = (pos_distances > neg_distances).float().mean()
 
             metrics = {
-                'loss': loss.item(),
-                'num_triplets': len(triplets),
-                'hard_triplets_fraction': hard_triplets.item(),
-                'avg_pos_distance': pos_distances.mean().item(),
-                'avg_neg_distance': neg_distances.mean().item()
+                "loss": loss.item(),
+                "num_triplets": len(triplets),
+                "hard_triplets_fraction": hard_triplets.item(),
+                "avg_pos_distance": pos_distances.mean().item(),
+                "avg_neg_distance": neg_distances.mean().item(),
             }
 
         return loss, metrics
@@ -110,14 +111,16 @@ class AdvancedTripletLoss(nn.Module):
             anchor_label = labels[i]
 
             # Find all positives (same label, different index)
-            positive_mask = (labels == anchor_label) & (torch.arange(batch_size, device=labels.device) != i)
+            positive_mask = (labels == anchor_label) & (
+                torch.arange(batch_size, device=labels.device) != i
+            )
             positive_indices = torch.where(positive_mask)[0]
 
             if len(positive_indices) == 0:
                 continue
 
             # Find all negatives (different label)
-            negative_mask = (labels != anchor_label)
+            negative_mask = labels != anchor_label
             negative_indices = torch.where(negative_mask)[0]
 
             if len(negative_indices) == 0:
@@ -127,7 +130,7 @@ class AdvancedTripletLoss(nn.Module):
             anchor_pos_distances = distances[i, positive_indices]
             anchor_neg_distances = distances[i, negative_indices]
 
-            if self.mining_strategy == 'hard':
+            if self.mining_strategy == "hard":
                 # For each positive, find hardest negative
                 for pos_idx in positive_indices:
                     pos_distance = distances[i, pos_idx]
@@ -137,14 +140,15 @@ class AdvancedTripletLoss(nn.Module):
 
                     triplets.append((i, pos_idx.item(), hardest_neg_idx.item()))
 
-            elif self.mining_strategy == 'semi-hard':
+            elif self.mining_strategy == "semi-hard":
                 # For each positive, find semi-hard negatives
                 for j, pos_idx in enumerate(positive_indices):
                     pos_distance = anchor_pos_distances[j]
 
                     # Semi-hard: negatives farther than positive but within margin
-                    semi_hard_mask = (anchor_neg_distances > pos_distance) & \
-                                   (anchor_neg_distances < pos_distance + self.margin)
+                    semi_hard_mask = (anchor_neg_distances > pos_distance) & (
+                        anchor_neg_distances < pos_distance + self.margin
+                    )
 
                     if semi_hard_mask.any():
                         semi_hard_negs = negative_indices[semi_hard_mask]
@@ -208,9 +212,9 @@ class AngularTripletLoss(nn.Module):
 
         with torch.no_grad():
             metrics = {
-                'loss': loss.item(),
-                'avg_angle_ap': (angle_ap * 180 / torch.pi).mean().item(),
-                'avg_angle_an': (angle_an * 180 / torch.pi).mean().item(),
+                "loss": loss.item(),
+                "avg_angle_ap": (angle_ap * 180 / torch.pi).mean().item(),
+                "avg_angle_an": (angle_an * 180 / torch.pi).mean().item(),
             }
 
         return loss, metrics

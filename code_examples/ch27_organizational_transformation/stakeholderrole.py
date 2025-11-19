@@ -36,6 +36,7 @@ from typing import Dict, List, Optional, Set
 
 class StakeholderRole(Enum):
     """Stakeholder roles in change process"""
+
     EXECUTIVE_SPONSOR = "executive_sponsor"
     CHAMPION = "champion"
     EARLY_ADOPTER = "early_adopter"
@@ -44,14 +45,18 @@ class StakeholderRole(Enum):
     RESISTOR = "resistor"
     BLOCKER = "blocker"
 
+
 class ChangeReadiness(Enum):
     """Organization readiness for change"""
+
     READY = "ready"  # Culture and capability support change
     SOMEWHAT_READY = "somewhat_ready"  # Some barriers exist
     NOT_READY = "not_ready"  # Significant barriers to overcome
 
+
 class CommunicationChannel(Enum):
     """Communication channels for change management"""
+
     ALL_HANDS = "all_hands"
     TEAM_MEETINGS = "team_meetings"
     EMAIL_UPDATES = "email_updates"
@@ -60,6 +65,7 @@ class CommunicationChannel(Enum):
     WORKSHOPS = "workshops"
     ONE_ON_ONE = "one_on_one"
     DOCUMENTATION = "documentation"
+
 
 @dataclass
 class Stakeholder:
@@ -75,6 +81,7 @@ class Stakeholder:
         interests: What motivates this stakeholder
         preferred_channels: Preferred communication channels
     """
+
     name: str
     department: str
     role: StakeholderRole
@@ -92,9 +99,10 @@ class Stakeholder:
             StakeholderRole.RESISTOR: 7,
             StakeholderRole.EARLY_ADOPTER: 6,
             StakeholderRole.SKEPTIC: 5,
-            StakeholderRole.NEUTRAL: 3
+            StakeholderRole.NEUTRAL: 3,
         }
         return self.influence * role_weights[self.role]
+
 
 @dataclass
 class ChangeBarrier:
@@ -109,12 +117,14 @@ class ChangeBarrier:
         mitigation_strategy: How to address this barrier
         timeline: Time needed to address
     """
+
     name: str
     category: str
     severity: int
     affected_stakeholders: List[str]
     mitigation_strategy: str
     timeline: str
+
 
 @dataclass
 class PilotProject:
@@ -130,6 +140,7 @@ class PilotProject:
         risk_level: Implementation risk (low/medium/high)
         business_impact: Expected business value
     """
+
     name: str
     description: str
     target_metrics: Dict[str, float]
@@ -139,6 +150,7 @@ class PilotProject:
     business_impact: str
     status: str = "planned"
     actual_results: Optional[Dict[str, float]] = None
+
 
 class ChangeManagementFramework:
     """
@@ -183,8 +195,9 @@ class ChangeManagementFramework:
         # Assess leadership support
         has_executive_sponsor = StakeholderRole.EXECUTIVE_SPONSOR in role_counts
         champion_count = role_counts.get(StakeholderRole.CHAMPION, 0)
-        resistor_count = role_counts.get(StakeholderRole.RESISTOR, 0) + \
-                        role_counts.get(StakeholderRole.BLOCKER, 0)
+        resistor_count = role_counts.get(StakeholderRole.RESISTOR, 0) + role_counts.get(
+            StakeholderRole.BLOCKER, 0
+        )
 
         # Assess barriers
         critical_barriers = [b for b in self.barriers if b.severity >= 8]
@@ -211,20 +224,17 @@ class ChangeManagementFramework:
             recommendation = "Build foundation before attempting adoption"
 
         return {
-            'readiness': readiness.value,
-            'score': readiness_score,
-            'has_executive_sponsor': has_executive_sponsor,
-            'champion_count': champion_count,
-            'resistor_count': resistor_count,
-            'critical_barriers': len(critical_barriers),
-            'moderate_barriers': len(moderate_barriers),
-            'recommendation': recommendation,
-            'next_steps': self._generate_next_steps(
-                readiness,
-                has_executive_sponsor,
-                champion_count,
-                critical_barriers
-            )
+            "readiness": readiness.value,
+            "score": readiness_score,
+            "has_executive_sponsor": has_executive_sponsor,
+            "champion_count": champion_count,
+            "resistor_count": resistor_count,
+            "critical_barriers": len(critical_barriers),
+            "moderate_barriers": len(moderate_barriers),
+            "recommendation": recommendation,
+            "next_steps": self._generate_next_steps(
+                readiness, has_executive_sponsor, champion_count, critical_barriers
+            ),
         }
 
     def _generate_next_steps(
@@ -232,7 +242,7 @@ class ChangeManagementFramework:
         readiness: ChangeReadiness,
         has_executive_sponsor: bool,
         champion_count: int,
-        critical_barriers: List[ChangeBarrier]
+        critical_barriers: List[ChangeBarrier],
     ) -> List[str]:
         """Generate recommended next steps based on readiness"""
 
@@ -245,30 +255,38 @@ class ChangeManagementFramework:
             steps.append("Identify and recruit 2-3 champions across key departments")
 
         if critical_barriers:
-            steps.append(f"Address {len(critical_barriers)} critical barriers: " +
-                        ", ".join(b.name for b in critical_barriers[:3]))
+            steps.append(
+                f"Address {len(critical_barriers)} critical barriers: "
+                + ", ".join(b.name for b in critical_barriers[:3])
+            )
 
         if readiness == ChangeReadiness.READY:
-            steps.extend([
-                "Launch pilot project with early adopters",
-                "Establish communication cadence for updates",
-                "Begin training program for affected teams",
-                "Set up feedback mechanisms for iterative improvement"
-            ])
+            steps.extend(
+                [
+                    "Launch pilot project with early adopters",
+                    "Establish communication cadence for updates",
+                    "Begin training program for affected teams",
+                    "Set up feedback mechanisms for iterative improvement",
+                ]
+            )
         elif readiness == ChangeReadiness.SOMEWHAT_READY:
-            steps.extend([
-                "Run small proof-of-concept with friendly team",
-                "Document and address concerns from skeptics",
-                "Build technical capability through training",
-                "Create detailed rollout plan addressing barriers"
-            ])
+            steps.extend(
+                [
+                    "Run small proof-of-concept with friendly team",
+                    "Document and address concerns from skeptics",
+                    "Build technical capability through training",
+                    "Create detailed rollout plan addressing barriers",
+                ]
+            )
         else:  # NOT_READY
-            steps.extend([
-                "Build awareness through education sessions",
-                "Demonstrate value through external case studies",
-                "Assess technical and organizational gaps",
-                "Develop 6-12 month readiness roadmap"
-            ])
+            steps.extend(
+                [
+                    "Build awareness through education sessions",
+                    "Demonstrate value through external case studies",
+                    "Assess technical and organizational gaps",
+                    "Develop 6-12 month readiness roadmap",
+                ]
+            )
 
         return steps
 
@@ -292,152 +310,160 @@ class ChangeManagementFramework:
 
         # Executive sponsors: Business value, ROI, strategic advantage
         if StakeholderRole.EXECUTIVE_SPONSOR in grouped_stakeholders:
-            messaging_strategy['executives'] = {
-                'stakeholders': [s.name for s in grouped_stakeholders[StakeholderRole.EXECUTIVE_SPONSOR]],
-                'key_messages': [
-                    'Competitive advantage through AI-powered capabilities',
-                    'ROI projections and success metrics',
-                    'Risk mitigation and governance approach',
-                    'Strategic roadmap and resource requirements'
+            messaging_strategy["executives"] = {
+                "stakeholders": [
+                    s.name for s in grouped_stakeholders[StakeholderRole.EXECUTIVE_SPONSOR]
                 ],
-                'channels': [CommunicationChannel.ONE_ON_ONE, CommunicationChannel.EMAIL_UPDATES],
-                'frequency': 'Monthly',
-                'content_type': 'Business case, success metrics, strategic updates'
+                "key_messages": [
+                    "Competitive advantage through AI-powered capabilities",
+                    "ROI projections and success metrics",
+                    "Risk mitigation and governance approach",
+                    "Strategic roadmap and resource requirements",
+                ],
+                "channels": [CommunicationChannel.ONE_ON_ONE, CommunicationChannel.EMAIL_UPDATES],
+                "frequency": "Monthly",
+                "content_type": "Business case, success metrics, strategic updates",
             }
 
         # Champions: Technical details, implementation progress, how to advocate
         if StakeholderRole.CHAMPION in grouped_stakeholders:
-            messaging_strategy['champions'] = {
-                'stakeholders': [s.name for s in grouped_stakeholders[StakeholderRole.CHAMPION]],
-                'key_messages': [
-                    'Technical architecture and capabilities',
-                    'Implementation progress and challenges',
-                    'How to advocate to their teams',
-                    'Resources and support available'
+            messaging_strategy["champions"] = {
+                "stakeholders": [s.name for s in grouped_stakeholders[StakeholderRole.CHAMPION]],
+                "key_messages": [
+                    "Technical architecture and capabilities",
+                    "Implementation progress and challenges",
+                    "How to advocate to their teams",
+                    "Resources and support available",
                 ],
-                'channels': [CommunicationChannel.WORKSHOPS, CommunicationChannel.SLACK_CHANNELS],
-                'frequency': 'Weekly',
-                'content_type': 'Technical deep dives, demos, Q&A sessions'
+                "channels": [CommunicationChannel.WORKSHOPS, CommunicationChannel.SLACK_CHANNELS],
+                "frequency": "Weekly",
+                "content_type": "Technical deep dives, demos, Q&A sessions",
             }
 
         # Skeptics/resistors: Address concerns, demonstrate value, reduce risk
-        skeptics_and_resistors = (
-            grouped_stakeholders.get(StakeholderRole.SKEPTIC, []) +
-            grouped_stakeholders.get(StakeholderRole.RESISTOR, [])
-        )
+        skeptics_and_resistors = grouped_stakeholders.get(
+            StakeholderRole.SKEPTIC, []
+        ) + grouped_stakeholders.get(StakeholderRole.RESISTOR, [])
         if skeptics_and_resistors:
-            messaging_strategy['skeptics'] = {
-                'stakeholders': [s.name for s in skeptics_and_resistors],
-                'key_messages': [
-                    'Transparent acknowledgment of limitations',
-                    'How concerns are being addressed',
-                    'Evidence from pilot projects and external success stories',
-                    'Gradual rollout minimizing disruption'
+            messaging_strategy["skeptics"] = {
+                "stakeholders": [s.name for s in skeptics_and_resistors],
+                "key_messages": [
+                    "Transparent acknowledgment of limitations",
+                    "How concerns are being addressed",
+                    "Evidence from pilot projects and external success stories",
+                    "Gradual rollout minimizing disruption",
                 ],
-                'channels': [CommunicationChannel.ONE_ON_ONE, CommunicationChannel.DEMOS],
-                'frequency': 'As needed, minimum monthly',
-                'content_type': 'Direct conversations addressing specific concerns'
+                "channels": [CommunicationChannel.ONE_ON_ONE, CommunicationChannel.DEMOS],
+                "frequency": "As needed, minimum monthly",
+                "content_type": "Direct conversations addressing specific concerns",
             }
 
         # Blockers: Understand motivations, find common ground, escalate if needed
         if StakeholderRole.BLOCKER in grouped_stakeholders:
-            messaging_strategy['blockers'] = {
-                'stakeholders': [s.name for s in grouped_stakeholders[StakeholderRole.BLOCKER]],
-                'key_messages': [
-                    'Understanding their concerns and constraints',
-                    'Finding mutually beneficial approaches',
-                    'Executive alignment on strategic direction',
-                    'Clear escalation path if blocking continues'
+            messaging_strategy["blockers"] = {
+                "stakeholders": [s.name for s in grouped_stakeholders[StakeholderRole.BLOCKER]],
+                "key_messages": [
+                    "Understanding their concerns and constraints",
+                    "Finding mutually beneficial approaches",
+                    "Executive alignment on strategic direction",
+                    "Clear escalation path if blocking continues",
                 ],
-                'channels': [CommunicationChannel.ONE_ON_ONE],
-                'frequency': 'Weekly until resolution',
-                'content_type': 'Direct negotiation, executive involvement if needed'
+                "channels": [CommunicationChannel.ONE_ON_ONE],
+                "frequency": "Weekly until resolution",
+                "content_type": "Direct negotiation, executive involvement if needed",
             }
 
         # Broad organization: General awareness, training opportunities, success stories
-        messaging_strategy['organization_wide'] = {
-            'key_messages': [
-                'What embeddings are and why they matter',
-                'How they will improve daily work',
-                'Training and support available',
-                'Success stories from early adopters'
+        messaging_strategy["organization_wide"] = {
+            "key_messages": [
+                "What embeddings are and why they matter",
+                "How they will improve daily work",
+                "Training and support available",
+                "Success stories from early adopters",
             ],
-            'channels': [
+            "channels": [
                 CommunicationChannel.ALL_HANDS,
                 CommunicationChannel.EMAIL_UPDATES,
-                CommunicationChannel.DOCUMENTATION
+                CommunicationChannel.DOCUMENTATION,
             ],
-            'frequency': 'Monthly major updates, quarterly deep dives',
-            'content_type': 'Accessible explanations, demos, case studies'
+            "frequency": "Monthly major updates, quarterly deep dives",
+            "content_type": "Accessible explanations, demos, case studies",
         }
 
         return {
-            'strategy': messaging_strategy,
-            'overall_principles': [
-                'Transparency: Acknowledge limitations and challenges openly',
-                'Evidence: Back claims with data from pilots and external examples',
-                'Empathy: Address concerns rather than dismissing them',
-                'Consistency: Regular communication prevents information vacuum',
-                'Two-way: Solicit feedback and iterate based on input'
+            "strategy": messaging_strategy,
+            "overall_principles": [
+                "Transparency: Acknowledge limitations and challenges openly",
+                "Evidence: Back claims with data from pilots and external examples",
+                "Empathy: Address concerns rather than dismissing them",
+                "Consistency: Regular communication prevents information vacuum",
+                "Two-way: Solicit feedback and iterate based on input",
             ],
-            'communication_calendar': self._create_communication_calendar(messaging_strategy)
+            "communication_calendar": self._create_communication_calendar(messaging_strategy),
         }
 
     def _create_communication_calendar(
-        self,
-        messaging_strategy: Dict[str, any]
+        self, messaging_strategy: Dict[str, any]
     ) -> List[Dict[str, str]]:
         """Create month-by-month communication calendar"""
 
         calendar = []
 
         # Month 1: Launch and awareness
-        calendar.append({
-            'month': 1,
-            'theme': 'Launch and Awareness',
-            'activities': [
-                'All-hands announcement of embedding initiative',
-                'Executive sponsor blog post on strategic vision',
-                'Technical webinar for champions and early adopters',
-                'One-on-one meetings with key skeptics'
-            ]
-        })
+        calendar.append(
+            {
+                "month": 1,
+                "theme": "Launch and Awareness",
+                "activities": [
+                    "All-hands announcement of embedding initiative",
+                    "Executive sponsor blog post on strategic vision",
+                    "Technical webinar for champions and early adopters",
+                    "One-on-one meetings with key skeptics",
+                ],
+            }
+        )
 
         # Month 2-3: Education and pilot start
-        calendar.append({
-            'month': '2-3',
-            'theme': 'Education and Pilot Launch',
-            'activities': [
-                'Weekly demos of embedding capabilities',
-                'Training workshops for affected teams',
-                'Pilot project kick-off with early adopters',
-                'Monthly email updates on progress'
-            ]
-        })
+        calendar.append(
+            {
+                "month": "2-3",
+                "theme": "Education and Pilot Launch",
+                "activities": [
+                    "Weekly demos of embedding capabilities",
+                    "Training workshops for affected teams",
+                    "Pilot project kick-off with early adopters",
+                    "Monthly email updates on progress",
+                ],
+            }
+        )
 
         # Month 4-6: Pilot results and iteration
-        calendar.append({
-            'month': '4-6',
-            'theme': 'Pilot Results and Learning',
-            'activities': [
-                'Pilot results presentation to executives',
-                'Success stories shared in all-hands and internal communications',
-                'Iteration on system based on feedback',
-                'Expansion planning with additional teams'
-            ]
-        })
+        calendar.append(
+            {
+                "month": "4-6",
+                "theme": "Pilot Results and Learning",
+                "activities": [
+                    "Pilot results presentation to executives",
+                    "Success stories shared in all-hands and internal communications",
+                    "Iteration on system based on feedback",
+                    "Expansion planning with additional teams",
+                ],
+            }
+        )
 
         # Month 7-12: Scale and reinforcement
-        calendar.append({
-            'month': '7-12',
-            'theme': 'Scale and Reinforcement',
-            'activities': [
-                'Phased rollout to additional departments',
-                'Recognition program for early adopters and champions',
-                'Quarterly business review showing impact metrics',
-                'Documentation and best practices dissemination'
-            ]
-        })
+        calendar.append(
+            {
+                "month": "7-12",
+                "theme": "Scale and Reinforcement",
+                "activities": [
+                    "Phased rollout to additional departments",
+                    "Recognition program for early adopters and champions",
+                    "Quarterly business review showing impact metrics",
+                    "Documentation and best practices dissemination",
+                ],
+            }
+        )
 
         return calendar
 
@@ -450,52 +476,53 @@ class ChangeManagementFramework:
         """
         # Stakeholder engagement metrics
         engagement_score = sum(
-            1 for s in self.stakeholders
+            1
+            for s in self.stakeholders
             if s.role in [StakeholderRole.CHAMPION, StakeholderRole.EARLY_ADOPTER]
         ) / max(len(self.stakeholders), 1)
 
         resistance_score = sum(
-            1 for s in self.stakeholders
+            1
+            for s in self.stakeholders
             if s.role in [StakeholderRole.RESISTOR, StakeholderRole.BLOCKER]
         ) / max(len(self.stakeholders), 1)
 
         # Pilot project status
-        completed_pilots = [p for p in self.pilots if p.status == 'completed']
+        completed_pilots = [p for p in self.pilots if p.status == "completed"]
         successful_pilots = [
-            p for p in completed_pilots
-            if p.actual_results and all(
-                p.actual_results.get(k, 0) >= v
-                for k, v in p.target_metrics.items()
-            )
+            p
+            for p in completed_pilots
+            if p.actual_results
+            and all(p.actual_results.get(k, 0) >= v for k, v in p.target_metrics.items())
         ]
 
         # Barrier resolution
         resolved_barriers = [b for b in self.barriers if b.severity < 3]  # Largely addressed
 
         return {
-            'engagement_score': engagement_score,
-            'resistance_score': resistance_score,
-            'stakeholder_breakdown': {
+            "engagement_score": engagement_score,
+            "resistance_score": resistance_score,
+            "stakeholder_breakdown": {
                 role.value: len([s for s in self.stakeholders if s.role == role])
                 for role in StakeholderRole
             },
-            'pilot_status': {
-                'total': len(self.pilots),
-                'completed': len(completed_pilots),
-                'successful': len(successful_pilots),
-                'success_rate': len(successful_pilots) / max(len(completed_pilots), 1)
+            "pilot_status": {
+                "total": len(self.pilots),
+                "completed": len(completed_pilots),
+                "successful": len(successful_pilots),
+                "success_rate": len(successful_pilots) / max(len(completed_pilots), 1),
             },
-            'barrier_status': {
-                'total': len(self.barriers),
-                'resolved': len(resolved_barriers),
-                'critical_remaining': len([b for b in self.barriers if b.severity >= 8])
+            "barrier_status": {
+                "total": len(self.barriers),
+                "resolved": len(resolved_barriers),
+                "critical_remaining": len([b for b in self.barriers if b.severity >= 8]),
             },
-            'overall_health': self._assess_overall_health(
+            "overall_health": self._assess_overall_health(
                 engagement_score,
                 resistance_score,
                 len(successful_pilots),
-                len([b for b in self.barriers if b.severity >= 8])
-            )
+                len([b for b in self.barriers if b.severity >= 8]),
+            ),
         }
 
     def _assess_overall_health(
@@ -503,15 +530,18 @@ class ChangeManagementFramework:
         engagement_score: float,
         resistance_score: float,
         successful_pilots: int,
-        critical_barriers: int
+        critical_barriers: int,
     ) -> str:
         """Assess overall change management health"""
 
-        if (engagement_score > 0.3 and resistance_score < 0.2 and
-            successful_pilots >= 2 and critical_barriers == 0):
+        if (
+            engagement_score > 0.3
+            and resistance_score < 0.2
+            and successful_pilots >= 2
+            and critical_barriers == 0
+        ):
             return "Healthy - Change progressing well"
-        elif (engagement_score > 0.2 and resistance_score < 0.3 and
-              successful_pilots >= 1):
+        elif engagement_score > 0.2 and resistance_score < 0.3 and successful_pilots >= 1:
             return "Moderate - Some challenges but manageable"
         else:
             return "At Risk - Significant intervention needed"
@@ -534,7 +564,10 @@ def manage_enterprise_embedding_change():
             influence=10,
             concerns=["Budget", "Timeline", "Risk"],
             interests=["Innovation", "Competitive advantage", "Efficiency"],
-            preferred_channels={CommunicationChannel.ONE_ON_ONE, CommunicationChannel.EMAIL_UPDATES}
+            preferred_channels={
+                CommunicationChannel.ONE_ON_ONE,
+                CommunicationChannel.EMAIL_UPDATES,
+            },
         ),
         Stakeholder(
             name="Head of Search (Champion)",
@@ -543,7 +576,7 @@ def manage_enterprise_embedding_change():
             influence=8,
             concerns=["User experience", "Performance"],
             interests=["Better search results", "User satisfaction"],
-            preferred_channels={CommunicationChannel.DEMOS, CommunicationChannel.WORKSHOPS}
+            preferred_channels={CommunicationChannel.DEMOS, CommunicationChannel.WORKSHOPS},
         ),
         Stakeholder(
             name="VP Operations (Skeptic)",
@@ -552,7 +585,7 @@ def manage_enterprise_embedding_change():
             influence=7,
             concerns=["Operational complexity", "Support burden", "Reliability"],
             interests=["System stability", "Cost control"],
-            preferred_channels={CommunicationChannel.ONE_ON_ONE}
+            preferred_channels={CommunicationChannel.ONE_ON_ONE},
         ),
         Stakeholder(
             name="Security Lead (Blocker)",
@@ -561,8 +594,8 @@ def manage_enterprise_embedding_change():
             influence=9,
             concerns=["Data leakage", "Compliance", "Auditability"],
             interests=["Security posture", "Regulatory compliance"],
-            preferred_channels={CommunicationChannel.ONE_ON_ONE}
-        )
+            preferred_channels={CommunicationChannel.ONE_ON_ONE},
+        ),
     ]
 
     for stakeholder in stakeholders:
@@ -576,7 +609,7 @@ def manage_enterprise_embedding_change():
             severity=9,
             affected_stakeholders=["Security Lead"],
             mitigation_strategy="Implement encryption, access controls, compliance documentation",
-            timeline="2 months"
+            timeline="2 months",
         ),
         ChangeBarrier(
             name="Lack of embedding expertise in team",
@@ -584,7 +617,7 @@ def manage_enterprise_embedding_change():
             severity=8,
             affected_stakeholders=["Head of Search", "VP Operations"],
             mitigation_strategy="Hire 2 embedding ML engineers, training program for existing team",
-            timeline="3-6 months"
+            timeline="3-6 months",
         ),
         ChangeBarrier(
             name="Integration complexity with existing systems",
@@ -592,8 +625,8 @@ def manage_enterprise_embedding_change():
             severity=6,
             affected_stakeholders=["VP Operations"],
             mitigation_strategy="Gradual migration, maintain parallel systems during transition",
-            timeline="6 months"
-        )
+            timeline="6 months",
+        ),
     ]
 
     for barrier in barriers:
@@ -605,26 +638,26 @@ def manage_enterprise_embedding_change():
             name="Product Search Improvement",
             description="Replace keyword search with semantic search for product catalog",
             target_metrics={
-                'click_through_rate': 0.15,  # 15% improvement
-                'user_satisfaction': 0.10    # 10% improvement
+                "click_through_rate": 0.15,  # 15% improvement
+                "user_satisfaction": 0.10,  # 10% improvement
             },
             stakeholders=["Head of Search"],
             timeline="3 months",
             risk_level="low",
-            business_impact="High - directly affects customer experience and conversion"
+            business_impact="High - directly affects customer experience and conversion",
         ),
         PilotProject(
             name="Internal Knowledge Base Search",
             description="Improve employee search for internal documentation",
             target_metrics={
-                'search_success_rate': 0.25,  # 25% improvement
-                'time_to_find_info': -0.30    # 30% reduction
+                "search_success_rate": 0.25,  # 25% improvement
+                "time_to_find_info": -0.30,  # 30% reduction
             },
             stakeholders=["VP Operations"],
             timeline="2 months",
             risk_level="low",
-            business_impact="Medium - improves employee productivity"
-        )
+            business_impact="Medium - improves employee productivity",
+        ),
     ]
 
     for pilot in pilots:
@@ -638,20 +671,20 @@ def manage_enterprise_embedding_change():
     print(f"Score: {readiness['score']}")
     print(f"Recommendation: {readiness['recommendation']}\n")
     print("Next Steps:")
-    for i, step in enumerate(readiness['next_steps'], 1):
+    for i, step in enumerate(readiness["next_steps"], 1):
         print(f"  {i}. {step}")
 
     # Design communication strategy
     comm_strategy = framework.design_communication_strategy()
 
     print("\n=== Communication Strategy ===\n")
-    for audience, details in comm_strategy['strategy'].items():
+    for audience, details in comm_strategy["strategy"].items():
         print(f"{audience.upper()}:")
-        if 'stakeholders' in details:
+        if "stakeholders" in details:
             print(f"  Stakeholders: {', '.join(details['stakeholders'])}")
         print(f"  Frequency: {details['frequency']}")
         print("  Key Messages:")
-        for msg in details['key_messages']:
+        for msg in details["key_messages"]:
             print(f"    - {msg}")
         print()
 
@@ -663,8 +696,11 @@ def manage_enterprise_embedding_change():
     print(f"Engagement Score: {progress['engagement_score']:.1%}")
     print(f"Resistance Score: {progress['resistance_score']:.1%}")
     print("\nPilot Status:")
-    print(f"  Completed: {progress['pilot_status']['completed']}/{progress['pilot_status']['total']}")
+    print(
+        f"  Completed: {progress['pilot_status']['completed']}/{progress['pilot_status']['total']}"
+    )
     print(f"  Success Rate: {progress['pilot_status']['success_rate']:.1%}")
+
 
 if __name__ == "__main__":
     manage_enterprise_embedding_change()

@@ -43,6 +43,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 class Permission(Enum):
     """Permission types"""
+
     READ = "read"
     WRITE = "write"
     DELETE = "delete"
@@ -50,12 +51,15 @@ class Permission(Enum):
     QUERY = "query"
     EXPORT = "export"
 
+
 class ResourceType(Enum):
     """Resource types"""
+
     EMBEDDING = "embedding"
     INDEX = "index"
     COLLECTION = "collection"
     SYSTEM = "system"
+
 
 @dataclass
 class User:
@@ -72,6 +76,7 @@ class User:
         created_at: Account creation time
         last_login: Last login time
     """
+
     user_id: str
     username: str
     email: str
@@ -80,6 +85,7 @@ class User:
     tenant_id: Optional[str] = None
     created_at: datetime = field(default_factory=datetime.now)
     last_login: Optional[datetime] = None
+
 
 @dataclass
 class Role:
@@ -93,11 +99,13 @@ class Role:
         resource_patterns: Resource patterns this role can access
         constraints: Additional constraints (time, rate limits)
     """
+
     role_id: str
     name: str
     permissions: List[Permission] = field(default_factory=list)
     resource_patterns: List[str] = field(default_factory=list)
     constraints: Dict[str, Any] = field(default_factory=dict)
+
 
 @dataclass
 class AccessPolicy:
@@ -113,6 +121,7 @@ class AccessPolicy:
         resources: What resources can be accessed
         conditions: When policy applies
     """
+
     policy_id: str
     name: str
     effect: str  # "allow" or "deny"
@@ -120,6 +129,7 @@ class AccessPolicy:
     actions: List[str] = field(default_factory=list)
     resources: List[str] = field(default_factory=list)
     conditions: Dict[str, Any] = field(default_factory=dict)
+
 
 @dataclass
 class AuditLogEntry:
@@ -139,6 +149,7 @@ class AuditLogEntry:
         ip_address: Source IP address
         user_agent: Client user agent
     """
+
     log_id: str
     timestamp: datetime
     user_id: str
@@ -150,6 +161,7 @@ class AuditLogEntry:
     query_details: Optional[Dict[str, Any]] = None
     ip_address: Optional[str] = None
     user_agent: Optional[str] = None
+
 
 @dataclass
 class QueryQuota:
@@ -166,6 +178,7 @@ class QueryQuota:
         current_day_count: Queries today
         reset_time: When quotas reset
     """
+
     user_id: str
     queries_per_hour: int = 1000
     queries_per_day: int = 10000
@@ -174,6 +187,7 @@ class QueryQuota:
     current_hour_count: int = 0
     current_day_count: int = 0
     reset_time: datetime = field(default_factory=datetime.now)
+
 
 class AccessControlEngine:
     """
@@ -220,7 +234,7 @@ class AccessControlEngine:
             name="Administrator",
             permissions=list(Permission),
             resource_patterns=["*"],
-            constraints={}
+            constraints={},
         )
 
         # Analyst role: Read and query access
@@ -229,10 +243,7 @@ class AccessControlEngine:
             name="Data Analyst",
             permissions=[Permission.READ, Permission.QUERY],
             resource_patterns=["embedding:*", "collection:*"],
-            constraints={
-                "max_result_size": 1000,
-                "queries_per_hour": 100
-            }
+            constraints={"max_result_size": 1000, "queries_per_hour": 100},
         )
 
         # Service role: Query-only access
@@ -241,10 +252,7 @@ class AccessControlEngine:
             name="Application Service",
             permissions=[Permission.QUERY],
             resource_patterns=["embedding:*"],
-            constraints={
-                "max_result_size": 100,
-                "queries_per_hour": 10000
-            }
+            constraints={"max_result_size": 100, "queries_per_hour": 10000},
         )
 
         # Auditor role: Read audit logs only
@@ -253,7 +261,7 @@ class AccessControlEngine:
             name="Security Auditor",
             permissions=[Permission.READ],
             resource_patterns=["audit:*"],
-            constraints={}
+            constraints={},
         )
 
     def create_user(
@@ -262,7 +270,7 @@ class AccessControlEngine:
         email: str,
         roles: List[str],
         tenant_id: Optional[str] = None,
-        attributes: Optional[Dict[str, Any]] = None
+        attributes: Optional[Dict[str, Any]] = None,
     ) -> User:
         """
         Create new user
@@ -277,9 +285,7 @@ class AccessControlEngine:
         Returns:
             Created user
         """
-        user_id = hashlib.sha256(
-            f"{username}:{email}".encode()
-        ).hexdigest()[:16]
+        user_id = hashlib.sha256(f"{username}:{email}".encode()).hexdigest()[:16]
 
         user = User(
             user_id=user_id,
@@ -287,7 +293,7 @@ class AccessControlEngine:
             email=email,
             roles=roles,
             attributes=attributes or {},
-            tenant_id=tenant_id
+            tenant_id=tenant_id,
         )
 
         self.users[user_id] = user
@@ -301,16 +307,12 @@ class AccessControlEngine:
             action="user_created",
             resource_type=ResourceType.SYSTEM,
             resource_id=user_id,
-            result="success"
+            result="success",
         )
 
         return user
 
-    def authenticate(
-        self,
-        api_key: str,
-        ip_address: Optional[str] = None
-    ) -> Optional[User]:
+    def authenticate(self, api_key: str, ip_address: Optional[str] = None) -> Optional[User]:
         """
         Authenticate user via API key
 
@@ -342,7 +344,7 @@ class AccessControlEngine:
                 resource_type=ResourceType.SYSTEM,
                 resource_id="auth",
                 result="success",
-                metadata={"ip_address": ip_address}
+                metadata={"ip_address": ip_address},
             )
         else:
             self._log_access(
@@ -351,17 +353,13 @@ class AccessControlEngine:
                 resource_type=ResourceType.SYSTEM,
                 resource_id="auth",
                 result="failure",
-                metadata={"ip_address": ip_address}
+                metadata={"ip_address": ip_address},
             )
 
         return user
 
     def authorize(
-        self,
-        user: User,
-        action: Permission,
-        resource_type: ResourceType,
-        resource_id: str
+        self, user: User, action: Permission, resource_type: ResourceType, resource_id: str
     ) -> bool:
         """
         Check if user is authorized for action on resource
@@ -403,7 +401,7 @@ class AccessControlEngine:
                 action=f"authorize_{action.value}",
                 resource_type=resource_type,
                 resource_id=resource_id,
-                result="success"
+                result="success",
             )
             return True
 
@@ -417,15 +415,11 @@ class AccessControlEngine:
             action=f"authorize_{action.value}",
             resource_type=resource_type,
             resource_id=resource_id,
-            result="denied"
+            result="denied",
         )
         return False
 
-    def _match_resource_pattern(
-        self,
-        resource: str,
-        patterns: List[str]
-    ) -> bool:
+    def _match_resource_pattern(self, resource: str, patterns: List[str]) -> bool:
         """
         Check if resource matches any pattern
 
@@ -456,11 +450,7 @@ class AccessControlEngine:
         return False
 
     def _evaluate_policies(
-        self,
-        user: User,
-        action: Permission,
-        resource_type: ResourceType,
-        resource_id: str
+        self, user: User, action: Permission, resource_type: ResourceType, resource_id: str
     ) -> bool:
         """
         Evaluate ABAC policies
@@ -501,11 +491,7 @@ class AccessControlEngine:
 
         return False
 
-    def _evaluate_conditions(
-        self,
-        user: User,
-        conditions: Dict[str, Any]
-    ) -> bool:
+    def _evaluate_conditions(self, user: User, conditions: Dict[str, Any]) -> bool:
         """
         Evaluate policy conditions
 
@@ -544,11 +530,7 @@ class AccessControlEngine:
 
         return True
 
-    def check_quota(
-        self,
-        user: User,
-        result_size: int = 10
-    ) -> Tuple[bool, str]:
+    def check_quota(self, user: User, result_size: int = 10) -> Tuple[bool, str]:
         """
         Check if user has remaining quota
 
@@ -593,11 +575,7 @@ class AccessControlEngine:
             quota.current_hour_count += 1
             quota.current_day_count += 1
 
-    def apply_row_level_security(
-        self,
-        user: User,
-        query_filter: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def apply_row_level_security(self, user: User, query_filter: Dict[str, Any]) -> Dict[str, Any]:
         """
         Apply row-level security filters based on user attributes
 
@@ -641,7 +619,7 @@ class AccessControlEngine:
         resource_id: str,
         result: str,
         metadata: Optional[Dict[str, Any]] = None,
-        query_details: Optional[Dict[str, Any]] = None
+        query_details: Optional[Dict[str, Any]] = None,
     ):
         """
         Log access attempt to audit trail
@@ -656,9 +634,7 @@ class AccessControlEngine:
             query_details: Query details if applicable
         """
         log_entry = AuditLogEntry(
-            log_id=hashlib.sha256(
-                f"{user_id}:{action}:{time.time()}".encode()
-            ).hexdigest()[:16],
+            log_id=hashlib.sha256(f"{user_id}:{action}:{time.time()}".encode()).hexdigest()[:16],
             timestamp=datetime.now(),
             user_id=user_id,
             action=action,
@@ -666,7 +642,7 @@ class AccessControlEngine:
             resource_id=resource_id,
             result=result,
             metadata=metadata or {},
-            query_details=query_details
+            query_details=query_details,
         )
 
         self.audit_log.append(log_entry)
@@ -683,7 +659,7 @@ class AccessControlEngine:
         action: Optional[str] = None,
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
-        result: Optional[str] = None
+        result: Optional[str] = None,
     ) -> List[AuditLogEntry]:
         """
         Query audit log
@@ -717,6 +693,7 @@ class AccessControlEngine:
 
         return results
 
+
 # Example usage
 def access_control_example():
     """
@@ -731,10 +708,7 @@ def access_control_example():
 
     # Create users with different roles
     admin_user = ac.create_user(
-        username="alice_admin",
-        email="alice@example.com",
-        roles=["admin"],
-        tenant_id="tenant_acme"
+        username="alice_admin", email="alice@example.com", roles=["admin"], tenant_id="tenant_acme"
     )
 
     analyst_user = ac.create_user(
@@ -742,14 +716,14 @@ def access_control_example():
         email="bob@example.com",
         roles=["analyst"],
         tenant_id="tenant_acme",
-        attributes={"region": "US", "department": "marketing"}
+        attributes={"region": "US", "department": "marketing"},
     )
 
     service_user = ac.create_user(
         username="api_service",
         email="service@example.com",
         roles=["service"],
-        tenant_id="tenant_acme"
+        tenant_id="tenant_acme",
     )
 
     print("Created users:")
@@ -762,43 +736,18 @@ def access_control_example():
     print("Authorization tests:")
 
     # Admin can do everything
-    can_delete = ac.authorize(
-        admin_user,
-        Permission.DELETE,
-        ResourceType.EMBEDDING,
-        "emb_123"
-    )
+    can_delete = ac.authorize(admin_user, Permission.DELETE, ResourceType.EMBEDDING, "emb_123")
     print(f"  Admin delete embedding: {can_delete}")
 
     # Analyst can query but not delete
-    can_query = ac.authorize(
-        analyst_user,
-        Permission.QUERY,
-        ResourceType.EMBEDDING,
-        "emb_123"
-    )
-    can_delete = ac.authorize(
-        analyst_user,
-        Permission.DELETE,
-        ResourceType.EMBEDDING,
-        "emb_123"
-    )
+    can_query = ac.authorize(analyst_user, Permission.QUERY, ResourceType.EMBEDDING, "emb_123")
+    can_delete = ac.authorize(analyst_user, Permission.DELETE, ResourceType.EMBEDDING, "emb_123")
     print(f"  Analyst query embedding: {can_query}")
     print(f"  Analyst delete embedding: {can_delete}")
 
     # Service can only query
-    can_query = ac.authorize(
-        service_user,
-        Permission.QUERY,
-        ResourceType.EMBEDDING,
-        "emb_123"
-    )
-    can_export = ac.authorize(
-        service_user,
-        Permission.EXPORT,
-        ResourceType.EMBEDDING,
-        "emb_123"
-    )
+    can_query = ac.authorize(service_user, Permission.QUERY, ResourceType.EMBEDDING, "emb_123")
+    can_export = ac.authorize(service_user, Permission.EXPORT, ResourceType.EMBEDDING, "emb_123")
     print(f"  Service query embedding: {can_query}")
     print(f"  Service export embedding: {can_export}")
     print()
@@ -824,9 +773,12 @@ def access_control_example():
     print("Audit log (last 5 entries):")
     recent_logs = ac.query_audit_log()[-5:]
     for log in recent_logs:
-        print(f"  [{log.timestamp.strftime('%H:%M:%S')}] "
-              f"{log.user_id[:8]}... {log.action} "
-              f"{log.resource_type.value}:{log.resource_id} -> {log.result}")
+        print(
+            f"  [{log.timestamp.strftime('%H:%M:%S')}] "
+            f"{log.user_id[:8]}... {log.action} "
+            f"{log.resource_type.value}:{log.resource_id} -> {log.result}"
+        )
+
 
 if __name__ == "__main__":
     access_control_example()

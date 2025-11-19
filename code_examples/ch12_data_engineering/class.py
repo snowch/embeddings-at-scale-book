@@ -40,11 +40,13 @@ class StreamEvent:
         data: Entity data
         timestamp: Event timestamp
     """
+
     event_id: str
     event_type: str  # 'create', 'update', 'delete'
     entity_id: str
     data: Dict
     timestamp: datetime = field(default_factory=datetime.now)
+
 
 class StreamingEmbeddingPipeline:
     """
@@ -74,7 +76,7 @@ class StreamingEmbeddingPipeline:
         vector_index,
         batch_window_ms: int = 500,
         max_batch_size: int = 100,
-        enable_checkpointing: bool = True
+        enable_checkpointing: bool = True,
     ):
         """
         Args:
@@ -244,7 +246,9 @@ class StreamingEmbeddingPipeline:
             throughput = self.events_processed / (self.total_latency_ms / 1000)
 
             if self.batches_processed % 10 == 0:
-                print(f"Processed {self.events_processed:,} events in {self.batches_processed} batches")
+                print(
+                    f"Processed {self.events_processed:,} events in {self.batches_processed} batches"
+                )
                 print(f"  Avg latency: {avg_latency:.1f}ms")
                 print(f"  Throughput: {throughput:.0f} events/sec")
 
@@ -268,7 +272,7 @@ class StreamingEmbeddingPipeline:
         try:
             # Extract text features
             text_parts = []
-            for field_name in ['title', 'description', 'content']:
+            for field_name in ["title", "description", "content"]:
                 if field_name in event.data:
                     text_parts.append(str(event.data[field_name]))
 
@@ -285,10 +289,7 @@ class StreamingEmbeddingPipeline:
             print(f"⚠️  Feature extraction failed for event {event.event_id}: {e}")
             return None
 
-    def _generate_embeddings_batch(
-        self,
-        features_list: List[np.ndarray]
-    ) -> np.ndarray:
+    def _generate_embeddings_batch(self, features_list: List[np.ndarray]) -> np.ndarray:
         """
         Generate embeddings for batch (GPU-accelerated)
 
@@ -312,10 +313,7 @@ class StreamingEmbeddingPipeline:
         return embeddings
 
     def _update_index(
-        self,
-        entity_ids: List[str],
-        embeddings: np.ndarray,
-        events: List[StreamEvent]
+        self, entity_ids: List[str], embeddings: np.ndarray, events: List[StreamEvent]
     ):
         """
         Update vector index with new embeddings
@@ -331,16 +329,16 @@ class StreamingEmbeddingPipeline:
             events: Original events (for event_type)
         """
         for entity_id, embedding, event in zip(entity_ids, embeddings, events):
-            if event.event_type == 'create':
+            if event.event_type == "create":
                 # Add to index
                 self.vector_index.add(entity_id, embedding)
 
-            elif event.event_type == 'update':
+            elif event.event_type == "update":
                 # Replace in index (delete + add)
                 self.vector_index.delete(entity_id)
                 self.vector_index.add(entity_id, embedding)
 
-            elif event.event_type == 'delete':
+            elif event.event_type == "delete":
                 # Remove from index
                 self.vector_index.delete(entity_id)
 
@@ -370,16 +368,18 @@ class StreamingEmbeddingPipeline:
     def get_metrics(self) -> Dict:
         """Get pipeline metrics"""
         return {
-            'events_processed': self.events_processed,
-            'batches_processed': self.batches_processed,
-            'avg_latency_ms': self.total_latency_ms / max(1, self.batches_processed),
-            'throughput_eps': self.events_processed / max(1, self.total_latency_ms / 1000),
-            'errors': self.errors,
-            'error_rate': self.errors / max(1, self.batches_processed)
+            "events_processed": self.events_processed,
+            "batches_processed": self.batches_processed,
+            "avg_latency_ms": self.total_latency_ms / max(1, self.batches_processed),
+            "throughput_eps": self.events_processed / max(1, self.total_latency_ms / 1000),
+            "errors": self.errors,
+            "error_rate": self.errors / max(1, self.batches_processed),
         }
+
 
 class MockVectorIndex:
     """Mock vector index for demonstration"""
+
     def __init__(self):
         self.vectors = {}
 
@@ -393,6 +393,7 @@ class MockVectorIndex:
     def search(self, query: np.ndarray, k: int = 10):
         # Mock search
         return list(self.vectors.keys())[:k]
+
 
 # Example: Real-time news article embeddings
 def streaming_news_example():
@@ -424,7 +425,7 @@ def streaming_news_example():
         embedding_model=embedding_model,
         vector_index=vector_index,
         batch_window_ms=500,
-        max_batch_size=50
+        max_batch_size=50,
     )
 
     # Start pipeline
@@ -435,13 +436,13 @@ def streaming_news_example():
     for i in range(100):
         event = StreamEvent(
             event_id=f"event_{i}",
-            event_type='create',
+            event_type="create",
             entity_id=f"article_{i}",
             data={
-                'title': f'Breaking News {i}',
-                'content': f'This is article content for story {i}',
-                'category': ['Politics', 'Sports', 'Tech'][i % 3]
-            }
+                "title": f"Breaking News {i}",
+                "content": f"This is article content for story {i}",
+                "category": ["Politics", "Sports", "Tech"][i % 3],
+            },
         )
 
         pipeline.ingest_event(event)
@@ -463,6 +464,7 @@ def streaming_news_example():
     print(f"  Avg latency: {metrics['avg_latency_ms']:.1f}ms")
     print(f"  Throughput: {metrics['throughput_eps']:.0f} events/sec")
     print(f"  Errors: {metrics['errors']}")
+
 
 # Uncomment to run:
 # streaming_news_example()

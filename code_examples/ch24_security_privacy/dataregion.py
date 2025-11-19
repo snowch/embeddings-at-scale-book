@@ -46,14 +46,17 @@ import numpy as np
 
 class DataRegion(Enum):
     """Data residency regions"""
+
     EU = "eu"  # European Union
     US = "us"  # United States
     APAC = "apac"  # Asia-Pacific
     LATAM = "latam"  # Latin America
     MEA = "mea"  # Middle East & Africa
 
+
 class LegalBasis(Enum):
     """GDPR lawful basis for processing"""
+
     CONSENT = "consent"
     CONTRACT = "contract"
     LEGAL_OBLIGATION = "legal_obligation"
@@ -61,14 +64,17 @@ class LegalBasis(Enum):
     PUBLIC_TASK = "public_task"
     LEGITIMATE_INTEREST = "legitimate_interest"
 
+
 class DataCategory(Enum):
     """Types of personal data"""
+
     BASIC_IDENTITY = "basic_identity"  # Name, email
     SENSITIVE = "sensitive"  # Health, race, religion
     FINANCIAL = "financial"  # Payment info, credit score
     BEHAVIORAL = "behavioral"  # Browsing, usage patterns
     BIOMETRIC = "biometric"  # Fingerprints, face scans
     LOCATION = "location"  # GPS coordinates, IP address
+
 
 @dataclass
 class ConsentRecord:
@@ -86,6 +92,7 @@ class ConsentRecord:
         consent_text: Text shown to user
         consent_version: Version of privacy policy
     """
+
     user_id: str
     purpose: str
     legal_basis: LegalBasis
@@ -95,6 +102,7 @@ class ConsentRecord:
     withdrawn_at: Optional[datetime] = None
     consent_text: str = ""
     consent_version: str = "1.0"
+
 
 @dataclass
 class DeletionRequest:
@@ -111,6 +119,7 @@ class DeletionRequest:
         verification: User identity verification details
         retention_exceptions: Data retained for legal reasons
     """
+
     request_id: str
     user_id: str
     requested_at: datetime
@@ -119,6 +128,7 @@ class DeletionRequest:
     completed_at: Optional[datetime] = None
     verification: Dict[str, Any] = field(default_factory=dict)
     retention_exceptions: List[str] = field(default_factory=list)
+
 
 @dataclass
 class ExportRequest:
@@ -134,6 +144,7 @@ class ExportRequest:
         download_url: URL to download export
         expires_at: When download link expires
     """
+
     request_id: str
     user_id: str
     requested_at: datetime
@@ -141,6 +152,7 @@ class ExportRequest:
     status: str = "pending"
     download_url: Optional[str] = None
     expires_at: Optional[datetime] = None
+
 
 @dataclass
 class BreachIncident:
@@ -158,6 +170,7 @@ class BreachIncident:
         notification_sent: Whether users were notified
         mitigation: Steps taken to mitigate
     """
+
     incident_id: str
     detected_at: datetime
     breach_type: str
@@ -167,6 +180,7 @@ class BreachIncident:
     reported_at: Optional[datetime] = None
     notification_sent: bool = False
     mitigation: List[str] = field(default_factory=list)
+
 
 class GDPRComplianceEngine:
     """
@@ -183,8 +197,7 @@ class GDPRComplianceEngine:
     def __init__(self):
         # Data partitions by region
         self.data_partitions: Dict[DataRegion, Dict[str, Any]] = {
-            region: {"embeddings": {}, "metadata": {}}
-            for region in DataRegion
+            region: {"embeddings": {}, "metadata": {}} for region in DataRegion
         }
 
         # Consent records
@@ -216,21 +229,55 @@ class GDPRComplianceEngine:
         """
         # EU countries
         eu_countries = {
-            "AT", "BE", "BG", "CY", "CZ", "DE", "DK", "EE", "ES", "FI",
-            "FR", "GR", "HR", "HU", "IE", "IT", "LT", "LU", "LV", "MT",
-            "NL", "PL", "PT", "RO", "SE", "SI", "SK"
+            "AT",
+            "BE",
+            "BG",
+            "CY",
+            "CZ",
+            "DE",
+            "DK",
+            "EE",
+            "ES",
+            "FI",
+            "FR",
+            "GR",
+            "HR",
+            "HU",
+            "IE",
+            "IT",
+            "LT",
+            "LU",
+            "LV",
+            "MT",
+            "NL",
+            "PL",
+            "PT",
+            "RO",
+            "SE",
+            "SI",
+            "SK",
         }
 
         # APAC countries
         apac_countries = {
-            "AU", "CN", "HK", "ID", "IN", "JP", "KR", "MY", "NZ", "PH",
-            "SG", "TH", "TW", "VN"
+            "AU",
+            "CN",
+            "HK",
+            "ID",
+            "IN",
+            "JP",
+            "KR",
+            "MY",
+            "NZ",
+            "PH",
+            "SG",
+            "TH",
+            "TW",
+            "VN",
         }
 
         # LATAM countries
-        latam_countries = {
-            "AR", "BR", "CL", "CO", "MX", "PE"
-        }
+        latam_countries = {"AR", "BR", "CL", "CO", "MX", "PE"}
 
         if user_location in eu_countries:
             return DataRegion.EU
@@ -248,7 +295,7 @@ class GDPRComplianceEngine:
         user_id: str,
         embedding: np.ndarray,
         user_location: str,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ):
         """
         Store embedding in appropriate regional partition
@@ -264,16 +311,14 @@ class GDPRComplianceEngine:
 
         # Check consent
         if not self.check_consent(user_id, "embedding_storage"):
-            raise ValueError(
-                f"User {user_id} has not consented to embedding storage"
-            )
+            raise ValueError(f"User {user_id} has not consented to embedding storage")
 
         # Store in regional partition
         self.data_partitions[region]["embeddings"][user_id] = embedding
         self.data_partitions[region]["metadata"][user_id] = {
             "stored_at": datetime.now(),
             "location": user_location,
-            "metadata": metadata or {}
+            "metadata": metadata or {},
         }
 
         print(f"Stored embedding for {user_id} in {region.value} region")
@@ -285,7 +330,7 @@ class GDPRComplianceEngine:
         legal_basis: LegalBasis,
         data_categories: List[DataCategory],
         consent_text: str,
-        expires_in_days: Optional[int] = None
+        expires_in_days: Optional[int] = None,
     ) -> ConsentRecord:
         """
         Record user consent for data processing
@@ -312,7 +357,7 @@ class GDPRComplianceEngine:
             data_categories=data_categories,
             granted_at=datetime.now(),
             expires_at=expires_at,
-            consent_text=consent_text
+            consent_text=consent_text,
         )
 
         if user_id not in self.consent_records:
@@ -323,11 +368,7 @@ class GDPRComplianceEngine:
         print(f"Recorded consent for {user_id}: {purpose}")
         return consent
 
-    def check_consent(
-        self,
-        user_id: str,
-        purpose: str
-    ) -> bool:
+    def check_consent(self, user_id: str, purpose: str) -> bool:
         """
         Check if user has valid consent for purpose
 
@@ -357,11 +398,7 @@ class GDPRComplianceEngine:
 
         return False
 
-    def withdraw_consent(
-        self,
-        user_id: str,
-        purpose: str
-    ):
+    def withdraw_consent(self, user_id: str, purpose: str):
         """
         Withdraw user consent for purpose
 
@@ -377,10 +414,7 @@ class GDPRComplianceEngine:
                 print(f"Withdrew consent for {user_id}: {purpose}")
 
     def request_deletion(
-        self,
-        user_id: str,
-        scope: str = "all",
-        verification: Optional[Dict[str, Any]] = None
+        self, user_id: str, scope: str = "all", verification: Optional[Dict[str, Any]] = None
     ) -> DeletionRequest:
         """
         Submit deletion request (GDPR Article 17)
@@ -399,16 +433,16 @@ class GDPRComplianceEngine:
         Returns:
             Deletion request
         """
-        request_id = hashlib.sha256(
-            f"{user_id}:{datetime.now().isoformat()}".encode()
-        ).hexdigest()[:16]
+        request_id = hashlib.sha256(f"{user_id}:{datetime.now().isoformat()}".encode()).hexdigest()[
+            :16
+        ]
 
         request = DeletionRequest(
             request_id=request_id,
             user_id=user_id,
             requested_at=datetime.now(),
             scope=scope,
-            verification=verification or {}
+            verification=verification or {},
         )
 
         self.deletion_requests.append(request)
@@ -463,11 +497,7 @@ class GDPRComplianceEngine:
 
         print(f"Deletion completed for {user_id}")
 
-    def request_export(
-        self,
-        user_id: str,
-        format: str = "json"
-    ) -> ExportRequest:
+    def request_export(self, user_id: str, format: str = "json") -> ExportRequest:
         """
         Submit data export request (GDPR Article 20)
 
@@ -485,10 +515,7 @@ class GDPRComplianceEngine:
         ).hexdigest()[:16]
 
         request = ExportRequest(
-            request_id=request_id,
-            user_id=user_id,
-            requested_at=datetime.now(),
-            format=format
+            request_id=request_id, user_id=user_id, requested_at=datetime.now(), format=format
         )
 
         self.export_requests.append(request)
@@ -520,7 +547,7 @@ class GDPRComplianceEngine:
             "export_date": datetime.now().isoformat(),
             "embeddings": {},
             "consents": [],
-            "processing_history": []
+            "processing_history": [],
         }
 
         # Collect embeddings from all regions
@@ -532,18 +559,22 @@ class GDPRComplianceEngine:
                 export_data["embeddings"][region.value] = {
                     "vector": embedding.tolist(),
                     "stored_at": metadata["stored_at"].isoformat(),
-                    "metadata": metadata.get("metadata", {})
+                    "metadata": metadata.get("metadata", {}),
                 }
 
         # Include consent records
         consents = self.consent_records.get(user_id, [])
         for consent in consents:
-            export_data["consents"].append({
-                "purpose": consent.purpose,
-                "legal_basis": consent.legal_basis.value,
-                "granted_at": consent.granted_at.isoformat(),
-                "withdrawn_at": consent.withdrawn_at.isoformat() if consent.withdrawn_at else None
-            })
+            export_data["consents"].append(
+                {
+                    "purpose": consent.purpose,
+                    "legal_basis": consent.legal_basis.value,
+                    "granted_at": consent.granted_at.isoformat(),
+                    "withdrawn_at": consent.withdrawn_at.isoformat()
+                    if consent.withdrawn_at
+                    else None,
+                }
+            )
 
         # Generate download URL (simplified)
         request.download_url = f"https://exports.example.com/{request.request_id}"
@@ -558,7 +589,7 @@ class GDPRComplianceEngine:
         affected_users: int,
         data_categories: List[DataCategory],
         severity: str,
-        description: str
+        description: str,
     ) -> BreachIncident:
         """
         Report data breach incident
@@ -576,9 +607,9 @@ class GDPRComplianceEngine:
         Returns:
             Breach incident record
         """
-        incident_id = hashlib.sha256(
-            f"breach:{datetime.now().isoformat()}".encode()
-        ).hexdigest()[:16]
+        incident_id = hashlib.sha256(f"breach:{datetime.now().isoformat()}".encode()).hexdigest()[
+            :16
+        ]
 
         incident = BreachIncident(
             incident_id=incident_id,
@@ -586,7 +617,7 @@ class GDPRComplianceEngine:
             breach_type=breach_type,
             affected_users=affected_users,
             data_categories=data_categories,
-            severity=severity
+            severity=severity,
         )
 
         self.breach_incidents.append(incident)
@@ -616,44 +647,46 @@ class GDPRComplianceEngine:
             "consent_status": {},
             "deletion_requests": {},
             "export_requests": {},
-            "breach_incidents": len(self.breach_incidents)
+            "breach_incidents": len(self.breach_incidents),
         }
 
         # Data residency breakdown
         for region in DataRegion:
             report["data_residency"][region.value] = {
                 "embeddings": len(self.data_partitions[region]["embeddings"]),
-                "metadata": len(self.data_partitions[region]["metadata"])
+                "metadata": len(self.data_partitions[region]["metadata"]),
             }
 
         # Consent statistics
         total_consents = sum(len(c) for c in self.consent_records.values())
         active_consents = sum(
-            1 for consents in self.consent_records.values()
+            1
+            for consents in self.consent_records.values()
             for c in consents
             if not c.withdrawn_at and (not c.expires_at or c.expires_at > datetime.now())
         )
         report["consent_status"] = {
             "total": total_consents,
             "active": active_consents,
-            "expired_or_withdrawn": total_consents - active_consents
+            "expired_or_withdrawn": total_consents - active_consents,
         }
 
         # Deletion requests
         report["deletion_requests"] = {
             "total": len(self.deletion_requests),
             "completed": sum(1 for r in self.deletion_requests if r.status == "completed"),
-            "pending": sum(1 for r in self.deletion_requests if r.status == "pending")
+            "pending": sum(1 for r in self.deletion_requests if r.status == "pending"),
         }
 
         # Export requests
         report["export_requests"] = {
             "total": len(self.export_requests),
             "completed": sum(1 for r in self.export_requests if r.status == "completed"),
-            "pending": sum(1 for r in self.export_requests if r.status == "pending")
+            "pending": sum(1 for r in self.export_requests if r.status == "pending"),
         }
 
         return report
+
 
 # Example usage
 def gdpr_compliance_example():
@@ -675,7 +708,7 @@ def gdpr_compliance_example():
         legal_basis=LegalBasis.CONSENT,
         data_categories=[DataCategory.BEHAVIORAL, DataCategory.BASIC_IDENTITY],
         consent_text="I agree to the processing of my data for recommendation purposes",
-        expires_in_days=365
+        expires_in_days=365,
     )
     print()
 
@@ -686,7 +719,7 @@ def gdpr_compliance_example():
         user_id="user_eu_123",
         embedding=embedding,
         user_location="DE",  # Germany
-        metadata={"source": "web_app"}
+        metadata={"source": "web_app"},
     )
     print()
 
@@ -703,9 +736,7 @@ def gdpr_compliance_example():
     # Request deletion (Article 17)
     print("5. Right to deletion - user requests removal:")
     gdpr.request_deletion(
-        user_id="user_eu_123",
-        scope="all",
-        verification={"method": "email", "verified": True}
+        user_id="user_eu_123", scope="all", verification={"method": "email", "verified": True}
     )
     print()
 
@@ -716,7 +747,7 @@ def gdpr_compliance_example():
         affected_users=1,
         data_categories=[DataCategory.BEHAVIORAL],
         severity="medium",
-        description="Unauthorized API access detected"
+        description="Unauthorized API access detected",
     )
     print()
 
@@ -724,6 +755,7 @@ def gdpr_compliance_example():
     print("7. Compliance status report:")
     report = gdpr.generate_compliance_report()
     print(json.dumps(report, indent=2))
+
 
 if __name__ == "__main__":
     gdpr_compliance_example()

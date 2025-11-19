@@ -31,9 +31,11 @@ class SearchResult:
         scores: Similarity scores
         latency_ms: Search latency in milliseconds
     """
+
     indices: np.ndarray
     scores: np.ndarray
     latency_ms: float
+
 
 class OptimizedExactSearch:
     """
@@ -57,12 +59,7 @@ class OptimizedExactSearch:
     - GPU available (makes exact search feasible at larger scale)
     """
 
-    def __init__(
-        self,
-        corpus: np.ndarray,
-        normalized: bool = False,
-        use_gpu: bool = True
-    ):
+    def __init__(self, corpus: np.ndarray, normalized: bool = False, use_gpu: bool = True):
         """
         Args:
             corpus: Corpus embeddings (N, d)
@@ -71,7 +68,7 @@ class OptimizedExactSearch:
         """
         self.corpus = corpus
         self.normalized = normalized
-        self.device = 'cuda' if use_gpu and torch.cuda.is_available() else 'cpu'
+        self.device = "cuda" if use_gpu and torch.cuda.is_available() else "cpu"
 
         # Convert to PyTorch tensor for GPU acceleration
         self.corpus_tensor = torch.from_numpy(corpus).to(self.device)
@@ -85,11 +82,7 @@ class OptimizedExactSearch:
         print(f"  Corpus size: {len(corpus):,} vectors × {corpus.shape[1]} dims")
         print(f"  Memory: {corpus.nbytes / 1e9:.2f} GB")
 
-    def search(
-        self,
-        query: np.ndarray,
-        k: int = 10
-    ) -> SearchResult:
+    def search(self, query: np.ndarray, k: int = 10) -> SearchResult:
         """
         Find k nearest neighbors to query using exact search
 
@@ -126,11 +119,7 @@ class OptimizedExactSearch:
 
         # Find top-k (uses partial sort - faster than full sort)
         top_scores, top_indices = torch.topk(
-            similarities,
-            k=min(k, len(self.corpus)),
-            dim=1,
-            largest=True,
-            sorted=True
+            similarities, k=min(k, len(self.corpus)), dim=1, largest=True, sorted=True
         )
 
         # Move back to CPU
@@ -144,17 +133,10 @@ class OptimizedExactSearch:
 
         latency_ms = (time.time() - start_time) * 1000
 
-        return SearchResult(
-            indices=top_indices,
-            scores=top_scores,
-            latency_ms=latency_ms
-        )
+        return SearchResult(indices=top_indices, scores=top_scores, latency_ms=latency_ms)
 
     def batch_search(
-        self,
-        queries: np.ndarray,
-        k: int = 10,
-        batch_size: int = 1000
+        self, queries: np.ndarray, k: int = 10, batch_size: int = 1000
     ) -> List[SearchResult]:
         """
         Process multiple queries in batches for higher throughput
@@ -183,6 +165,7 @@ class OptimizedExactSearch:
             results.append(result)
 
         return results
+
 
 class EarlyTerminationSearch:
     """
@@ -223,11 +206,7 @@ class EarlyTerminationSearch:
         print("Initialized early termination search")
         print(f"  Max contrib range: [{self.max_contrib.min():.3f}, {self.max_contrib.max():.3f}]")
 
-    def search(
-        self,
-        query: np.ndarray,
-        k: int = 10
-    ) -> SearchResult:
+    def search(self, query: np.ndarray, k: int = 10) -> SearchResult:
         """
         Search with early termination
 
@@ -273,8 +252,8 @@ class EarlyTerminationSearch:
                 if remaining_dims > 0:
                     # Assume remaining dimensions contribute maximally
                     remaining_max = np.sum(
-                        np.abs(query[self.dim_order[j_idx+1:]]) *
-                        self.max_contrib[self.dim_order[j_idx+1:]]
+                        np.abs(query[self.dim_order[j_idx + 1 :]])
+                        * self.max_contrib[self.dim_order[j_idx + 1 :]]
                     )
                     upper_bound = partial_score + remaining_max
                 else:
@@ -301,14 +280,13 @@ class EarlyTerminationSearch:
 
         latency_ms = (time.time() - start_time) * 1000
 
-        print(f"  Scanned {vectors_scanned}/{self.num_vectors} vectors "
-              f"({vectors_scanned/self.num_vectors:.1%})")
-
-        return SearchResult(
-            indices=indices_arr,
-            scores=scores_arr,
-            latency_ms=latency_ms
+        print(
+            f"  Scanned {vectors_scanned}/{self.num_vectors} vectors "
+            f"({vectors_scanned / self.num_vectors:.1%})"
         )
+
+        return SearchResult(indices=indices_arr, scores=scores_arr, latency_ms=latency_ms)
+
 
 # Example: Optimized exact search
 def exact_search_example():
@@ -353,6 +331,7 @@ def exact_search_example():
     print(f"  Total latency: {total_latency:.2f} ms")
     print(f"  Per-query latency: {total_latency / 100:.2f} ms")
     print(f"  Throughput: {100 / (total_latency / 1000):.0f} queries/sec")
+
 
 # Uncomment to run:
 # exact_search_example()

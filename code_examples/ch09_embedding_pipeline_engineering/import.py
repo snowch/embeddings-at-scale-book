@@ -13,6 +13,7 @@ import torch.nn as nn
 # Placeholder class for embedding model registry
 class EmbeddingModelRegistry:
     """Placeholder for embedding model registry. Replace with actual implementation."""
+
     def __init__(self):
         self.models = {}
 
@@ -37,6 +38,7 @@ class EmbeddingQualityMetrics:
     - Downstream task accuracy (if available)
     - User engagement metrics (CTR, conversion)
     """
+
     timestamp: datetime
 
     # Intrinsic metrics
@@ -57,6 +59,7 @@ class EmbeddingQualityMetrics:
     index_size_gb: float
     queries_per_second: float
 
+
 class EmbeddingMonitoringSystem:
     """
     Continuous monitoring system for embedding quality
@@ -75,12 +78,7 @@ class EmbeddingMonitoringSystem:
     - User engagement metrics decline
     """
 
-    def __init__(
-        self,
-        model_registry,
-        test_dataset,
-        alert_thresholds: Optional[Dict] = None
-    ):
+    def __init__(self, model_registry, test_dataset, alert_thresholds: Optional[Dict] = None):
         """
         Args:
             model_registry: Access to embedding models
@@ -92,10 +90,10 @@ class EmbeddingMonitoringSystem:
 
         # Default alert thresholds
         self.alert_thresholds = alert_thresholds or {
-            'recall_at_10_drop': 0.05,  # Alert if recall drops >5%
-            'latency_p99_increase': 0.20,  # Alert if p99 latency increases >20%
-            'embedding_norm_change': 0.15,  # Alert if avg norm changes >15%
-            'queries_per_second_drop': 0.30  # Alert if QPS drops >30%
+            "recall_at_10_drop": 0.05,  # Alert if recall drops >5%
+            "latency_p99_increase": 0.20,  # Alert if p99 latency increases >20%
+            "embedding_norm_change": 0.15,  # Alert if avg norm changes >15%
+            "queries_per_second_drop": 0.30,  # Alert if QPS drops >30%
         }
 
         # Historical metrics for baseline comparison
@@ -105,9 +103,7 @@ class EmbeddingMonitoringSystem:
         self.baseline_metrics: Optional[EmbeddingQualityMetrics] = None
 
     def evaluate_current_quality(
-        self,
-        model_id: str,
-        sample_size: int = 10000
+        self, model_id: str, sample_size: int = 10000
     ) -> EmbeddingQualityMetrics:
         """
         Evaluate current embedding quality
@@ -121,7 +117,7 @@ class EmbeddingMonitoringSystem:
         print(f"Evaluating embedding quality for {model_id}...")
 
         # Load model
-        model, metadata = self.model_registry.load_model(model_id, 'cuda')
+        model, metadata = self.model_registry.load_model(model_id, "cuda")
         model.eval()
 
         # Compute intrinsic metrics
@@ -136,27 +132,23 @@ class EmbeddingMonitoringSystem:
         # Combine into quality metrics
         metrics = EmbeddingQualityMetrics(
             timestamp=datetime.now(),
-            avg_norm=intrinsic['avg_norm'],
-            norm_std=intrinsic['norm_std'],
-            avg_nn_distance=intrinsic['avg_nn_distance'],
-            embedding_variance=intrinsic['embedding_variance'],
-            retrieval_recall_at_10=extrinsic['recall_at_10'],
-            retrieval_recall_at_100=extrinsic['recall_at_100'],
-            ndcg_at_10=extrinsic['ndcg_at_10'],
-            mrr=extrinsic['mrr'],
-            inference_latency_p50_ms=system['latency_p50_ms'],
-            inference_latency_p99_ms=system['latency_p99_ms'],
-            index_size_gb=system['index_size_gb'],
-            queries_per_second=system['queries_per_second']
+            avg_norm=intrinsic["avg_norm"],
+            norm_std=intrinsic["norm_std"],
+            avg_nn_distance=intrinsic["avg_nn_distance"],
+            embedding_variance=intrinsic["embedding_variance"],
+            retrieval_recall_at_10=extrinsic["recall_at_10"],
+            retrieval_recall_at_100=extrinsic["recall_at_100"],
+            ndcg_at_10=extrinsic["ndcg_at_10"],
+            mrr=extrinsic["mrr"],
+            inference_latency_p50_ms=system["latency_p50_ms"],
+            inference_latency_p99_ms=system["latency_p99_ms"],
+            index_size_gb=system["index_size_gb"],
+            queries_per_second=system["queries_per_second"],
         )
 
         return metrics
 
-    def _compute_intrinsic_metrics(
-        self,
-        model: nn.Module,
-        sample_size: int
-    ) -> Dict:
+    def _compute_intrinsic_metrics(self, model: nn.Module, sample_size: int) -> Dict:
         """
         Compute intrinsic embedding metrics
 
@@ -166,7 +158,7 @@ class EmbeddingMonitoringSystem:
         - Nearest neighbor distances: Are similar items close?
         """
         # Sample random inputs
-        sample_data = torch.randn(sample_size, model.encoder[0].in_features).to('cuda')
+        sample_data = torch.randn(sample_size, model.encoder[0].in_features).to("cuda")
 
         with torch.no_grad():
             embeddings = model(sample_data).cpu().numpy()
@@ -181,7 +173,9 @@ class EmbeddingMonitoringSystem:
 
         # Nearest neighbor distances (sample 1000 points)
         nn_distances = []
-        sample_indices = np.random.choice(len(embeddings), size=min(1000, len(embeddings)), replace=False)
+        sample_indices = np.random.choice(
+            len(embeddings), size=min(1000, len(embeddings)), replace=False
+        )
 
         for idx in sample_indices[:100]:  # Limit for efficiency
             query_emb = embeddings[idx]
@@ -192,10 +186,10 @@ class EmbeddingMonitoringSystem:
         avg_nn_distance = np.mean(nn_distances)
 
         return {
-            'avg_norm': float(avg_norm),
-            'norm_std': float(norm_std),
-            'embedding_variance': float(embedding_variance),
-            'avg_nn_distance': float(avg_nn_distance)
+            "avg_norm": float(avg_norm),
+            "norm_std": float(norm_std),
+            "embedding_variance": float(embedding_variance),
+            "avg_nn_distance": float(avg_nn_distance),
         }
 
     def _compute_extrinsic_metrics(self, model: nn.Module) -> Dict:
@@ -216,10 +210,10 @@ class EmbeddingMonitoringSystem:
         mrr = 0.78  # Placeholder
 
         return {
-            'recall_at_10': recall_at_10,
-            'recall_at_100': recall_at_100,
-            'ndcg_at_10': ndcg_at_10,
-            'mrr': mrr
+            "recall_at_10": recall_at_10,
+            "recall_at_100": recall_at_100,
+            "ndcg_at_10": ndcg_at_10,
+            "mrr": mrr,
         }
 
     def _measure_system_performance(self, model: nn.Module) -> Dict:
@@ -235,7 +229,7 @@ class EmbeddingMonitoringSystem:
         num_queries = 1000
         latencies_ms = []
 
-        sample_data = torch.randn(1, model.encoder[0].in_features).to('cuda')
+        sample_data = torch.randn(1, model.encoder[0].in_features).to("cuda")
 
         for _ in range(num_queries):
             start = datetime.now()
@@ -254,16 +248,13 @@ class EmbeddingMonitoringSystem:
         index_size_gb = 10.5  # Placeholder
 
         return {
-            'latency_p50_ms': latency_p50,
-            'latency_p99_ms': latency_p99,
-            'queries_per_second': queries_per_second,
-            'index_size_gb': index_size_gb
+            "latency_p50_ms": latency_p50,
+            "latency_p99_ms": latency_p99,
+            "queries_per_second": queries_per_second,
+            "index_size_gb": index_size_gb,
         }
 
-    def detect_drift(
-        self,
-        current_metrics: EmbeddingQualityMetrics
-    ) -> Dict[str, bool]:
+    def detect_drift(self, current_metrics: EmbeddingQualityMetrics) -> Dict[str, bool]:
         """
         Detect drift in embedding quality
 
@@ -283,41 +274,40 @@ class EmbeddingMonitoringSystem:
 
         # Check recall drift
         recall_drop = (
-            self.baseline_metrics.retrieval_recall_at_10 -
-            current_metrics.retrieval_recall_at_10
+            self.baseline_metrics.retrieval_recall_at_10 - current_metrics.retrieval_recall_at_10
         ) / self.baseline_metrics.retrieval_recall_at_10
 
-        if recall_drop > self.alert_thresholds['recall_at_10_drop']:
-            alerts['recall_degradation'] = True
+        if recall_drop > self.alert_thresholds["recall_at_10_drop"]:
+            alerts["recall_degradation"] = True
             print(f"⚠️  ALERT: Recall dropped {recall_drop:.1%} from baseline")
 
         # Check latency drift
         latency_increase = (
-            current_metrics.inference_latency_p99_ms -
-            self.baseline_metrics.inference_latency_p99_ms
+            current_metrics.inference_latency_p99_ms
+            - self.baseline_metrics.inference_latency_p99_ms
         ) / self.baseline_metrics.inference_latency_p99_ms
 
-        if latency_increase > self.alert_thresholds['latency_p99_increase']:
-            alerts['latency_increase'] = True
+        if latency_increase > self.alert_thresholds["latency_p99_increase"]:
+            alerts["latency_increase"] = True
             print(f"⚠️  ALERT: P99 latency increased {latency_increase:.1%}")
 
         # Check embedding distribution drift
-        norm_change = abs(
-            current_metrics.avg_norm - self.baseline_metrics.avg_norm
-        ) / self.baseline_metrics.avg_norm
+        norm_change = (
+            abs(current_metrics.avg_norm - self.baseline_metrics.avg_norm)
+            / self.baseline_metrics.avg_norm
+        )
 
-        if norm_change > self.alert_thresholds['embedding_norm_change']:
-            alerts['embedding_distribution_shift'] = True
+        if norm_change > self.alert_thresholds["embedding_norm_change"]:
+            alerts["embedding_distribution_shift"] = True
             print(f"⚠️  ALERT: Embedding norm changed {norm_change:.1%}")
 
         # Check throughput degradation
         qps_drop = (
-            self.baseline_metrics.queries_per_second -
-            current_metrics.queries_per_second
+            self.baseline_metrics.queries_per_second - current_metrics.queries_per_second
         ) / self.baseline_metrics.queries_per_second
 
-        if qps_drop > self.alert_thresholds['queries_per_second_drop']:
-            alerts['throughput_degradation'] = True
+        if qps_drop > self.alert_thresholds["queries_per_second_drop"]:
+            alerts["throughput_degradation"] = True
             print(f"⚠️  ALERT: Throughput dropped {qps_drop:.1%}")
 
         if not alerts:
@@ -325,11 +315,7 @@ class EmbeddingMonitoringSystem:
 
         return alerts
 
-    def should_retrain(
-        self,
-        alerts: Dict[str, bool],
-        days_since_training: int
-    ) -> Tuple[bool, str]:
+    def should_retrain(self, alerts: Dict[str, bool], days_since_training: int) -> Tuple[bool, str]:
         """
         Decide whether to trigger model retraining
 
@@ -342,10 +328,7 @@ class EmbeddingMonitoringSystem:
             (should_retrain, reason)
         """
         # Quality-based trigger
-        critical_alerts = [
-            'recall_degradation',
-            'embedding_distribution_shift'
-        ]
+        critical_alerts = ["recall_degradation", "embedding_distribution_shift"]
 
         if any(alerts.get(alert, False) for alert in critical_alerts):
             return True, "quality_degradation"
@@ -357,11 +340,7 @@ class EmbeddingMonitoringSystem:
         # No retraining needed
         return False, ""
 
-    def continuous_monitoring_loop(
-        self,
-        model_id: str,
-        check_interval_hours: int = 24
-    ):
+    def continuous_monitoring_loop(self, model_id: str, check_interval_hours: int = 24):
         """
         Continuous monitoring loop (runs as background service)
 
@@ -396,6 +375,7 @@ class EmbeddingMonitoringSystem:
             # In production: time.sleep(check_interval_hours * 3600)
             break  # For example purposes
 
+
 # Example: Monitor production embeddings
 def production_monitoring_example():
     """
@@ -410,10 +390,7 @@ def production_monitoring_example():
     registry = EmbeddingModelRegistry()
     test_dataset = None  # In production: load test set
 
-    monitor = EmbeddingMonitoringSystem(
-        model_registry=registry,
-        test_dataset=test_dataset
-    )
+    monitor = EmbeddingMonitoringSystem(model_registry=registry, test_dataset=test_dataset)
 
     # Day 1: Initial deployment
     print("=== Day 1: Initial Deployment ===")
@@ -437,6 +414,7 @@ def production_monitoring_example():
         print(f"\n✓ Retraining triggered: {reason}")
     else:
         print("\n✓ No retraining needed")
+
 
 # Uncomment to run:
 # production_monitoring_example()

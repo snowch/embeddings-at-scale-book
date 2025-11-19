@@ -1,4 +1,3 @@
-
 # Code from Chapter 12
 # Book: Embeddings at Scale
 
@@ -21,11 +20,13 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 class ChangeType(Enum):
     """Type of schema change"""
+
     ADD_FIELD = "add_field"
     REMOVE_FIELD = "remove_field"
     RENAME_FIELD = "rename_field"
     CHANGE_TYPE = "change_type"
     ADD_CONSTRAINT = "add_constraint"
+
 
 @dataclass
 class SchemaChange:
@@ -41,6 +42,7 @@ class SchemaChange:
         timestamp: When change was made
         backwards_compatible: Whether change is backwards compatible
     """
+
     change_type: ChangeType
     field_name: str
     old_value: Optional[Any] = None
@@ -48,6 +50,7 @@ class SchemaChange:
     version: str = ""
     timestamp: datetime = None
     backwards_compatible: bool = True
+
 
 class SchemaVersion:
     """
@@ -66,7 +69,7 @@ class SchemaVersion:
         version: str,
         fields: Dict[str, type],
         required_fields: List[str],
-        deprecated_fields: Optional[List[str]] = None
+        deprecated_fields: Optional[List[str]] = None,
     ):
         """
         Args:
@@ -121,11 +124,7 @@ class SchemaVersion:
         is_valid = len(errors) == 0
         return is_valid, errors
 
-    def add_transformer(
-        self,
-        from_version: str,
-        transformer: Callable[[Dict], Dict]
-    ):
+    def add_transformer(self, from_version: str, transformer: Callable[[Dict], Dict]):
         """
         Add transformer from previous version
 
@@ -135,6 +134,7 @@ class SchemaVersion:
         """
         self.transformers[from_version] = transformer
         print(f"Added transformer: {from_version} -> {self.version}")
+
 
 class SchemaRegistry:
     """
@@ -160,11 +160,7 @@ class SchemaRegistry:
 
         print("Initialized Schema Registry")
 
-    def register_version(
-        self,
-        schema_version: SchemaVersion,
-        set_current: bool = True
-    ):
+    def register_version(self, schema_version: SchemaVersion, set_current: bool = True):
         """
         Register new schema version
 
@@ -205,12 +201,7 @@ class SchemaRegistry:
 
         return None
 
-    def migrate(
-        self,
-        data: Dict,
-        from_version: str,
-        to_version: str
-    ) -> Dict:
+    def migrate(self, data: Dict, from_version: str, to_version: str) -> Dict:
         """
         Migrate data from one version to another
 
@@ -229,9 +220,7 @@ class SchemaRegistry:
         path = self._get_migration_path(from_version, to_version)
 
         if not path:
-            raise ValueError(
-                f"No migration path from {from_version} to {to_version}"
-            )
+            raise ValueError(f"No migration path from {from_version} to {to_version}")
 
         # Apply transformers along path
         current_data = data
@@ -246,17 +235,11 @@ class SchemaRegistry:
                 current_data = transformer(current_data)
                 print(f"  Migrated: {current_version} -> {next_version}")
             else:
-                raise ValueError(
-                    f"No transformer from {current_version} to {next_version}"
-                )
+                raise ValueError(f"No transformer from {current_version} to {next_version}")
 
         return current_data
 
-    def _get_migration_path(
-        self,
-        from_version: str,
-        to_version: str
-    ) -> Optional[List[str]]:
+    def _get_migration_path(self, from_version: str, to_version: str) -> Optional[List[str]]:
         """
         Find migration path between versions
 
@@ -278,7 +261,7 @@ class SchemaRegistry:
 
             if from_idx < to_idx:
                 # Forward migration
-                return versions[from_idx:to_idx + 1]
+                return versions[from_idx : to_idx + 1]
             else:
                 # Backward migration (not typically supported)
                 return None
@@ -298,6 +281,7 @@ class SchemaRegistry:
         if not change.backwards_compatible:
             print(f"⚠️  BREAKING CHANGE: {change.change_type.value} on {change.field_name}")
 
+
 # Example: Schema evolution for product embeddings
 def schema_evolution_example():
     """
@@ -314,12 +298,8 @@ def schema_evolution_example():
     # Version 1.0: Initial schema
     v1 = SchemaVersion(
         version="1.0",
-        fields={
-            'title': str,
-            'description': str,
-            'price': float
-        },
-        required_fields=['title', 'price']
+        fields={"title": str, "description": str, "price": float},
+        required_fields=["title", "price"],
     )
     registry.register_version(v1, set_current=False)
 
@@ -327,20 +307,20 @@ def schema_evolution_example():
     v2 = SchemaVersion(
         version="2.0",
         fields={
-            'title': str,
-            'description': str,
-            'price': float,
-            'category': str  # New field
+            "title": str,
+            "description": str,
+            "price": float,
+            "category": str,  # New field
         },
-        required_fields=['title', 'price']
+        required_fields=["title", "price"],
     )
 
     # Add transformer from v1 to v2
     def v1_to_v2(data: Dict) -> Dict:
         """Add default category for v1 data"""
         data_v2 = data.copy()
-        if 'category' not in data_v2:
-            data_v2['category'] = 'Unknown'  # Default value
+        if "category" not in data_v2:
+            data_v2["category"] = "Unknown"  # Default value
         return data_v2
 
     v2.add_transformer("1.0", v1_to_v2)
@@ -350,24 +330,24 @@ def schema_evolution_example():
     v3 = SchemaVersion(
         version="3.0",
         fields={
-            'title': str,
-            'description': str,
-            'price': float,
-            'category': str,
-            'embedding_vector': list  # New field
+            "title": str,
+            "description": str,
+            "price": float,
+            "category": str,
+            "embedding_vector": list,  # New field
         },
-        required_fields=['title', 'price', 'embedding_vector'],
-        deprecated_fields=['description']  # Deprecate
+        required_fields=["title", "price", "embedding_vector"],
+        deprecated_fields=["description"],  # Deprecate
     )
 
     # Add transformer from v2 to v3
     def v2_to_v3(data: Dict) -> Dict:
         """Add embedding vector for v2 data"""
         data_v3 = data.copy()
-        if 'embedding_vector' not in data_v3:
+        if "embedding_vector" not in data_v3:
             # Generate embedding from title + description
             # In production: Use actual embedding model
-            data_v3['embedding_vector'] = [0.1, 0.2, 0.3]
+            data_v3["embedding_vector"] = [0.1, 0.2, 0.3]
         return data_v3
 
     v3.add_transformer("2.0", v2_to_v3)
@@ -376,11 +356,7 @@ def schema_evolution_example():
     # Test: Migrate v1 data to v3
     print("\n=== Migration Test ===")
 
-    v1_data = {
-        'title': 'Laptop',
-        'description': 'High-performance laptop',
-        'price': 999.99
-    }
+    v1_data = {"title": "Laptop", "description": "High-performance laptop", "price": 999.99}
 
     print(f"Original data (v1.0): {v1_data}")
 
@@ -398,6 +374,7 @@ def schema_evolution_example():
     if errors:
         for error in errors:
             print(f"  - {error}")
+
 
 # Uncomment to run:
 # schema_evolution_example()

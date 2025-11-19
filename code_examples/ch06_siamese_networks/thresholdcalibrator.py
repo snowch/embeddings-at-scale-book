@@ -5,6 +5,7 @@ import torch.nn.functional as F
 # Code from Chapter 06
 # Book: Embeddings at Scale
 
+
 class ThresholdCalibrator:
     """
     Calibrate similarity thresholds for production deployment
@@ -23,11 +24,7 @@ class ThresholdCalibrator:
         self.calibration_metrics = {}
 
     def calibrate_on_validation_set(
-        self,
-        validation_pairs,
-        validation_labels,
-        metric='f1',
-        plot=False
+        self, validation_pairs, validation_labels, metric="f1", plot=False
     ):
         """
         Calibrate threshold on validation set to optimize a metric
@@ -76,21 +73,22 @@ class ThresholdCalibrator:
             f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0
             accuracy = (tp + tn) / len(validation_labels)
 
-            metrics_by_threshold.append({
-                'threshold': threshold,
-                'precision': precision,
-                'recall': recall,
-                'f1': f1,
-                'accuracy': accuracy
-            })
+            metrics_by_threshold.append(
+                {
+                    "threshold": threshold,
+                    "precision": precision,
+                    "recall": recall,
+                    "f1": f1,
+                    "accuracy": accuracy,
+                }
+            )
 
         # Find threshold that maximizes chosen metric
         best_idx = max(
-            range(len(metrics_by_threshold)),
-            key=lambda i: metrics_by_threshold[i][metric]
+            range(len(metrics_by_threshold)), key=lambda i: metrics_by_threshold[i][metric]
         )
 
-        self.threshold = metrics_by_threshold[best_idx]['threshold']
+        self.threshold = metrics_by_threshold[best_idx]["threshold"]
         self.calibration_metrics = metrics_by_threshold[best_idx]
 
         if plot:
@@ -99,11 +97,7 @@ class ThresholdCalibrator:
         return self.threshold
 
     def calibrate_with_business_costs(
-        self,
-        validation_pairs,
-        validation_labels,
-        false_positive_cost=1.0,
-        false_negative_cost=1.0
+        self, validation_pairs, validation_labels, false_positive_cost=1.0, false_negative_cost=1.0
     ):
         """
         Calibrate threshold based on business costs
@@ -155,19 +149,16 @@ class ThresholdCalibrator:
         self.threshold = thresholds[best_idx]
 
         self.calibration_metrics = {
-            'threshold': self.threshold,
-            'expected_cost': costs[best_idx],
-            'false_positive_cost': false_positive_cost,
-            'false_negative_cost': false_negative_cost
+            "threshold": self.threshold,
+            "expected_cost": costs[best_idx],
+            "false_positive_cost": false_positive_cost,
+            "false_negative_cost": false_negative_cost,
         }
 
         return self.threshold
 
     def calibrate_for_precision_target(
-        self,
-        validation_pairs,
-        validation_labels,
-        target_precision=0.95
+        self, validation_pairs, validation_labels, target_precision=0.95
     ):
         """
         Calibrate to achieve target precision
@@ -236,10 +227,10 @@ class ThresholdCalibrator:
 
         self.threshold = best_threshold
         self.calibration_metrics = {
-            'threshold': best_threshold,
-            'achieved_precision': best_precision,
-            'achieved_recall': best_recall,
-            'target_precision': target_precision
+            "threshold": best_threshold,
+            "achieved_precision": best_precision,
+            "achieved_recall": best_recall,
+            "target_precision": target_precision,
         }
 
         return self.threshold
@@ -248,16 +239,17 @@ class ThresholdCalibrator:
         """Plot threshold vs metric curve"""
         import matplotlib.pyplot as plt
 
-        thresholds = [m['threshold'] for m in metrics_by_threshold]
+        thresholds = [m["threshold"] for m in metrics_by_threshold]
         values = [m[target_metric] for m in metrics_by_threshold]
 
         plt.figure(figsize=(10, 6))
         plt.plot(thresholds, values)
-        plt.axvline(self.threshold, color='r', linestyle='--',
-                   label=f'Optimal: {self.threshold:.3f}')
-        plt.xlabel('Threshold')
+        plt.axvline(
+            self.threshold, color="r", linestyle="--", label=f"Optimal: {self.threshold:.3f}"
+        )
+        plt.xlabel("Threshold")
         plt.ylabel(target_metric.capitalize())
-        plt.title(f'Threshold Calibration: {target_metric.capitalize()}')
+        plt.title(f"Threshold Calibration: {target_metric.capitalize()}")
         plt.legend()
         plt.grid(True)
         plt.show()

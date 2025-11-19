@@ -5,6 +5,7 @@ import torch.nn.functional as F
 # Code from Chapter 04
 # Book: Embeddings at Scale
 
+
 class ProgressiveDimensionReduction:
     """
     Start with high dimensions, progressively reduce while monitoring quality
@@ -45,10 +46,7 @@ class ProgressiveDimensionReduction:
                 idx2 = torch.randint(0, len(embeddings), (1000,))
 
             # Original similarities
-            orig_sim = F.cosine_similarity(
-                embeddings[idx1],
-                embeddings[idx2]
-            )
+            orig_sim = F.cosine_similarity(embeddings[idx1], embeddings[idx2])
 
             # Projected similarities
             proj_emb1 = projection(embeddings[idx1])
@@ -82,11 +80,7 @@ class ProgressiveDimensionReduction:
             projection = self.train_projection(embeddings, target_dim=mid)
 
             # Evaluate
-            quality = self.evaluate_with_projection(
-                self.base_model,
-                projection,
-                test_data
-            )
+            quality = self.evaluate_with_projection(self.base_model, projection, test_data)
 
             if quality >= target_quality:
                 # Can go lower

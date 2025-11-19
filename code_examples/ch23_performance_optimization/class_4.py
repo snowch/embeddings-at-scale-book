@@ -50,6 +50,7 @@ class Datacenter:
         bandwidth_gbps: Network bandwidth available
         cost_per_gb: Egress cost per GB
     """
+
     name: str
     region: str
     capacity_vectors: int
@@ -59,6 +60,7 @@ class Datacenter:
     latency_map: Dict[str, float] = field(default_factory=dict)
     bandwidth_gbps: float = 10.0
     cost_per_gb: float = 0.02
+
 
 @dataclass
 class ShardingStrategy:
@@ -72,11 +74,13 @@ class ShardingStrategy:
         shard_assignments: Which shards in which datacenters
         hot_threshold: Access rate threshold for replication
     """
+
     strategy_type: str
     shard_count: int
     replication_factor: int
     shard_assignments: Dict[int, List[str]] = field(default_factory=dict)
     hot_threshold: float = 100.0  # Queries per hour
+
 
 class QueryRouter:
     """
@@ -89,11 +93,7 @@ class QueryRouter:
     - Cost (prefer cheaper regions when latency acceptable)
     """
 
-    def __init__(
-        self,
-        datacenters: List[Datacenter],
-        sharding: ShardingStrategy
-    ):
+    def __init__(self, datacenters: List[Datacenter], sharding: ShardingStrategy):
         self.datacenters = {dc.name: dc for dc in datacenters}
         self.sharding = sharding
 
@@ -106,7 +106,7 @@ class QueryRouter:
         query_id: str,
         embedding_ids: List[str],
         user_region: str,
-        latency_budget_ms: float = 100.0
+        latency_budget_ms: float = 100.0,
     ) -> Tuple[str, List[str]]:
         """
         Route query to optimal datacenter(s)
@@ -130,11 +130,7 @@ class QueryRouter:
         # Score each candidate
         scores = []
         for dc_name in candidate_dcs:
-            score = self._score_datacenter(
-                dc_name,
-                user_region,
-                latency_budget_ms
-            )
+            score = self._score_datacenter(dc_name, user_region, latency_budget_ms)
             scores.append((score, dc_name))
 
         # Sort by score (higher is better)
@@ -149,10 +145,7 @@ class QueryRouter:
 
         return primary_dc, backup_dcs
 
-    def _find_datacenters_with_data(
-        self,
-        embedding_ids: List[str]
-    ) -> Set[str]:
+    def _find_datacenters_with_data(self, embedding_ids: List[str]) -> Set[str]:
         """
         Find datacenters that have all required embeddings
 
@@ -189,10 +182,7 @@ class QueryRouter:
         """
         if self.sharding.strategy_type == "hash":
             # Hash-based sharding
-            hash_val = int(
-                hashlib.sha256(embedding_id.encode()).hexdigest()[:8],
-                16
-            )
+            hash_val = int(hashlib.sha256(embedding_id.encode()).hexdigest()[:8], 16)
             return hash_val % self.sharding.shard_count
         elif self.sharding.strategy_type == "range":
             # Range-based sharding (e.g., by ID prefix)
@@ -202,12 +192,7 @@ class QueryRouter:
             # Default to hash
             return 0
 
-    def _score_datacenter(
-        self,
-        dc_name: str,
-        user_region: str,
-        latency_budget: float
-    ) -> float:
+    def _score_datacenter(self, dc_name: str, user_region: str, latency_budget: float) -> float:
         """
         Score datacenter for query routing
 
@@ -239,11 +224,7 @@ class QueryRouter:
 
         return max(score, 0)
 
-    def _estimate_latency(
-        self,
-        dc_name: str,
-        user_region: str
-    ) -> float:
+    def _estimate_latency(self, dc_name: str, user_region: str) -> float:
         """
         Estimate latency from user region to datacenter
 
@@ -267,14 +248,15 @@ class QueryRouter:
         """Check if regions on same continent"""
         # Simplified continent mapping
         continents = {
-            'us-west': 'north-america',
-            'us-east': 'north-america',
-            'eu-west': 'europe',
-            'eu-central': 'europe',
-            'ap-southeast': 'asia',
-            'ap-northeast': 'asia',
+            "us-west": "north-america",
+            "us-east": "north-america",
+            "eu-west": "europe",
+            "eu-central": "europe",
+            "ap-southeast": "asia",
+            "ap-northeast": "asia",
         }
         return continents.get(region1) == continents.get(region2)
+
 
 class ReplicationManager:
     """
@@ -284,11 +266,7 @@ class ReplicationManager:
     Cold data sharded to save storage/bandwidth
     """
 
-    def __init__(
-        self,
-        datacenters: List[Datacenter],
-        hot_threshold_qps: float = 10.0
-    ):
+    def __init__(self, datacenters: List[Datacenter], hot_threshold_qps: float = 10.0):
         self.datacenters = datacenters
         self.hot_threshold = hot_threshold_qps
 
@@ -299,11 +277,7 @@ class ReplicationManager:
         # Replication state
         self.replicated_embeddings: Dict[str, Set[str]] = defaultdict(set)
 
-    def record_access(
-        self,
-        embedding_id: str,
-        datacenter: str
-    ) -> None:
+    def record_access(self, embedding_id: str, datacenter: str) -> None:
         """
         Record embedding access for replication decisions
 
@@ -316,9 +290,7 @@ class ReplicationManager:
         # Update access rate (exponential moving average)
         alpha = 0.1
         current_rate = self.access_rates[embedding_id]
-        self.access_rates[embedding_id] = (
-            alpha * 1.0 + (1 - alpha) * current_rate
-        )
+        self.access_rates[embedding_id] = alpha * 1.0 + (1 - alpha) * current_rate
 
     def should_replicate(self, embedding_id: str) -> bool:
         """
@@ -333,10 +305,7 @@ class ReplicationManager:
         access_rate = self.access_rates[embedding_id]
         return access_rate >= self.hot_threshold
 
-    def get_replication_plan(
-        self,
-        max_replications: int = 1000
-    ) -> List[Tuple[str, List[str]]]:
+    def get_replication_plan(self, max_replications: int = 1000) -> List[Tuple[str, List[str]]]:
         """
         Generate replication plan for hot embeddings
 
@@ -350,11 +319,7 @@ class ReplicationManager:
         plan = []
 
         # Sort by access rate
-        sorted_embeddings = sorted(
-            self.access_rates.items(),
-            key=lambda x: x[1],
-            reverse=True
-        )
+        sorted_embeddings = sorted(self.access_rates.items(), key=lambda x: x[1], reverse=True)
 
         for embedding_id, access_rate in sorted_embeddings[:max_replications]:
             if access_rate < self.hot_threshold:
@@ -370,6 +335,7 @@ class ReplicationManager:
 
         return plan
 
+
 class QueryBatcher:
     """
     Batch multiple queries for network efficiency
@@ -378,11 +344,7 @@ class QueryBatcher:
     Amortizes network latency across queries
     """
 
-    def __init__(
-        self,
-        max_batch_size: int = 32,
-        max_wait_ms: float = 10.0
-    ):
+    def __init__(self, max_batch_size: int = 32, max_wait_ms: float = 10.0):
         self.max_batch_size = max_batch_size
         self.max_wait_ms = max_wait_ms
 
@@ -390,9 +352,7 @@ class QueryBatcher:
         self.batch_start_time: Optional[datetime] = None
 
     def add_query(
-        self,
-        query_id: str,
-        query_data: Dict[str, Any]
+        self, query_id: str, query_data: Dict[str, Any]
     ) -> Optional[List[Dict[str, Any]]]:
         """
         Add query to batch
@@ -407,11 +367,9 @@ class QueryBatcher:
             batch: Batch of queries if ready, None otherwise
         """
         # Add to pending
-        self.pending_queries.append({
-            'query_id': query_id,
-            'data': query_data,
-            'arrival_time': datetime.now()
-        })
+        self.pending_queries.append(
+            {"query_id": query_id, "data": query_data, "arrival_time": datetime.now()}
+        )
 
         # Start timer if first query
         if self.batch_start_time is None:
@@ -431,9 +389,7 @@ class QueryBatcher:
 
         # Execute if waited too long
         if self.batch_start_time:
-            elapsed = (
-                datetime.now() - self.batch_start_time
-            ).total_seconds() * 1000
+            elapsed = (datetime.now() - self.batch_start_time).total_seconds() * 1000
             if elapsed >= self.max_wait_ms:
                 return True
 
@@ -446,6 +402,7 @@ class QueryBatcher:
         self.batch_start_time = None
         return batch
 
+
 class NetworkOptimizer:
     """
     Comprehensive network optimization
@@ -453,20 +410,13 @@ class NetworkOptimizer:
     Combines routing, replication, batching, and compression
     """
 
-    def __init__(
-        self,
-        datacenters: List[Datacenter],
-        sharding: ShardingStrategy
-    ):
+    def __init__(self, datacenters: List[Datacenter], sharding: ShardingStrategy):
         self.router = QueryRouter(datacenters, sharding)
         self.replication = ReplicationManager(datacenters)
         self.batcher = QueryBatcher()
 
     def optimize_query(
-        self,
-        query_id: str,
-        query_data: Dict[str, Any],
-        user_region: str
+        self, query_id: str, query_data: Dict[str, Any], user_region: str
     ) -> Dict[str, Any]:
         """
         Optimize query execution across network
@@ -482,8 +432,8 @@ class NetworkOptimizer:
         # Route query
         primary_dc, backup_dcs = self.router.route_query(
             query_id=query_id,
-            embedding_ids=query_data.get('embedding_ids', []),
-            user_region=user_region
+            embedding_ids=query_data.get("embedding_ids", []),
+            user_region=user_region,
         )
 
         # Check if should batch
@@ -491,11 +441,11 @@ class NetworkOptimizer:
 
         # Create execution plan
         plan = {
-            'query_id': query_id,
-            'primary_datacenter': primary_dc,
-            'backup_datacenters': backup_dcs,
-            'batched': batch is not None,
-            'batch_size': len(batch) if batch else 1,
+            "query_id": query_id,
+            "primary_datacenter": primary_dc,
+            "backup_datacenters": backup_dcs,
+            "batched": batch is not None,
+            "batch_size": len(batch) if batch else 1,
         }
 
         return plan

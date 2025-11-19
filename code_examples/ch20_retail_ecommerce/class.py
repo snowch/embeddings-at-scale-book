@@ -57,6 +57,7 @@ class Product:
         created_at: When product was added
         embedding: Learned product embedding
     """
+
     product_id: str
     title: str
     description: str
@@ -71,6 +72,7 @@ class Product:
     inventory: int = 0
     created_at: Optional[datetime] = None
     embedding: Optional[np.ndarray] = None
+
 
 @dataclass
 class SearchQuery:
@@ -87,6 +89,7 @@ class SearchQuery:
         session_id: User session identifier
         embedding: Query embedding
     """
+
     query_id: str
     user_id: str
     query_text: Optional[str] = None
@@ -95,6 +98,7 @@ class SearchQuery:
     timestamp: Optional[datetime] = None
     session_id: Optional[str] = None
     embedding: Optional[np.ndarray] = None
+
 
 @dataclass
 class SearchResult:
@@ -108,11 +112,13 @@ class SearchResult:
         explanation: Why this product matched query
         personalization_boost: User-specific relevance adjustment
     """
+
     product: Product
     relevance_score: float
     rank: int
     explanation: str
     personalization_boost: float = 0.0
+
 
 class ImageEncoder(nn.Module):
     """
@@ -128,7 +134,7 @@ class ImageEncoder(nn.Module):
     by averaging embeddings or attention pooling.
     """
 
-    def __init__(self, backbone='resnet50', embedding_dim=512):
+    def __init__(self, backbone="resnet50", embedding_dim=512):
         super().__init__()
         self.embedding_dim = embedding_dim
 
@@ -157,6 +163,7 @@ class ImageEncoder(nn.Module):
         x = self.fc(x)
         return F.normalize(x, p=2, dim=1)  # L2 normalization
 
+
 class TextEncoder(nn.Module):
     """
     Encode product text to embeddings
@@ -182,10 +189,7 @@ class TextEncoder(nn.Module):
 
         # Transformer encoder (simplified: 1 layer)
         encoder_layer = nn.TransformerEncoderLayer(
-            d_model=hidden_dim,
-            nhead=8,
-            dim_feedforward=2048,
-            batch_first=True
+            d_model=hidden_dim, nhead=8, dim_feedforward=2048, batch_first=True
         )
         self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=6)
 
@@ -211,6 +215,7 @@ class TextEncoder(nn.Module):
         x = x[:, 0, :]  # [CLS] token
         x = self.fc(x)
         return F.normalize(x, p=2, dim=1)
+
 
 class BehavioralEncoder(nn.Module):
     """
@@ -254,6 +259,7 @@ class BehavioralEncoder(nn.Module):
         embeddings = self.product_embeddings(product_ids)
         return F.normalize(embeddings, p=2, dim=1)
 
+
 class MultiModalProductEncoder(nn.Module):
     """
     Fuse image, text, and behavioral embeddings
@@ -282,20 +288,17 @@ class MultiModalProductEncoder(nn.Module):
             nn.Linear(embedding_dim * 3, embedding_dim * 2),
             nn.ReLU(),
             nn.Dropout(0.1),
-            nn.Linear(embedding_dim * 2, embedding_dim)
+            nn.Linear(embedding_dim * 2, embedding_dim),
         )
 
         # Modality attention: learn importance of each modality
-        self.modality_attention = nn.Sequential(
-            nn.Linear(embedding_dim * 3, 3),
-            nn.Softmax(dim=1)
-        )
+        self.modality_attention = nn.Sequential(nn.Linear(embedding_dim * 3, 3), nn.Softmax(dim=1))
 
     def forward(
         self,
         images: Optional[torch.Tensor] = None,
         text: Optional[torch.Tensor] = None,
-        product_ids: Optional[torch.Tensor] = None
+        product_ids: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """
         Args:
@@ -306,9 +309,11 @@ class MultiModalProductEncoder(nn.Module):
             embeddings: [batch, embedding_dim] fused product embeddings
         """
         batch_size = (
-            images.size(0) if images is not None else
-            text.size(0) if text is not None else
-            product_ids.size(0)
+            images.size(0)
+            if images is not None
+            else text.size(0)
+            if text is not None
+            else product_ids.size(0)
         )
 
         # Encode each available modality
@@ -341,9 +346,9 @@ class MultiModalProductEncoder(nn.Module):
         # Attention-weighted fusion
         attention_weights = self.modality_attention(concat)  # [batch, 3]
         weighted_sum = (
-            attention_weights[:, 0:1] * modality_embeddings[0] +
-            attention_weights[:, 1:2] * modality_embeddings[1] +
-            attention_weights[:, 2:3] * modality_embeddings[2]
+            attention_weights[:, 0:1] * modality_embeddings[0]
+            + attention_weights[:, 1:2] * modality_embeddings[1]
+            + attention_weights[:, 2:3] * modality_embeddings[2]
         )
 
         # Final fusion MLP
@@ -353,6 +358,7 @@ class MultiModalProductEncoder(nn.Module):
         final_embedding = (weighted_sum + fused) / 2
 
         return F.normalize(final_embedding, p=2, dim=1)
+
 
 class ProductSearchEngine:
     """
@@ -376,7 +382,7 @@ class ProductSearchEngine:
         self,
         encoder: MultiModalProductEncoder,
         embedding_dim: int = 512,
-        index_size: int = 10000000
+        index_size: int = 10000000,
     ):
         self.encoder = encoder
         self.embedding_dim = embedding_dim
@@ -396,11 +402,7 @@ class ProductSearchEngine:
             dummy_text = torch.randint(0, 30000, (1, 128))
             dummy_id = torch.tensor([hash(product.product_id) % 1000000])
 
-            embedding = self.encoder(
-                images=dummy_image,
-                text=dummy_text,
-                product_ids=dummy_id
-            )
+            embedding = self.encoder(images=dummy_image, text=dummy_text, product_ids=dummy_id)
             product.embedding = embedding.cpu().numpy()[0]
 
         # Store in index
@@ -412,10 +414,7 @@ class ProductSearchEngine:
             raise ValueError(f"Index full: {self.index_size} products")
 
     def search(
-        self,
-        query: SearchQuery,
-        top_k: int = 20,
-        user_embedding: Optional[np.ndarray] = None
+        self, query: SearchQuery, top_k: int = 20, user_embedding: Optional[np.ndarray] = None
     ) -> List[SearchResult]:
         """
         Search for products matching query
@@ -448,10 +447,7 @@ class ProductSearchEngine:
             query.embedding = query.embedding / np.linalg.norm(query.embedding)
 
         # Compute similarities (simplified: brute force, use FAISS in production)
-        similarities = np.dot(
-            self.product_embeddings[:self.num_indexed],
-            query.embedding
-        )
+        similarities = np.dot(self.product_embeddings[: self.num_indexed], query.embedding)
 
         # Apply filters
         valid_indices = []
@@ -460,21 +456,21 @@ class ProductSearchEngine:
             product = self.product_metadata[product_id]
 
             # Price filter
-            if 'price_min' in query.filters:
-                if product.price < query.filters['price_min']:
+            if "price_min" in query.filters:
+                if product.price < query.filters["price_min"]:
                     continue
-            if 'price_max' in query.filters:
-                if product.price > query.filters['price_max']:
+            if "price_max" in query.filters:
+                if product.price > query.filters["price_max"]:
                     continue
 
             # Brand filter
-            if 'brands' in query.filters:
-                if product.brand not in query.filters['brands']:
+            if "brands" in query.filters:
+                if product.brand not in query.filters["brands"]:
                     continue
 
             # Category filter
-            if 'categories' in query.filters:
-                if not any(cat in product.category for cat in query.filters['categories']):
+            if "categories" in query.filters:
+                if not any(cat in product.category for cat in query.filters["categories"]):
                     continue
 
             valid_indices.append(idx)
@@ -498,18 +494,13 @@ class ProductSearchEngine:
                 relevance_score=float(valid_similarities[idx]),
                 rank=rank,
                 explanation=explanation,
-                personalization_boost=0.2 if user_embedding is not None else 0.0
+                personalization_boost=0.2 if user_embedding is not None else 0.0,
             )
             results.append(result)
 
         return results
 
-    def _explain_match(
-        self,
-        query: SearchQuery,
-        product: Product,
-        similarity: float
-    ) -> str:
+    def _explain_match(self, query: SearchQuery, product: Product, similarity: float) -> str:
         """Generate human-readable explanation for match"""
         explanations = []
 
@@ -532,6 +523,7 @@ class ProductSearchEngine:
             explanations.append(f"{product.rating:.1f}★ ({product.review_count} reviews)")
 
         return " · ".join(explanations) if explanations else "Relevant product"
+
 
 def product_discovery_example():
     """
@@ -558,7 +550,7 @@ def product_discovery_example():
             price=49.99,
             attributes={"color": "floral", "material": "cotton", "season": "summer"},
             rating=4.5,
-            review_count=234
+            review_count=234,
         ),
         Product(
             product_id="DRESS002",
@@ -569,7 +561,7 @@ def product_discovery_example():
             price=199.99,
             attributes={"color": "black", "material": "silk", "occasion": "formal"},
             rating=4.8,
-            review_count=89
+            review_count=89,
         ),
         Product(
             product_id="LAPTOP001",
@@ -580,7 +572,7 @@ def product_discovery_example():
             price=1899.99,
             attributes={"screen": "15.6 inch", "processor": "Intel i9", "gpu": "RTX 3080"},
             rating=4.7,
-            review_count=456
+            review_count=456,
         ),
         Product(
             product_id="DRESS003",
@@ -591,7 +583,7 @@ def product_discovery_example():
             price=39.99,
             attributes={"color": "blue", "material": "cotton blend", "features": "pockets"},
             rating=4.6,
-            review_count=1023
+            review_count=1023,
         ),
     ]
 
@@ -603,9 +595,7 @@ def product_discovery_example():
     # Example 1: Semantic search (not keyword matching)
     print("--- Example 1: Semantic Search ---")
     query1 = SearchQuery(
-        query_id="Q1",
-        user_id="U123",
-        query_text="summer outfit for outdoor wedding"
+        query_id="Q1", user_id="U123", query_text="summer outfit for outdoor wedding"
     )
     print(f"Query: '{query1.query_text}'")
     print("(Traditional keyword search would miss 'Floral Summer Dress'")
@@ -625,7 +615,7 @@ def product_discovery_example():
         query_id="Q2",
         user_id="U123",
         query_text="dress",
-        filters={"price_max": 100, "categories": ["Casual"]}
+        filters={"price_max": 100, "categories": ["Casual"]},
     )
     print(f"Query: '{query2.query_text}' (casual dresses under $100)")
 
@@ -642,11 +632,7 @@ def product_discovery_example():
     user_embedding = np.random.randn(512)
     user_embedding = user_embedding / np.linalg.norm(user_embedding)
 
-    query3 = SearchQuery(
-        query_id="Q3",
-        user_id="U123",
-        query_text="nice dress"
-    )
+    query3 = SearchQuery(query_id="Q3", user_id="U123", query_text="nice dress")
     print(f"Query: '{query3.query_text}' (personalized for budget-conscious shopper)")
 
     results3 = search_engine.search(query3, top_k=3, user_embedding=user_embedding)
@@ -669,6 +655,7 @@ def product_discovery_example():
     print("- Conversion rate: +18%")
     print("- 'No results' queries: -67%")
     print("\n→ Semantic understanding drives discovery and revenue")
+
 
 # Uncomment to run:
 # product_discovery_example()

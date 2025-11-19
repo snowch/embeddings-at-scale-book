@@ -1,6 +1,7 @@
 # Code from Chapter 02
 # Book: Embeddings at Scale
 
+
 class TieredEmbeddingStorage:
     """Implement tiered storage for cost optimization"""
 

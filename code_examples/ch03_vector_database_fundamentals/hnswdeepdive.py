@@ -1,6 +1,7 @@
 # Code from Chapter 03
 # Book: Embeddings at Scale
 
+
 class HNSWDeepDive:
     """Understanding HNSW internals for scale"""
 
@@ -34,18 +35,10 @@ class HNSWDeepDive:
         """
 
         # Find nearest neighbors at insertion layer
-        neighbors = self.find_neighbors_at_layer(
-            embedding,
-            layer=level,
-            ef=self.ef_construction
-        )
+        neighbors = self.find_neighbors_at_layer(embedding, layer=level, ef=self.ef_construction)
 
         # Select M best connections
-        connections = self.select_neighbors_heuristic(
-            embedding,
-            neighbors,
-            M=self.M
-        )
+        connections = self.select_neighbors_heuristic(embedding, neighbors, M=self.M)
 
         # Add bidirectional edges
         for neighbor_id in connections:
@@ -75,15 +68,12 @@ class HNSWDeepDive:
                 query_embedding,
                 entry_points=current_nearest,
                 layer=layer,
-                ef=1  # Greedy search in upper layers
+                ef=1,  # Greedy search in upper layers
             )
 
         # Final layer: expand to ef_search candidates
         candidates = self.search_layer(
-            query_embedding,
-            entry_points=current_nearest,
-            layer=0,
-            ef=ef_search
+            query_embedding, entry_points=current_nearest, layer=0, ef=ef_search
         )
 
         # Return top-k
@@ -111,54 +101,52 @@ class HNSWDeepDive:
         build_comparisons = self.ef_construction * num_layers
 
         return {
-            'num_layers': num_layers,
-            'comparisons_per_query': total_comparisons,
-            'memory_overhead_bytes': memory_per_vector,
-            'build_comparisons_per_vector': build_comparisons,
-            'query_complexity': f'O(log N) ≈ {total_comparisons} comparisons',
-            'build_complexity': 'O(N log N) for full dataset'
+            "num_layers": num_layers,
+            "comparisons_per_query": total_comparisons,
+            "memory_overhead_bytes": memory_per_vector,
+            "build_comparisons_per_vector": build_comparisons,
+            "query_complexity": f"O(log N) ≈ {total_comparisons} comparisons",
+            "build_complexity": "O(N log N) for full dataset",
         }
 
     def tune_for_scale(self, target_recall=0.95, target_latency_ms=50):
         """Tuning guidelines for trillion-scale"""
 
         recommendations = {
-            'M': {
-                'small_scale_1m': 16,
-                'medium_scale_100m': 32,
-                'large_scale_10b': 48,
-                'trillion_scale_100t': 64,
-                'rationale': 'Higher M = more connections = better recall but more memory'
+            "M": {
+                "small_scale_1m": 16,
+                "medium_scale_100m": 32,
+                "large_scale_10b": 48,
+                "trillion_scale_100t": 64,
+                "rationale": "Higher M = more connections = better recall but more memory",
             },
-
-            'ef_construction': {
-                'fast_build': 100,
-                'balanced': 200,
-                'high_quality': 400,
-                'trillion_scale_recommendation': 300,
-                'rationale': 'Higher ef = better index quality but slower builds'
+            "ef_construction": {
+                "fast_build": 100,
+                "balanced": 200,
+                "high_quality": 400,
+                "trillion_scale_recommendation": 300,
+                "rationale": "Higher ef = better index quality but slower builds",
             },
-
-            'ef_search': {
-                'very_fast_low_recall': 50,
-                'balanced': 100,
-                'high_recall': 200,
-                'maximum_recall': 500,
-                'trillion_scale_recommendation': 150,
-                'rationale': 'Tune based on latency budget and recall requirements'
+            "ef_search": {
+                "very_fast_low_recall": 50,
+                "balanced": 100,
+                "high_recall": 200,
+                "maximum_recall": 500,
+                "trillion_scale_recommendation": 150,
+                "rationale": "Tune based on latency budget and recall requirements",
             },
-
-            'optimization_tips': [
-                'Use SIMD for distance calculations (4-8x speedup)',
-                'Prefetch graph neighbors to avoid cache misses',
-                'Store layer 0 on fast SSD, upper layers in RAM',
-                'Batch queries to amortize graph traversal overhead',
-                'Use progressive search (start low ef, increase if needed)',
-                'Consider quantization (product quantization) for memory'
-            ]
+            "optimization_tips": [
+                "Use SIMD for distance calculations (4-8x speedup)",
+                "Prefetch graph neighbors to avoid cache misses",
+                "Store layer 0 on fast SSD, upper layers in RAM",
+                "Batch queries to amortize graph traversal overhead",
+                "Use progressive search (start low ef, increase if needed)",
+                "Consider quantization (product quantization) for memory",
+            ],
         }
 
         return recommendations
+
 
 # Example: HNSW for 100B vectors
 hnsw = HNSWDeepDive(M=48, ef_construction=300)

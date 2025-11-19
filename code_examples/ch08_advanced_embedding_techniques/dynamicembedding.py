@@ -24,12 +24,7 @@ class DynamicEmbedding(nn.Module):
     """
 
     def __init__(
-        self,
-        num_items,
-        embedding_dim=256,
-        mode='continuous',
-        num_time_slices=None,
-        decay_rate=0.01
+        self, num_items, embedding_dim=256, mode="continuous", num_time_slices=None, decay_rate=0.01
     ):
         """
         Args:
@@ -45,7 +40,7 @@ class DynamicEmbedding(nn.Module):
         self.mode = mode
         self.decay_rate = decay_rate
 
-        if mode == 'discrete':
+        if mode == "discrete":
             # Separate embedding matrix for each time slice
             assert num_time_slices is not None
             self.num_time_slices = num_time_slices
@@ -53,30 +48,23 @@ class DynamicEmbedding(nn.Module):
                 torch.randn(num_time_slices, num_items, embedding_dim) * 0.01
             )
 
-        elif mode == 'continuous':
+        elif mode == "continuous":
             # Base embedding + temporal transformation
-            self.base_embeddings = nn.Parameter(
-                torch.randn(num_items, embedding_dim) * 0.01
-            )
+            self.base_embeddings = nn.Parameter(torch.randn(num_items, embedding_dim) * 0.01)
 
             # Temporal transformation network
             self.temporal_network = nn.Sequential(
                 nn.Linear(1, 64),  # Time as input
                 nn.ReLU(),
                 nn.Linear(64, embedding_dim),
-                nn.Tanh()  # Bounded transformation
+                nn.Tanh(),  # Bounded transformation
             )
 
-        elif mode == 'streaming':
+        elif mode == "streaming":
             # Incrementally updated embeddings
-            self.embeddings = nn.Parameter(
-                torch.randn(num_items, embedding_dim) * 0.01
-            )
+            self.embeddings = nn.Parameter(torch.randn(num_items, embedding_dim) * 0.01)
             # Track last update time for each item
-            self.register_buffer(
-                'last_update',
-                torch.zeros(num_items)
-            )
+            self.register_buffer("last_update", torch.zeros(num_items))
             # Exponential moving average momentum
             self.ema_momentum = 0.9
 
@@ -95,13 +83,13 @@ class DynamicEmbedding(nn.Module):
         Returns:
             embeddings: Time-aware embeddings (batch_size, embedding_dim)
         """
-        if self.mode == 'discrete':
+        if self.mode == "discrete":
             # Index into specific time slice
             time_slice = timestamps.long()
             batch_embeddings = self.embeddings[time_slice, indices]
             return batch_embeddings
 
-        elif self.mode == 'continuous':
+        elif self.mode == "continuous":
             # Base embedding + temporal transformation
             base_emb = self.base_embeddings[indices]
 
@@ -118,7 +106,7 @@ class DynamicEmbedding(nn.Module):
 
             return dynamic_emb
 
-        elif self.mode == 'streaming':
+        elif self.mode == "streaming":
             # Get current embeddings
             current_emb = self.embeddings[indices]
 
@@ -145,7 +133,7 @@ class DynamicEmbedding(nn.Module):
             new_observations: New embedding values from recent data
             timestamps: Current time for decay calculation
         """
-        assert self.mode == 'streaming'
+        assert self.mode == "streaming"
 
         with torch.no_grad():
             # Compute time-based decay
@@ -155,13 +143,11 @@ class DynamicEmbedding(nn.Module):
 
             # Exponential moving average update
             old_emb = self.embeddings[indices] * decay
-            new_emb = (
-                self.ema_momentum * old_emb +
-                (1 - self.ema_momentum) * new_observations
-            )
+            new_emb = self.ema_momentum * old_emb + (1 - self.ema_momentum) * new_observations
 
             self.embeddings[indices] = new_emb
             self.last_update[indices] = timestamps
+
 
 class TemporalUserEmbedding:
     """
@@ -181,12 +167,7 @@ class TemporalUserEmbedding:
     """
 
     def __init__(
-        self,
-        num_users,
-        num_items,
-        embedding_dim=128,
-        short_term_weight=0.3,
-        device='cpu'
+        self, num_users, num_items, embedding_dim=128, short_term_weight=0.3, device="cpu"
     ):
         self.num_users = num_users
         self.num_items = num_items
@@ -204,11 +185,7 @@ class TemporalUserEmbedding:
         self.items = nn.Embedding(num_items, embedding_dim).to(device)
 
         # LSTM for modeling temporal sequences
-        self.lstm = nn.LSTM(
-            embedding_dim,
-            embedding_dim,
-            batch_first=True
-        ).to(device)
+        self.lstm = nn.LSTM(embedding_dim, embedding_dim, batch_first=True).to(device)
 
     def get_user_embedding(self, user_id, current_time=None):
         """
@@ -223,19 +200,12 @@ class TemporalUserEmbedding:
 
         # Weighted combination
         combined = (
-            (1 - self.short_term_weight) * long_term_emb +
-            self.short_term_weight * short_term_emb
-        )
+            1 - self.short_term_weight
+        ) * long_term_emb + self.short_term_weight * short_term_emb
 
         return combined
 
-    def update_from_interaction(
-        self,
-        user_id,
-        item_id,
-        interaction_type='view',
-        timestamp=None
-    ):
+    def update_from_interaction(self, user_id, item_id, interaction_type="view", timestamp=None):
         """
         Update user embedding based on new interaction
 
@@ -253,12 +223,7 @@ class TemporalUserEmbedding:
             current_short_term = self.short_term(user_id)
 
             # Weight based on interaction type
-            interaction_weights = {
-                'view': 0.1,
-                'click': 0.3,
-                'add_to_cart': 0.5,
-                'purchase': 1.0
-            }
+            interaction_weights = {"view": 0.1, "click": 0.3, "add_to_cart": 0.5, "purchase": 1.0}
             weight = interaction_weights.get(interaction_type, 0.1)
 
             # Update with exponential moving average
@@ -301,6 +266,7 @@ class TemporalUserEmbedding:
 
         return logits.squeeze(0)
 
+
 # Example: E-commerce user with evolving preferences
 def temporal_user_example():
     """
@@ -314,11 +280,7 @@ def temporal_user_example():
     Dynamic embeddings capture these shifts while maintaining
     long-term preferences (e.g., preference for eco-friendly products)
     """
-    model = TemporalUserEmbedding(
-        num_users=10000,
-        num_items=50000,
-        embedding_dim=128
-    )
+    model = TemporalUserEmbedding(num_users=10000, num_items=50000, embedding_dim=128)
 
     user_id = torch.tensor([42])
 
@@ -328,7 +290,7 @@ def temporal_user_example():
     # January: Fitness equipment
     fitness_items = torch.randint(0, 100, (20,))  # Items 0-99 are fitness
     for item in fitness_items[:10]:
-        model.update_from_interaction(user_id, torch.tensor([item]), 'view')
+        model.update_from_interaction(user_id, torch.tensor([item]), "view")
 
     jan_emb = model.get_user_embedding(user_id)
     print(f"January embedding norm: {torch.norm(jan_emb).item():.3f}")
@@ -336,7 +298,7 @@ def temporal_user_example():
     # March: Outdoor gear
     outdoor_items = torch.randint(100, 200, (20,))  # Items 100-199 outdoor
     for item in outdoor_items[:10]:
-        model.update_from_interaction(user_id, torch.tensor([item]), 'view')
+        model.update_from_interaction(user_id, torch.tensor([item]), "view")
 
     mar_emb = model.get_user_embedding(user_id)
     print(f"March embedding norm: {torch.norm(mar_emb).item():.3f}")
@@ -345,11 +307,12 @@ def temporal_user_example():
     # May: Camping equipment
     camping_items = torch.randint(200, 300, (20,))  # Items 200-299 camping
     for item in camping_items[:10]:
-        model.update_from_interaction(user_id, torch.tensor([item]), 'purchase')
+        model.update_from_interaction(user_id, torch.tensor([item]), "purchase")
 
     may_emb = model.get_user_embedding(user_id)
     print(f"May embedding norm: {torch.norm(may_emb).item():.3f}")
     print(f"Embedding shift (Mar→May): {torch.norm(mar_emb - may_emb).item():.3f}")
+
 
 # Uncomment to run:
 # temporal_user_example()

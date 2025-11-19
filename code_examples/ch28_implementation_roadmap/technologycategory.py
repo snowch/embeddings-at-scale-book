@@ -34,6 +34,7 @@ from typing import Dict, List, Optional, Tuple
 
 class TechnologyCategory(Enum):
     """Technology categories for evaluation"""
+
     EMBEDDING_MODEL = "embedding_model"
     VECTOR_DATABASE = "vector_database"
     CLOUD_PLATFORM = "cloud_platform"
@@ -41,8 +42,10 @@ class TechnologyCategory(Enum):
     MONITORING = "monitoring"
     INTEGRATION = "integration"
 
+
 class EvaluationCriteria(Enum):
     """Evaluation criteria for technology selection"""
+
     PERFORMANCE = "performance"  # Quality, latency, throughput
     SCALABILITY = "scalability"  # Target scale support
     COST = "cost"  # Total cost of ownership
@@ -51,9 +54,11 @@ class EvaluationCriteria(Enum):
     ECOSYSTEM = "ecosystem"  # Integration, support
     VENDOR_LOCK_IN = "vendor_lock_in"  # Strategic flexibility
 
+
 @dataclass
 class TechnologyOption:
     """Technology option for evaluation"""
+
     name: str
     category: TechnologyCategory
     description: str
@@ -88,23 +93,22 @@ class TechnologyOption:
             EvaluationCriteria.EASE_OF_USE: self.ease_of_use_score,
             EvaluationCriteria.MATURITY: self.maturity_score,
             EvaluationCriteria.ECOSYSTEM: self.ecosystem_score,
-            EvaluationCriteria.VENDOR_LOCK_IN: self.lock_in_score
+            EvaluationCriteria.VENDOR_LOCK_IN: self.lock_in_score,
         }
 
         total_weight = sum(weights.values())
         if total_weight == 0:
             return 0.0
 
-        weighted_sum = sum(
-            score_map[criterion] * weight
-            for criterion, weight in weights.items()
-        )
+        weighted_sum = sum(score_map[criterion] * weight for criterion, weight in weights.items())
 
         return weighted_sum / total_weight
+
 
 @dataclass
 class RequirementProfile:
     """Requirements profile for technology selection"""
+
     project_name: str
     target_scale: int  # Number of vectors
     target_qps: int  # Queries per second
@@ -131,6 +135,7 @@ class RequirementProfile:
             # Default equal weights
             self.criterion_weights = dict.fromkeys(EvaluationCriteria, 1.0)
 
+
 class TechnologyEvaluator:
     """
     Evaluate and select technologies for embedding system.
@@ -144,16 +149,16 @@ class TechnologyEvaluator:
         self.options: Dict[TechnologyCategory, List[TechnologyOption]] = {
             category: [] for category in TechnologyCategory
         }
-        self.selected: Dict[TechnologyCategory, Optional[TechnologyOption]] = dict.fromkeys(TechnologyCategory)
+        self.selected: Dict[TechnologyCategory, Optional[TechnologyOption]] = dict.fromkeys(
+            TechnologyCategory
+        )
 
     def add_option(self, option: TechnologyOption) -> None:
         """Add technology option for evaluation"""
         self.options[option.category].append(option)
 
     def evaluate_category(
-        self,
-        category: TechnologyCategory,
-        top_n: int = 3
+        self, category: TechnologyCategory, top_n: int = 3
     ) -> List[Tuple[TechnologyOption, float]]:
         """
         Evaluate options in category and return top N.
@@ -165,10 +170,7 @@ class TechnologyEvaluator:
 
         # Score all options
         scored_options = [
-            (
-                option,
-                option.overall_score(self.requirements.criterion_weights)
-            )
+            (option, option.overall_score(self.requirements.criterion_weights))
             for option in self.options[category]
         ]
 
@@ -177,11 +179,7 @@ class TechnologyEvaluator:
 
         return scored_options[:top_n]
 
-    def select_option(
-        self,
-        category: TechnologyCategory,
-        option: TechnologyOption
-    ) -> None:
+    def select_option(self, category: TechnologyCategory, option: TechnologyOption) -> None:
         """Select specific option for category"""
         if option not in self.options[category]:
             raise ValueError(f"Option {option.name} not in category {category}")
@@ -248,9 +246,11 @@ class TechnologyEvaluator:
 
         return "".join(report)
 
+
 @dataclass
 class ProofOfConceptPlan:
     """Plan for proof of concept implementation"""
+
     project_name: str
     objectives: List[str]
     success_criteria: List[str]
@@ -348,91 +348,97 @@ def example_technology_evaluation():
             EvaluationCriteria.EASE_OF_USE: 1.0,
             EvaluationCriteria.MATURITY: 1.5,
             EvaluationCriteria.ECOSYSTEM: 1.0,
-            EvaluationCriteria.VENDOR_LOCK_IN: 0.5  # Less concerned
-        }
+            EvaluationCriteria.VENDOR_LOCK_IN: 0.5,  # Less concerned
+        },
     )
 
     evaluator = TechnologyEvaluator(requirements)
 
     # Add vector database options
-    evaluator.add_option(TechnologyOption(
-        name="Pinecone",
-        category=TechnologyCategory.VECTOR_DATABASE,
-        description="Managed vector database with excellent performance",
-        performance_score=9.0,
-        scalability_score=9.5,
-        cost_score=7.0,
-        ease_of_use_score=9.5,
-        maturity_score=8.5,
-        ecosystem_score=8.0,
-        lock_in_score=6.0,
-        strengths=[
-            "Excellent query performance (<50ms p95)",
-            "Fully managed, no ops overhead",
-            "Great documentation and SDKs",
-            "Strong metadata filtering"
-        ],
-        weaknesses=[
-            "Higher cost at scale ($0.096/GB/month + query costs)",
-            "Vendor lock-in concerns",
-            "Less control over infrastructure"
-        ],
-        pricing_model="Storage + compute, ~$500-1000/month at 10M vectors",
-        deployment_options=["Managed cloud (multi-region)"]
-    ))
+    evaluator.add_option(
+        TechnologyOption(
+            name="Pinecone",
+            category=TechnologyCategory.VECTOR_DATABASE,
+            description="Managed vector database with excellent performance",
+            performance_score=9.0,
+            scalability_score=9.5,
+            cost_score=7.0,
+            ease_of_use_score=9.5,
+            maturity_score=8.5,
+            ecosystem_score=8.0,
+            lock_in_score=6.0,
+            strengths=[
+                "Excellent query performance (<50ms p95)",
+                "Fully managed, no ops overhead",
+                "Great documentation and SDKs",
+                "Strong metadata filtering",
+            ],
+            weaknesses=[
+                "Higher cost at scale ($0.096/GB/month + query costs)",
+                "Vendor lock-in concerns",
+                "Less control over infrastructure",
+            ],
+            pricing_model="Storage + compute, ~$500-1000/month at 10M vectors",
+            deployment_options=["Managed cloud (multi-region)"],
+        )
+    )
 
-    evaluator.add_option(TechnologyOption(
-        name="Weaviate (self-hosted)",
-        category=TechnologyCategory.VECTOR_DATABASE,
-        description="Open source vector database with hybrid search",
-        performance_score=8.0,
-        scalability_score=8.5,
-        cost_score=8.5,
-        ease_of_use_score=7.0,
-        maturity_score=8.0,
-        ecosystem_score=8.5,
-        lock_in_score=9.5,
-        strengths=[
-            "Open source, full control",
-            "Hybrid search (vector + keyword)",
-            "Lower cost self-hosted (~$300/month)",
-            "Strong community and documentation"
-        ],
-        weaknesses=[
-            "Requires ops expertise (Kubernetes)",
-            "More development time",
-            "Responsibility for scaling and reliability"
-        ],
-        pricing_model="Infrastructure cost only, ~$300-500/month on AWS",
-        deployment_options=["Self-hosted", "Managed cloud"]
-    ))
+    evaluator.add_option(
+        TechnologyOption(
+            name="Weaviate (self-hosted)",
+            category=TechnologyCategory.VECTOR_DATABASE,
+            description="Open source vector database with hybrid search",
+            performance_score=8.0,
+            scalability_score=8.5,
+            cost_score=8.5,
+            ease_of_use_score=7.0,
+            maturity_score=8.0,
+            ecosystem_score=8.5,
+            lock_in_score=9.5,
+            strengths=[
+                "Open source, full control",
+                "Hybrid search (vector + keyword)",
+                "Lower cost self-hosted (~$300/month)",
+                "Strong community and documentation",
+            ],
+            weaknesses=[
+                "Requires ops expertise (Kubernetes)",
+                "More development time",
+                "Responsibility for scaling and reliability",
+            ],
+            pricing_model="Infrastructure cost only, ~$300-500/month on AWS",
+            deployment_options=["Self-hosted", "Managed cloud"],
+        )
+    )
 
     # Add embedding model options
-    evaluator.add_option(TechnologyOption(
-        name="OpenAI text-embedding-3-large",
-        category=TechnologyCategory.EMBEDDING_MODEL,
-        description="High-quality general-purpose embeddings",
-        performance_score=9.0,
-        scalability_score=8.0,
-        cost_score=6.0,
-        ease_of_use_score=10.0,
-        maturity_score=9.0,
-        ecosystem_score=9.0,
-        lock_in_score=7.0,
-        strengths=[
-            "Excellent quality for general text",
-            "Simple API, no training needed",
-            "3072 dimensions, configurable",
-            "Fast time to value"
-        ],
-        weaknesses=[
-            "API costs add up ($0.13/1M tokens)",
-            "Limited customization for domain",
-            "API dependency and rate limits"
-        ],
-        pricing_model="$0.13/1M tokens, ~$1000/month for 10M products",
-        deployment_options=["API only"]
-    ))
+    evaluator.add_option(
+        TechnologyOption(
+            name="OpenAI text-embedding-3-large",
+            category=TechnologyCategory.EMBEDDING_MODEL,
+            description="High-quality general-purpose embeddings",
+            performance_score=9.0,
+            scalability_score=8.0,
+            cost_score=6.0,
+            ease_of_use_score=10.0,
+            maturity_score=9.0,
+            ecosystem_score=9.0,
+            lock_in_score=7.0,
+            strengths=[
+                "Excellent quality for general text",
+                "Simple API, no training needed",
+                "3072 dimensions, configurable",
+                "Fast time to value",
+            ],
+            weaknesses=[
+                "API costs add up ($0.13/1M tokens)",
+                "Limited customization for domain",
+                "API dependency and rate limits",
+            ],
+            pricing_model="$0.13/1M tokens, ~$1000/month for 10M products",
+            deployment_options=["API only"],
+        )
+    )
 
     # Generate recommendations
     print(evaluator.generate_recommendation_report())
@@ -444,92 +450,92 @@ def example_technology_evaluation():
             "Validate embedding quality for product search",
             "Achieve <50ms p95 query latency",
             "Demonstrate 20%+ improvement in search quality",
-            "Establish baseline architecture for scaling"
+            "Establish baseline architecture for scaling",
         ],
         success_criteria=[
             "Search relevance: NDCG@10 > 0.85",
             "Query latency: p95 < 50ms, p99 < 100ms",
             "User satisfaction: >80% find results relevant",
-            "Cost projection: <$10K/month at full scale"
+            "Cost projection: <$10K/month at full scale",
         ],
         duration_weeks=8,
         milestones=[
             {
                 "name": "Infrastructure Setup",
                 "week": "1-2",
-                "deliverable": "Vector DB deployed, embedding pipeline running"
+                "deliverable": "Vector DB deployed, embedding pipeline running",
             },
             {
                 "name": "Data Ingestion",
                 "week": "3-4",
-                "deliverable": "100K products indexed with embeddings"
+                "deliverable": "100K products indexed with embeddings",
             },
             {
                 "name": "Search Implementation",
                 "week": "5-6",
-                "deliverable": "Search API with reranking, basic UI"
+                "deliverable": "Search API with reranking, basic UI",
             },
             {
                 "name": "Evaluation & Optimization",
                 "week": "7-8",
-                "deliverable": "Performance metrics, business case, go/no-go"
-            }
+                "deliverable": "Performance metrics, business case, go/no-go",
+            },
         ],
         team_members=[
             {"name": "Alex Chen", "role": "ML Engineer", "allocation": "100%"},
             {"name": "Sam Rodriguez", "role": "Backend Engineer", "allocation": "75%"},
-            {"name": "Jordan Lee", "role": "Product Manager", "allocation": "25%"}
+            {"name": "Jordan Lee", "role": "Product Manager", "allocation": "25%"},
         ],
         compute_resources={
             "Vector DB": "AWS r6g.xlarge (16GB RAM)",
             "Embedding service": "AWS Lambda + SQS",
-            "Development": "AWS t3.large for testing"
+            "Development": "AWS t3.large for testing",
         },
         data_sources=[
             {"name": "Product catalog", "records": "10M products"},
-            {"name": "Search logs", "records": "Historical queries for evaluation"}
+            {"name": "Search logs", "records": "Historical queries for evaluation"},
         ],
         data_volume=100_000,
         user_count=20,
         use_cases=[
             "Text search: User searches for products by description",
-            "Visual search: User searches by product image"
+            "Visual search: User searches by product image",
         ],
         out_of_scope=[
             "Personalized recommendations (Phase 2)",
             "Multi-language support (Phase 2)",
-            "Mobile app integration (Phase 3)"
+            "Mobile app integration (Phase 3)",
         ],
         risks=[
             {
                 "risk": "Embedding quality insufficient for domain",
                 "impact": "Core value proposition fails",
-                "mitigation": "Test multiple embedding models, plan for fine-tuning"
+                "mitigation": "Test multiple embedding models, plan for fine-tuning",
             },
             {
                 "risk": "Latency targets not met",
                 "impact": "User experience degraded",
-                "mitigation": "Architecture optimization, caching strategy, ANN tuning"
+                "mitigation": "Architecture optimization, caching strategy, ANN tuning",
             },
             {
                 "risk": "Team lacks vector DB expertise",
                 "impact": "Delayed timeline, suboptimal implementation",
-                "mitigation": "Training, vendor support, community resources"
-            }
+                "mitigation": "Training, vendor support, community resources",
+            },
         ],
         dependencies=[
             "Product catalog API access",
             "AWS account with sufficient quotas",
-            "Search log data for evaluation"
+            "Search log data for evaluation",
         ],
         assumptions=[
             "Product data quality sufficient for embedding generation",
             "Search logs representative of user behavior",
-            "Budget approved for Phase 2 if POC successful"
-        ]
+            "Budget approved for Phase 2 if POC successful",
+        ],
     )
 
-    print("\n" + "="*80 + "\n")
+    print("\n" + "=" * 80 + "\n")
     print(poc_plan.generate_plan_document())
 
 

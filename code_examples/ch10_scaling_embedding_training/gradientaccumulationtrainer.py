@@ -10,6 +10,7 @@ import torch.nn as nn
 # See distributedembeddingtable.py for full implementation
 class DistributedContrastiveEmbedding(nn.Module):
     """Placeholder for DistributedContrastiveEmbedding. Replace with actual implementation."""
+
     def __init__(self, vocab_size=100000, embedding_dim=512):
         super().__init__()
         self.embedding = nn.Embedding(vocab_size, embedding_dim)
@@ -49,11 +50,7 @@ class GradientAccumulationTrainer:
     - May require learning rate adjustments
     """
 
-    def __init__(
-        self,
-        model: nn.Module,
-        accumulation_steps: int = 4
-    ):
+    def __init__(self, model: nn.Module, accumulation_steps: int = 4):
         """
         Args:
             model: Model to train
@@ -63,10 +60,7 @@ class GradientAccumulationTrainer:
         self.accumulation_steps = accumulation_steps
 
     def train_step(
-        self,
-        dataloader,
-        optimizer: torch.optim.Optimizer,
-        device: str = 'cuda'
+        self, dataloader, optimizer: torch.optim.Optimizer, device: str = "cuda"
     ) -> float:
         """
         Training step with gradient accumulation
@@ -89,8 +83,8 @@ class GradientAccumulationTrainer:
                 break
 
             # Move batch to device
-            anchor_ids = batch['anchor_ids'].to(device)
-            positive_ids = batch['positive_ids'].to(device)
+            anchor_ids = batch["anchor_ids"].to(device)
+            positive_ids = batch["positive_ids"].to(device)
 
             # Forward pass
             loss = self.model(anchor_ids, positive_ids)
@@ -105,10 +99,7 @@ class GradientAccumulationTrainer:
             total_loss += loss.item()
 
         # Gradient clipping (on accumulated gradients)
-        torch.nn.utils.clip_grad_norm_(
-            self.model.parameters(),
-            max_norm=1.0
-        )
+        torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
 
         # Optimizer step (updates parameters)
         optimizer.step()
@@ -117,6 +108,7 @@ class GradientAccumulationTrainer:
         optimizer.zero_grad()
 
         return total_loss
+
 
 # Example: Effective 32K batch with 8GB GPU
 def gradient_accumulation_example():
@@ -137,26 +129,27 @@ def gradient_accumulation_example():
     """
 
     model = DistributedContrastiveEmbedding(vocab_size=100000)
-    model = model.to('cuda')
+    model = model.to("cuda")
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=0.001)
 
     trainer = GradientAccumulationTrainer(
         model=model,
-        accumulation_steps=32  # 32× micro-batches
+        accumulation_steps=32,  # 32× micro-batches
     )
 
     # Dummy dataloader
     dataloader = [
         {
-            'anchor_ids': torch.randint(0, 100000, (1024,)),
-            'positive_ids': torch.randint(0, 100000, (1024,))
+            "anchor_ids": torch.randint(0, 100000, (1024,)),
+            "positive_ids": torch.randint(0, 100000, (1024,)),
         }
         for _ in range(32)
     ]
 
     loss = trainer.train_step(dataloader, optimizer)
     print(f"Loss with 32K effective batch: {loss:.4f}")
+
 
 # Uncomment to run:
 # gradient_accumulation_example()

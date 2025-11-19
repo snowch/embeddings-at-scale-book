@@ -6,6 +6,7 @@ import torch.nn.functional as F
 # Code from Chapter 07
 # Book: Embeddings at Scale
 
+
 class MultiModalSelfSupervised(nn.Module):
     """
     Multi-modal self-supervised learning
@@ -24,13 +25,7 @@ class MultiModalSelfSupervised(nn.Module):
     Reference: "Learning Transferable Visual Models From Natural Language Supervision" (CLIP)
     """
 
-    def __init__(
-        self,
-        image_encoder,
-        text_encoder,
-        embedding_dim=512,
-        temperature=0.07
-    ):
+    def __init__(self, image_encoder, text_encoder, embedding_dim=512, temperature=0.07):
         """
         Args:
             image_encoder: Image encoder (ResNet, ViT)
@@ -45,14 +40,8 @@ class MultiModalSelfSupervised(nn.Module):
         self.temperature = temperature
 
         # Projection heads to shared space
-        self.image_projection = nn.Linear(
-            image_encoder.output_dim,
-            embedding_dim
-        )
-        self.text_projection = nn.Linear(
-            text_encoder.output_dim,
-            embedding_dim
-        )
+        self.image_projection = nn.Linear(image_encoder.output_dim, embedding_dim)
+        self.text_projection = nn.Linear(text_encoder.output_dim, embedding_dim)
 
         # Learnable temperature
         self.logit_scale = nn.Parameter(torch.ones([]) * np.log(1 / temperature))
@@ -121,8 +110,9 @@ class MultiModalSelfSupervised(nn.Module):
         with torch.no_grad():
             pred_image = logits_per_image.argmax(dim=1)
             pred_text = logits_per_text.argmax(dim=1)
-            accuracy = ((pred_image == labels).float().mean() +
-                       (pred_text == labels).float().mean()) / 2
+            accuracy = (
+                (pred_image == labels).float().mean() + (pred_text == labels).float().mean()
+            ) / 2
 
         return loss, accuracy.item()
 
@@ -177,11 +167,7 @@ class MultiModalSelfSupervised(nn.Module):
 
 
 # Example: Training multi-modal embeddings
-def train_multimodal_ssl(
-    image_text_pairs,
-    num_epochs=100,
-    batch_size=256
-):
+def train_multimodal_ssl(image_text_pairs, num_epochs=100, batch_size=256):
     """
     Train multi-modal self-supervised model
 
@@ -199,25 +185,18 @@ def train_multimodal_ssl(
     image_encoder.output_dim = 2048
 
     # Text encoder
-    text_encoder = AutoModel.from_pretrained('bert-base-uncased')
+    text_encoder = AutoModel.from_pretrained("bert-base-uncased")
     text_encoder.output_dim = 768
 
     # Multi-modal model
-    model = MultiModalSelfSupervised(
-        image_encoder,
-        text_encoder,
-        embedding_dim=512
-    ).cuda()
+    model = MultiModalSelfSupervised(image_encoder, text_encoder, embedding_dim=512).cuda()
 
     # Optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
 
     # DataLoader
     dataloader = torch.utils.data.DataLoader(
-        image_text_pairs,
-        batch_size=batch_size,
-        shuffle=True,
-        num_workers=8
+        image_text_pairs, batch_size=batch_size, shuffle=True, num_workers=8
     )
 
     # Training loop
@@ -297,18 +276,10 @@ class ProductMatchingSystem:
         # Compute similarities
         similarities = {}
         for product_id, product_emb in self.product_embeddings.items():
-            sim = F.cosine_similarity(
-                query_emb,
-                product_emb.to(query_emb.device),
-                dim=1
-            ).item()
+            sim = F.cosine_similarity(query_emb, product_emb.to(query_emb.device), dim=1).item()
             similarities[product_id] = sim
 
         # Rank by similarity
-        matches = sorted(
-            similarities.items(),
-            key=lambda x: x[1],
-            reverse=True
-        )[:top_k]
+        matches = sorted(similarities.items(), key=lambda x: x[1], reverse=True)[:top_k]
 
         return matches

@@ -6,14 +6,17 @@ from transformers import AutoModel, AutoTokenizer
 # Code from Chapter 05
 # Book: Embeddings at Scale
 
+
 # Placeholder class
 class TextAugmentation:
     """Placeholder for TextAugmentation."""
+
     def __init__(self):
         pass
 
     def augment(self, text):
         return text  # Return unchanged text
+
 
 class MoCoTextEmbedding(nn.Module):
     """
@@ -30,13 +33,15 @@ class MoCoTextEmbedding(nn.Module):
     - Requires careful momentum tuning
     """
 
-    def __init__(self,
-                 base_model='bert-base-uncased',
-                 projection_dim=128,
-                 hidden_dim=512,
-                 queue_size=65536,
-                 momentum=0.999,
-                 temperature=0.07):
+    def __init__(
+        self,
+        base_model="bert-base-uncased",
+        projection_dim=128,
+        hidden_dim=512,
+        queue_size=65536,
+        momentum=0.999,
+        temperature=0.07,
+    ):
         super().__init__()
 
         self.queue_size = queue_size
@@ -50,8 +55,7 @@ class MoCoTextEmbedding(nn.Module):
         self.encoder_k = AutoModel.from_pretrained(base_model)
 
         # Initialize key encoder with same weights as query encoder
-        for param_q, param_k in zip(self.encoder_q.parameters(),
-                                    self.encoder_k.parameters()):
+        for param_q, param_k in zip(self.encoder_q.parameters(), self.encoder_k.parameters()):
             param_k.data.copy_(param_q.data)
             param_k.requires_grad = False  # Key encoder not trained by backprop
 
@@ -59,28 +63,23 @@ class MoCoTextEmbedding(nn.Module):
 
         # Projection heads
         self.projection_q = nn.Sequential(
-            nn.Linear(encoder_dim, hidden_dim),
-            nn.ReLU(),
-            nn.Linear(hidden_dim, projection_dim)
+            nn.Linear(encoder_dim, hidden_dim), nn.ReLU(), nn.Linear(hidden_dim, projection_dim)
         )
 
         self.projection_k = nn.Sequential(
-            nn.Linear(encoder_dim, hidden_dim),
-            nn.ReLU(),
-            nn.Linear(hidden_dim, projection_dim)
+            nn.Linear(encoder_dim, hidden_dim), nn.ReLU(), nn.Linear(hidden_dim, projection_dim)
         )
 
         # Initialize projection_k with same weights
-        for param_q, param_k in zip(self.projection_q.parameters(),
-                                    self.projection_k.parameters()):
+        for param_q, param_k in zip(self.projection_q.parameters(), self.projection_k.parameters()):
             param_k.data.copy_(param_q.data)
             param_k.requires_grad = False
 
         # Queue: stores negative keys
         # Shape: (projection_dim, queue_size)
-        self.register_buffer('queue', torch.randn(projection_dim, queue_size))
+        self.register_buffer("queue", torch.randn(projection_dim, queue_size))
         self.queue = F.normalize(self.queue, dim=0)
-        self.register_buffer('queue_ptr', torch.zeros(1, dtype=torch.long))
+        self.register_buffer("queue_ptr", torch.zeros(1, dtype=torch.long))
 
         self.tokenizer = AutoTokenizer.from_pretrained(base_model)
 
@@ -91,12 +90,10 @@ class MoCoTextEmbedding(nn.Module):
 
         This creates a slowly evolving key encoder, providing stable keys
         """
-        for param_q, param_k in zip(self.encoder_q.parameters(),
-                                    self.encoder_k.parameters()):
+        for param_q, param_k in zip(self.encoder_q.parameters(), self.encoder_k.parameters()):
             param_k.data = param_k.data * self.momentum + param_q.data * (1 - self.momentum)
 
-        for param_q, param_k in zip(self.projection_q.parameters(),
-                                    self.projection_k.parameters()):
+        for param_q, param_k in zip(self.projection_q.parameters(), self.projection_k.parameters()):
             param_k.data = param_k.data * self.momentum + param_q.data * (1 - self.momentum)
 
     @torch.no_grad()
@@ -114,12 +111,12 @@ class MoCoTextEmbedding(nn.Module):
         # Replace oldest keys with new keys
         # Queue is circular buffer
         if ptr + batch_size <= self.queue_size:
-            self.queue[:, ptr:ptr + batch_size] = keys.T
+            self.queue[:, ptr : ptr + batch_size] = keys.T
         else:
             # Wrap around
             remaining = self.queue_size - ptr
             self.queue[:, ptr:] = keys[:remaining].T
-            self.queue[:, :batch_size - remaining] = keys[remaining:].T
+            self.queue[:, : batch_size - remaining] = keys[remaining:].T
 
         ptr = (ptr + batch_size) % self.queue_size
         self.queue_ptr[0] = ptr
@@ -142,8 +139,7 @@ class MoCoTextEmbedding(nn.Module):
 
         return embeddings
 
-    def forward(self, query_input_ids, query_attention_mask,
-                key_input_ids, key_attention_mask):
+    def forward(self, query_input_ids, query_attention_mask, key_input_ids, key_attention_mask):
         """
         Forward pass for MoCo
 
@@ -155,8 +151,9 @@ class MoCoTextEmbedding(nn.Module):
             loss, metrics
         """
         # Encode queries (through actively trained encoder)
-        q = self.encode_text(query_input_ids, query_attention_mask,
-                           self.encoder_q, self.projection_q)
+        q = self.encode_text(
+            query_input_ids, query_attention_mask, self.encoder_q, self.projection_q
+        )
 
         # Encode keys (through momentum encoder)
         with torch.no_grad():
@@ -164,14 +161,15 @@ class MoCoTextEmbedding(nn.Module):
             self._momentum_update_key_encoder()
 
             # Encode keys
-            k = self.encode_text(key_input_ids, key_attention_mask,
-                               self.encoder_k, self.projection_k)
+            k = self.encode_text(
+                key_input_ids, key_attention_mask, self.encoder_k, self.projection_k
+            )
 
         # Positive logits: (batch_size, 1)
-        l_pos = torch.einsum('nc,nc->n', [q, k]).unsqueeze(-1)
+        l_pos = torch.einsum("nc,nc->n", [q, k]).unsqueeze(-1)
 
         # Negative logits: (batch_size, queue_size)
-        l_neg = torch.einsum('nc,ck->nk', [q, self.queue.clone().detach()])
+        l_neg = torch.einsum("nc,ck->nk", [q, self.queue.clone().detach()])
 
         # Concatenate positive and negative logits
         # Shape: (batch_size, 1 + queue_size)
@@ -195,10 +193,10 @@ class MoCoTextEmbedding(nn.Module):
             negative_sim = l_neg.mean()
 
         metrics = {
-            'accuracy': accuracy.item(),
-            'positive_similarity': positive_sim.item(),
-            'negative_similarity': negative_sim.item(),
-            'queue_ptr': int(self.queue_ptr[0])
+            "accuracy": accuracy.item(),
+            "positive_similarity": positive_sim.item(),
+            "negative_similarity": negative_sim.item(),
+            "queue_ptr": int(self.queue_ptr[0]),
         }
 
         return loss, metrics
@@ -217,29 +215,27 @@ def train_moco_epoch(model, dataloader, optimizer, device):
     augmenter = TextAugmentation()
 
     for batch in dataloader:
-        texts = batch['text']
+        texts = batch["text"]
 
         # Generate query and key augmentations
-        queries = [augmenter.augment_simple(text, method='random_deletion')
-                  for text in texts]
-        keys = [augmenter.augment_simple(text, method='synonym_replacement')
-               for text in texts]
+        queries = [augmenter.augment_simple(text, method="random_deletion") for text in texts]
+        keys = [augmenter.augment_simple(text, method="synonym_replacement") for text in texts]
 
         # Tokenize
         query_encoded = model.tokenizer(
-            queries, padding=True, truncation=True,
-            max_length=128, return_tensors='pt'
+            queries, padding=True, truncation=True, max_length=128, return_tensors="pt"
         ).to(device)
 
         key_encoded = model.tokenizer(
-            keys, padding=True, truncation=True,
-            max_length=128, return_tensors='pt'
+            keys, padding=True, truncation=True, max_length=128, return_tensors="pt"
         ).to(device)
 
         # Forward pass
         loss, metrics = model(
-            query_encoded['input_ids'], query_encoded['attention_mask'],
-            key_encoded['input_ids'], key_encoded['attention_mask']
+            query_encoded["input_ids"],
+            query_encoded["attention_mask"],
+            key_encoded["input_ids"],
+            key_encoded["attention_mask"],
         )
 
         # Backward pass
@@ -248,24 +244,21 @@ def train_moco_epoch(model, dataloader, optimizer, device):
         optimizer.step()
 
         total_loss += loss.item()
-        total_accuracy += metrics['accuracy']
+        total_accuracy += metrics["accuracy"]
 
     return total_loss / len(dataloader), total_accuracy / len(dataloader)
 
 
 # Example: MoCo works well with smaller batches
 model_moco = MoCoTextEmbedding(
-    base_model='bert-base-uncased',
+    base_model="bert-base-uncased",
     projection_dim=128,
     queue_size=65536,  # Large queue of negatives
     momentum=0.999,  # Slow momentum update
-    temperature=0.07
-).to('cuda')
+    temperature=0.07,
+).to("cuda")
 
-optimizer = torch.optim.AdamW(
-    [p for p in model_moco.parameters() if p.requires_grad],
-    lr=2e-5
-)
+optimizer = torch.optim.AdamW([p for p in model_moco.parameters() if p.requires_grad], lr=2e-5)
 
 # Can use batch size 256 instead of 4096!
 # Queue provides large set of high-quality negatives

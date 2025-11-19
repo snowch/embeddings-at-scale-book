@@ -3,6 +3,7 @@ import torch
 # Code from Chapter 02
 # Book: Embeddings at Scale
 
+
 class MultiModalTraining:
     """Training strategies for multi-modal embeddings"""
 
@@ -13,10 +14,12 @@ class MultiModalTraining:
         """
         # Similarities
         pos_sim = torch.cosine_similarity(anchor_emb, positive_emb) / temperature
-        neg_sims = torch.stack([
-            torch.cosine_similarity(anchor_emb, neg_emb) / temperature
-            for neg_emb in negative_embs
-        ])
+        neg_sims = torch.stack(
+            [
+                torch.cosine_similarity(anchor_emb, neg_emb) / temperature
+                for neg_emb in negative_embs
+            ]
+        )
 
         # InfoNCE loss
         numerator = torch.exp(pos_sim)
@@ -44,11 +47,14 @@ class MultiModalTraining:
         This prevents collapse while encouraging alignment
         """
         # Alignment loss: matched pairs close together
-        matched_pairs = [(emb1, emb2) for emb1, emb2, label in zip(embeddings1, embeddings2, labels) if label == 1]
-        alignment_loss = sum(
-            torch.norm(emb1 - emb2) ** 2
-            for emb1, emb2 in matched_pairs
-        ) / len(matched_pairs)
+        matched_pairs = [
+            (emb1, emb2)
+            for emb1, emb2, label in zip(embeddings1, embeddings2, labels)
+            if label == 1
+        ]
+        alignment_loss = sum(torch.norm(emb1 - emb2) ** 2 for emb1, emb2 in matched_pairs) / len(
+            matched_pairs
+        )
 
         # Uniformity loss: embeddings uniformly distributed
         def uniformity(embeddings):

@@ -39,17 +39,21 @@ import numpy as np
 
 class NeuronModel(Enum):
     """Spiking neuron models"""
+
     LIF = "leaky_integrate_fire"
     ADAPTIVE_LIF = "adaptive_lif"
     IZHIKEVICH = "izhikevich"
     ADEX = "adaptive_exponential"
 
+
 class CodingScheme(Enum):
     """Neural coding schemes"""
+
     RATE = "rate"  # Spike rate encodes value
     TEMPORAL = "temporal"  # Spike timing encodes value
     POPULATION = "population"  # Population code across neurons
     BURST = "burst"  # Burst patterns encode information
+
 
 @dataclass
 class NeuromorphicConfig:
@@ -69,6 +73,7 @@ class NeuromorphicConfig:
         num_neurons_per_dim: Neurons encoding each embedding dimension
         hardware_target: Target neuromorphic hardware
     """
+
     neuron_model: NeuronModel = NeuronModel.LIF
     coding_scheme: CodingScheme = CodingScheme.RATE
     time_window_ms: float = 10.0
@@ -76,24 +81,29 @@ class NeuromorphicConfig:
     threshold: float = 1.0
     reset_voltage: float = 0.0
     tau_mem: float = 10.0  # Membrane time constant
-    tau_syn: float = 5.0   # Synaptic time constant
+    tau_syn: float = 5.0  # Synaptic time constant
     refractory_period_ms: float = 2.0
     num_neurons_per_dim: int = 10
     hardware_target: str = "loihi2"  # "loihi2", "truenorth", "akida", "spinnaker"
 
+
 @dataclass
 class SpikeEvent:
     """Single spike event"""
+
     neuron_id: int
     timestamp_ms: float
     layer_id: int
 
+
 @dataclass
 class SpikeTrain:
     """Sequence of spikes for a neuron"""
+
     neuron_id: int
     spike_times: List[float]
     layer_id: int
+
 
 class SpikingNeuron:
     """
@@ -105,22 +115,14 @@ class SpikingNeuron:
     If V ≥ V_threshold: emit spike, V ← V_reset, refractory period
     """
 
-    def __init__(
-        self,
-        neuron_id: int,
-        config: NeuromorphicConfig
-    ):
+    def __init__(self, neuron_id: int, config: NeuromorphicConfig):
         self.neuron_id = neuron_id
         self.config = config
         self.voltage = config.reset_voltage
         self.refractory_until = 0.0
         self.spike_times: List[float] = []
 
-    def step(
-        self,
-        input_current: float,
-        time_ms: float
-    ) -> Optional[SpikeEvent]:
+    def step(self, input_current: float, time_ms: float) -> Optional[SpikeEvent]:
         """
         Simulate one time step
 
@@ -141,13 +143,10 @@ class SpikingNeuron:
             self.refractory_until = time_ms + self.config.refractory_period_ms
             self.spike_times.append(time_ms)
 
-            return SpikeEvent(
-                neuron_id=self.neuron_id,
-                timestamp_ms=time_ms,
-                layer_id=0
-            )
+            return SpikeEvent(neuron_id=self.neuron_id, timestamp_ms=time_ms, layer_id=0)
 
         return None
+
 
 class SpikingNeuralNetwork:
     """
@@ -160,11 +159,7 @@ class SpikingNeuralNetwork:
     """
 
     def __init__(
-        self,
-        input_dim: int,
-        hidden_dims: List[int],
-        output_dim: int,
-        config: NeuromorphicConfig
+        self, input_dim: int, hidden_dims: List[int], output_dim: int, config: NeuromorphicConfig
     ):
         self.input_dim = input_dim
         self.hidden_dims = hidden_dims
@@ -191,10 +186,7 @@ class SpikingNeuralNetwork:
         # Hidden layers
         neuron_id = len(input_neurons)
         for hidden_dim in self.hidden_dims:
-            hidden_neurons = [
-                SpikingNeuron(neuron_id + i, self.config)
-                for i in range(hidden_dim)
-            ]
+            hidden_neurons = [SpikingNeuron(neuron_id + i, self.config) for i in range(hidden_dim)]
             layers.append(hidden_neurons)
             neuron_id += hidden_dim
 
@@ -250,11 +242,9 @@ class SpikingNeuralNetwork:
 
                     # Poisson spike generation
                     if np.random.random() < spike_prob:
-                        neuron_spikes.append(SpikeEvent(
-                            neuron_id=neuron_id,
-                            timestamp_ms=time_ms,
-                            layer_id=0
-                        ))
+                        neuron_spikes.append(
+                            SpikeEvent(neuron_id=neuron_id, timestamp_ms=time_ms, layer_id=0)
+                        )
 
                 dim_spikes.extend(neuron_spikes)
 
@@ -262,10 +252,7 @@ class SpikingNeuralNetwork:
 
         return spike_trains
 
-    def forward(
-        self,
-        input_spikes: List[List[SpikeEvent]]
-    ) -> np.ndarray:
+    def forward(self, input_spikes: List[List[SpikeEvent]]) -> np.ndarray:
         """
         Forward propagation through spiking network
 
@@ -299,8 +286,11 @@ class SpikingNeuralNetwork:
                 input_currents = np.zeros(len(curr_layer))
 
                 # Aggregate spikes from previous layer
-                prev_spikes = [s for s in layer_spikes[layer_idx - 1]
-                             if abs(s.timestamp_ms - time_ms) < self.config.tau_syn]
+                prev_spikes = [
+                    s
+                    for s in layer_spikes[layer_idx - 1]
+                    if abs(s.timestamp_ms - time_ms) < self.config.tau_syn
+                ]
 
                 for spike in prev_spikes:
                     # Synaptic current: exponential decay
@@ -341,9 +331,7 @@ class SpikingNeuralNetwork:
                 neuron_id = dim_idx * self.config.num_neurons_per_dim + neuron_offset
 
                 # Count spikes for this neuron
-                neuron_spike_count = sum(
-                    1 for s in output_spikes if s.neuron_id == neuron_id
-                )
+                neuron_spike_count = sum(1 for s in output_spikes if s.neuron_id == neuron_id)
                 dim_spike_count += neuron_spike_count
 
             # Average spike count across population
@@ -358,6 +346,7 @@ class SpikingNeuralNetwork:
 
         return embedding
 
+
 class NeuromorphicEmbeddingInference:
     """
     Complete neuromorphic embedding inference system
@@ -365,11 +354,7 @@ class NeuromorphicEmbeddingInference:
     Handles encoding, SNN forward pass, and decoding
     """
 
-    def __init__(
-        self,
-        embedding_dim: int,
-        config: NeuromorphicConfig
-    ):
+    def __init__(self, embedding_dim: int, config: NeuromorphicConfig):
         self.embedding_dim = embedding_dim
         self.config = config
 
@@ -380,7 +365,7 @@ class NeuromorphicEmbeddingInference:
             input_dim=embedding_dim,
             hidden_dims=hidden_dims,
             output_dim=embedding_dim,
-            config=config
+            config=config,
         )
 
         self.inference_count = 0
@@ -422,12 +407,12 @@ class NeuromorphicEmbeddingInference:
         self.total_energy_mj += estimated_energy_mj
 
         return {
-            'embedding': output_embedding,
-            'num_spikes': total_input_spikes,
-            'inference_time_ms': inference_time,
-            'energy_mj': estimated_energy_mj,
-            'avg_spike_rate': total_input_spikes / self.config.time_window_ms * 1000,
-            'reconstruction_error': np.linalg.norm(embedding - output_embedding)
+            "embedding": output_embedding,
+            "num_spikes": total_input_spikes,
+            "inference_time_ms": inference_time,
+            "energy_mj": estimated_energy_mj,
+            "avg_spike_rate": total_input_spikes / self.config.time_window_ms * 1000,
+            "reconstruction_error": np.linalg.norm(embedding - output_embedding),
         }
 
     def get_statistics(self) -> Dict[str, float]:
@@ -436,12 +421,14 @@ class NeuromorphicEmbeddingInference:
             return {}
 
         return {
-            'total_inferences': self.inference_count,
-            'avg_spikes_per_inference': self.total_spikes / self.inference_count,
-            'avg_energy_mj': self.total_energy_mj / self.inference_count,
-            'total_energy_mj': self.total_energy_mj,
-            'energy_efficiency': self.total_spikes / max(self.total_energy_mj, 1e-10)  # spikes per mJ
+            "total_inferences": self.inference_count,
+            "avg_spikes_per_inference": self.total_spikes / self.inference_count,
+            "avg_energy_mj": self.total_energy_mj / self.inference_count,
+            "total_energy_mj": self.total_energy_mj,
+            "energy_efficiency": self.total_spikes
+            / max(self.total_energy_mj, 1e-10),  # spikes per mJ
         }
+
 
 # Example usage demonstrating neuromorphic inference
 def demonstrate_neuromorphic_inference():
@@ -454,7 +441,7 @@ def demonstrate_neuromorphic_inference():
         time_window_ms=10.0,
         dt_ms=0.1,
         num_neurons_per_dim=10,
-        hardware_target="loihi2"
+        hardware_target="loihi2",
     )
 
     # Create inference engine
@@ -480,14 +467,16 @@ def demonstrate_neuromorphic_inference():
 
     print("\nComparison with GPU:")
     print(f"  Energy savings: {gpu_energy_mj / result['energy_mj']:.0f}×")
-    print(f"  Latency: {result['inference_time_ms'] / gpu_time_ms:.1f}× " +
-          f"{'slower' if result['inference_time_ms'] > gpu_time_ms else 'faster'}")
+    print(
+        f"  Latency: {result['inference_time_ms'] / gpu_time_ms:.1f}× "
+        + f"{'slower' if result['inference_time_ms'] > gpu_time_ms else 'faster'}"
+    )
 
     # Continuous operation analysis
     embeddings_per_second = 100
     hours_on_battery = 10
 
-    neuro_total_energy = result['energy_mj'] * embeddings_per_second * 3600 * hours_on_battery
+    neuro_total_energy = result["energy_mj"] * embeddings_per_second * 3600 * hours_on_battery
     gpu_total_energy = gpu_energy_mj * embeddings_per_second * 3600 * hours_on_battery
 
     print(f"\nContinuous Operation ({hours_on_battery} hours):")

@@ -1,6 +1,7 @@
 # Code from Chapter 03
 # Book: Embeddings at Scale
 
+
 class HierarchicalNavigation:
     """How hierarchical structures enable fast search"""
 
@@ -32,7 +33,7 @@ class HierarchicalNavigation:
         total_comparisons = comparisons_per_level * num_levels
 
         return {
-            'total_comparisons': total_comparisons,
-            'speedup': f'{256_000_000_000_000 / total_comparisons:.2e}x faster',
-            'latency': '<100ms vs 6 years'
+            "total_comparisons": total_comparisons,
+            "speedup": f"{256_000_000_000_000 / total_comparisons:.2e}x faster",
+            "latency": "<100ms vs 6 years",
         }
