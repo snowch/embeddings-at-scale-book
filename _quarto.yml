@@ -101,7 +101,8 @@ format:
         \usepackage{fancyhdr}
         \pagestyle{fancy}
         \usepackage{float}
-        \fancyfoot[L]{Built from commit: $git-commit$}
+        \newcommand{\gitcommithash}{$git-commit$}
+        \fancyfoot[L]{Built from commit: \gitcommithash}
         \fancyfoot[R]{\thepage}
 
   epub:
