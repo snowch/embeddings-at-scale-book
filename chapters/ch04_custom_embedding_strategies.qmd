@@ -13,6 +13,10 @@ The decision to build custom embeddings from scratch versus fine-tuning pre-trai
 
 Most discussions frame this as a binary choice. In reality, it's a spectrum with five distinct approaches:
 
+:::{.callout-note}
+The following cost and quality estimates are rough guidelines based on typical projects. Actual results vary significantly based on domain, data quality, team expertise, and specific requirements.
+:::
+
 **Level 0: Use Pre-trained, Frozen**
 - **Description**: Use off-the-shelf embeddings (OpenAI, Sentence-BERT) without modification
 - **Effort**: Hours
@@ -252,58 +256,62 @@ for factor in recommendation['rationale']:
     print(f"  - {factor}")
 ```
 
-### Real-World Case Studies
+### Illustrative Case Studies
+
+:::{.callout-note}
+The following case studies are hypothetical examples designed to illustrate decision-making patterns. While based on realistic scenarios and typical project parameters, they are not descriptions of specific real-world implementations.
+:::
 
 **Case Study 1: Medical Literature Search (Fine-Tuning Win)**
 
-A medical research platform initially considered training custom embeddings for biomedical literature. They had:
+Consider a medical research platform that might initially consider training custom embeddings for biomedical literature. They might have:
 - 500K labeled medical article pairs
 - Medium domain gap (medical terminology specialized but well-covered in pre-training)
 - 3-month timeline
 - $100K budget
 
-**Decision**: Fine-tuned BioBERT (domain-specific BERT variant already pre-trained on PubMed)
+**Potential Decision**: Fine-tune BioBERT (domain-specific BERT variant already pre-trained on PubMed)
 
-**Outcome**:
-- Achieved 91% of custom model performance at 10% of cost
-- Launched in 2 months vs. 12+ months for custom
-- Fine-tuning cost: $40K one-time
-- Performance: 0.847 MRR (Mean Reciprocal Rank) vs. 0.812 for frozen BioBERT
+**Potential Outcome**:
+- Could achieve ~91% of custom model performance at ~10% of cost
+- Could launch in ~2 months vs. 12+ months for custom
+- Fine-tuning cost: ~$40K one-time
+- Performance: ~0.847 MRR (Mean Reciprocal Rank) vs. ~0.812 for frozen BioBERT
 
 **Case Study 2: Genomics Sequence Embeddings (Custom Win)**
 
-A genomics company needed embeddings for DNA/protein sequences. They had:
+Consider a genomics company that might need embeddings for DNA/protein sequences. They might have:
 - 50M protein sequences with structural/functional annotations
 - Extreme domain gap (genomic sequences fundamentally different from text)
 - 18-month timeline
 - $2M budget
 - World-class performance requirement (competitive moat)
 
-**Decision**: Built custom transformer architecture designed specifically for sequences
+**Potential Decision**: Build custom transformer architecture designed specifically for sequences
 
-**Outcome**:
-- Custom architecture outperformed adapted text models by 34%
-- Enabled novel capabilities (structure prediction, functional annotation)
-- Development cost: $1.8M over 16 months
-- Result: Industry-leading model, published research, patent applications
+**Potential Outcome**:
+- Custom architecture could outperform adapted text models by ~34%
+- Could enable novel capabilities (structure prediction, functional annotation)
+- Development cost: ~$1.8M over ~16 months
+- Result: Potential industry-leading model, published research, patent applications
 
-**Key Lesson**: Domain gap was decisive factor. Natural language pre-training provides limited transfer to genomic sequences.
+**Key Lesson**: Domain gap is often the decisive factor. Natural language pre-training provides limited transfer to genomic sequences.
 
 **Case Study 3: E-commerce Search (Hybrid Approach)**
 
-An e-commerce platform with 100M products needed multi-modal (text + image) embeddings:
+Consider an e-commerce platform with 100M products that might need multi-modal (text + image) embeddings:
 
-**Phase 1 (Months 1-3)**: Fine-tuned CLIP on 2M product images + descriptions
-- Cost: $50K
-- Result: 28% improvement over generic CLIP
-- Launched to production, validated business impact
+**Phase 1 (Months 1-3)**: Could fine-tune CLIP on ~2M product images + descriptions
+- Cost: ~$50K
+- Result: Could achieve ~28% improvement over generic CLIP
+- Launch to production, validate business impact
 
-**Phase 2 (Months 4-12)**: Built custom architecture incorporating product catalog structure
-- Cost: $400K
-- Result: Additional 15% improvement over fine-tuned CLIP
-- Enabled category-aware search, better handling of attributes
+**Phase 2 (Months 4-12)**: Could build custom architecture incorporating product catalog structure
+- Cost: ~$400K
+- Result: Could achieve additional ~15% improvement over fine-tuned CLIP
+- Could enable category-aware search, better handling of attributes
 
-**Key Lesson**: Hybrid approach de-risked investment. Fine-tuning provided fast wins; custom model delivered competitive advantage after proving value.
+**Key Lesson**: A hybrid approach can de-risk investment. Fine-tuning provides fast wins; custom models deliver competitive advantage after proving value.
 
 ### The Fine-Tuning Recipe
 
@@ -1915,7 +1923,7 @@ class TieredEmbeddings:
 
 - **Dimensionality reduction techniques** including PCA-based compression, learned projections, and binary embeddings enable 8-10x cost savings while maintaining acceptable quality for many use cases
 
-- **Total cost of ownership spans storage, training, inference, and team costs**—at 100B embeddings with 768 dimensions, annual costs reach $47M, but optimization through dimension reduction (768→256), quantization (float32→int8), and tiered storage can achieve 90%+ cost savings
+- **Total cost of ownership spans storage, training, inference, and team costs**—using the TCO model above, 100B embeddings at 768 dimensions would have annual costs around $47M, but optimization through dimension reduction (768→256), quantization (float32→int8), and tiered storage can achieve 90%+ cost savings
 
 - **Cost-performance trade-offs navigate the Pareto frontier** where different configurations offer optimal points—no single configuration dominates all objectives, requiring explicit business priority weighting to select operating points
 
