@@ -77,7 +77,7 @@ local function transclude(cb)
     local content = ""
     local fh = io.open(cb.attributes.include)
     if not fh then
-      io.stderr:write("Cannot open file " .. cb.attributes.include .. " | Skipping includes\n")
+      error("Cannot open file " .. cb.attributes.include .. " | Build failed due to missing include file")
     else
       local number = 1
       local start = 1
