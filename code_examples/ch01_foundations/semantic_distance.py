@@ -20,15 +20,15 @@ def semantic_distance(word1, word2, embeddings):
 if __name__ == "__main__":
     # Example embeddings
     embeddings = {
-        "cat": [0.8, 0.6, 0.1, 0.2],  # Close to 'kitten'
+        "cat":    [0.8, 0.6, 0.1, 0.2],  # Close to 'kitten'
         "kitten": [0.8, 0.5, 0.2, 0.3],  # Close to 'cat'
-        "dog": [0.7, 0.6, 0.1, 0.8],  # Close to 'puppy', related to 'cat'
-        "puppy": [0.7, 0.5, 0.2, 0.9],  # Close to 'dog'
-        "car": [0.1, 0.2, 0.9, 0.1],  # Far from animals
+        "dog":    [0.7, 0.6, 0.1, 0.8],  # Close to 'puppy', related to 'cat'
+        "puppy":  [0.7, 0.5, 0.2, 0.9],  # Close to 'dog'
+        "car":    [0.1, 0.2, 0.9, 0.1],  # Far from animals
     }
 
     # Animals are close to each other
-    print(f"cat ↔ dog: {semantic_distance('cat', 'dog', embeddings):.3f}")
+    print(f"cat ↔ dog: {semantic_distance('cat', 'dog', embeddings):.3f}") # cat ↔ dog: 0.131
 
     # Animals far from vehicles
-    print(f"cat ↔ car: {semantic_distance('cat', 'car', embeddings):.3f}")
+    print(f"cat ↔ car: {semantic_distance('cat', 'car', embeddings):.3f}") # cat ↔ car: 0.676
