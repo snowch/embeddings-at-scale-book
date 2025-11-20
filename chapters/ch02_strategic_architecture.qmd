@@ -85,131 +85,7 @@ class EmbeddingBusinessMetrics:
 Embedding quality is bounded by data quality and quantity. Conduct a data audit:
 
 ```python
-class EmbeddingDataAudit:
-    """Audit data readiness for embedding strategy"""
-
-    def audit_data_readiness(self, data_sources):
-        """
-        Assess data sources for embedding suitability
-
-        data_sources: List of available data sources
-        Returns: Readiness assessment and recommendations
-        """
-        assessment = {
-            'data_sources': [],
-            'gaps': [],
-            'quality_issues': [],
-            'recommendations': []
-        }
-
-        for source in data_sources:
-            source_assessment = {
-                'name': source['name'],
-                'volume': source['volume'],
-                'quality_score': self.assess_quality(source),
-                'coverage_score': self.assess_coverage(source),
-                'freshness_score': self.assess_freshness(source),
-                'labeling_status': self.assess_labeling(source),
-                'readiness': 'ready' if all([
-                    self.assess_quality(source) > 0.7,
-                    self.assess_coverage(source) > 0.6,
-                    source['volume'] > 10000
-                ]) else 'needs_work'
-            }
-
-            assessment['data_sources'].append(source_assessment)
-
-            # Identify gaps
-            if source_assessment['quality_score'] < 0.7:
-                assessment['gaps'].append(f"{source['name']}: quality below threshold")
-            if source_assessment['coverage_score'] < 0.6:
-                assessment['gaps'].append(f"{source['name']}: coverage insufficient")
-            if source['volume'] < 10000:
-                assessment['gaps'].append(f"{source['name']}: insufficient volume for quality embeddings")
-
-        return assessment
-
-    def assess_quality(self, source):
-        """Score data quality 0-1"""
-        quality_factors = {
-            'completeness': source.get('completeness', 0.5),  # % of required fields populated
-            'accuracy': source.get('accuracy', 0.7),  # Validation pass rate
-            'consistency': source.get('consistency', 0.8),  # Format/schema compliance
-            'deduplication': 1 - source.get('duplicate_rate', 0.1)  # 1 - duplicate %
-        }
-        return sum(quality_factors.values()) / len(quality_factors)
-
-    def assess_coverage(self, source):
-        """Score how well data covers the problem space 0-1"""
-        # Domain coverage (does data span all important categories?)
-        # Temporal coverage (sufficient historical depth?)
-        # Edge case coverage (rare but important cases present?)
-        return source.get('domain_coverage', 0.5)
-
-    def assess_freshness(self, source):
-        """Score data recency 0-1"""
-        days_since_update = source.get('days_since_update', 365)
-        # Exponential decay: fresh data (1.0) → stale data (0.0)
-        import math
-        return math.exp(-days_since_update / 90)  # 90-day half-life
-
-    def assess_labeling(self, source):
-        """Assess labeling status for supervised learning"""
-        labeled_fraction = source.get('labeled_fraction', 0.0)
-        label_quality = source.get('label_quality', 0.0)
-
-        if labeled_fraction > 0.8 and label_quality > 0.9:
-            return 'excellent'
-        elif labeled_fraction > 0.5 and label_quality > 0.7:
-            return 'good'
-        elif labeled_fraction > 0.2:
-            return 'partial'
-        else:
-            return 'unlabeled'
-
-# Example usage
-auditor = EmbeddingDataAudit()
-
-data_sources = [
-    {
-        'name': 'product_catalog',
-        'volume': 2_500_000,
-        'completeness': 0.92,
-        'accuracy': 0.88,
-        'consistency': 0.95,
-        'duplicate_rate': 0.03,
-        'domain_coverage': 0.85,
-        'days_since_update': 1,
-        'labeled_fraction': 0.0,  # No labels needed for products
-        'label_quality': 0.0
-    },
-    {
-        'name': 'customer_reviews',
-        'volume': 15_000_000,
-        'completeness': 0.78,
-        'accuracy': 0.65,  # Spam/fake reviews
-        'consistency': 0.88,
-        'duplicate_rate': 0.12,
-        'domain_coverage': 0.75,
-        'days_since_update': 1,
-        'labeled_fraction': 0.15,  # Some sentiment labels
-        'label_quality': 0.82
-    },
-    {
-        'name': 'user_behavior_logs',
-        'volume': 500_000_000,
-        'completeness': 0.98,
-        'accuracy': 0.99,
-        'consistency': 0.97,
-        'duplicate_rate': 0.001,
-        'domain_coverage': 0.95,
-        'days_since_update': 0,  # Real-time
-        'labeled_fraction': 0.0,  # Behavioral, no labels
-        'label_quality': 0.0
-    }
-]
-
-assessment = auditor.audit_data_readiness(data_sources)
+{{< include /code_examples/ch02_strategic_architecture/embeddingdataaudit.py >}}
 ```
 
 **4. What is our embedding maturity level?**
@@ -663,88 +539,7 @@ class MultiModalEmbeddingSystem:
 Combining modalities requires thoughtful fusion:
 
 ```python
-class ModalityFusion:
-    """Strategies for combining multi-modal embeddings"""
-
-    @staticmethod
-    def early_fusion(modality_embeddings, weights=None):
-        """
-        Combine embeddings before indexing
-        Best for: Static multi-modal entities (products with images + text)
-        """
-        if weights is None:
-            weights = [1.0 / len(modality_embeddings)] * len(modality_embeddings)
-
-        # Weighted average
-        fused = sum(w * emb for w, emb in zip(weights, modality_embeddings))
-        # L2 normalize for cosine similarity
-        return fused / torch.norm(fused)
-
-    @staticmethod
-    def late_fusion(query_emb, candidate_embs_by_modality, weights=None):
-        """
-        Combine similarity scores after retrieval
-        Best for: Queries with variable modalities
-        """
-        if weights is None:
-            weights = {modality: 1.0 / len(candidate_embs_by_modality)
-                      for modality in candidate_embs_by_modality}
-
-        # Calculate similarity per modality
-        similarities = {}
-        for modality, candidate_emb in candidate_embs_by_modality.items():
-            if modality in query_emb:
-                sim = cosine_similarity(query_emb[modality], candidate_emb)
-                similarities[modality] = sim
-
-        # Weighted combination
-        final_score = sum(weights[mod] * sim for mod, sim in similarities.items())
-        return final_score
-
-    @staticmethod
-    def attention_fusion(modality_embeddings):
-        """
-        Learn attention weights across modalities
-        Best for: Complex scenarios where modality importance varies
-        """
-        # Stack embeddings
-        stacked = torch.stack(modality_embeddings)  # (num_modalities, embedding_dim)
-
-        # Attention mechanism
-        attention_weights = torch.softmax(
-            torch.matmul(stacked, stacked.transpose(0, 1)),
-            dim=-1
-        )
-
-        # Weighted combination
-        attended = torch.matmul(attention_weights, stacked)
-        fused = attended.mean(dim=0)
-
-        return fused / torch.norm(fused)
-
-    @staticmethod
-    def cross_modal_attention(text_emb, image_emb):
-        """
-        Cross-attention between modalities (e.g., CLIP-style)
-        Best for: Learning aligned multi-modal representations
-        """
-        # Text attends to image
-        text_to_image = torch.matmul(text_emb, image_emb.transpose(-2, -1))
-        text_attended = torch.matmul(
-            torch.softmax(text_to_image, dim=-1),
-            image_emb
-        )
-
-        # Image attends to text
-        image_to_text = torch.matmul(image_emb, text_emb.transpose(-2, -1))
-        image_attended = torch.matmul(
-            torch.softmax(image_to_text, dim=-1),
-            text_emb
-        )
-
-        # Combine
-        fused = torch.cat([text_attended, image_attended], dim=-1)
-        return fused
+{{< include /code_examples/ch02_strategic_architecture/modalityfusion.py >}}
 ```
 
 **Layer 3: Multi-Modal Training**
@@ -752,65 +547,7 @@ class ModalityFusion:
 Training multi-modal embeddings requires specialized objectives:
 
 ```python
-class MultiModalTraining:
-    """Training strategies for multi-modal embeddings"""
-
-    def contrastive_loss(self, anchor_emb, positive_emb, negative_embs, temperature=0.07):
-        """
-        Contrastive learning: anchor close to positive, far from negatives
-        Used by CLIP, ALIGN, and other multi-modal models
-        """
-        # Similarities
-        pos_sim = torch.cosine_similarity(anchor_emb, positive_emb) / temperature
-        neg_sims = torch.stack([
-            torch.cosine_similarity(anchor_emb, neg_emb) / temperature
-            for neg_emb in negative_embs
-        ])
-
-        # InfoNCE loss
-        numerator = torch.exp(pos_sim)
-        denominator = numerator + torch.sum(torch.exp(neg_sims))
-        loss = -torch.log(numerator / denominator)
-
-        return loss
-
-    def triplet_loss(self, anchor, positive, negative, margin=0.2):
-        """
-        Triplet loss: distance(anchor, positive) + margin < distance(anchor, negative)
-        Classic approach for metric learning
-        """
-        pos_dist = torch.norm(anchor - positive)
-        neg_dist = torch.norm(anchor - negative)
-        loss = torch.clamp(pos_dist - neg_dist + margin, min=0.0)
-        return loss
-
-    def alignment_and_uniformity_loss(self, embeddings1, embeddings2, labels):
-        """
-        Two objectives:
-        - Alignment: matched pairs should be close
-        - Uniformity: embeddings should be uniformly distributed on hypersphere
-
-        This prevents collapse while encouraging alignment
-        """
-        # Alignment loss: matched pairs close together
-        matched_pairs = [(emb1, emb2) for emb1, emb2, label in zip(embeddings1, embeddings2, labels) if label == 1]
-        alignment_loss = sum(
-            torch.norm(emb1 - emb2) ** 2
-            for emb1, emb2 in matched_pairs
-        ) / len(matched_pairs)
-
-        # Uniformity loss: embeddings uniformly distributed
-        def uniformity(embeddings):
-            # Pairwise distances on unit hypersphere
-            normalized = embeddings / torch.norm(embeddings, dim=-1, keepdim=True)
-            pairwise_dot = torch.matmul(normalized, normalized.T)
-            loss = torch.log(torch.mean(torch.exp(pairwise_dot)))
-            return loss
-
-        uniformity_loss = uniformity(embeddings1) + uniformity(embeddings2)
-
-        # Combined loss
-        return alignment_loss + uniformity_loss
+{{< include /code_examples/ch02_strategic_architecture/multimodaltraining.py >}}
 ```
 
 **Layer 4: Multi-Modal Indexing and Retrieval**
@@ -818,90 +555,7 @@ class MultiModalTraining:
 Serving multi-modal embeddings at scale:
 
 ```python
-class MultiModalIndex:
-    """Scalable multi-modal indexing"""
-
-    def __init__(self, embedding_dim=512):
-        self.embedding_dim = embedding_dim
-
-        # Separate indices per modality (for modality-specific search)
-        self.text_index = faiss.IndexHNSWFlat(embedding_dim, 32)
-        self.image_index = faiss.IndexHNSWFlat(embedding_dim, 32)
-        self.video_index = faiss.IndexHNSWFlat(embedding_dim, 32)
-
-        # Unified index (for fused multi-modal embeddings)
-        self.unified_index = faiss.IndexHNSWFlat(embedding_dim, 32)
-
-        # Metadata storage
-        self.metadata = []
-
-    def add_multimodal_item(self, item_id, text_emb=None, image_emb=None, video_emb=None, metadata=None):
-        """Add item with multiple modalities"""
-        # Add to modality-specific indices
-        if text_emb is not None:
-            self.text_index.add(text_emb.reshape(1, -1))
-        if image_emb is not None:
-            self.image_index.add(image_emb.reshape(1, -1))
-        if video_emb is not None:
-            self.video_index.add(video_emb.reshape(1, -1))
-
-        # Create fused embedding for unified index
-        available_embs = [emb for emb in [text_emb, image_emb, video_emb] if emb is not None]
-        if available_embs:
-            fused_emb = ModalityFusion.early_fusion(available_embs)
-            self.unified_index.add(fused_emb.reshape(1, -1))
-
-        # Store metadata
-        self.metadata.append({
-            'item_id': item_id,
-            'has_text': text_emb is not None,
-            'has_image': image_emb is not None,
-            'has_video': video_emb is not None,
-            'metadata': metadata
-        })
-
-    def search_multimodal(self, query_embs, modality_weights=None, k=10):
-        """
-        Search with multi-modal query
-        query_embs: dict like {'text': text_emb, 'image': image_emb}
-        """
-        if modality_weights is None:
-            modality_weights = {mod: 1.0 / len(query_embs) for mod in query_embs}
-
-        # Search each modality
-        results_by_modality = {}
-        if 'text' in query_embs:
-            distances, indices = self.text_index.search(query_embs['text'].reshape(1, -1), k)
-            results_by_modality['text'] = list(zip(indices[0], distances[0]))
-
-        if 'image' in query_embs:
-            distances, indices = self.image_index.search(query_embs['image'].reshape(1, -1), k)
-            results_by_modality['image'] = list(zip(indices[0], distances[0]))
-
-        if 'video' in query_embs:
-            distances, indices = self.video_index.search(query_embs['video'].reshape(1, -1), k)
-            results_by_modality['video'] = list(zip(indices[0], distances[0]))
-
-        # Combine results with late fusion
-        combined_scores = {}
-        for modality, results in results_by_modality.items():
-            weight = modality_weights.get(modality, 1.0)
-            for idx, distance in results:
-                # Convert distance to similarity (smaller distance = higher similarity)
-                similarity = 1.0 / (1.0 + distance)
-                combined_scores[idx] = combined_scores.get(idx, 0) + weight * similarity
-
-        # Sort by combined score
-        top_k = sorted(combined_scores.items(), key=lambda x: x[1], reverse=True)[:k]
-
-        return [
-            {
-                'item_id': self.metadata[idx]['item_id'],
-                'score': score,
-                'metadata': self.metadata[idx]['metadata']
-            }
-            for idx, score in top_k
-        ]
+{{< include /code_examples/ch02_strategic_architecture/multimodalindex.py >}}
 ```
 
 ### Multi-Modal Use Cases at Scale
@@ -1011,26 +665,7 @@ def embed_product(product):
 Some entities have all modalities, others have few:
 
 ```python
-class ModalityBalancing:
-    """Handle entities with missing modalities"""
-
-    def handle_missing_modalities(self, available_embs, all_modalities):
-        """
-        Strategy 1: Zero-padding (simple but can bias results)
-        Strategy 2: Modality-specific indices (requires modality-aware retrieval)
-        Strategy 3: Learned imputation (predict missing modalities)
-        """
-        # Strategy 3: Learned imputation
-        missing_modalities = set(all_modalities) - set(available_embs.keys())
-
-        for modality in missing_modalities:
-            # Use cross-modal predictor trained to predict missing modality
-            # from available modalities
-            available_emb = list(available_embs.values())[0]  # Use any available
-            imputed_emb = self.cross_modal_predictors[modality].predict(available_emb)
-            available_embs[modality] = imputed_emb
-
-        return available_embs
+{{< include /code_examples/ch02_strategic_architecture/modalitybalancing.py >}}
 ```
 
 **Challenge 2: Modality-Specific Quality**
@@ -1077,61 +712,7 @@ class ModalityQualityWeighting:
 Encoding multiple modalities is expensive:
 
 ```python
-class EfficientMultiModalEncoding:
-    """Optimize multi-modal encoding costs"""
-
-    def __init__(self):
-        # Cache encoded embeddings
-        self.embedding_cache = EmbeddingCache(max_size=10_000_000)
-
-        # Batch processing for efficiency
-        self.batch_size = 128
-
-    def encode_batch(self, items, modalities=['text', 'image']):
-        """Encode multiple items in batch"""
-        results = []
-
-        for modality in modalities:
-            # Collect all data for this modality
-            modality_data = [item.get(modality) for item in items]
-
-            # Check cache
-            cached_indices = []
-            uncached_data = []
-            uncached_indices = []
-
-            for idx, data in enumerate(modality_data):
-                cache_key = self.get_cache_key(modality, data)
-                cached_emb = self.embedding_cache.get(cache_key)
-
-                if cached_emb is not None:
-                    cached_indices.append(idx)
-                    results.append((idx, modality, cached_emb))
-                else:
-                    uncached_data.append(data)
-                    uncached_indices.append(idx)
-
-            # Encode uncached data in batch
-            if uncached_data:
-                if modality == 'text':
-                    embeddings = self.text_encoder.encode(uncached_data, batch_size=self.batch_size)
-                elif modality == 'image':
-                    embeddings = self.image_encoder.encode_batch(uncached_data)
-
-                # Cache and store results
-                for idx, emb in zip(uncached_indices, embeddings):
-                    cache_key = self.get_cache_key(modality, modality_data[idx])
-                    self.embedding_cache.put(cache_key, emb)
-                    results.append((idx, modality, emb))
-
-        # Reorganize by item
-        items_embeddings = {}
-        for idx, modality, emb in results:
-            if idx not in items_embeddings:
-                items_embeddings[idx] = {}
-            items_embeddings[idx][modality] = emb
-
-        return items_embeddings
+{{< include /code_examples/ch02_strategic_architecture/efficientmultimodalencoding.py >}}
 ```
 
 ## Embedding Governance and Compliance at Scale
@@ -1524,81 +1105,7 @@ class EmbeddingAccessControl:
 Ensure compliance with regulations:
 
 ```python
-class EmbeddingComplianceFramework:
-    """Ensure regulatory compliance"""
-
-    def gdpr_compliance_check(self, embedding_system):
-        """Verify GDPR compliance"""
-        compliance = {
-            'compliant': True,
-            'violations': [],
-            'recommendations': []
-        }
-
-        # Right to erasure
-        if not embedding_system.supports_deletion():
-            compliance['compliant'] = False
-            compliance['violations'].append("Cannot delete individual embeddings (Right to Erasure)")
-
-        # Data minimization
-        if embedding_system.stores_raw_data_with_embeddings():
-            compliance['recommendations'].append(
-                "Consider storing only embeddings, not raw data (Data Minimization)"
-            )
-
-        # Purpose limitation
-        if not embedding_system.has_documented_purposes():
-            compliance['compliant'] = False
-            compliance['violations'].append("No documented data processing purposes")
-
-        # Transparency
-        if not embedding_system.can_explain_decisions():
-            compliance['recommendations'].append(
-                "Add explainability for automated decisions (Transparency)"
-            )
-
-        # Data protection by design
-        if not embedding_system.has_privacy_controls():
-            compliance['compliant'] = False
-            compliance['violations'].append(
-                "No privacy controls (Data Protection by Design)"
-            )
-
-        return compliance
-
-    def hipaa_compliance_check(self, embedding_system):
-        """Verify HIPAA compliance for healthcare"""
-        compliance = {
-            'compliant': True,
-            'violations': []
-        }
-
-        # PHI Protection
-        if not embedding_system.encrypts_data_at_rest():
-            compliance['compliant'] = False
-            compliance['violations'].append("PHI not encrypted at rest")
-
-        if not embedding_system.encrypts_data_in_transit():
-            compliance['compliant'] = False
-            compliance['violations'].append("PHI not encrypted in transit")
-
-        # Access controls
-        if not embedding_system.has_role_based_access():
-            compliance['compliant'] = False
-            compliance['violations'].append("No role-based access controls")
-
-        # Audit trails
-        if not embedding_system.maintains_audit_trails():
-            compliance['compliant'] = False
-            compliance['violations'].append("No audit trails for PHI access")
-
-        # De-identification
-        if embedding_system.uses_identifiable_phi():
-            compliance['recommendations'].append(
-                "Consider using de-identified data where possible"
-            )
-
-        return compliance
+{{< include /code_examples/ch02_strategic_architecture/embeddingcomplianceframework.py >}}
 ```
 
 ### Governance Best Practices
@@ -1619,127 +1126,7 @@ At trillion-row scale, cost optimization becomes critical. This section provides
 Understanding where money goes:
 
 ```python
-class EmbeddingCostModel:
-    """Model total cost of ownership for embeddings"""
-
-    def calculate_tco(self, num_embeddings, embedding_dim, qps, duration_years=3):
-        """Calculate total cost of ownership"""
-
-        # 1. Storage costs
-        storage_costs = self.calculate_storage_costs(num_embeddings, embedding_dim)
-
-        # 2. Compute costs (training + inference)
-        training_costs = self.calculate_training_costs(num_embeddings, embedding_dim)
-        inference_costs = self.calculate_inference_costs(qps, duration_years)
-
-        # 3. Data transfer costs
-        transfer_costs = self.calculate_transfer_costs(qps, duration_years)
-
-        # 4. Operations costs (monitoring, maintenance)
-        ops_costs = self.calculate_ops_costs(num_embeddings, duration_years)
-
-        # 5. Team costs
-        team_costs = self.calculate_team_costs(num_embeddings, duration_years)
-
-        total_cost = sum([
-            storage_costs['total'],
-            training_costs['total'],
-            inference_costs['total'],
-            transfer_costs['total'],
-            ops_costs['total'],
-            team_costs['total']
-        ])
-
-        return {
-            'total_cost_3_years': total_cost,
-            'annual_cost': total_cost / duration_years,
-            'cost_per_embedding': total_cost / num_embeddings,
-            'breakdown': {
-                'storage': storage_costs,
-                'training': training_costs,
-                'inference': inference_costs,
-                'transfer': transfer_costs,
-                'ops': ops_costs,
-                'team': team_costs
-            }
-        }
-
-    def calculate_storage_costs(self, num_embeddings, embedding_dim):
-        """Calculate storage costs"""
-        bytes_per_embedding = embedding_dim * 4  # float32
-        total_bytes = num_embeddings * bytes_per_embedding
-
-        # Raw storage
-        raw_storage_tb = total_bytes / (1024 ** 4)
-
-        # Index overhead (HNSW adds ~50%)
-        index_storage_tb = raw_storage_tb * 1.5
-
-        # Replication (3x for availability)
-        replicated_storage_tb = index_storage_tb * 3
-
-        # Cost (S3-like object storage: $0.023/GB/month)
-        monthly_cost = replicated_storage_tb * 1024 * 0.023
-
-        return {
-            'storage_tb': replicated_storage_tb,
-            'monthly_cost': monthly_cost,
-            'annual_cost': monthly_cost * 12,
-            'total': monthly_cost * 12 * 3  # 3 years
-        }
-
-    def calculate_training_costs(self, num_embeddings, embedding_dim):
-        """Calculate training costs"""
-        # Training frequency
-        retrains_per_year = 4  # Quarterly retraining
-
-        # Compute hours per training run
-        # Rough estimate: 1M embeddings = 10 GPU hours
-        gpu_hours_per_run = (num_embeddings / 1_000_000) * 10
-
-        # GPU cost (A100 on cloud: ~$3/hour)
-        cost_per_run = gpu_hours_per_run * 3
-
-        # Annual cost
-        annual_cost = cost_per_run * retrains_per_year
-
-        return {
-            'cost_per_training_run': cost_per_run,
-            'training_runs_per_year': retrains_per_year,
-            'annual_cost': annual_cost,
-            'total': annual_cost * 3  # 3 years
-        }
-
-    def calculate_inference_costs(self, qps, duration_years):
-        """Calculate inference (query) costs"""
-        # Queries per year
-        queries_per_year = qps * 60 * 60 * 24 * 365
-
-        # Compute cost per million queries
-        # Vector DB on cloud: ~$10 per million queries
-        cost_per_million = 10
-
-        annual_cost = (queries_per_year / 1_000_000) * cost_per_million
-
-        return {
-            'qps': qps,
-            'queries_per_year': queries_per_year,
-            'annual_cost': annual_cost,
-            'total': annual_cost * duration_years
-        }
-
-# Example: 100B embeddings, 768-dim, 10K QPS
-model = EmbeddingCostModel()
-tco = model.calculate_tco(
-    num_embeddings=100_000_000_000,  # 100B
-    embedding_dim=768,
-    qps=10_000,
-    duration_years=3
-)
-
-print(f"Total 3-year cost: ${tco['total_cost_3_years']:,.0f}")
-print(f"Annual cost: ${tco['annual_cost']:,.0f}")
-print(f"Cost per embedding: ${tco['cost_per_embedding']:.6f}")
+{{< include /code_examples/ch02_strategic_architecture/embeddingcostmodel.py >}}
 ```
 
 ### Cost Optimization Strategies
@@ -1749,29 +1136,7 @@ print(f"Cost per embedding: ${tco['cost_per_embedding']:.6f}")
 Reduce embedding dimensions without sacrificing quality:
 
 ```python
-from sklearn.decomposition import PCA
-
-class DimensionReducer:
-    """Reduce embedding dimensionality to save costs"""
-
-    def reduce_dimensions(self, embeddings, target_dim, method='pca'):
-        """
-        Reduce embedding dimensions
-        768-dim → 256-dim = 66% storage savings
-        """
-        if method == 'pca':
-            pca = PCA(n_components=target_dim)
-            reduced = pca.fit_transform(embeddings)
-
-            # Evaluate quality loss
-            variance_retained = pca.explained_variance_ratio_.sum()
-
-            return {
-                'reduced_embeddings': reduced,
-                'variance_retained': variance_retained,
-                'storage_savings': 1 - (target_dim / embeddings.shape[1]),
-                'quality_loss': 1 - variance_retained
-            }
+{{< include /code_examples/ch02_strategic_architecture/dimensionreducer.py >}}
 ```
 
 **2. Quantization**
@@ -1779,36 +1144,7 @@ class DimensionReducer:
 Use lower precision to reduce storage:
 
 ```python
-class EmbeddingQuantization:
-    """Quantize embeddings to reduce storage"""
-
-    def quantize_float32_to_int8(self, embeddings):
-        """
-        float32 (4 bytes) → int8 (1 byte) = 75% storage savings
-        """
-        # Find min/max for normalization
-        min_val = embeddings.min()
-        max_val = embeddings.max()
-
-        # Scale to 0-255
-        scaled = (embeddings - min_val) / (max_val - min_val) * 255
-
-        # Convert to int8
-        quantized = scaled.astype(np.uint8)
-
-        # Store scale factors for dequantization
-        scale_factors = {
-            'min': min_val,
-            'max': max_val
-        }
-
-        return quantized, scale_factors
-
-    def dequantize_int8_to_float32(self, quantized, scale_factors):
-        """Dequantize back to float32"""
-        scaled = quantized.astype(np.float32) / 255
-        dequantized = scaled * (scale_factors['max'] - scale_factors['min']) + scale_factors['min']
-        return dequantized
+{{< include /code_examples/ch02_strategic_architecture/embeddingquantization.py >}}
 ```
 
 **3. Tiered Storage**
@@ -1816,50 +1152,7 @@ class EmbeddingQuantization:
 Hot/warm/cold storage based on access patterns:
 
 ```python
-class TieredEmbeddingStorage:
-    """Implement tiered storage for cost optimization"""
-
-    def __init__(self):
-        self.hot_storage = {}  # In-memory (expensive, fast)
-        self.warm_storage = {}  # SSD (moderate, medium speed)
-        self.cold_storage = {}  # Object storage (cheap, slow)
-
-        self.access_counts = {}
-
-    def get_embedding(self, embedding_id):
-        """Retrieve embedding with tiered storage"""
-        # Try hot storage first
-        if embedding_id in self.hot_storage:
-            self.access_counts[embedding_id] += 1
-            return self.hot_storage[embedding_id]
-
-        # Try warm storage
-        if embedding_id in self.warm_storage:
-            emb = self.warm_storage[embedding_id]
-            self.access_counts[embedding_id] += 1
-
-            # Promote to hot if frequently accessed
-            if self.access_counts[embedding_id] > 100:  # Threshold
-                self.promote_to_hot(embedding_id, emb)
-
-            return emb
-
-        # Fall back to cold storage
-        if embedding_id in self.cold_storage:
-            emb = self.cold_storage[embedding_id]
-            self.access_counts[embedding_id] = 1
-            return emb
-
-    def tier_management(self):
-        """Automatically manage tiers based on access patterns"""
-        # Demote infrequently accessed embeddings from hot → warm → cold
-        for emb_id, count in self.access_counts.items():
-            if count < 10 and emb_id in self.hot_storage:
-                # Demote to warm
-                self.demote_to_warm(emb_id)
-            elif count < 1 and emb_id in self.warm_storage:
-                # Demote to cold
-                self.demote_to_cold(emb_id)
+{{< include /code_examples/ch02_strategic_architecture/tieredembeddingstorage.py >}}
 ```
 
 **4. Compression**
@@ -1867,38 +1160,7 @@ class TieredEmbeddingStorage:
 Compress embeddings while maintaining similarity:
 
 ```python
-class EmbeddingCompression:
-    """Advanced compression techniques"""
-
-    def product_quantization(self, embeddings, num_subvectors=8, bits_per_subvector=8):
-        """
-        Product Quantization: decompose embeddings into subvectors
-        Example: 768-dim float32 (3,072 bytes) → 8 bytes = 384x compression
-        """
-        import faiss
-
-        dim = embeddings.shape[1]
-        subvector_dim = dim // num_subvectors
-
-        # Train product quantizer
-        pq = faiss.IndexPQ(dim, num_subvectors, bits_per_subvector)
-        pq.train(embeddings)
-
-        # Encode
-        codes = pq.sa_encode(embeddings)
-
-        # Calculate compression ratio
-        # Original: dim * 4 bytes (float32)
-        # Compressed: num_subvectors * (bits_per_subvector / 8) bytes
-        bytes_per_code = (num_subvectors * bits_per_subvector) / 8
-        compression_ratio = (dim * 4) / bytes_per_code
-
-        return {
-            'codes': codes,
-            'quantizer': pq,
-            'compression_ratio': compression_ratio,
-            'storage_savings': 1 - (1 / compression_ratio)
-        }
+{{< include /code_examples/ch02_strategic_architecture/embeddingcompression.py >}}
 ```
 
 **5. Sparse Embeddings**
@@ -1906,25 +1168,7 @@ class EmbeddingCompression:
 Use sparse representations for cost savings:
 
 ```python
-class SparseEmbeddings:
-    """Sparse embedding optimization"""
-
-    def densify_top_k(self, embedding, k=64):
-        """Keep only top-k values, zero out rest"""
-        # Find top-k indices
-        top_k_indices = np.argsort(np.abs(embedding))[-k:]
-
-        # Create sparse embedding
-        sparse = np.zeros_like(embedding)
-        sparse[top_k_indices] = embedding[top_k_indices]
-
-        sparsity = 1 - (k / len(embedding))
-
-        return {
-            'sparse_embedding': sparse,
-            'sparsity': sparsity,
-            'storage_savings': sparsity  # Can use sparse storage format
-        }
+{{< include /code_examples/ch02_strategic_architecture/sparseembeddings.py >}}
 ```
 
 ### Cost Optimization ROI

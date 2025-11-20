@@ -552,21 +552,7 @@ The evolution of embeddings mirrors the evolution of AI itself—from brittle pa
 **Stage 1: Keyword Matching (1990s-2000s)**
 
 ```python
-# The original sin of information retrieval
-def keyword_search(query, documents):
-    query_terms = query.lower().split()
-    results = []
-    for doc in documents:
-        doc_terms = doc.lower().split()
-        score = len(set(query_terms) & set(doc_terms))
-        if score > 0:
-            results.append((doc, score))
-    return sorted(results, key=lambda x: x[1], reverse=True)
-
-# Problems:
-# - "laptop" doesn't match "notebook computer"
-# - "running shoes" doesn't match "athletic footwear"
-# - "cheap flights" doesn't match "affordable airfare"
+{{< include /code_examples/ch01_foundations/keyword_search.py >}}
 ```
 
 This approach dominated for decades. E-commerce sites required exact matches. Enterprise search systems couldn't connect related concepts. Users learned to game the system with precise keywords.
@@ -646,19 +632,7 @@ The progression from word embeddings (Word2Vec, GloVe) to sentence embeddings (S
 BERT [@devlin2018bert], GPT, and their descendants brought contextual embeddings—the same word gets different embeddings based on context:
 
 ```python
-from sentence_transformers import SentenceTransformer
-
-model = SentenceTransformer('all-mpnet-base-v2')
-
-# Same word, different contexts, different embeddings
-sentence1 = "The bank approved my loan application."
-sentence2 = "I sat by the river bank watching the sunset."
-
-embedding1 = model.encode(sentence1)
-embedding2 = model.encode(sentence2)
-
-# "bank" has different representations based on context
-# cosine_similarity(embedding1, embedding2) captures semantic similarity
+{{< include /code_examples/ch01_foundations/example_06.py >}}
 ```
 
 This enables:
@@ -749,25 +723,7 @@ Sum: ~700 trillion potential embeddings for a complete representation of commerc
 **Storage and Compute Economics**:
 
 ```python
-# Cost calculation for 256 trillion embeddings
-num_embeddings = 256 * 10**12  # 256 trillion
-embedding_dim = 768  # Common dimension
-bytes_per_float = 4  # float32
-
-# Raw storage
-total_bytes = num_embeddings * embedding_dim * bytes_per_float
-total_petabytes = total_bytes / (10**15)  # 786 PB
-
-# With compression (6:1 typical for embeddings)
-compressed_petabytes = total_petabytes / 6  # 131 PB
-
-# Storage cost at $0.02/GB/month (object storage)
-monthly_storage_cost = compressed_petabytes * 1000 * 1000 * 0.02  # $2.6M/month
-
-# Index cost (HNSW index adds ~50% storage overhead)
-index_storage_cost = monthly_storage_cost * 1.5  # $3.9M/month
-
-# Total infrastructure: ~$47M/year
+{{< include /code_examples/ch01_foundations/example_08.py >}}
 ```
 
 At current cloud pricing, 256 trillion embeddings cost approximately $40-50M annually to store and serve. For large enterprises with $10B+ revenue, this is 0.4-0.5% of revenue to create potentially insurmountable competitive advantages.
@@ -777,27 +733,7 @@ At current cloud pricing, 256 trillion embeddings cost approximately $40-50M ann
 Modern vector databases can handle this scale:
 
 ```python
-# Query performance at 256T scale with proper indexing
-index_type = "HNSW"  # Hierarchical Navigable Small World
-num_embeddings = 256 * 10**12
-embedding_dim = 768
-
-# Theoretical complexity
-# HNSW: O(log(N)) for insert and search
-import math
-avg_hops = math.log2(num_embeddings)  # ~48 hops
-
-# Practical performance with distributed architecture:
-num_shards = 1000  # Distribute across 1000 nodes
-embeddings_per_shard = num_embeddings / num_shards  # 256B per shard
-shards_to_search = 10  # Parallel search across 10 shards
-
-# Query latency budget (p50, warm cache):
-# - Shard selection: 5ms
-# - Parallel shard search (10 shards): 50ms
-# - Result aggregation: 5ms
-# Total: ~60ms p50 latency
-# Note: p99 latency typically 200-500ms due to network variability and cold cache
+{{< include /code_examples/ch01_foundations/example_09.py >}}
 ```
 
 With proper distributed architecture, searching 256 trillion embeddings takes milliseconds, not minutes.
@@ -872,110 +808,19 @@ Direct benefits are measurable improvements in existing processes:
 **1. Search and Discovery Improvements**
 
 ```python
-def calculate_search_roi(current_metrics, target_metrics, users, avg_transaction_value):
-    """
-    Calculate ROI from search improvements
-
-    current_metrics: {
-        'conversion_rate': 0.08,  # 8% of searches convert
-        'avg_time_to_find': 3.5,  # minutes
-        'zero_result_rate': 0.15  # 15% of searches find nothing
-    }
-
-    target_metrics: {
-        'conversion_rate': 0.12,  # Conservative 50% improvement
-        'avg_time_to_find': 1.5,  # 60% reduction
-        'zero_result_rate': 0.03  # 80% reduction
-    }
-    """
-    # Annual searches
-    annual_searches = users * 50  # 50 searches per user per year
-
-    # Revenue impact from improved conversion
-    current_conversions = annual_searches * current_metrics['conversion_rate']
-    target_conversions = annual_searches * target_metrics['conversion_rate']
-    additional_conversions = target_conversions - current_conversions
-    additional_revenue = additional_conversions * avg_transaction_value
-
-    # Time saved (user satisfaction + efficiency)
-    time_saved_per_search = (
-        current_metrics['avg_time_to_find'] -
-        target_metrics['avg_time_to_find']
-    )
-    total_time_saved = annual_searches * time_saved_per_search / 60  # hours
-
-    # Reduced abandonment
-    current_abandonments = annual_searches * current_metrics['zero_result_rate']
-    target_abandonments = annual_searches * target_metrics['zero_result_rate']
-    saved_abandonments = current_abandonments - target_abandonments
-    recovered_revenue = saved_abandonments * 0.3 * avg_transaction_value  # 30% recovery rate
-
-    return {
-        'additional_revenue': additional_revenue,
-        'time_saved_hours': total_time_saved,
-        'recovered_revenue': recovered_revenue,
-        'total_annual_benefit': additional_revenue + recovered_revenue
-    }
+{{< include /code_examples/ch01_foundations/calculate_search_roi.py >}}
 ```
 
 **2. Operational Efficiency Gains**
 
 ```python
-def calculate_efficiency_roi(process_name, current_time, target_time,
-                            annual_volume, hourly_cost):
-    """
-    Calculate ROI from process automation/augmentation
-
-    Example: Document review
-    - current_time: 4 hours per document
-    - target_time: 1 hour per document (AI-augmented)
-    - annual_volume: 10,000 documents
-    - hourly_cost: $500
-    """
-    time_saved_per_unit = current_time - target_time
-    annual_hours_saved = time_saved_per_unit * annual_volume
-    annual_savings = annual_hours_saved * hourly_cost
-
-    # Quality improvements (fewer errors, rework)
-    # Conservative estimate: 5% reduction in rework
-    rework_savings = annual_volume * current_time * 0.05 * hourly_cost
-
-    return {
-        'annual_hours_saved': annual_hours_saved,
-        'direct_savings': annual_savings,
-        'quality_savings': rework_savings,
-        'total_annual_benefit': annual_savings + rework_savings
-    }
+{{< include /code_examples/ch01_foundations/calculate_efficiency_roi.py >}}
 ```
 
 **3. Fraud and Risk Reduction**
 
 ```python
-def calculate_fraud_roi(current_loss_rate, target_loss_rate,
-                       annual_transaction_volume,
-                       false_positive_rate_current,
-                       false_positive_rate_target,
-                       cost_per_false_positive):
-    """
-    Calculate ROI from improved fraud detection
-    """
-    # Direct fraud loss reduction
-    current_losses = annual_transaction_volume * current_loss_rate
-    target_losses = annual_transaction_volume * target_loss_rate
-    fraud_savings = current_losses - target_losses
-
-    # False positive reduction
-    annual_transactions = annual_transaction_volume / 100  # Assume $100 avg transaction
-    current_fp = annual_transactions * false_positive_rate_current
-    target_fp = annual_transactions * false_positive_rate_target
-    fp_reduction = current_fp - target_fp
-    fp_savings = fp_reduction * cost_per_false_positive
-
-    return {
-        'fraud_loss_reduction': fraud_savings,
-        'false_positive_savings': fp_savings,
-        'total_annual_benefit': fraud_savings + fp_savings
-    }
+{{< include /code_examples/ch01_foundations/calculate_fraud_roi.py >}}
 ```
 
 ### Measuring Indirect Value
@@ -993,25 +838,7 @@ How much faster can you move than competitors?
 **2. Customer Lifetime Value Improvement**
 
 ```python
-def calculate_ltv_improvement(current_ltv, churn_reduction, customer_base):
-    """
-    Embedding improvements often reduce churn
-
-    Example:
-    - Better search → customers find products → higher satisfaction → lower churn
-    - Better recommendations → more value → stickier product
-    """
-    # Simplified: churn reduction directly impacts LTV
-    improved_ltv = current_ltv * (1 + churn_reduction)
-    ltv_increase = improved_ltv - current_ltv
-
-    # Apply to customer base (existing + new customers)
-    annual_value = ltv_increase * customer_base * 0.25  # 25% annual customer base turnover
-
-    return {
-        'ltv_improvement': ltv_increase,
-        'annual_value': annual_value
-    }
+{{< include /code_examples/ch01_foundations/calculate_ltv_improvement.py >}}
 ```
 
 **3. Data Moat Valuation**
@@ -1027,34 +854,7 @@ How much is it worth to have a competitive advantage competitors can't easily re
 Not all embedding projects succeed. Adjust ROI estimates for risk:
 
 ```python
-def risk_adjusted_roi(potential_benefit, probability_of_success,
-                     implementation_cost, annual_operating_cost,
-                     years=5):
-    """
-    Calculate risk-adjusted ROI
-
-    probability_of_success:
-        - High certainty (proven use case, good data): 0.8-0.9
-        - Medium certainty (proven use case, decent data): 0.6-0.7
-        - Low certainty (novel use case or poor data): 0.3-0.5
-    """
-    expected_annual_benefit = potential_benefit * probability_of_success
-
-    # NPV calculation
-    discount_rate = 0.15  # 15% discount rate
-    npv = -implementation_cost
-    for year in range(1, years + 1):
-        npv += (expected_annual_benefit - annual_operating_cost) / (1 + discount_rate) ** year
-
-    roi = (npv / implementation_cost) * 100
-    payback_period = implementation_cost / (expected_annual_benefit - annual_operating_cost)
-
-    return {
-        'expected_annual_benefit': expected_annual_benefit,
-        'npv': npv,
-        'roi_percent': roi,
-        'payback_period_years': payback_period
-    }
+{{< include /code_examples/ch01_foundations/risk_adjusted_roi.py >}}
 ```
 
 ### Complete ROI Framework Template
