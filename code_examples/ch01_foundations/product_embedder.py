@@ -12,6 +12,7 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 
+
 def load_image_model():
     """Placeholder for image model loading"""
     # In practice, use a model like ResNet or CLIP

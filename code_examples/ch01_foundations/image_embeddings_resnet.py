@@ -9,9 +9,9 @@ Images are converted to vectors that capture visual content, enabling
 similarity search across images.
 """
 
-from torchvision import models, transforms
-from PIL import Image
 import torch
+from PIL import Image
+from torchvision import models, transforms
 
 # Load pre-trained image model
 model = models.resnet50(pretrained=True)

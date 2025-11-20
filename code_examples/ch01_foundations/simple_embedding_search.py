@@ -9,8 +9,8 @@ semantic search - understanding meaning rather than just matching keywords.
 """
 
 from sentence_transformers import SentenceTransformer
-import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
+
 
 class SimpleEmbeddingSearch:
     """A minimal embedding-based search engine"""

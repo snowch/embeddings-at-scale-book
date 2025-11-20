@@ -10,13 +10,13 @@ Smaller distance indicates more similar concepts.
 
 from scipy.spatial.distance import cosine
 
+
 def semantic_distance(word1, word2, embeddings):
     """Smaller distance = more similar concepts"""
     return cosine(embeddings[word1], embeddings[word2])
 
 # Example usage (requires embeddings dictionary)
 if __name__ == '__main__':
-    import numpy as np
 
     # Example embeddings
     embeddings = {

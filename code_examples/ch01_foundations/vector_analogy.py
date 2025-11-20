@@ -12,6 +12,7 @@ Note: This requires embeddings trained on large datasets to work reliably.
 
 from scipy.spatial.distance import cosine
 
+
 def vector_analogy(a, b, c, embeddings):
     """Solve: a is to b as c is to ?"""
     # a - b + c
