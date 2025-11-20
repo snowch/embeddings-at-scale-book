@@ -47,6 +47,6 @@ def similarity(word1, word2):
 
 
 # Demonstrate that related words have similar embeddings
-print(f"king vs queen: {similarity('king', 'queen'):.3f}")  # High (~0.93) - both royalty
-print(f"man vs woman: {similarity('man', 'woman'):.3f}")  # High (~0.85) - both human
-print(f"king vs apple: {similarity('king', 'apple'):.3f}")  # Low (~0.46) - unrelated concepts
+print(f"king vs queen: {similarity('king', 'queen'):.3f}")  # High (~0.85) - both royalty
+print(f"man vs woman: {similarity('man', 'woman'):.3f}")  # Moderate (~0.66) - both human
+print(f"king vs apple: {similarity('king', 'apple'):.3f}")  # Lower (~0.53) - unrelated concepts
