@@ -27,13 +27,14 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 # fmt: off
 word_embeddings = {
-    "king": np.array([0.9, 0.8, 0.1]),   # Royal + human + male
+    "king":  np.array([0.9, 0.8, 0.1]),  # Royal + human + male
     "queen": np.array([0.9, 0.8, 0.9]),  # Royal + human + female
-    "man": np.array([0.5, 0.8, 0.1]),    # Common + human + male
+    "man":   np.array([0.5, 0.8, 0.1]),  # Common + human + male
     "woman": np.array([0.5, 0.8, 0.9]),  # Common + human + female
     "apple": np.array([0.1, 0.3, 0.5]),  # Not royal, not human, neutral
 }
 # fmt: on
+
 
 # Calculate similarity using cosine similarity (see callout box below)
 def similarity(word1, word2):
