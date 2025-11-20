@@ -17,7 +17,7 @@ class SimpleEmbeddingSearch:
 
     def __init__(self):
         # Load pre-trained embedding model
-        self.model = SentenceTransformer('all-MiniLM-L6-v2')
+        self.model = SentenceTransformer("all-MiniLM-L6-v2")
         self.documents = []
         self.embeddings = None
 
@@ -34,25 +34,20 @@ class SimpleEmbeddingSearch:
         query_embedding = self.model.encode([query])[0]
 
         # Calculate similarities
-        similarities = cosine_similarity(
-            [query_embedding],
-            self.embeddings
-        )[0]
+        similarities = cosine_similarity([query_embedding], self.embeddings)[0]
 
         # Get top-k results
         top_indices = similarities.argsort()[-top_k:][::-1]
 
         results = []
         for idx in top_indices:
-            results.append({
-                'document': self.documents[idx],
-                'score': similarities[idx]
-            })
+            results.append({"document": self.documents[idx], "score": similarities[idx]})
 
         return results
 
+
 # Example usage
-if __name__ == '__main__':
+if __name__ == "__main__":
     search_engine = SimpleEmbeddingSearch()
 
     # Add documents
@@ -62,7 +57,7 @@ if __name__ == '__main__':
         "Python is a programming language",
         "Machine learning uses neural networks",
         "Cats and dogs are popular pets",
-        "Deep learning is a subset of machine learning"
+        "Deep learning is a subset of machine learning",
     ]
 
     search_engine.add_documents(documents)

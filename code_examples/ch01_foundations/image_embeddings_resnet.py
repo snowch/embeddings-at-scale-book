@@ -21,13 +21,15 @@ model.eval()
 embedding_model = torch.nn.Sequential(*list(model.children())[:-1])
 
 # Transform image to tensor
-transform = transforms.Compose([
-    transforms.Resize(256),
-    transforms.CenterCrop(224),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                        std=[0.229, 0.224, 0.225])
-])
+transform = transforms.Compose(
+    [
+        transforms.Resize(256),
+        transforms.CenterCrop(224),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ]
+)
+
 
 def get_image_embedding(image_path):
     """Convert image to embedding vector"""
@@ -38,6 +40,7 @@ def get_image_embedding(image_path):
         embedding = embedding_model(img_tensor)
 
     return embedding.squeeze().numpy()  # 2048-dimensional vector
+
 
 # Use case: find visually similar images
 # image1_emb = get_image_embedding('cat1.jpg')

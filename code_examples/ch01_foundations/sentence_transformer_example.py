@@ -12,10 +12,10 @@ from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 
 # Load a pre-trained model
-model = SentenceTransformer('all-MiniLM-L6-v2')
+model = SentenceTransformer("all-MiniLM-L6-v2")
 
 # Create embeddings for words/sentences
-words = ['cat', 'dog', 'puppy', 'kitten', 'automobile', 'car']
+words = ["cat", "dog", "puppy", "kitten", "automobile", "car"]
 embeddings = model.encode(words)
 
 # Find similar words

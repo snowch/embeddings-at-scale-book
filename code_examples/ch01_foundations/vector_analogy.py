@@ -20,7 +20,7 @@ def vector_analogy(a, b, c, embeddings):
 
     # Find closest word to result_vector
     closest_word = None
-    closest_distance = float('inf')
+    closest_distance = float("inf")
 
     for word, vec in embeddings.items():
         if word in [a, b, c]:  # Skip input words
@@ -32,12 +32,13 @@ def vector_analogy(a, b, c, embeddings):
 
     return closest_word
 
+
 # Examples with properly trained embeddings:
 # vector_analogy('king', 'man', 'woman') → 'queen'
 # vector_analogy('Paris', 'France', 'Germany') → 'Berlin'
 # vector_analogy('swimming', 'swimmer', 'running') → 'runner'
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     print("Vector analogy demonstration")
     print("Note: This function requires properly trained embeddings to work")
     print("Examples that work with real word embeddings:")

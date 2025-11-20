@@ -15,18 +15,21 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 def load_image_model():
     """Placeholder for image model loading"""
+
     # In practice, use a model like ResNet or CLIP
     class MockImageModel:
         def encode(self, image):
             # Returns a dummy embedding
             return np.random.rand(512)
+
     return MockImageModel()
+
 
 class ProductEmbedder:
     """Embed products using multiple signals"""
 
     def __init__(self):
-        self.text_model = SentenceTransformer('all-mpnet-base-v2')
+        self.text_model = SentenceTransformer("all-mpnet-base-v2")
         self.image_model = load_image_model()
 
     def embed_product(self, product):

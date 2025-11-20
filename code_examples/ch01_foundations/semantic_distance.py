@@ -15,16 +15,16 @@ def semantic_distance(word1, word2, embeddings):
     """Smaller distance = more similar concepts"""
     return cosine(embeddings[word1], embeddings[word2])
 
-# Example usage (requires embeddings dictionary)
-if __name__ == '__main__':
 
+# Example usage (requires embeddings dictionary)
+if __name__ == "__main__":
     # Example embeddings
     embeddings = {
-        'cat':    [0.8, 0.6, 0.1, 0.2],  # Close to 'kitten'
-        'kitten': [0.8, 0.5, 0.2, 0.3],  # Close to 'cat'
-        'dog':    [0.7, 0.6, 0.1, 0.8],  # Close to 'puppy', related to 'cat'
-        'puppy':  [0.7, 0.5, 0.2, 0.9],  # Close to 'dog'
-        'car':    [0.1, 0.2, 0.9, 0.1],  # Far from animals
+        "cat": [0.8, 0.6, 0.1, 0.2],  # Close to 'kitten'
+        "kitten": [0.8, 0.5, 0.2, 0.3],  # Close to 'cat'
+        "dog": [0.7, 0.6, 0.1, 0.8],  # Close to 'puppy', related to 'cat'
+        "puppy": [0.7, 0.5, 0.2, 0.9],  # Close to 'dog'
+        "car": [0.1, 0.2, 0.9, 0.1],  # Far from animals
     }
 
     # Animals are close to each other

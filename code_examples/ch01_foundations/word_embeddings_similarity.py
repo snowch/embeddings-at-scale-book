@@ -25,12 +25,13 @@ from sklearn.metrics.pairwise import cosine_similarity
 # - Dimension 2 (~0.1 or ~0.9): Represents "male" vs "female"
 # (In real embeddings, dimensions aren't this interpretable—they're learned automatically)
 word_embeddings = {
-    'king':   np.array([0.9, 0.8, 0.1]),  # Royal + human + male
-    'queen':  np.array([0.9, 0.8, 0.9]),  # Royal + human + female
-    'man':    np.array([0.5, 0.2, 0.1]),  # Common + human + male
-    'woman':  np.array([0.5, 0.2, 0.9]),  # Common + human + female
-    'apple':  np.array([0.1, 0.3, 0.5]),  # Not royal, not human, neutral
+    "king": np.array([0.9, 0.8, 0.1]),  # Royal + human + male
+    "queen": np.array([0.9, 0.8, 0.9]),  # Royal + human + female
+    "man": np.array([0.5, 0.2, 0.1]),  # Common + human + male
+    "woman": np.array([0.5, 0.2, 0.9]),  # Common + human + female
+    "apple": np.array([0.1, 0.3, 0.5]),  # Not royal, not human, neutral
 }
+
 
 # Calculate similarity using cosine similarity (see callout box below)
 def similarity(word1, word2):
@@ -44,7 +45,8 @@ def similarity(word1, word2):
     # cosine_similarity returns a 2D array, so [0][0] extracts the scalar similarity value
     return cosine_similarity(vec1, vec2)[0][0]
 
+
 # Demonstrate that related words have similar embeddings
 print(f"king vs queen: {similarity('king', 'queen'):.3f}")  # High (~0.93) - both royalty
-print(f"man vs woman: {similarity('man', 'woman'):.3f}")    # High (~0.85) - both human
+print(f"man vs woman: {similarity('man', 'woman'):.3f}")  # High (~0.85) - both human
 print(f"king vs apple: {similarity('king', 'apple'):.3f}")  # Low (~0.46) - unrelated concepts
