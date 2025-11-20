@@ -24,6 +24,8 @@ from sklearn.metrics.pairwise import cosine_similarity
 # - Dimension 1 (~0.8 or ~0.2): Represents "human" vs "other"
 # - Dimension 2 (~0.1 or ~0.9): Represents "male" vs "female"
 # (In real embeddings, dimensions aren't this interpretable—they're learned automatically)
+
+# fmt: off
 word_embeddings = {
     "king": np.array([0.9, 0.8, 0.1]),   # Royal + human + male
     "queen": np.array([0.9, 0.8, 0.9]),  # Royal + human + female
@@ -31,7 +33,7 @@ word_embeddings = {
     "woman": np.array([0.5, 0.8, 0.9]),  # Common + human + female
     "apple": np.array([0.1, 0.3, 0.5]),  # Not royal, not human, neutral
 }
-
+# fmt: on
 
 # Calculate similarity using cosine similarity (see callout box below)
 def similarity(word1, word2):
