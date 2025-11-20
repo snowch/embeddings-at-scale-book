@@ -16,46 +16,7 @@ At their most basic, **embeddings are numerical vectors that represent objects i
 Here's the key insight: in an embedding space, **similarity in meaning corresponds to proximity in geometric space**. Objects that are conceptually related end up close to each other, while unrelated objects are far apart.
 
 ```python
-import numpy as np
-
-# A simple 3-dimensional embedding space for illustration
-# Why 3 dimensions? This is deliberately simplified for visualization and pedagogy.
-# Real embeddings typically use 300-1024 dimensions, but 3D allows us to:
-# - Visualize the concept geometrically (x, y, z axes)
-# - Understand the math without getting lost in high-dimensional space
-# - Demonstrate the core principle: semantic similarity = geometric proximity
-
-# How were these values chosen? They're hand-crafted to demonstrate key relationships:
-# - Dimension 0 (~0.9 or ~0.5): Represents "royalty" vs "common"
-# - Dimension 1 (~0.8 or ~0.2): Represents "human" vs "other"
-# - Dimension 2 (~0.1 or ~0.9): Represents "male" vs "female"
-# (In real embeddings, dimensions aren't this interpretable—they're learned automatically)
-word_embeddings = {
-    'king':   np.array([0.9, 0.8, 0.1]),  # Royal + human + male
-    'queen':  np.array([0.9, 0.8, 0.9]),  # Royal + human + female
-    'man':    np.array([0.5, 0.2, 0.1]),  # Common + human + male
-    'woman':  np.array([0.5, 0.2, 0.9]),  # Common + human + female
-    'apple':  np.array([0.1, 0.3, 0.5]),  # Not royal, not human, neutral
-}
-
-# Calculate similarity using cosine similarity (see callout box below)
-from sklearn.metrics.pairwise import cosine_similarity
-
-def similarity(word1, word2):
-    # Reshape from (3,) to (1, 3) - required by cosine_similarity()
-    # Why reshape? cosine_similarity expects 2D arrays where each row is a vector.
-    # Our embeddings are 1D arrays (shape: 3,), so we reshape to 2D (shape: 1, 3)
-    # The -1 in reshape(1, -1) means "infer this dimension" → converts [a,b,c] to [[a,b,c]]
-    vec1 = word_embeddings[word1].reshape(1, -1)
-    vec2 = word_embeddings[word2].reshape(1, -1)
-
-    # cosine_similarity returns a 2D array, so [0][0] extracts the scalar similarity value
-    return cosine_similarity(vec1, vec2)[0][0]
-
-# Demonstrate that related words have similar embeddings
-print(f"king vs queen: {similarity('king', 'queen'):.3f}")  # High (~0.93) - both royalty
-print(f"man vs woman: {similarity('man', 'woman'):.3f}")    # High (~0.85) - both human
-print(f"king vs apple: {similarity('king', 'apple'):.3f}")  # Low (~0.46) - unrelated concepts
+{{< include /code_examples/ch01_foundations/word_embeddings_similarity.py >}}
 ```
 
 In this toy example, 'king' and 'queen' have similar embeddings because they're related concepts (both royalty). 'King' and 'apple' are dissimilar because they're unrelated.
@@ -174,17 +135,7 @@ This shift from discrete to continuous representations is profound:
 The geometric distance between embeddings reflects semantic similarity:
 
 ```python
-from scipy.spatial.distance import cosine
-
-def semantic_distance(word1, word2, embeddings):
-    """Smaller distance = more similar concepts"""
-    return cosine(embeddings[word1], embeddings[word2])
-
-# Animals are close to each other
-print(f"cat ↔ dog: {semantic_distance('cat', 'dog', embeddings):.3f}")
-
-# Animals far from vehicles
-print(f"cat ↔ car: {semantic_distance('cat', 'car', embeddings):.3f}")
+{{< include /code_examples/ch01_foundations/semantic_distance.py >}}
 ```
 
 This property enables **similarity search**: given a query object, find all similar objects by finding nearby points in the embedding space.
@@ -194,32 +145,7 @@ This property enables **similarity search**: given a query object, find all simi
 Perhaps the most remarkable property of embeddings is that mathematical operations on vectors correspond to semantic operations on concepts:
 
 ```python
-# The famous example: king - man + woman ≈ queen
-# (Note: This requires embeddings trained on large datasets)
-
-def vector_analogy(a, b, c, embeddings):
-    """Solve: a is to b as c is to ?"""
-    # a - b + c
-    result_vector = embeddings[a] - embeddings[b] + embeddings[c]
-
-    # Find closest word to result_vector
-    closest_word = None
-    closest_distance = float('inf')
-
-    for word, vec in embeddings.items():
-        if word in [a, b, c]:  # Skip input words
-            continue
-        dist = cosine(result_vector, vec)
-        if dist < closest_distance:
-            closest_distance = dist
-            closest_word = word
-
-    return closest_word
-
-# Examples with properly trained embeddings:
-# vector_analogy('king', 'man', 'woman') → 'queen'
-# vector_analogy('Paris', 'France', 'Germany') → 'Berlin'
-# vector_analogy('swimming', 'swimmer', 'running') → 'runner'
+{{< include /code_examples/ch01_foundations/vector_analogy.py >}}
 ```
 
 This property emerges naturally from how embeddings are trained and enables powerful applications like translation, analogy completion, and relationship extraction.
@@ -285,27 +211,7 @@ The learning process ensures embeddings capture the patterns that matter for you
 Word embeddings map words to vectors, capturing semantic and syntactic relationships:
 
 ```python
-from sentence_transformers import SentenceTransformer
-
-# Load a pre-trained model
-model = SentenceTransformer('all-MiniLM-L6-v2')
-
-# Create embeddings for words/sentences
-words = ['cat', 'dog', 'puppy', 'kitten', 'automobile', 'car']
-embeddings = model.encode(words)
-
-# Find similar words
-from sklearn.metrics.pairwise import cosine_similarity
-
-similarities = cosine_similarity(embeddings)
-
-# 'cat' is most similar to 'kitten'
-# 'automobile' is most similar to 'car'
-print("Similarity matrix:")
-for i, word1 in enumerate(words):
-    for j, word2 in enumerate(words):
-        if i < j:
-            print(f"{word1} ↔ {word2}: {similarities[i][j]:.3f}")
+{{< include /code_examples/ch01_foundations/sentence_transformer_example.py >}}
 ```
 
 **Image Embeddings**
@@ -313,40 +219,7 @@ for i, word1 in enumerate(words):
 Images can be embedded into vectors that capture visual content:
 
 ```python
-from torchvision import models, transforms
-from PIL import Image
-import torch
-
-# Load pre-trained image model
-model = models.resnet50(pretrained=True)
-model.eval()
-
-# Remove final classification layer to get embeddings
-embedding_model = torch.nn.Sequential(*list(model.children())[:-1])
-
-# Transform image to tensor
-transform = transforms.Compose([
-    transforms.Resize(256),
-    transforms.CenterCrop(224),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                        std=[0.229, 0.224, 0.225])
-])
-
-def get_image_embedding(image_path):
-    """Convert image to embedding vector"""
-    img = Image.open(image_path)
-    img_tensor = transform(img).unsqueeze(0)
-
-    with torch.no_grad():
-        embedding = embedding_model(img_tensor)
-
-    return embedding.squeeze().numpy()  # 2048-dimensional vector
-
-# Use case: find visually similar images
-# image1_emb = get_image_embedding('cat1.jpg')
-# image2_emb = get_image_embedding('cat2.jpg')
-# similarity = cosine_similarity([image1_emb], [image2_emb])
+{{< include /code_examples/ch01_foundations/image_embeddings_resnet.py >}}
 ```
 
 **Product Embeddings**
@@ -354,39 +227,7 @@ def get_image_embedding(image_path):
 E-commerce platforms embed products based on descriptions, images, and user behavior:
 
 ```python
-class ProductEmbedder:
-    """Embed products using multiple signals"""
-
-    def __init__(self):
-        self.text_model = SentenceTransformer('all-mpnet-base-v2')
-        self.image_model = load_image_model()
-
-    def embed_product(self, product):
-        """Create product embedding from multiple modalities"""
-        # Text embedding from title + description
-        text = f"{product.title} {product.description}"
-        text_embedding = self.text_model.encode(text)
-
-        # Image embedding from product photo
-        image_embedding = self.image_model.encode(product.image)
-
-        # Combine embeddings (simple concatenation)
-        combined = np.concatenate([text_embedding, image_embedding])
-
-        # Optional: add categorical features
-        category_features = self.encode_categories(product.category)
-
-        return np.concatenate([combined, category_features])
-
-    def find_similar_products(self, product, all_products, top_k=10):
-        """Find products similar to the query product"""
-        query_embedding = self.embed_product(product)
-        all_embeddings = [self.embed_product(p) for p in all_products]
-
-        similarities = cosine_similarity([query_embedding], all_embeddings)[0]
-        top_indices = similarities.argsort()[-top_k:][::-1]
-
-        return [all_products[i] for i in top_indices]
+{{< include /code_examples/ch01_foundations/product_embedder.py >}}
 ```
 
 ### Your First Embedding System
@@ -394,73 +235,7 @@ class ProductEmbedder:
 Let's build a simple but complete embedding-based search system:
 
 ```python
-from sentence_transformers import SentenceTransformer
-import numpy as np
-from sklearn.metrics.pairwise import cosine_similarity
-
-class SimpleEmbeddingSearch:
-    """A minimal embedding-based search engine"""
-
-    def __init__(self):
-        # Load pre-trained embedding model
-        self.model = SentenceTransformer('all-MiniLM-L6-v2')
-        self.documents = []
-        self.embeddings = None
-
-    def add_documents(self, documents):
-        """Index documents by creating embeddings"""
-        self.documents = documents
-        print(f"Creating embeddings for {len(documents)} documents...")
-        self.embeddings = self.model.encode(documents, show_progress_bar=True)
-        print(f"Indexed {len(documents)} documents")
-
-    def search(self, query, top_k=5):
-        """Search for documents similar to query"""
-        # Embed the query
-        query_embedding = self.model.encode([query])[0]
-
-        # Calculate similarities
-        similarities = cosine_similarity(
-            [query_embedding],
-            self.embeddings
-        )[0]
-
-        # Get top-k results
-        top_indices = similarities.argsort()[-top_k:][::-1]
-
-        results = []
-        for idx in top_indices:
-            results.append({
-                'document': self.documents[idx],
-                'score': similarities[idx]
-            })
-
-        return results
-
-# Example usage
-search_engine = SimpleEmbeddingSearch()
-
-# Add documents
-documents = [
-    "The cat sat on the mat",
-    "Dogs are loyal pets",
-    "Python is a programming language",
-    "Machine learning uses neural networks",
-    "Cats and dogs are popular pets",
-    "Deep learning is a subset of machine learning"
-]
-
-search_engine.add_documents(documents)
-
-# Search with semantic understanding
-results = search_engine.search("feline animals")
-
-print("\nQuery: 'feline animals'")
-for i, result in enumerate(results, 1):
-    print(f"{i}. [{result['score']:.3f}] {result['document']}")
-
-# Expected: Cat-related documents rank highest, even though
-# the word "feline" doesn't appear in any document!
+{{< include /code_examples/ch01_foundations/simple_embedding_search.py >}}
 ```
 
 This simple system demonstrates the power of embeddings: it understands that "feline animals" relates to cats, even though the exact words don't match. This is semantic search in action.
@@ -860,73 +635,7 @@ Not all embedding projects succeed. Adjust ROI estimates for risk:
 ### Complete ROI Framework Template
 
 ```python
-class EmbeddingROICalculator:
-    """Complete ROI framework for embedding projects"""
-
-    def __init__(self, project_name):
-        self.project_name = project_name
-        self.benefits = {}
-        self.costs = {}
-
-    def add_search_benefit(self, **kwargs):
-        """Add search improvement benefits"""
-        benefit = calculate_search_roi(**kwargs)
-        self.benefits['search'] = benefit
-
-    def add_efficiency_benefit(self, **kwargs):
-        """Add operational efficiency benefits"""
-        benefit = calculate_efficiency_roi(**kwargs)
-        self.benefits['efficiency'] = benefit
-
-    def add_fraud_benefit(self, **kwargs):
-        """Add fraud/risk reduction benefits"""
-        benefit = calculate_fraud_roi(**kwargs)
-        self.benefits['fraud'] = benefit
-
-    def add_ltv_benefit(self, **kwargs):
-        """Add customer LTV improvement benefits"""
-        benefit = calculate_ltv_improvement(**kwargs)
-        self.benefits['ltv'] = benefit
-
-    def add_costs(self, implementation, annual_operating, annual_data_costs=0):
-        """Add project costs"""
-        self.costs = {
-            'implementation': implementation,
-            'annual_operating': annual_operating,
-            'annual_data': annual_data_costs
-        }
-
-    def calculate_total_roi(self, years=5, probability_of_success=0.8):
-        """Calculate complete ROI"""
-        # Sum all benefits
-        total_annual_benefit = sum(
-            b.get('total_annual_benefit', b.get('annual_value', 0))
-            for b in self.benefits.values()
-        )
-
-        # Calculate risk-adjusted ROI
-        roi = risk_adjusted_roi(
-            potential_benefit=total_annual_benefit,
-            probability_of_success=probability_of_success,
-            implementation_cost=self.costs['implementation'],
-            annual_operating_cost=(
-                self.costs['annual_operating'] +
-                self.costs['annual_data']
-            ),
-            years=years
-        )
-
-        return {
-            'project_name': self.project_name,
-            'total_annual_benefit': total_annual_benefit,
-            'risk_adjusted_annual_benefit': roi['expected_annual_benefit'],
-            'implementation_cost': self.costs['implementation'],
-            'annual_operating_cost': self.costs['annual_operating'],
-            'npv': roi['npv'],
-            'roi_percent': roi['roi_percent'],
-            'payback_period_years': roi['payback_period_years'],
-            'benefit_breakdown': self.benefits
-        }
+{{< include /code_examples/ch01_foundations/embeddingroicalculator.py >}}
 ```
 
 ## Key Takeaways
