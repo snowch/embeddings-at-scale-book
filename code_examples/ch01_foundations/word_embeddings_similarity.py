@@ -9,8 +9,7 @@ objects in a continuous multi-dimensional space, where similarity in meaning
 corresponds to proximity in geometric space.
 """
 
-import numpy as np
-from sklearn.metrics.pairwise import cosine_similarity
+from scipy.spatial.distance import cosine
 
 # A simple 3-dimensional embedding space for illustration
 # Why 3 dimensions? This is deliberately simplified for visualization and pedagogy.
@@ -27,26 +26,20 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 # fmt: off
 word_embeddings = {
-    "king":  np.array([0.9, 0.8, 0.1]),  # Royal + human + male
-    "queen": np.array([0.9, 0.8, 0.9]),  # Royal + human + female
-    "man":   np.array([0.5, 0.8, 0.1]),  # Common + human + male
-    "woman": np.array([0.5, 0.8, 0.9]),  # Common + human + female
-    "apple": np.array([0.1, 0.3, 0.5]),  # Not royal, not human, neutral
+    "king":  [0.9, 0.8, 0.1],  # Royal + human + male
+    "queen": [0.9, 0.8, 0.9],  # Royal + human + female
+    "man":   [0.5, 0.8, 0.1],  # Common + human + male
+    "woman": [0.5, 0.8, 0.9],  # Common + human + female
+    "apple": [0.1, 0.3, 0.5],  # Not royal, not human, neutral
 }
 # fmt: on
 
 
-# Calculate similarity using cosine similarity (see callout box below)
+# Calculate similarity using cosine similarity
+# cosine() returns distance (0 = identical), so we convert to similarity (1 = identical)
 def similarity(word1, word2):
-    # Reshape from (3,) to (1, 3) - required by cosine_similarity()
-    # Why reshape? cosine_similarity expects 2D arrays where each row is a vector.
-    # Our embeddings are 1D arrays (shape: 3,), so we reshape to 2D (shape: 1, 3)
-    # The -1 in reshape(1, -1) means "infer this dimension" → converts [a,b,c] to [[a,b,c]]
-    vec1 = word_embeddings[word1].reshape(1, -1)
-    vec2 = word_embeddings[word2].reshape(1, -1)
-
-    # cosine_similarity returns a 2D array, so [0][0] extracts the scalar similarity value
-    return cosine_similarity(vec1, vec2)[0][0]
+    """Higher similarity = more similar concepts (range: -1 to 1, typically 0 to 1)"""
+    return 1 - cosine(word_embeddings[word1], word_embeddings[word2])
 
 
 # Demonstrate that related words have similar embeddings
