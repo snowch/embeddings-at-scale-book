@@ -20,7 +20,7 @@ Traditional trading signals face limitations:
 - **Fundamental analysis**: Slow, requires manual interpretation, can't scale across thousands of securities
 - **Alternative data**: Unstructured (satellite imagery, credit card transactions), hard to integrate
 
-**Embedding approach**: Learn security embeddings from price history, fundamentals, news, and alternative data. Similar securities cluster together; opportunities manifest as embedding movements that predict future returns before price movements.
+**Embedding approach**: Learn security embeddings from price history, fundamentals, news, and alternative data. Similar securities cluster together; opportunities manifest as embedding movements that predict future returns before price movements. See @sec-custom-embedding-strategies for guidance on building these embeddings.
 
 ```python
 {{< include /code_examples/ch18_financial_services/from.py >}}
@@ -75,7 +75,7 @@ Traditional credit scoring faces limitations:
 - **Static models**: Don't adapt to changing economic conditions
 - **Fairness concerns**: Proxy features (zip code) correlated with protected attributes
 
-**Embedding approach**: Learn borrower embeddings from traditional credit data (payment history, utilization) plus alternative data (rent payments, utility bills, employment history, transaction patterns). Similar borrowers cluster together; risk propagates through social and transaction networks.
+**Embedding approach**: Learn borrower embeddings from traditional credit data (payment history, utilization) plus alternative data (rent payments, utility bills, employment history, transaction patterns). Similar borrowers cluster together; risk propagates through social and transaction networks. See @sec-custom-embedding-strategies for approaches to building these embeddings.
 
 ```python
 {{< include /code_examples/ch18_financial_services/class.py >}}
@@ -130,7 +130,7 @@ Traditional compliance systems face limitations:
 - **Siloed**: Different systems for different regulations
 - **Reactive**: Detect violations after they occur
 
-**Embedding approach**: Learn embeddings of regulations, internal policies, transactions, and communications. Violations manifest as semantic similarity between actions and prohibited patterns, enabling proactive detection across structured and unstructured data.
+**Embedding approach**: Learn embeddings of regulations, internal policies, transactions, and communications. Violations manifest as semantic similarity between actions and prohibited patterns, enabling proactive detection across structured and unstructured data. See @sec-custom-embedding-strategies for the decision framework on building domain-specific embeddings.
 
 ```python
 {{< include /code_examples/ch18_financial_services/class_1.py >}}
@@ -193,7 +193,7 @@ Traditional customer analytics faces limitations:
 - **Siloed**: Separate models for different products
 - **Reactive**: Detect churn after customers disengage
 
-**Embedding approach**: Learn customer embeddings from transaction history, product usage, service interactions, and life events. Similar customers cluster together; segment membership emerges naturally; behavior prediction transfers across products.
+**Embedding approach**: Learn customer embeddings from transaction history, product usage, service interactions, and life events. Similar customers cluster together; segment membership emerges naturally; behavior prediction transfers across products. See @sec-custom-embedding-strategies for approaches to building these embeddings, and @sec-contrastive-learning for training techniques.
 
 ```python
 {{< include /code_examples/ch18_financial_services/class_2.py >}}
@@ -248,7 +248,7 @@ Traditional sentiment analysis faces limitations:
 - **Static**: Pre-trained sentiment models don't adapt to financial language
 - **Noisy**: Social media full of spam, bots, sarcasm
 
-**Embedding approach**: Learn embeddings of financial text fine-tuned on market outcomes. Sentiment manifests as position in embedding space (positive sentiment cluster, negative sentiment cluster). Multi-grained: overall sentiment + aspect-specific (sentiment toward specific stocks, sectors, topics).
+**Embedding approach**: Learn embeddings of financial text fine-tuned on market outcomes. Sentiment manifests as position in embedding space (positive sentiment cluster, negative sentiment cluster). Multi-grained: overall sentiment + aspect-specific (sentiment toward specific stocks, sectors, topics). See @sec-custom-embedding-strategies for guidance on fine-tuning approaches.
 
 ```python
 {{< include /code_examples/ch18_financial_services/class_3.py >}}

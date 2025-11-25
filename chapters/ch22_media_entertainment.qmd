@@ -23,7 +23,7 @@ Traditional recommendation systems face limitations:
 - **Temporal effects**: Trending content, seasonal preferences, recency bias
 - **Multi-objective optimization**: Balance engagement, diversity, business goals
 
-**Embedding approach**: Learn content embeddings from multi-modal signals—video encodes visual style and pacing, audio captures mood and intensity, text (subtitles, metadata) encodes narrative and themes, user behavior reveals implicit preferences. Similar content clusters together regardless of genre labels. Viewer embeddings capture preference patterns across content dimensions. Recommendations become nearest neighbor search in joint embedding space.
+**Embedding approach**: Learn content embeddings from multi-modal signals—video encodes visual style and pacing, audio captures mood and intensity, text (subtitles, metadata) encodes narrative and themes, user behavior reveals implicit preferences. Similar content clusters together regardless of genre labels. Viewer embeddings capture preference patterns across content dimensions. Recommendations become nearest neighbor search in joint embedding space. See @sec-custom-embedding-strategies for guidance on building these embeddings, and @sec-contrastive-learning for training techniques.
 
 ```python
 {{< include /code_examples/ch22_media_entertainment/class.py >}}
@@ -81,7 +81,7 @@ Manual content tagging faces limitations:
 - **Temporal granularity**: Scene-level tags vs content-level
 - **Multi-modal**: Visual, audio, dialogue, on-screen text all contain signals
 
-**Embedding approach**: Learn embeddings from labeled data, then apply to unlabeled content. Computer vision models extract visual concepts (objects, scenes, actions, styles), audio models capture soundscape elements (music genre, ambient sounds, speech characteristics), NLP models extract entities, topics, and sentiment from dialogue and metadata. Hierarchical embeddings capture tag relationships (action → car chase → high-speed chase). Zero-shot classification enables tagging with novel concepts.
+**Embedding approach**: Learn embeddings from labeled data, then apply to unlabeled content. Computer vision models extract visual concepts (objects, scenes, actions, styles), audio models capture soundscape elements (music genre, ambient sounds, speech characteristics), NLP models extract entities, topics, and sentiment from dialogue and metadata. Hierarchical embeddings capture tag relationships (action → car chase → high-speed chase). Zero-shot classification enables tagging with novel concepts. See @sec-custom-embedding-strategies for approaches to building these embeddings.
 
 ```python
 {{< include /code_examples/ch22_media_entertainment/class_1.py >}}
@@ -147,7 +147,7 @@ Traditional IP protection faces limitations:
 - **Global scale**: Monitoring millions of sources worldwide
 - **Format variations**: Different resolutions, codecs, frame rates
 
-**Embedding approach**: Learn perceptual embeddings robust to transformations but sensitive to content. Original content and modified versions have similar embeddings; unrelated content has distant embeddings. Create embedding database of protected content. For each upload, compute embedding and search for near-duplicates. Similarity above threshold triggers enforcement action (block, claim, flag). Temporal alignment enables detecting clips within longer uploads.
+**Embedding approach**: Learn perceptual embeddings robust to transformations but sensitive to content. Original content and modified versions have similar embeddings; unrelated content has distant embeddings. Create embedding database of protected content. For each upload, compute embedding and search for near-duplicates. Similarity above threshold triggers enforcement action (block, claim, flag). Temporal alignment enables detecting clips within longer uploads. See @sec-contrastive-learning for training techniques that learn transformation-invariant representations.
 
 ```python
 {{< include /code_examples/ch22_media_entertainment/class_2.py >}}
@@ -219,7 +219,7 @@ Demographic targeting faces limitations:
 - **Long-tail preferences**: Niche interests invisible to broad segments
 - **Multi-dimensional**: Viewing driven by mood, intent, social context, time pressure
 
-**Embedding approach**: Learn viewer embeddings from behavioral signals—viewing history reveals preferences, session patterns show contexts, engagement signals indicate intensity, temporal patterns capture routines. Similar viewers cluster in embedding space regardless of demographics. Micro-segments emerge from clustering. Advertising targets based on behavioral similarity rather than demographic categories. Real-time context adapts targeting within session.
+**Embedding approach**: Learn viewer embeddings from behavioral signals—viewing history reveals preferences, session patterns show contexts, engagement signals indicate intensity, temporal patterns capture routines. Similar viewers cluster in embedding space regardless of demographics. Micro-segments emerge from clustering. Advertising targets based on behavioral similarity rather than demographic categories. Real-time context adapts targeting within session. See @sec-custom-embedding-strategies for guidance on building these embeddings, and @sec-contrastive-learning for training techniques.
 
 ```python
 {{< include /code_examples/ch22_media_entertainment/class_3.py >}}
@@ -299,7 +299,7 @@ Manual content creation faces limitations:
 - **Format adaptation**: Repurposing long-form for TikTok, Instagram, YouTube Shorts
 - **Creative bottleneck**: Limited by human bandwidth
 
-**Embedding approach**: Learn embeddings capturing content structure, narrative patterns, visual aesthetics, emotional arcs, and audience response. Latent space manipulation enables controlled generation—moving along dimensions changes specific attributes (pacing, tone, complexity). Attention mechanisms identify salient segments. Sequence models predict engaging clip boundaries. Style transfer adapts content aesthetics. Generative models create variants while preserving semantic meaning. Human creators remain in control, with AI providing intelligent suggestions and automation.
+**Embedding approach**: Learn embeddings capturing content structure, narrative patterns, visual aesthetics, emotional arcs, and audience response. Latent space manipulation enables controlled generation—moving along dimensions changes specific attributes (pacing, tone, complexity). Attention mechanisms identify salient segments. Sequence models predict engaging clip boundaries. Style transfer adapts content aesthetics. Generative models create variants while preserving semantic meaning. Human creators remain in control, with AI providing intelligent suggestions and automation. See @sec-custom-embedding-strategies for approaches to building these embeddings.
 
 ```python
 {{< include /code_examples/ch22_media_entertainment/class_4.py >}}
