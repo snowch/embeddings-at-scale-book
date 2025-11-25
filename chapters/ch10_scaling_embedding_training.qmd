@@ -87,19 +87,23 @@ Modern distributed training employs multiple parallelism strategies simultaneous
 ## Choosing the Right Parallelism Strategy
 
 **Use Data Parallelism when:**
+
 - Model fits on single GPU
 - Batch size is primary bottleneck
 - Most layers are data-parallel friendly (convolutions, transformers)
 
 **Add Model Parallelism when:**
+
 - Embedding tables > GPU memory (100M+ vocabulary)
 - Single layer > GPU memory (very wide transformer layers)
 
 **Add Pipeline Parallelism when:**
+
 - Model depth > memory capacity (100+ transformer layers)
 - High arithmetic intensity (can hide communication latency)
 
 **For embedding training:**
+
 - Start with Data Parallelism for encoder
 - Add Model Parallelism for large embedding tables
 - Consider Pipeline Parallelism for deep architectures (BERT-Large, GPT-3 scale)
@@ -144,16 +148,19 @@ Modern GPUs (Volta, Turing, Ampere architectures) have specialized Tensor Cores 
 ## When to Use Gradient Accumulation vs Larger Hardware
 
 **Use gradient accumulation when:**
+
 - Memory-constrained (batch won't fit on GPU)
 - Want to experiment with very large batches (64K+)
 - Training on cloud instances with limited GPU memory
 
 **Upgrade hardware when:**
+
 - Wall-clock time is critical (accumulation is slower)
 - Training very frequently (hardware cost amortizes)
 - Need to scale beyond single node (distributed > accumulation)
 
 **Use mixed precision almost always:**
+
 - Modern GPUs (V100, A100) have Tensor Cores
 - 2-3× speedup with minimal code changes
 - Rarely causes numerical issues (except very deep networks)
@@ -269,21 +276,25 @@ Multi-node training scales to hundreds of GPUs across dozens of machines:
 ## Multi-GPU Best Practices
 
 **Data loading:**
+
 - Use `DistributedSampler` to partition data across GPUs
 - Set `num_workers=4` per GPU for async data loading
 - Use `pin_memory=True` for faster CPU→GPU transfer
 
 **Learning rate scaling:**
+
 - Scale learning rate linearly with batch size
 - 1 GPU (batch 512, lr 0.001) → 8 GPUs (batch 4096, lr 0.008)
 - May need warmup for large learning rates
 
 **Synchronization:**
+
 - Minimize `dist.barrier()` calls (blocks all GPUs)
 - Overlap communication with computation
 - Use `find_unused_parameters=False` in DDP when possible
 
 **Checkpointing:**
+
 - Only save from rank 0 to avoid duplicate writes
 - Use `dist.barrier()` after saving to synchronize
 - Consider sharded checkpointing for very large models
@@ -293,16 +304,19 @@ Multi-node training scales to hundreds of GPUs across dozens of machines:
 ## Multi-Node Challenges
 
 **Network bottlenecks:**
+
 - Cross-node communication 10-100× slower than NVLink
 - Use gradient compression or ZeRO optimizer
 - Consider hierarchical all-reduce (node-local first)
 
 **Fault tolerance:**
+
 - Single node failure kills entire job
 - Implement checkpointing every N steps
 - Use elastic training frameworks (TorchElastic)
 
 **Load imbalance:**
+
 - Stragglers slow down entire cluster
 - Monitor per-GPU utilization
 - Use dynamic batch sizing if variability high
@@ -342,6 +356,7 @@ Spot instances offer 50-90% discounts but can be preempted. Strategies for resil
 4. **Sparse training**: Train only subset of parameters
 
 **Typical cost breakdown (100-GPU training):**
+
 - Hardware: 70% (can optimize with spot instances)
 - Storage: 10% (use cheaper object storage)
 - Network: 10% (minimize cross-region transfer)

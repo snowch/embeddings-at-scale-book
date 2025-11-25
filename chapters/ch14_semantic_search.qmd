@@ -29,18 +29,21 @@ Each modality has unique characteristics:
 ## Multi-Modal Search Best Practices
 
 **Architecture:**
+
 - **Separate encoders**: Train modality-specific encoders (don't share weights)
 - **Shared embedding space**: Project to common space (512-1024 dim)
 - **Contrastive training**: Align modalities via paired data (image-caption pairs)
 - **Late fusion**: Combine scores at query time (more flexible than early fusion)
 
 **Training data:**
+
 - **Paired examples**: Need (text, image) or (audio, video) pairs
 - **Web-scale data**: LAION-5B (5 billion image-text pairs)
 - **Data quality**: Filter low-quality pairs (CLIP score, aesthetic score)
 - **Augmentation**: Augment images/audio, not text (preserve semantics)
 
 **Performance:**
+
 - **Pre-encode documents**: Encode offline, store embeddings
 - **Per-modality indices**: Separate HNSW index per modality
 - **GPU inference**: Batch encode queries on GPU
@@ -57,6 +60,7 @@ Multi-modal embeddings require **aligned training data**:
 - Rare concepts harder to align (less training data)
 
 **Mitigation strategies:**
+
 - Filter pairs by CLIP score (cosine similarity threshold)
 - Use curated datasets for critical domains
 - Hard negative mining (find hard mismatches to learn from)
@@ -85,18 +89,21 @@ Code has unique properties:
 ## Code Search Best Practices
 
 **Training:**
+
 - **Pre-training**: Use CodeBERT or GraphCodeBERT (pre-trained on GitHub)
 - **Fine-tuning**: Fine-tune on domain-specific code (internal codebase)
 - **Data augmentation**: Rename variables, reformat code (preserve semantics)
 - **Hard negatives**: Mine hard negatives (similar code, different semantics)
 
 **Indexing:**
+
 - **Function-level**: Index individual functions, not entire files
 - **Deduplication**: Remove duplicate functions (common in forks)
 - **Metadata**: Include docstrings, comments, test cases
 - **Incremental**: Update index as new code is added (CI/CD integration)
 
 **Search quality:**
+
 - **Reranking**: Use cross-encoder to rerank top-100 results
 - **Diversity**: Ensure diverse results (not all bubble sort variants)
 - **Filtering**: Filter by language, library, recency
@@ -126,18 +133,21 @@ Scientific literature has unique characteristics:
 ## Scientific Search Best Practices
 
 **Domain-specific embeddings:**
+
 - **Pre-training**: Use SPECTER (citation-based), SciBERT (scientific text)
 - **Fine-tuning**: Fine-tune on domain-specific corpora (biomedical, physics)
 - **Multi-field**: Encode title + abstract + full text (weight by importance)
 - **Citation context**: Include sentences that cite the paper
 
 **Citation graph:**
+
 - **Co-citation**: Papers cited together are related
 - **Bibliographic coupling**: Papers citing the same work are related
 - **PageRank**: Rank by citation graph centrality
 - **Temporal weighting**: Recent citations matter more
 
 **Entity linking:**
+
 - **Named entity recognition**: Extract entities (chemicals, genes, diseases)
 - **Entity disambiguation**: Link to knowledge base (PubChem, UniProt)
 - **Relation extraction**: Extract relationships between entities
@@ -167,18 +177,21 @@ Media has unique properties:
 ## Media Search Best Practices
 
 **Visual features:**
+
 - **Content embeddings**: Use CLIP, ResNet, or ViT for semantic content
 - **Style embeddings**: Use Gram matrices or style-specific encoders
 - **Multi-scale**: Extract features at multiple resolutions
 - **Color histograms**: Supplement embeddings with color features
 
 **Duplicate detection:**
+
 - **Perceptual hashing**: pHash, dHash for near-duplicate detection
 - **Hamming distance**: Fast comparison (XOR + popcount)
 - **Clustering**: Group near-duplicates for review
 - **Threshold tuning**: Balance false positives vs false negatives
 
 **Performance:**
+
 - **Pre-compute embeddings**: Encode assets offline during ingestion
 - **GPU batching**: Batch encode 100-1000 images per GPU
 - **Caching**: Cache embeddings in vector database
@@ -207,18 +220,21 @@ Traditional knowledge graphs use discrete representations (triples: subject-pred
 ## Knowledge Graph Embedding Best Practices
 
 **Model selection:**
+
 - **TransE**: Simple, works well for 1-to-1 relations
 - **DistMult**: Better for symmetric relations
 - **ComplEx**: Handles asymmetric and inverse relations
 - **RotatE**: State-of-the-art for complex relations
 
 **Training:**
+
 - **Negative sampling**: Sample false triples for contrastive learning
 - **Hard negatives**: Mine hard negatives (plausible but false)
 - **Regularization**: L2 regularization on embeddings
 - **Batch training**: Use large batches (1000-10000 triples)
 
 **Applications:**
+
 - **Link prediction**: Predict missing relationships
 - **Entity resolution**: Merge duplicate entities by embedding similarity
 - **Graph completion**: Fill in missing edges
@@ -229,16 +245,19 @@ Traditional knowledge graphs use discrete representations (triples: subject-pred
 ## Graph Embedding Challenges
 
 **Data quality:**
+
 - Incomplete graphs (missing edges) degrade embeddings
 - Noisy relations (incorrect edges) poison training
 - Entity disambiguation (same name, different entities)
 
 **Scalability:**
+
 - Billion-entity graphs require distributed training
 - Full graph materialization doesn't fit in memory
 - Subgraph sampling required for large graphs
 
 **Interpretability:**
+
 - Embeddings are black boxes (hard to debug)
 - Relation semantics may not align with vector operations
 - Need attribution methods to explain predictions

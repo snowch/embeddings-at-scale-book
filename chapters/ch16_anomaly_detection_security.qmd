@@ -28,18 +28,21 @@ Traditional fraud detection faces limitations:
 ## Fraud Detection Best Practices
 
 **Architecture:**
+
 - **Autoencoder approach**: Train on normal transactions, high reconstruction error = fraud
 - **Entity embeddings**: Learn user/merchant representations (fraud users form distinct clusters)
 - **Sequential modeling**: LSTM over transaction history (flag deviations from normal sequence)
 - **Graph embeddings**: Capture money laundering rings (abnormal network patterns)
 
 **Training:**
+
 - **Clean training data**: Remove known fraud from training (autoencoders learn normal patterns only)
 - **Imbalanced data**: Expect 99%+ normal transactions
 - **Online learning**: Update embeddings daily with new normal transactions
 - **Hard negative mining**: Sample edge cases (high-value normal transactions)
 
 **Production:**
+
 - **Latency**: <50ms for real-time blocking
 - **Explainability**: SHAP values on features causing high score
 - **Threshold tuning**: Balance false positives (user friction) vs false negatives (fraud losses)
@@ -54,12 +57,14 @@ Fraud detection faces extreme class imbalance (0.1% fraud rate). High false posi
 - Alert user for verification → abandonment, support costs
 
 **Mitigation strategies:**
+
 - **Two-stage system**: High-recall first stage (flag suspicious), high-precision second stage (human review)
 - **Progressive friction**: Soft decline (ask for additional verification) before hard decline
 - **User whitelist**: Trust established users with consistent behavior
 - **Feedback loop**: Incorporate user feedback (approved flagged transactions)
 
 **Target metrics:**
+
 - Precision: 30-50% (of flagged transactions, 30-50% are actual fraud)
 - Recall: 70-90% (catch 70-90% of fraud)
 - False positive rate: <0.5% (flag <0.5% of normal transactions)
@@ -76,6 +81,7 @@ Traditional Security Information and Event Management (SIEM) systems use rules:
 - Rule: If outbound data transfer > 10GB, alert
 
 **Limitations:**
+
 - High false positives (legitimate travel, legitimate data transfers)
 - Evasion: Attackers split transfers, use slow exfiltration
 - Cannot detect novel attacks (zero-day exploits, new TTPs)
@@ -129,6 +135,7 @@ Traditional quality control uses thresholds:
 - If surface roughness > 0.5µm, reject
 
 **Limitations:**
+
 - High dimensional data (100+ measurements)
 - Correlated features (defects manifest as combinations of features)
 - Rare defects (< 0.1%) missed by simple thresholds
@@ -143,24 +150,28 @@ Traditional quality control uses thresholds:
 ## Quality Control Best Practices
 
 **Data collection:**
+
 - **Multi-modal**: Combine sensor measurements, images, process parameters
 - **High frequency**: Inspect every product (100% inspection)
 - **Temporal**: Track drift over time (machine wear, calibration)
 - **Provenance**: Link to production line, shift, machine
 
 **Modeling:**
+
 - **Unsupervised**: Defects are rare, labeled data limited
 - **Cluster-based**: Normal products form tight cluster
 - **Autoencoder**: Reconstruct normal products, high error = defect
 - **One-class SVM**: Learn boundary around normal products
 
 **Production:**
+
 - **Real-time**: Inspect at line speed (milliseconds per product)
 - **Inline integration**: Automatic rejection of defects
 - **Root cause analysis**: Identify which features are abnormal
 - **Process control**: Alert when cluster drifts (machine degradation)
 
 **Evaluation:**
+
 - **Precision**: % of flagged products that are true defects
 - **Recall**: % of true defects that are flagged
 - **Cost analysis**: False positive cost (wasted product) vs false negative cost (recalls)
@@ -177,6 +188,7 @@ Traditional risk models use scores (credit score, financial ratios):
 - Default risk = f(debt-to-income ratio, assets)
 
 **Limitations:**
+
 - Linear models miss complex interactions
 - Sparse data for new entities (thin credit files)
 - Cannot capture network effects (company relationships, supply chain risk)
@@ -191,24 +203,28 @@ Traditional risk models use scores (credit score, financial ratios):
 ## Risk Assessment Best Practices
 
 **Features:**
+
 - **Financial ratios**: Debt-to-income, debt-to-equity, liquidity ratios
 - **Behavioral**: Payment history, transaction patterns, volatility
 - **Network**: Relationships, supply chain dependencies, contagion risk
 - **Macroeconomic**: Industry trends, economic indicators
 
 **Modeling:**
+
 - **Multi-task learning**: Jointly predict default, delinquency, prepayment
 - **Temporal**: Time-varying embeddings (risk changes over time)
 - **Explainability**: SHAP values for regulatory compliance
 - **Calibration**: Predicted probabilities match observed frequencies
 
 **Production:**
+
 - **Real-time**: Score loan applications in seconds
 - **Batch**: Portfolio risk assessment overnight
 - **Monitoring**: Track model drift (economic conditions change)
 - **Backtesting**: Validate on historical defaults
 
 **Fairness:**
+
 - **Protected attributes**: Avoid bias on race, gender, age
 - **Disparate impact**: Equal false positive rates across groups
 - **Regulatory compliance**: Fair lending laws (ECOA, FCRA)
@@ -241,6 +257,7 @@ Users exhibit consistent patterns:
 ## Behavioral Anomaly Best Practices
 
 **Features:**
+
 - **Temporal**: Time of day, day of week, session duration
 - **Spatial**: Location (IP geolocation), VPN usage
 - **Device**: Browser, OS, screen resolution (fingerprinting)
@@ -248,18 +265,21 @@ Users exhibit consistent patterns:
 - **Velocity**: Actions per minute, data transferred
 
 **Modeling:**
+
 - **Per-user baselines**: Each user has unique normal behavior
 - **LSTM**: Sequential modeling of user actions
 - **Autoencoder**: Reconstruct behavior, high error = anomaly
 - **Peer groups**: Compare to similar users (same role)
 
 **Production:**
+
 - **Real-time**: Flag suspicious sessions immediately
 - **Progressive authentication**: Challenge anomalous sessions (2FA, security questions)
 - **Adaptive baselines**: Update with confirmed normal behavior
 - **False positive management**: Avoid blocking legitimate users
 
 **Challenges:**
+
 - **Cold start**: New users have no baseline
 - **Concept drift**: Behavior changes over time (new role, new tools)
 - **Adversarial**: Attackers mimic normal behavior (slow compromise)

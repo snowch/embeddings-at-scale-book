@@ -266,11 +266,13 @@ Federated training:
 ## Federated Learning vs. Centralized
 
 **Use federated learning when:**
+
 - Data cannot be centralized (privacy, regulations, size)
 - Multiple organizations want to collaborate without sharing data
 - Data is naturally distributed (mobile devices, edge servers)
 
 **Use centralized learning when:**
+
 - Data can be legally and practically centralized
 - Single organization owns all data
 - Communication costs are prohibitive

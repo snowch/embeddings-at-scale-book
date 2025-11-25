@@ -30,18 +30,21 @@ Traditional business rules face limitations:
 ## Embedding-Driven Business Rules Best Practices
 
 **Architecture:**
+
 - **Entity encoders**: Learn embeddings that predict outcomes
 - **Case-based reasoning**: Retrieve similar historical cases
 - **Hybrid systems**: Combine learned patterns + explicit rules
 - **Explainability**: Surface similar cases that influenced decision
 
 **Training:**
+
 - **Metric learning**: Entities with similar outcomes close in embedding space
 - **Multi-task**: Predict multiple outcomes jointly (default, LTV, churn)
 - **Temporal**: Weight recent cases higher (concept drift)
 - **Fairness**: Constrain to prevent disparate impact
 
 **Production:**
+
 - **Low latency**: <100ms for real-time decisions (credit cards, pricing)
 - **Confidence thresholds**: Route low-confidence to humans
 - **Rule compliance**: Hard constraints for regulations
@@ -49,6 +52,7 @@ Traditional business rules face limitations:
 - **Feedback loops**: Continuously add outcomes to case database
 
 **Challenges:**
+
 - **Cold start**: No historical cases for new scenarios
 - **Distribution shift**: Decisions change underlying distribution
 - **Adversarial**: Bad actors game the system
@@ -78,24 +82,28 @@ Traditional pricing approaches:
 ## Dynamic Pricing Best Practices
 
 **Demand modeling:**
+
 - **Price elasticity**: Encode in customer embedding (price sensitivity)
 - **Competitive response**: Monitor competitor prices, adjust accordingly
 - **Temporal patterns**: Time-of-day, day-of-week, seasonality
 - **Inventory pressure**: Increase discount as stock ages
 
 **Optimization:**
+
 - **Expected profit**: price × P(purchase | price) × (price - cost)
 - **Multi-objective**: Balance revenue, margin, market share
 - **Constraints**: Minimum margin, maximum discount, price stability
 - **A/B testing**: Randomized experiments to measure elasticity
 
 **Production:**
+
 - **Real-time**: Recompute prices as conditions change (hourly/daily)
 - **Personalization**: Different prices for different customer segments
 - **Fairness**: Avoid discriminatory pricing (same price for same features)
 - **Transparency**: Explain price changes to customers when asked
 
 **Challenges:**
+
 - **Strategic behavior**: Customers learn to wait for discounts
 - **Fairness**: Personalized pricing can seem unfair
 - **Complexity**: Many factors interact non-linearly
@@ -124,24 +132,28 @@ Traditional approaches:
 ## Supply Chain Optimization Best Practices
 
 **Embeddings:**
+
 - **Facility embeddings**: Location, capacity, costs, performance history
 - **Product embeddings**: Size, weight, fragility, demand patterns
 - **Route embeddings**: Distance, reliability, transit time, cost
 - **Graph embeddings**: Supply chain as graph, learn relationships
 
 **Optimization:**
+
 - **Multi-objective**: Minimize cost, meet service levels, balance inventory
 - **Constraints**: Capacity, inventory, service level agreements
 - **Uncertainty**: Demand variability, transit delays, supply disruptions
 - **Temporal**: Seasonal patterns, day-of-week effects
 
 **Production:**
+
 - **Real-time**: Optimize as orders arrive (milliseconds to seconds)
 - **Batch**: Optimize daily/weekly for inventory allocation
 - **Simulation**: Test policies on historical data
 - **Continuous learning**: Update embeddings as costs/patterns change
 
 **Challenges:**
+
 - **Complexity**: Many interacting factors (costs, capacity, demand)
 - **Uncertainty**: Demand forecasting errors, supply disruptions
 - **Strategic behavior**: Bullwhip effect (amplification up supply chain)
@@ -170,24 +182,28 @@ Traditional approaches:
 ## Risk Scoring Best Practices
 
 **Features:**
+
 - **Traditional**: Credit score, income, debt, delinquencies
 - **Alternative**: Rent payments, utility bills, education, employment
 - **Behavioral**: Transaction patterns, app usage, social connections
 - **External**: Economic indicators, industry trends, local market
 
 **Modeling:**
+
 - **Multi-task**: Predict multiple risk types (default, prepayment, fraud)
 - **Survival analysis**: Time-to-event modeling (months until default)
 - **Calibration**: Ensure predicted probabilities match empirical rates
 - **Fairness**: Monitor for disparate impact on protected classes
 
 **Production:**
+
 - **Explainability**: SHAP values, feature importance for lending decisions
 - **Monitoring**: Track actual default rates vs predictions
 - **Adverse action**: Provide reasons for credit denials (FCRA compliance)
 - **Continuous learning**: Retrain as outcomes observed
 
 **Challenges:**
+
 - **Class imbalance**: Defaults are rare (1-5% of loans)
 - **Long feedback loops**: Takes months/years to observe outcomes
 - **Fairness**: Alternative data may encode demographic proxies
@@ -216,6 +232,7 @@ Traditional approaches:
 ## Predictive Maintenance Best Practices
 
 **Data sources:**
+
 - **Sensors**: Temperature, vibration, pressure, current, acoustics
 - **Images**: Visual inspection photos, thermal imaging
 - **Audio**: Equipment sounds (bearing noise, motor hum)
@@ -223,6 +240,7 @@ Traditional approaches:
 - **Operating conditions**: Load, speed, environment
 
 **Modeling:**
+
 - **LSTM**: Sequential sensor data modeling
 - **Autoencoder**: Anomaly detection via reconstruction error
 - **Survival analysis**: Time-to-failure prediction
@@ -230,6 +248,7 @@ Traditional approaches:
 - **Transfer learning**: Pre-train on similar equipment
 
 **Production:**
+
 - **Real-time monitoring**: Continuous sensor data processing
 - **Alerting**: Notify when failure probability exceeds threshold
 - **Scheduling**: Integrate with maintenance management system
@@ -237,6 +256,7 @@ Traditional approaches:
 - **Edge deployment**: On-device inference for low latency
 
 **Challenges:**
+
 - **Rare failures**: Limited failure examples for training
 - **Heterogeneous equipment**: Many equipment types, hard to generalize
 - **Sensor drift**: Sensors degrade over time, need calibration

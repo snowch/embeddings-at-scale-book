@@ -30,6 +30,7 @@ Traditional drug discovery faces limitations:
 ## Drug Discovery Best Practices
 
 **Molecular representation:**
+
 - **SMILES**: String representation, simple but lossy
 - **Graph neural networks**: Preserve molecular structure (atoms=nodes, bonds=edges)
 - **3D conformers**: Include spatial information for binding prediction
@@ -37,6 +38,7 @@ Traditional drug discovery faces limitations:
 - **Transfer learning**: Pre-train on ChEMBL, PubChem (millions of molecules)
 
 **Target representation:**
+
 - **Sequence**: Amino acid sequence (ESM, ProtTrans models)
 - **Structure**: 3D protein structure if available (AlphaFold predictions)
 - **Binding site**: Focus on active site residues
@@ -44,6 +46,7 @@ Traditional drug discovery faces limitations:
 - **Evolutionary**: Multiple sequence alignment information
 
 **Training strategies:**
+
 - **Multi-task learning**: Predict binding, toxicity, solubility jointly
 - **Contrastive learning**: Similar molecules (by scaffold) close in embedding space
 - **Active learning**: Iteratively test promising candidates, retrain
@@ -51,6 +54,7 @@ Traditional drug discovery faces limitations:
 - **Data augmentation**: SMILES randomization, conformer sampling
 
 **Production:**
+
 - **Chemical validity**: Ensure generated molecules are synthesizable
 - **Synthetic accessibility**: Score ease of synthesis
 - **Explainability**: Highlight substructures driving predictions
@@ -58,6 +62,7 @@ Traditional drug discovery faces limitations:
 - **Experimental validation**: Physical testing of top candidates
 
 **Challenges:**
+
 - **Data scarcity**: Limited labeled data for rare targets
 - **Extrapolation**: Models must generalize to novel chemical space
 - **Multi-objective**: Balance efficacy, safety, druglikeness
@@ -89,6 +94,7 @@ Traditional medical image analysis faces limitations:
 ## Medical Imaging Best Practices
 
 **Image pre-processing:**
+
 - **Normalization**: Standardize intensities (important for different scanners)
 - **Augmentation**: Rotation, flipping, scaling for robustness
 - **Windowing**: Adjust contrast for different tissue types
@@ -96,6 +102,7 @@ Traditional medical image analysis faces limitations:
 - **Temporal**: Include prior images for comparison
 
 **Multi-modal fusion:**
+
 - **Early fusion**: Combine raw inputs before encoding
 - **Late fusion**: Combine encoded representations
 - **Attention**: Learn to weight different modalities dynamically
@@ -103,6 +110,7 @@ Traditional medical image analysis faces limitations:
 - **Hierarchical**: Fuse at multiple scales
 
 **Clinical integration:**
+
 - **PACS integration**: Connect to hospital imaging systems
 - **Worklist prioritization**: Flag urgent cases
 - **Structured reporting**: Generate formatted radiology reports
@@ -110,6 +118,7 @@ Traditional medical image analysis faces limitations:
 - **Continuous learning**: Learn from corrections
 
 **Regulatory & ethics:**
+
 - **FDA clearance**: Medical device approval for diagnostic use
 - **Validation**: Prospective clinical trials
 - **Bias monitoring**: Check performance across demographics
@@ -117,6 +126,7 @@ Traditional medical image analysis faces limitations:
 - **Explainability**: Saliency maps, attention visualization
 
 **Challenges:**
+
 - **Data heterogeneity**: Different scanners, protocols, institutions
 - **Label noise**: Inter-radiologist disagreement
 - **Distribution shift**: Performance degrades on external data
@@ -148,6 +158,7 @@ Traditional clinical trial design faces limitations:
 ## Clinical Trial Optimization Best Practices
 
 **Patient selection:**
+
 - **Enrichment**: Identify patients most likely to respond
 - **Biomarker-driven**: Use genomic/proteomic markers
 - **Synthetic control arms**: Historical data for comparison
@@ -155,6 +166,7 @@ Traditional clinical trial design faces limitations:
 - **Diversity**: Ensure representative enrollment across demographics
 
 **Adaptive designs:**
+
 - **Response-adaptive**: Allocate more patients to better arms
 - **Dose-finding**: Identify optimal dose during trial
 - **Seamless Phase I/II**: Transition smoothly between phases
@@ -162,6 +174,7 @@ Traditional clinical trial design faces limitations:
 - **Platform trials**: Multiple drugs in single trial infrastructure
 
 **Outcome prediction:**
+
 - **Surrogate endpoints**: Early biomarkers predicting long-term outcomes
 - **Dropout prediction**: Retain high-risk patients
 - **Subgroup analysis**: Identify responder subpopulations
@@ -169,6 +182,7 @@ Traditional clinical trial design faces limitations:
 - **Composite endpoints**: Combine multiple outcomes
 
 **Production considerations:**
+
 - **Regulatory approval**: FDA/EMA acceptance of adaptive designs
 - **Real-time analysis**: Automated interim analysis
 - **Data monitoring committees**: Independent oversight
@@ -176,6 +190,7 @@ Traditional clinical trial design faces limitations:
 - **Statistical rigor**: Control type I error rate
 
 **Challenges:**
+
 - **Operational complexity**: Adaptive designs harder to execute
 - **Statistical challenges**: Multiple testing, bias
 - **Regulatory uncertainty**: Novel designs face scrutiny
@@ -207,6 +222,7 @@ Traditional treatment selection faces limitations:
 ## Personalized Treatment Best Practices
 
 **Patient representation:**
+
 - **Multi-modal**: Genomics + clinical + imaging + lifestyle
 - **Temporal**: Incorporate disease trajectory, not just current state
 - **Hierarchical**: Capture features at multiple levels (molecular, organ, system)
@@ -214,6 +230,7 @@ Traditional treatment selection faces limitations:
 - **Privacy**: De-identification, differential privacy
 
 **Similarity matching:**
+
 - **Weighted similarity**: Not all features equally important
 - **Subpopulation discovery**: Identify patient subtypes
 - **Dynamic similarity**: Similarity changes with disease progression
@@ -221,6 +238,7 @@ Traditional treatment selection faces limitations:
 - **Diversity**: Include diverse matches, not just most similar
 
 **Causal inference:**
+
 - **Confounding adjustment**: Propensity score matching, inverse probability weighting
 - **Counterfactual prediction**: What would have happened with different treatment?
 - **Instrumental variables**: Handle unmeasured confounding
@@ -228,6 +246,7 @@ Traditional treatment selection faces limitations:
 - **RCT data prioritization**: Give higher weight to randomized evidence
 
 **Clinical integration:**
+
 - **Decision support**: Integrate into EMR workflow
 - **Explainability**: Show similar patients and reasoning
 - **Override**: Allow physician to override recommendation
@@ -235,6 +254,7 @@ Traditional treatment selection faces limitations:
 - **Continuous updates**: Update recommendations as new evidence emerges
 
 **Challenges:**
+
 - **Data quality**: Heterogeneous data sources, missing data
 - **Selection bias**: Historical data not randomized
 - **Generalization**: External validity to new populations
@@ -266,6 +286,7 @@ Traditional epidemic models face limitations:
 ## Epidemic Modeling Best Practices
 
 **Data sources:**
+
 - **Case data**: Confirmed cases, hospitalizations, deaths
 - **Mobility data**: Cell phone data, transit ridership (aggregated, privacy-preserving)
 - **Contact patterns**: Social mixing matrices by age/location
@@ -273,6 +294,7 @@ Traditional epidemic models face limitations:
 - **Behavioral data**: Compliance with interventions, vaccine uptake
 
 **Modeling approaches:**
+
 - **Compartmental models**: SEIR variants for population-level dynamics
 - **Agent-based models**: Individual-level simulation for heterogeneity
 - **Metapopulation models**: Multiple connected populations
@@ -280,6 +302,7 @@ Traditional epidemic models face limitations:
 - **Machine learning**: Data-driven forecasting, hybrid physics-ML
 
 **Intervention optimization:**
+
 - **Cost-effectiveness**: Deaths/cases averted per dollar spent
 - **Multi-objective**: Balance health, economic, social impacts
 - **Equity**: Ensure interventions don't exacerbate disparities
@@ -287,6 +310,7 @@ Traditional epidemic models face limitations:
 - **Combination effects**: Synergies between interventions
 
 **Production:**
+
 - **Real-time forecasting**: Daily/weekly forecast updates
 - **Uncertainty quantification**: Confidence intervals, scenario planning
 - **Ensemble models**: Combine multiple models for robustness
@@ -294,6 +318,7 @@ Traditional epidemic models face limitations:
 - **Communication**: Clear visualization for policymakers
 
 **Challenges:**
+
 - **Data quality**: Incomplete reporting, testing biases
 - **Behavioral responses**: People change behavior in response to forecasts
 - **Novel pathogens**: Limited prior data for new diseases

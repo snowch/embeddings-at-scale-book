@@ -52,18 +52,21 @@ One of the most critical architectural decisions for embedding systems is **when
 ## Choosing the Right Strategy
 
 **Use batch processing when:**
+
 - Entity changes are infrequent (daily/weekly updates)
 - Dataset is large but manageable (millions to billions)
 - Latency requirements are relaxed (seconds acceptable)
 - Cost optimization is critical
 
 **Use real-time generation when:**
+
 - Freshness is critical (sub-second requirements)
 - Entities are transient (search queries, sessions)
 - Personalization is required (user-specific embeddings)
 - Dataset is small (thousands to millions)
 
 **Use hybrid approach when:**
+
 - Mixed entity types with different requirements
 - Need both cost efficiency and freshness
 - Serving 100M+ requests/day across diverse use cases

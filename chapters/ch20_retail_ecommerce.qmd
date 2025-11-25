@@ -32,6 +32,7 @@ Traditional product search faces limitations:
 ## Product Discovery Best Practices
 
 **Data preparation:**
+
 - **Multi-modal alignment**: Ensure images and text describe same product
 - **Image quality**: Multiple views (front, side, detail), consistent backgrounds
 - **Text normalization**: Standardize product titles, expand abbreviations
@@ -39,6 +40,7 @@ Traditional product search faces limitations:
 - **Review mining**: Extract product aspects from customer reviews
 
 **Modeling:**
+
 - **Pre-training**: Use ImageNet for images, product corpus for text
 - **Contrastive learning**: (query, clicked product) positive, (query, skipped product) negative
 - **Hard negatives**: Products with similar text but different visual style
@@ -46,6 +48,7 @@ Traditional product search faces limitations:
 - **Cross-modal**: Image query → text results, text query → image results
 
 **Production:**
+
 - **Indexing**: FAISS/ScaNN for billion-scale ANN search
 - **Freshness**: New products indexed in real-time (<1 second)
 - **Personalization**: Adapt query embedding to user preferences
@@ -53,6 +56,7 @@ Traditional product search faces limitations:
 - **A/B testing**: Measure impact on CTR, conversion, revenue
 
 **Challenges:**
+
 - **Cold start**: New products with no behavioral data
 - **Seasonal drift**: "jacket" means different things in summer vs winter
 - **Regional variation**: Terminology differs by geography, language
@@ -83,6 +87,7 @@ Visual product search faces unique challenges:
 ## Visual Search Best Practices
 
 **Data preparation:**
+
 - **Multi-view images**: Front, side, back, detail shots for each product
 - **Consistent quality**: Standardize catalog photos (lighting, background, resolution)
 - **User photo collection**: Gather real user-uploaded images for training
@@ -90,6 +95,7 @@ Visual product search faces unique challenges:
 - **Object detection**: Annotate bounding boxes to focus on product
 
 **Modeling:**
+
 - **Pre-training**: ImageNet, fashion-specific datasets (DeepFashion)
 - **Metric learning**: Triplet loss with hard negative mining
 - **Multi-task**: Visual similarity + category + attributes
@@ -97,6 +103,7 @@ Visual product search faces unique challenges:
 - **Style disentanglement**: Separate color, pattern, shape, material
 
 **Production:**
+
 - **Mobile optimization**: Support various aspect ratios, low-resolution
 - **Real-time encoding**: <200ms for uploaded images
 - **Object detection**: Segment products from backgrounds
@@ -104,6 +111,7 @@ Visual product search faces unique challenges:
 - **Explainability**: Show matched attributes (color, pattern, style)
 
 **Challenges:**
+
 - **Lighting invariance**: Same product looks different in different lighting
 - **Pose variation**: Products at different angles
 - **Occlusion**: Partial views, items blocking each other
@@ -135,6 +143,7 @@ Traditional inventory management faces limitations:
 ## Inventory Optimization Best Practices
 
 **Data preparation:**
+
 - **Historical demand**: Clean sales data (remove stockouts, promotions)
 - **Product hierarchy**: Category → subcategory → brand → SKU
 - **External factors**: Weather, events, competitor pricing, trends
@@ -142,6 +151,7 @@ Traditional inventory management faces limitations:
 - **Supply chain**: Lead times, supplier reliability, minimum order quantities
 
 **Modeling:**
+
 - **Transfer learning**: Similar products share demand patterns
 - **Hierarchical forecasting**: Top-down (category) + bottom-up (SKU)
 - **Multi-task**: Demand + stockout probability + markdown risk
@@ -149,6 +159,7 @@ Traditional inventory management faces limitations:
 - **Regime detection**: Identify demand pattern changes (trending, seasonal)
 
 **Production:**
+
 - **Scale**: Millions of SKUs × thousands of locations
 - **Freshness**: Daily forecast updates with latest sales
 - **Cold start**: Immediate forecasts for new products
@@ -156,6 +167,7 @@ Traditional inventory management faces limitations:
 - **Integration**: Forecasts → ordering systems → fulfillment
 
 **Challenges:**
+
 - **Sparse demand**: Long-tail SKUs have intermittent sales
 - **Promotion effects**: Discounts create demand spikes
 - **Substitution**: Stockouts shift demand to alternatives
@@ -187,6 +199,7 @@ Traditional journey analytics face limitations:
 ## Customer Journey & Hyperpersonalization Best Practices
 
 **Data collection:**
+
 - **Event tracking**: Capture all interactions (views, clicks, time spent)
 - **Cross-device**: Link sessions across devices via login, fingerprinting
 - **Multi-channel**: Web, mobile app, email, ads, in-store
@@ -194,6 +207,7 @@ Traditional journey analytics face limitations:
 - **Privacy**: Anonymize PII, respect GDPR/CCPA, allow opt-out
 
 **Modeling:**
+
 - **Sequential models**: LSTM/Transformer for action sequences
 - **Attention mechanisms**: Learn which past actions predict future
 - **Multi-task learning**: Stage + conversion + next action + friction
@@ -201,6 +215,7 @@ Traditional journey analytics face limitations:
 - **Real-time updating**: Stream new actions, update embeddings incrementally
 
 **Hyper-personalization:**
+
 - **Individual-level**: Not segments, actual individual behavior
 - **Real-time**: Adapt during session, not batch overnight
 - **Multi-dimensional**: Content, layout, pricing, timing, channel
@@ -208,6 +223,7 @@ Traditional journey analytics face limitations:
 - **A/B testing**: Continuous testing of personalization strategies
 
 **Production:**
+
 - **Low latency**: <50ms end-to-end for real-time personalization
 - **Streaming**: Process events as they arrive, update embeddings live
 - **Scalability**: Millions of concurrent sessions
@@ -215,6 +231,7 @@ Traditional journey analytics face limitations:
 - **Privacy**: On-device processing where possible, secure data handling
 
 **Challenges:**
+
 - **Cold start**: New users with no history
 - **Sparse data**: Many users have few interactions
 - **Concept drift**: User preferences change over time
@@ -246,6 +263,7 @@ Traditional catalog management faces limitations:
 ## Dynamic Catalog Management Best Practices
 
 **Data sources:**
+
 - **Behavioral**: Co-purchase, co-view, cart patterns, substitution
 - **Content**: Product attributes, descriptions, images
 - **Performance**: Sales, margin, conversion, returns
@@ -253,6 +271,7 @@ Traditional catalog management faces limitations:
 - **External**: Trends, seasonality, competitor pricing, social media
 
 **Modeling:**
+
 - **Graph neural networks**: Product relationship graphs
 - **Temporal models**: Track trends over time
 - **Clustering**: Discover natural product groups
@@ -260,6 +279,7 @@ Traditional catalog management faces limitations:
 - **Transfer learning**: Apply successful patterns across categories
 
 **Production:**
+
 - **Scale**: Millions of products, billions of relationships
 - **Freshness**: Daily updates to relationships, trends
 - **Explainability**: Why these products go together?
@@ -267,6 +287,7 @@ Traditional catalog management faces limitations:
 - **A/B testing**: Validate automated decisions
 
 **Challenges:**
+
 - **Cold start**: New products with no behavioral data
 - **Seasonality**: Relationships change seasonally (winter coats + boots)
 - **Trend timing**: Early detection vs false positives

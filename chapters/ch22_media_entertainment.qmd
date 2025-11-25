@@ -33,6 +33,7 @@ Traditional recommendation systems face limitations:
 ## Content Recommendation Best Practices
 
 **Multi-modal fusion:**
+
 - **Video**: 3D CNN (C3D, I3D) or Video Transformer (ViViT, TimeSformer)
 - **Audio**: Wav2Vec, Audio Spectrogram Transformer for mood/intensity
 - **Text**: BERT for metadata, subtitles, closed captions
@@ -40,6 +41,7 @@ Traditional recommendation systems face limitations:
 - **Contextual**: Time-of-day, device, session state
 
 **Training strategies:**
+
 - **Contrastive learning**: InfoNCE loss with in-batch negatives
 - **Hard negative mining**: Content same genre but not watched
 - **Multi-task learning**: Watch time + completion + engagement
@@ -47,6 +49,7 @@ Traditional recommendation systems face limitations:
 - **Cold start**: Content-based embeddings for new items
 
 **Production deployment:**
+
 - **Two-tower architecture**: Separate content/user encoding for efficient retrieval
 - **ANN indexing**: HNSW, IVF for <50ms retrieval at 100M+ scale
 - **Online updates**: Continual learning from viewing sessions
@@ -54,6 +57,7 @@ Traditional recommendation systems face limitations:
 - **Explainability**: Attention weights show which content features drive recommendations
 
 **Challenges:**
+
 - **Filter bubbles**: Explore-exploit trade-off, diversity injection
 - **Popularity bias**: New/niche content needs explicit boosting
 - **Multi-objective**: Balance engagement, diversity, business goals
@@ -87,6 +91,7 @@ Manual content tagging faces limitations:
 ## Automated Content Tagging Best Practices
 
 **Multi-modal analysis:**
+
 - **Visual**: Frame-level object detection, scene classification, action recognition
 - **Audio**: Sound events, music genre, speech characteristics, ambient sounds
 - **Text**: ASR transcripts, OCR, closed captions, metadata
@@ -94,6 +99,7 @@ Manual content tagging faces limitations:
 - **Contextual**: Content type (movie, documentary, sports), target audience
 
 **Tag taxonomy design:**
+
 - **Hierarchical structure**: Genre → subgenre → specific themes
 - **Multiple dimensions**: Genre, mood, setting, theme, style, era, audience
 - **Granularity balance**: 500-5,000 tags (too few = imprecise, too many = sparse)
@@ -101,6 +107,7 @@ Manual content tagging faces limitations:
 - **Versioning**: Taxonomy evolves with content trends
 
 **Model architectures:**
+
 - **Video**: 3D CNN (C3D, I3D), Video Transformer (TimeSformer, ViViT)
 - **Audio**: CNN on mel spectrograms, Audio Transformer (AST)
 - **Text**: BERT, RoBERTa for transcript/metadata analysis
@@ -108,6 +115,7 @@ Manual content tagging faces limitations:
 - **Zero-shot**: CLIP for arbitrary visual concepts without retraining
 
 **Production deployment:**
+
 - **Batch processing**: Offline analysis of content library
 - **Real-time tagging**: <1 minute for user uploads
 - **Quality control**: Human validation for low-confidence predictions
@@ -115,6 +123,7 @@ Manual content tagging faces limitations:
 - **Continuous improvement**: Retrain on validated corrections
 
 **Challenges:**
+
 - **Long-tail concepts**: Rare tags with few training examples
 - **Subjectivity**: Mood, theme, tone are subjective
 - **Context dependence**: Same scene means different things in different contexts
@@ -148,6 +157,7 @@ Traditional IP protection faces limitations:
 ## IP Protection Best Practices
 
 **Fingerprinting techniques:**
+
 - **Video**: Perceptual hashing robust to compression, cropping, color adjustment
 - **Audio**: Acoustic fingerprinting (constellation maps, like Shazam)
 - **Temporal**: Segment-level fingerprints for clip detection
@@ -155,6 +165,7 @@ Traditional IP protection faces limitations:
 - **Hierarchical**: Coarse-to-fine matching for efficiency
 
 **Robustness requirements:**
+
 - **Compression**: H.264, H.265, VP9, AV1 codecs
 - **Resolution**: 240p to 4K, different aspect ratios
 - **Cropping**: Borders, letterboxing, cropping up to 30%
@@ -165,6 +176,7 @@ Traditional IP protection faces limitations:
 - **Audio**: Pitch shift, volume, background noise
 
 **System architecture:**
+
 - **Ingestion**: Fingerprint protected content on release
 - **Monitoring**: Scan uploads across platforms in real-time
 - **Matching**: ANN search across 100M+ fingerprints <100ms
@@ -173,6 +185,7 @@ Traditional IP protection faces limitations:
 - **Reporting**: Dashboard for rights holders to track infringement
 
 **Legal and policy:**
+
 - **Fair use**: Allow transformative works, commentary, parody
 - **Counter-notification**: Process for disputed takedowns
 - **Territorial rights**: Enforce only in relevant territories
@@ -181,6 +194,7 @@ Traditional IP protection faces limitations:
 - **Appeals**: Human review for disputed matches
 
 **Challenges:**
+
 - **Evasion**: Adversaries constantly try new transformations
 - **False positives**: Similar but non-infringing content
 - **Fair use**: Distinguishing infringement from legitimate use
@@ -215,6 +229,7 @@ Demographic targeting faces limitations:
 ## Audience Analysis Best Practices
 
 **Behavioral signal collection:**
+
 - **Viewing history**: Content watched, completion rates, watch time
 - **Engagement signals**: Pause/rewind, likes, shares, saves
 - **Temporal patterns**: Time of day, day of week, seasonal trends
@@ -223,6 +238,7 @@ Demographic targeting faces limitations:
 - **Cross-platform**: Link behavior across devices
 
 **Embedding architectures:**
+
 - **Sequential models**: LSTM/Transformer for viewing sequences
 - **Attention mechanisms**: Weight recent behavior more heavily
 - **Multi-task learning**: Predict engagement, ad response, churn
@@ -231,6 +247,7 @@ Demographic targeting faces limitations:
 - **Context awareness**: Adapt embeddings by time, device, situation
 
 **Micro-segmentation:**
+
 - **Clustering**: K-means, hierarchical, DBSCAN on embeddings
 - **Segment size**: 1,000-50,000 viewers per micro-segment
 - **Interpretability**: Characterize segments by behavior patterns
@@ -239,6 +256,7 @@ Demographic targeting faces limitations:
 - **Hierarchy**: Nest micro-segments within macro-segments
 
 **Ad targeting:**
+
 - **Viewer-ad matching**: Predict response from embeddings
 - **Real-time selection**: <50ms ad selection during playback
 - **Multi-objective**: Balance relevance, diversity, revenue
@@ -247,6 +265,7 @@ Demographic targeting faces limitations:
 - **A/B testing**: Continuously optimize targeting
 
 **Privacy and compliance:**
+
 - **No PII**: Only behavioral signals, no names/emails/addresses
 - **Aggregation**: Segments ≥1,000 viewers minimum
 - **Consent**: Clear opt-in for behavioral targeting
@@ -255,6 +274,7 @@ Demographic targeting faces limitations:
 - **Regulation**: GDPR, CCPA, COPPA compliance
 
 **Challenges:**
+
 - **Cold start**: New viewers with no history
 - **Multi-device**: Link behavior across devices
 - **Temporal dynamics**: Preferences change over time
@@ -289,6 +309,7 @@ Manual content creation faces limitations:
 ## Creative Content Generation Best Practices
 
 **Content understanding:**
+
 - **Scene segmentation**: Shot boundaries, scene transitions, sequences
 - **Saliency detection**: Predict viewer engagement, key moments
 - **Emotional arc**: Track narrative emotional trajectory
@@ -297,6 +318,7 @@ Manual content creation faces limitations:
 - **Audio analysis**: Music, dialogue, sound effects, pacing
 
 **Generation techniques:**
+
 - **Clip extraction**: Select high-saliency segments for target duration
 - **Trailer composition**: Build emotional arc (setup → tension → climax)
 - **Highlight reels**: Identify peak moments in sports, performances
@@ -305,6 +327,7 @@ Manual content creation faces limitations:
 - **Style transfer**: Adapt aesthetics while preserving content
 
 **Quality control:**
+
 - **Human-in-the-loop**: Editors review and refine AI suggestions
 - **Quality metrics**: Ensure technical quality (resolution, audio levels)
 - **Brand consistency**: Maintain creator/brand voice and standards
@@ -313,6 +336,7 @@ Manual content creation faces limitations:
 - **Feedback loop**: Learn from editor acceptance/rejection
 
 **Production integration:**
+
 - **Non-destructive**: Suggestions don't modify source content
 - **Editor interface**: Present suggestions in familiar editing tools
 - **Rapid iteration**: Generate multiple variants quickly
@@ -321,6 +345,7 @@ Manual content creation faces limitations:
 - **Export options**: Render in multiple formats and resolutions
 
 **Use cases:**
+
 - **Trailers**: Teasers, theatrical, TV spots
 - **Social media**: TikTok, Instagram Reels, YouTube Shorts
 - **Highlights**: Sports, concerts, live events
@@ -329,6 +354,7 @@ Manual content creation faces limitations:
 - **Personalization**: Different edits for different demographics
 
 **Challenges:**
+
 - **Artistic judgment**: AI can't replace human creativity
 - **Context understanding**: Complex narratives, subtle themes
 - **Rights clearance**: Generated clips must respect licensing
