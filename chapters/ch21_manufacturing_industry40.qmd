@@ -43,7 +43,7 @@ Traditional quality inspection faces limitations:
 
 - **Temporal models**: LSTMs, transformers, temporal CNNs for time-series
 - **Anomaly detection**: Isolation forests, autoencoders for novelty detection
-- **Transfer learning**: Pre-train on similar processes, fine-tune per machine
+- **Transfer learning**: Pre-train on similar processes, fine-tune per machine (see @sec-custom-embedding-strategies)
 - **Multi-task learning**: Predict multiple defect types simultaneously
 - **Uncertainty quantification**: Confidence scores for decision support
 
@@ -157,7 +157,7 @@ Traditional equipment management faces limitations:
 
 - **Survival analysis**: Weibull, Cox proportional hazards for RUL prediction
 - **Temporal models**: LSTMs, transformers for degradation trajectories
-- **Transfer learning**: Pre-train on similar equipment, fine-tune per machine
+- **Transfer learning**: Pre-train on similar equipment, fine-tune per machine (see @sec-custom-embedding-strategies)
 - **Physics-informed**: Incorporate domain knowledge (bearing wear equations)
 - **Reinforcement learning**: Optimize maintenance timing and scheduling
 

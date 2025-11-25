@@ -98,7 +98,7 @@ Traditional credit scoring faces limitations:
 - **Sequential models**: LSTM over transaction/payment history
 - **Graph neural networks**: Capture network effects
 - **Calibration**: Well-calibrated probabilities for pricing
-- **Transfer learning**: Pre-train on large datasets
+- **Transfer learning**: Pre-train on large datasets (see @sec-custom-embedding-strategies for guidance on choosing the right level of customization)
 
 **Production:**
 
@@ -216,7 +216,7 @@ Traditional customer analytics faces limitations:
 - **Lifecycle modeling**: Map embeddings to stages (acquisition, growth, mature, at-risk, churned)
 - **Propensity models**: Predict churn, cross-sell, upsell
 - **Clustering**: Discover natural segments via K-means on embeddings
-- **Transfer learning**: Pre-train on all customers, fine-tune per product
+- **Transfer learning**: Pre-train on all customers, fine-tune per product (see @sec-custom-embedding-strategies)
 
 **Production:**
 
@@ -267,7 +267,7 @@ Traditional sentiment analysis faces limitations:
 
 **Modeling:**
 
-- **Fine-tuning**: Start with financial BERT (FinBERT), fine-tune on outcomes
+- **Fine-tuning**: Start with financial BERT (FinBERT), fine-tune on outcomes (see @sec-custom-embedding-strategies)
 - **Aspect-based**: Extract sentiment toward specific aspects (management, products, outlook)
 - **Multi-source**: Combine news, social, analyst sentiment
 - **Temporal**: Weight recent sentiment higher than old

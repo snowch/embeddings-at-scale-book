@@ -32,7 +32,7 @@ Each modality has unique characteristics:
 
 - **Separate encoders**: Train modality-specific encoders (don't share weights)
 - **Shared embedding space**: Project to common space (512-1024 dim)
-- **Contrastive training**: Align modalities via paired data (image-caption pairs)
+- **Contrastive training**: Align modalities via paired data (image-caption pairs) (see @sec-contrastive-learning)
 - **Late fusion**: Combine scores at query time (more flexible than early fusion)
 
 **Training data:**
@@ -63,7 +63,7 @@ Multi-modal embeddings require **aligned training data**:
 
 - Filter pairs by CLIP score (cosine similarity threshold)
 - Use curated datasets for critical domains
-- Hard negative mining (find hard mismatches to learn from)
+- Hard negative mining (find hard mismatches to learn from) (see @sec-contrastive-learning)
 - Domain-specific fine-tuning (medical, legal, etc.)
 :::
 
@@ -91,9 +91,9 @@ Code has unique properties:
 **Training:**
 
 - **Pre-training**: Use CodeBERT or GraphCodeBERT (pre-trained on GitHub)
-- **Fine-tuning**: Fine-tune on domain-specific code (internal codebase)
+- **Fine-tuning**: Fine-tune on domain-specific code (internal codebase) (see @sec-custom-embedding-strategies for guidance on when to fine-tune vs. train from scratch)
 - **Data augmentation**: Rename variables, reformat code (preserve semantics)
-- **Hard negatives**: Mine hard negatives (similar code, different semantics)
+- **Hard negatives**: Mine hard negatives (similar code, different semantics) (see @sec-contrastive-learning)
 
 **Indexing:**
 
@@ -275,7 +275,7 @@ Traditional knowledge graphs use discrete representations (triples: subject-pred
 
 - **Knowledge graph embeddings enable link prediction and entity resolution**: TransE and related models represent entities and relations as vectors, enabling prediction of missing relationships, merging of duplicate entities, and graph-aware similarity search
 
-- **Semantic search beyond text requires domain-specific encoders**: General-purpose embeddings (CLIP, BERT) provide baseline capabilities, but production systems need fine-tuning on domain-specific data (code repositories, scientific papers, media assets)
+- **Semantic search beyond text requires domain-specific encoders**: General-purpose embeddings (CLIP, BERT) provide baseline capabilities, but production systems need fine-tuning on domain-specific data (code repositories, scientific papers, media assets)—see @sec-custom-embedding-strategies for a decision framework on choosing the right level of customization
 
 - **Search quality depends on training data quality**: Multi-modal alignment requires clean paired data, code search needs accurate code-docstring pairs, and knowledge graphs need high-quality relationship annotations
 

@@ -42,8 +42,8 @@ Traditional recommendation systems face limitations:
 
 **Training strategies:**
 
-- **Contrastive learning**: InfoNCE loss with in-batch negatives
-- **Hard negative mining**: Content same genre but not watched
+- **Contrastive learning**: InfoNCE loss with in-batch negatives (see @sec-contrastive-learning for details on loss functions and hard negative mining strategies)
+- **Hard negative mining**: Content same genre but not watched (see @sec-contrastive-learning)
 - **Multi-task learning**: Watch time + completion + engagement
 - **Temporal modeling**: Sequential viewing patterns (Transformer)
 - **Cold start**: Content-based embeddings for new items
