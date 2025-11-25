@@ -18,6 +18,7 @@ The following cost and quality estimates are rough guidelines based on typical p
 :::
 
 **Level 0: Use Pre-trained, Frozen**
+
 - **Description**: Use off-the-shelf embeddings (OpenAI, Sentence-BERT) without modification
 - **Effort**: Hours
 - **Cost**: $0-$1K/month
@@ -25,6 +26,7 @@ The following cost and quality estimates are rough guidelines based on typical p
 - **Best for**: Proof-of-concepts, generic use cases, rapid prototyping
 
 **Level 1: Prompt Engineering**
+
 - **Description**: Optimize prompts for pre-trained models to better capture domain nuances
 - **Effort**: Days to weeks
 - **Cost**: $1K-$5K/month
@@ -32,6 +34,7 @@ The following cost and quality estimates are rough guidelines based on typical p
 - **Best for**: Specific queries, instruction-based models, low-budget projects
 
 **Level 2: Fine-Tune Last Layers**
+
 - **Description**: Fine-tune final layers of pre-trained model on your domain data
 - **Effort**: Weeks
 - **Cost**: $5K-$25K one-time + ongoing inference
@@ -39,6 +42,7 @@ The following cost and quality estimates are rough guidelines based on typical p
 - **Best for**: Domain adaptation with limited data (10K-100K examples)
 
 **Level 3: Full Model Fine-Tuning**
+
 - **Description**: Fine-tune entire pre-trained model on your data
 - **Effort**: 1-3 months
 - **Cost**: $25K-$150K one-time + ongoing
@@ -46,6 +50,7 @@ The following cost and quality estimates are rough guidelines based on typical p
 - **Best for**: Substantial domain data (100K-10M examples), clear performance gaps
 
 **Level 4: Train From Scratch**
+
 - **Description**: Design and train custom architecture for your specific requirements
 - **Effort**: 6-18 months
 - **Cost**: $500K-$5M+ one-time + ongoing
