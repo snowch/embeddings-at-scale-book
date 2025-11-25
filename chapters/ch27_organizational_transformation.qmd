@@ -167,6 +167,7 @@ Organizations face multiple training challenges when adopting embeddings:
 ### Curriculum Design by Role
 
 **ML Engineer curriculum** (deepest technical):
+
 - **Foundation** (20 hours): Embedding fundamentals, similarity metrics, common models, evaluation
 - **Core techniques** (40 hours): Contrastive learning, fine-tuning, multi-task learning, dimensionality optimization
 - **Production engineering** (40 hours): Pipeline design, distributed training, monitoring, deployment
@@ -174,6 +175,7 @@ Organizations face multiple training challenges when adopting embeddings:
 - **Total**: 140 hours over 6-9 months
 
 **Infrastructure engineer curriculum** (systems focus):
+
 - **Foundation** (16 hours): Vector databases, indexing algorithms, query optimization
 - **Scale** (32 hours): Distributed systems, sharding, replication, global deployment
 - **Performance** (24 hours): Latency optimization, caching, GPU acceleration
@@ -181,6 +183,7 @@ Organizations face multiple training challenges when adopting embeddings:
 - **Total**: 96 hours over 3-6 months
 
 **Product manager curriculum** (application focus):
+
 - **Understanding** (8 hours): What embeddings enable, capabilities and limitations
 - **Application design** (16 hours): Use case identification, UX design, metric definition
 - **Execution** (16 hours): Working with ML teams, A/B testing, measuring impact
@@ -188,6 +191,7 @@ Organizations face multiple training challenges when adopting embeddings:
 - **Total**: 48 hours over 2-4 months
 
 **Business stakeholder curriculum** (strategic):
+
 - **Overview** (4 hours): Embedding revolution, competitive landscape, strategic opportunities
 - **ROI framework** (4 hours): Cost-benefit analysis, measuring business impact
 - **Case studies** (4 hours): Successful deployments, lessons learned
@@ -277,12 +281,14 @@ Organizations must evaluate build-vs-buy systematically across embedding system 
 **Partnership models** for embedding vendors:
 
 **Transactional relationship** (commodity purchases):
+
 - **Characteristics**: Pay-as-you-go pricing, standard terms, minimal vendor engagement
 - **Appropriate for**: Non-strategic components (monitoring, tools), small scale, short-term needs
 - **Advantages**: Flexibility, low commitment, easy to switch
 - **Disadvantages**: No priority support, no roadmap influence, potential price increases
 
 **Strategic partnership** (collaborative relationship):
+
 - **Characteristics**: Joint roadmap planning, dedicated support, volume commitments, custom development
 - **Appropriate for**: Core components, large scale, long-term strategic importance
 - **Advantages**: Influence direction, dedicated resources, better economics, co-innovation

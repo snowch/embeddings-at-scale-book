@@ -68,24 +68,28 @@ Embedding systems face unique security requirements:
 ## Security-Performance Trade-offs
 
 **High Security, Lower Performance** (10-100× overhead):
+
 - Full homomorphic encryption (FHE)
 - All operations on encrypted data
 - Use: Healthcare, financial regulatory data
 - Cost: $10-50 per million queries
 
 **Balanced** (2-5× overhead):
+
 - Intel SGX or AMD SEV
 - Computation in secure enclave
 - Use: Enterprise multi-tenant systems
 - Cost: $1-5 per million queries
 
 **Privacy-Utility Trade-off** (<2× overhead):
+
 - Differential privacy with plaintext computation
 - Add calibrated noise to queries/results
 - Use: Public-facing services, analytics
 - Cost: $0.10-1 per million queries
 
 Choose based on:
+
 - Threat model: Who are you protecting against?
 - Regulatory requirements: HIPAA, PCI-DSS, GDPR?
 - Performance budget: What latency/throughput needed?

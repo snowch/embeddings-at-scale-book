@@ -123,6 +123,7 @@ Traditional recommendation systems update daily or weekly, missing real-time beh
 ### The Real-Time Challenge
 
 User preferences change:
+
 - **Session context**: User browsing for gifts has different intent than personal shopping
 - **Temporal trends**: User interested in Christmas movies in December, not July
 - **Sequential patterns**: User watching action trilogy wants next episode, not random movie
@@ -166,6 +167,7 @@ Purely accuracy-optimized recommenders create **filter bubbles**: users see only
 ### The Diversity Challenge
 
 Accuracy-optimized systems suffer from:
+
 - **Filter bubbles**: Users trapped in narrow content silos
 - **Popularity bias**: Popular items recommended excessively
 - **Homogeneity**: All recommendations similar to each other
@@ -206,6 +208,7 @@ Accuracy-optimized systems suffer from:
 ## Diversity-Accuracy Trade-off
 
 Increasing diversity typically reduces short-term accuracy:
+
 - **MMR (λ=0.5)**: 10-15% accuracy drop, significant diversity gain
 - **Category constraints**: 5-10% accuracy drop, guaranteed representation
 - **Pure exploration**: 30%+ accuracy drop, maximum discovery
@@ -225,6 +228,7 @@ Users interact across multiple domains (products, movies, music), but traditiona
 ### The Cross-Domain Challenge
 
 Challenges of multi-domain systems:
+
 - **Data sparsity**: Some domains have limited interactions (e.g., luxury goods)
 - **Cold start**: New domain with no historical data
 - **Shared preferences**: User preferences correlate across domains (action movies → action games)

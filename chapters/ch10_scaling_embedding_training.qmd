@@ -113,11 +113,13 @@ Modern distributed training employs multiple parallelism strategies simultaneous
 ## Communication Bottlenecks
 
 Distributed training speedup is limited by communication:
+
 - **All-reduce** (gradient sync): O(parameters × world_size)
 - **All-gather** (activations): O(batch_size × hidden_dim × world_size)
 - **Point-to-point** (pipeline): O(hidden_dim × micro_batch_size)
 
 Optimizations:
+
 - **Gradient compression**: Reduce precision (FP32 → FP16 gradients)
 - **Overlap communication and computation**: Backward pass while communicating gradients
 - **Hierarchical reduction**: Node-local reduction, then cross-node
@@ -170,6 +172,7 @@ Modern GPUs (Volta, Turing, Ampere architectures) have specialized Tensor Cores 
 ## Mixed Precision Gotchas
 
 **Gradient underflow**: Very small gradients (< 1e-7) round to zero in FP16. Gradient scaling addresses this, but extreme cases may need:
+
 - Larger learning rates
 - Loss scaling adjustments
 - FP32 for sensitive layers (layer norm, softmax)
@@ -217,6 +220,7 @@ When hitting memory limits, apply optimizations in this order:
 6. **Batch size reduction**: Last resort (hurts contrastive learning)
 
 Typical savings:
+
 - FP16: 40GB → 20GB
 - + Checkpointing: 20GB → 8GB
 - + 8-bit optimizer: 8GB → 5GB

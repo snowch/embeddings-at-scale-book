@@ -348,6 +348,7 @@ similarities = cosine_similarity(query_vector, doc_vectors)
 ```
 
 This was a major improvement, but still faced fundamental limitations:
+
 - Synonym problem: "car" and "automobile" were unrelated
 - Polysemy problem: "bank" (financial) vs "bank" (river)
 - No semantic understanding: "not good" treated same as "good"
@@ -367,6 +368,7 @@ topic_distributions = lda.fit_transform(document_term_matrix)
 ```
 
 This enabled finding documents about similar topics even without shared keywords. A breakthrough, but with limitations:
+
 - Fixed topic numbers required upfront
 - Topics not always interpretable
 - No transfer learning across domains
@@ -395,6 +397,7 @@ result = king - man + woman
 ```
 
 This was revolutionary. Suddenly:
+
 - Synonyms automatically clustered together
 - Analogies emerged from vector arithmetic
 - Transfer learning became possible
@@ -411,6 +414,7 @@ BERT [@devlin2018bert], GPT, and their descendants brought contextual embeddings
 ```
 
 This enables:
+
 - **Context-aware understanding**: "bank" means different things in different contexts
 - **Zero-shot capabilities**: Answer questions never seen before
 - **Multi-task transfer**: Pre-training on billions of documents transfers to specific tasks
@@ -476,6 +480,7 @@ Embedding systems exhibit phase transitions at specific scale points:
 **10 Billion to 100 Billion Embeddings**: Multi-modal fusion reaches human-level understanding. Systems reason about concepts, not just retrieve documents. Novel insights emerge that humans wouldn't discover.
 
 **100 Billion to 1 Trillion+ Embeddings**: We don't fully know yet. But early evidence suggests:
+
 - Emergent reasoning capabilities
 - Cross-lingual, cross-modal unification
 - Predictive capabilities that seem like magic
