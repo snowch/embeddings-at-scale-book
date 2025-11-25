@@ -14,6 +14,7 @@ Similarity search is the core operation in embedding systems: given a query vect
 ### The Similarity Search Problem
 
 Given:
+
 - **Query vector** q ∈ ℝ^d (embedding dimension d)
 - **Corpus** of N vectors {v₁, v₂, ..., vₙ} where each vᵢ ∈ ℝ^d
 - **Similarity metric** (cosine similarity, Euclidean distance, dot product)
@@ -61,18 +62,21 @@ For billion-vector indices, exact search becomes infeasible. **Approximate neare
 ### ANN Algorithm Landscape
 
 **Partitioning methods** (divide space into regions):
+
 - **IVF (Inverted File Index)**: Cluster vectors, search only nearby clusters
 - **LSH (Locality-Sensitive Hashing)**: Hash similar vectors to same buckets
 - Pro: Simple, fast for low-dimensional data
 - Con: Curse of dimensionality, many clusters needed for high recall
 
 **Graph methods** (navigate similarity graph):
+
 - **HNSW (Hierarchical Navigable Small World)**: Multi-layer skip list graph
 - **NSG (Navigating Spreading-out Graph)**: Optimized graph structure
 - Pro: Excellent recall-speed trade-off, robust to dimensionality
 - Con: Higher memory usage, slower index build
 
 **Quantization methods** (compress vectors):
+
 - **Product Quantization (PQ)**: Vector compression via clustering
 - **Scalar Quantization (SQ)**: Reduce precision (FP32 → INT8)
 - Pro: Massive memory reduction (8-32×), enables larger indices
@@ -117,6 +121,7 @@ For billion-vector indices, exact search becomes infeasible. **Approximate neare
 ## Recall-Latency Trade-offs
 
 All ANN algorithms have tuning parameters that control recall-latency trade-off:
+
 - **IVF**: More probes = higher recall, higher latency
 - **HNSW**: Higher ef_search = higher recall, higher latency
 - **Typical production**: 95-99% recall is acceptable for most applications

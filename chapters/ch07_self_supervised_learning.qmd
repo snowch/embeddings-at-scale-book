@@ -14,6 +14,7 @@ The fundamental challenge facing enterprise AI: **you have petabytes of data but
 Self-supervised learning creates "pretext tasks" where the model must predict part of the input from other parts. The key insight: **by learning to solve these pretext tasks, the model develops representations that capture the underlying structure of the data**.
 
 Common pretext tasks:
+
 - **Masked prediction**: Predict hidden parts (BERT, MAE)
 - **Next token prediction**: Predict future content (GPT, autoregressive models)
 - **Contrastive prediction**: Distinguish augmented views (SimCLR, MoCo)

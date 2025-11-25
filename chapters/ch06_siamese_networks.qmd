@@ -14,6 +14,7 @@ Siamese networks solve a fundamental challenge: **how do you learn similarity wh
 Named after Siamese twins, a Siamese network consists of two or more identical neural networks (sharing weights) that process different inputs and compare their outputs. The key insight: **instead of learning "what is X?", learn "how similar are X and Y?"**
 
 This shift enables:
+
 - **Few-shot learning**: Learn from 1-5 examples per class
 - **Open-set recognition**: Handle classes not seen during training
 - **Verification tasks**: "Are these the same?" vs "What is this?"
@@ -168,6 +169,7 @@ The classic Siamese network uses **contrastive loss** to bring similar pairs tog
 **Euclidean distance** works well for normalized embeddings in low dimensions (< 128).
 
 **Cosine distance** (1 - cosine similarity) is preferred for:
+
 - High-dimensional embeddings (> 128)
 - Text embeddings
 - When magnitude isn't meaningful

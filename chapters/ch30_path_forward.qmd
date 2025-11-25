@@ -156,6 +156,7 @@ Most organizations struggle with innovation because they lack systematic framewo
 - **Talent misallocation**: Best engineers stuck maintaining existing systems rather than building next generation
 
 **Effective innovation frameworks** address these failures through:
+
 - **Structured research integration**: Clear process for evaluating, adapting, and deploying academic advances
 - **Balanced portfolio**: Mix of incremental improvements (70%), adjacent innovations (20%), and breakthrough experiments (10%)
 - **Clear success criteria**: Objective metrics for evaluating innovations beyond interesting demos
@@ -380,6 +381,7 @@ Embedding technology disruptions follow predictable patterns:
 - **2024-2026: Specialized embeddings** (domain-specific, efficient, composable): Optimization for production at scale
 
 **Disruption indicators** (signals appearing 6-18 months before mainstream):
+
 - **Research papers** achieving >30% improvement on benchmark tasks
 - **Startup funding** ($10M+ rounds) in specific technique or application
 - **Open source projects** gaining >1000 GitHub stars in first month

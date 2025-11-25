@@ -35,11 +35,13 @@ One of the most critical architectural decisions for embedding systems is **when
 ### The Batch vs. Real-Time Trade-off
 
 **Batch Processing** generates embeddings offline in large batches:
+
 - **Advantages**: High throughput (10-100x faster), cost-efficient (cheaper compute), optimized resource utilization, quality control before serving
 - **Disadvantages**: Staleness (hours to days old), no personalization, large storage requirements, delayed updates
 - **Best for**: Product catalogs, document collections, static content, historical data
 
 **Real-Time Processing** generates embeddings on-demand:
+
 - **Advantages**: Fresh embeddings (milliseconds old), personalized to context, storage efficient (compute on-demand), immediate updates
 - **Disadvantages**: High latency (10-100ms), expensive (online GPU inference), variable load patterns, harder to monitor quality
 - **Best for**: User queries, personalized feeds, dynamic content, real-time sessions
@@ -111,6 +113,7 @@ query_embedding = embedding_service.get_embedding(
 ```
 
 This enables:
+
 - Reproducing historical results for debugging
 - A/B testing different model versions
 - Gradual migration for sensitive applications
@@ -170,18 +173,21 @@ Embedding quality degrades over time even without model changes. Data distributi
 A production embedding monitoring dashboard should display:
 
 **Real-time metrics** (updated every minute):
+
 - Query latency (p50, p95, p99)
 - Throughput (queries/second)
 - Error rate
 - Cache hit rate
 
 **Quality metrics** (updated hourly/daily):
+
 - Retrieval recall@10, recall@100
 - NDCG@10
 - User engagement metrics (CTR, conversion rate)
 - Embedding distribution statistics
 
 **System health** (updated every 5 minutes):
+
 - Index size and growth rate
 - Memory usage
 - GPU utilization
@@ -191,6 +197,7 @@ A production embedding monitoring dashboard should display:
 :::{.callout-warning}
 ## Silent Degradation
 Embedding quality can degrade gradually without triggering alerts. Complement threshold-based alerts with:
+
 - **Trend analysis**: Detect slow downward trends even within thresholds
 - **Comparative baselines**: Compare against historical best, not just initial baseline
 - **Canary queries**: Maintain set of "golden queries" that should always perform well

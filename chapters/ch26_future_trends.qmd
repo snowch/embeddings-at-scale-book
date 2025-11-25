@@ -218,12 +218,14 @@ Architecture:
 4. Privacy guarantees: Differential privacy on gradients
 
 Protocols:
+
 - FedAvg: Average model weights across devices
 - FedProx: Proximal term for heterogeneous data
 - FedOpt: Adaptive optimization (Adam, Yogi)
 - Secure aggregation: Encrypted gradient aggregation
 
 Privacy techniques:
+
 - Differential privacy: Add noise to gradients (ε-DP)
 - Secure multi-party computation: Aggregate without revealing
 - Homomorphic encryption: Compute on encrypted gradients
@@ -563,12 +565,14 @@ Decentralized embedding systems combine multiple technologies:
 Zero-Knowledge Proofs for Embedding Verification
 
 Use cases:
+
 - Prove embedding quality without revealing embeddings
 - Verify training data provenance without exposing data
 - Demonstrate model performance without leaking model weights
 - Audit compliance without accessing sensitive data
 
 ZK techniques:
+
 - zk-SNARKs: Succinct proofs, small size (few KB)
 - zk-STARKs: Transparent, no trusted setup
 - Bulletproofs: Range proofs, efficient for numerical claims
@@ -825,6 +829,7 @@ Artificial General Intelligence (AGI)—systems matching or exceeding human-leve
 Current embedding systems use static representations—vectors frozen at training time that don't adapt to new information. AGI systems require dynamic embeddings that evolve continuously:
 
 **Current paradigm** (Static Embeddings):
+
 - Fixed vectors: Embedding remains constant after training
 - Periodic retraining: Update model every weeks/months
 - Context-independent: Same word/image always same embedding
@@ -832,6 +837,7 @@ Current embedding systems use static representations—vectors frozen at trainin
 - Supervised learning: Requires labeled data for each task
 
 **AGI paradigm** (Dynamic Embeddings):
+
 - Living vectors: Embeddings update as system learns
 - Continual learning: Adapt in real-time to new information
 - Context-aware: Embedding depends on full context and intent

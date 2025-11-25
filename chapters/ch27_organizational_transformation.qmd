@@ -48,6 +48,7 @@ Production embedding systems require diverse expertise rarely found in single in
 ### Hiring Strategies for Embedding Talent
 
 **Embedding ML engineer hiring** (most critical, most difficult):
+
 - **Required**: Deep learning expertise, experience training large models, understanding of contrastive learning
 - **Preferred**: Published research, experience with embedding-specific models, production ML experience
 - **Assessment**: Take-home project (train embedding model on real data), system design interview (scaling to trillion rows), research discussion (recent papers, trade-offs)
@@ -56,6 +57,7 @@ Production embedding systems require diverse expertise rarely found in single in
 - **Alternative**: Contract with research labs or consulting firms for initial development
 
 **Infrastructure engineer hiring** (critical for scale):
+
 - **Required**: Distributed systems experience, database internals knowledge, performance optimization
 - **Preferred**: Vector database experience (Pinecone, Weaviate, Milvus), GPU programming, high-scale systems
 - **Assessment**: System design (trillion-row architecture), coding (optimize vector operations), troubleshooting
@@ -201,30 +203,35 @@ Organizations face multiple training challenges when adopting embeddings:
 ### Learning Methods and Effectiveness
 
 **Self-paced video/documentation** (foundation knowledge):
+
 - **Advantages**: Flexible timing, reusable content, scales to large audiences
 - **Disadvantages**: Low engagement, no interaction, high dropout rates
 - **Best for**: Foundational concepts, reference material, onboarding
 - **Effectiveness**: 30-40% completion rate, reinforcement needed
 
 **Live workshops** (interactive learning):
+
 - **Advantages**: Expert interaction, Q&A, immediate feedback, social learning
 - **Disadvantages**: Scheduling constraints, doesn't scale, time-intensive for instructors
 - **Best for**: Complex topics, debugging, discussion-driven learning
 - **Effectiveness**: 60-70% completion, higher retention than self-paced
 
 **Hands-on projects** (skill development):
+
 - **Advantages**: Practical experience, builds confidence, portfolio pieces
 - **Disadvantages**: Time-intensive, requires mentorship, can be frustrating
 - **Best for**: Technical skills, problem-solving, real-world application
 - **Effectiveness**: 80-90% skill acquisition when completed
 
 **Mentorship** (accelerated learning):
+
 - **Advantages**: Personalized guidance, unblocks quickly, career development
 - **Disadvantages**: Doesn't scale, mentor time burden, quality varies
 - **Best for**: Complex problems, career transitions, leadership development
 - **Effectiveness**: 3-5× faster learning than solo, requires good matches
 
 **Hackathons** (rapid prototyping):
+
 - **Advantages**: Intense focus, team collaboration, produces working demos
 - **Disadvantages**: Unsustainable pace, code quality issues, burnout risk
 - **Best for**: Exploration, team building, generating ideas
@@ -357,6 +364,7 @@ Organizations struggle with embedding metrics because:
 **Attribution challenges**: Connecting technical improvements to business outcomes requires rigorous methodology:
 
 **A/B testing** (gold standard):
+
 - **Design**: Holdout group (10-20%) sees old system, treatment group sees new embedding system
 - **Randomization**: Users randomly assigned ensuring groups comparable
 - **Metrics**: Measure both short-term (CTR, search success) and long-term (retention, LTV)
@@ -365,12 +373,14 @@ Organizations struggle with embedding metrics because:
 - **Challenges**: Requires large user base (1M+ users for small effects), long-term metrics delayed, spillover effects between groups
 
 **Quasi-experimental methods** (when A/B testing infeasible):
+
 - **Difference-in-differences**: Compare change in treatment group vs control group over time
 - **Regression discontinuity**: Analyze outcomes around threshold (e.g., before/after deployment)
 - **Synthetic controls**: Construct control group from weighted combination of similar units
 - **Challenges**: Stronger assumptions required, potential confounders, less reliable than A/B tests
 
 **Leading indicators** (early signals):
+
 - **Technical proxy metrics**: Embedding quality predicts downstream performance
 - **User behavior**: Engagement metrics (time on site, repeat visits) predict retention
 - **Cohort analysis**: Early adopters' outcomes predict broader population
