@@ -38,7 +38,7 @@ Traditional collaborative filtering approaches have limitations:
 **Training:**
 
 - **Negative sampling**: 4-10 negatives per positive (balance signal)
-- **Hard negative mining**: Sample popular items user didn't click (harder examples)
+- **Hard negative mining**: Sample popular items user didn't click (harder examples) (see @sec-contrastive-learning)
 - **Batch size**: Large batches (1024-8192) for stable gradients
 - **Learning rate**: Start high (0.001), decay over time
 
@@ -98,7 +98,7 @@ Three cold start scenarios:
 
 - **Feature quality**: High-quality content features are critical
 - **Pre-training**: Pre-train content encoder on external data
-- **Fine-tuning**: Fine-tune on collaborative signal when available
+- **Fine-tuning**: Fine-tune on collaborative signal when available (see @sec-custom-embedding-strategies for guidance on choosing the right level of customization)
 - **Smooth transition**: Gradually increase collaborative weight
 
 **Meta-learning:**
@@ -246,7 +246,7 @@ Challenges of multi-domain systems:
 - **Domain bridges**: Learn mappings between domain embeddings
 - **Multi-task learning**: Joint optimization with domain-specific losses
 
-**Transfer strategies:**
+**Transfer strategies:** (see @sec-custom-embedding-strategies for a detailed decision framework)
 
 - **Pre-train + fine-tune**: Train on rich domain, fine-tune on sparse
 - **Freeze encoder**: Transfer user encoder, train only item encoder

@@ -42,7 +42,7 @@ Traditional product search faces limitations:
 **Modeling:**
 
 - **Pre-training**: Use ImageNet for images, product corpus for text
-- **Contrastive learning**: (query, clicked product) positive, (query, skipped product) negative
+- **Contrastive learning**: (query, clicked product) positive, (query, skipped product) negative (see @sec-contrastive-learning)
 - **Hard negatives**: Products with similar text but different visual style
 - **Multi-task**: Search relevance + category classification + price prediction
 - **Cross-modal**: Image query → text results, text query → image results
@@ -97,7 +97,7 @@ Visual product search faces unique challenges:
 **Modeling:**
 
 - **Pre-training**: ImageNet, fashion-specific datasets (DeepFashion)
-- **Metric learning**: Triplet loss with hard negative mining
+- **Metric learning**: Triplet loss with hard negative mining (see @sec-siamese-networks and @sec-contrastive-learning)
 - **Multi-task**: Visual similarity + category + attributes
 - **Domain adaptation**: Bridge user photos and catalog photos
 - **Style disentanglement**: Separate color, pattern, shape, material
@@ -152,7 +152,7 @@ Traditional inventory management faces limitations:
 
 **Modeling:**
 
-- **Transfer learning**: Similar products share demand patterns
+- **Transfer learning**: Similar products share demand patterns (see @sec-custom-embedding-strategies)
 - **Hierarchical forecasting**: Top-down (category) + bottom-up (SKU)
 - **Multi-task**: Demand + stockout probability + markdown risk
 - **Uncertainty quantification**: Prediction intervals, not just point estimates

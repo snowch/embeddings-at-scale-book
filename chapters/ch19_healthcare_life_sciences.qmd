@@ -48,9 +48,9 @@ Traditional drug discovery faces limitations:
 **Training strategies:**
 
 - **Multi-task learning**: Predict binding, toxicity, solubility jointly
-- **Contrastive learning**: Similar molecules (by scaffold) close in embedding space
+- **Contrastive learning**: Similar molecules (by scaffold) close in embedding space (see @sec-contrastive-learning)
 - **Active learning**: Iteratively test promising candidates, retrain
-- **Transfer learning**: Fine-tune on target-specific data
+- **Transfer learning**: Fine-tune on target-specific data (see @sec-custom-embedding-strategies)
 - **Data augmentation**: SMILES randomization, conformer sampling
 
 **Production:**
