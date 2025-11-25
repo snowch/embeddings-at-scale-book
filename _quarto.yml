@@ -78,6 +78,7 @@ format:
     theme: cosmo
     code-copy: true
     code-overflow: wrap
+    code-fold: true
     include-after-body: footer.html
 
   pdf:
