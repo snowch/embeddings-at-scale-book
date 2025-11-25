@@ -191,11 +191,13 @@ RAG systems combine retrieval and generation, requiring evaluation beyond standa
 ### The RAG Evaluation Challenge
 
 **Traditional IR metrics** (Recall@k, MRR, NDCG):
+
 - Measure retrieval quality only
 - Don't capture if LLM used retrieved context
 - Don't measure answer accuracy
 
 **Traditional NLG metrics** (BLEU, ROUGE, BERTScore):
+
 - Measure generation quality only
 - Don't capture if answer grounded in context
 - Don't detect hallucinations

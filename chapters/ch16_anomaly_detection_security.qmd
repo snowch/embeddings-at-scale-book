@@ -14,6 +14,7 @@ Financial fraud costs billions annually, with attackers constantly evolving tact
 ### The Fraud Detection Challenge
 
 Traditional fraud detection faces limitations:
+
 - **Rule-based systems**: Brittle, high false positives, easy to circumvent
 - **Supervised learning**: Requires labeled fraud (rare, expensive), can't detect novel attacks
 - **Feature engineering**: Manual, domain-specific, doesn't capture complex patterns
@@ -53,6 +54,7 @@ Traditional fraud detection faces limitations:
 ## False Positive Management
 
 Fraud detection faces extreme class imbalance (0.1% fraud rate). High false positive rates create user friction:
+
 - Block legitimate transaction → user frustration, lost sales
 - Alert user for verification → abandonment, support costs
 
@@ -77,6 +79,7 @@ Cybersecurity teams hunt for threats—APTs, compromised accounts, insider threa
 ### The Threat Hunting Challenge
 
 Traditional Security Information and Event Management (SIEM) systems use rules:
+
 - Rule: If user logs in from new country, alert
 - Rule: If outbound data transfer > 10GB, alert
 
@@ -131,6 +134,7 @@ Manufacturing produces millions of units, with defects causing recalls and safet
 ### The Quality Control Challenge
 
 Traditional quality control uses thresholds:
+
 - If dimension < 10mm or > 12mm, reject
 - If surface roughness > 0.5µm, reject
 
@@ -184,6 +188,7 @@ Financial institutions assess risk for loans, investments, and insurance. **Embe
 ### The Risk Assessment Challenge
 
 Traditional risk models use scores (credit score, financial ratios):
+
 - Credit score = f(payment history, debt, income)
 - Default risk = f(debt-to-income ratio, assets)
 
@@ -237,6 +242,7 @@ User accounts can be compromised (phishing, credential stuffing) or misused (ins
 ### The Behavioral Challenge
 
 Users exhibit consistent patterns:
+
 - Login times (weekdays 9-5)
 - Devices (laptop, phone)
 - Actions (emails, file access)

@@ -111,6 +111,7 @@ Most embedding systems assume data is static: a document has one embedding, a pr
 ### The Temporal Challenge
 
 Consider a news article about "AI":
+
 - **2015**: "AI" meant primarily machine learning and narrow applications
 - **2020**: "AI" included transformers, GPT models, and broader capabilities
 - **2025**: "AI" encompasses multimodal models, agents, and reasoning systems
@@ -151,6 +152,7 @@ When training dynamic embeddings, **never use future information to create past 
 ## Compositional Embeddings for Complex Entities
 
 Real-world entities are rarely atomic—they're compositions of multiple components:
+
 - **Documents**: Title + body + metadata + author + date
 - **Products**: Category + brand + attributes + reviews + images
 - **Users**: Demographics + behavior + preferences + context
@@ -214,12 +216,14 @@ Uncertainty estimates must be **calibrated**: if the model says 80% confidence, 
 ## When to Use Uncertainty Quantification
 
 Essential for:
+
 - **High-stakes decisions**: Healthcare, finance, autonomous systems, legal
 - **Out-of-distribution detection**: Detect when input differs from training data
 - **Active learning**: Select most informative examples to label next
 - **Trustworthy AI**: Provide confidence scores to users
 
 Not necessary for:
+
 - Low-stakes applications (music recommendations, article suggestions)
 - Internal R&D where errors are acceptable
 - Applications with human-in-the-loop review anyway

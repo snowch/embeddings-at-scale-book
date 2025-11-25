@@ -57,11 +57,13 @@ Batch ETL processes data hourly or daily, but many applications need **real-time
 ### Streaming vs. Batch: The Trade-off
 
 **Batch processing** (hourly/daily):
+
 - **Advantages**: Simple, efficient, easy to debug, supports complex aggregations
 - **Disadvantages**: Stale embeddings (hours old), high latency for new items
 - **Use when**: Daily updates sufficient, complex transformations required
 
 **Stream processing** (seconds):
+
 - **Advantages**: Fresh embeddings (seconds old), low latency for new items, event-driven
 - **Disadvantages**: Complex architecture, harder to debug, limited aggregation window
 - **Use when**: Real-time updates critical, simple transformations, event-driven workflows
@@ -98,6 +100,7 @@ Batch ETL processes data hourly or daily, but many applications need **real-time
 ## Streaming Complexity
 
 Streaming pipelines are significantly more complex than batch:
+
 - **Debugging**: Harder to reproduce issues (event order matters)
 - **Testing**: Need to simulate real-time event streams
 - **Operations**: 24/7 monitoring required
@@ -162,6 +165,7 @@ Production embedding systems evolve: new features are added, old features deprec
 ### The Schema Evolution Challenge
 
 Embedding systems have complex dependencies:
+
 - **Trained models**: Expect specific feature schema
 - **Vector indices**: Store embeddings from specific model versions
 - **Downstream consumers**: Query embeddings with specific schemas
@@ -200,6 +204,7 @@ Embedding systems have complex dependencies:
 ## Breaking Changes
 
 Some changes cannot be made backwards-compatible:
+
 - Removing required fields
 - Changing field types incompatibly
 - Removing entire entities
@@ -219,6 +224,7 @@ Production embedding systems integrate data from multiple sources: user profiles
 ### The Data Fusion Challenge
 
 Each data source has unique characteristics:
+
 - **Schema**: Different field names, types, structures
 - **Frequency**: Some update real-time, others daily/weekly
 - **Quality**: Varying completeness, correctness, timeliness

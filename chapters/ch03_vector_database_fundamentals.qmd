@@ -629,6 +629,7 @@ Clearly, naïve approaches won't work. We need sophisticated indexing strategies
 HNSW is the gold standard for high-recall, low-latency vector search. Understanding how it works is essential for trillion-scale deployments.
 
 **Core Concept**: HNSW builds a multi-layer proximity graph where:
+
 - Upper layers have long-range connections (for fast navigation)
 - Lower layers have short-range connections (for high accuracy)
 - Search starts at top layer and descends, getting more refined

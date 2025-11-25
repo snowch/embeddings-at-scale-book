@@ -14,11 +14,13 @@ Contrastive learning transforms the embedding problem from "predict labels" to "
 The fundamental insight: **embeddings should place similar items close together and dissimilar items far apart**. Simple in concept, revolutionary in practice.
 
 Traditional supervised learning requires:
+
 - Expensive labeled data (millions of examples)
 - Fixed label space (categories defined upfront)
 - Limited to explicit labels (can't capture unlabeled nuances)
 
 Contrastive learning requires only:
+
 - Pairs or triplets indicating similarity
 - Any method to generate positive pairs (augmentation, co-occurrence, etc.)
 - Scales to billions of unlabeled examples
@@ -83,6 +85,7 @@ I(x; x̃) = H(x) - H(x|x̃)
 ```
 
 Where:
+
 - x is the original data
 - x̃ is a transformed view (augmentation, different modality, etc.)
 - I(x; x̃) is mutual information

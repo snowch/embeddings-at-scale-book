@@ -14,6 +14,7 @@ Multi-modal search finds content across different modalities: search images with
 ### The Multi-Modal Challenge
 
 Each modality has unique characteristics:
+
 - **Text**: Sequential, compositional, high-dimensional vocabulary
 - **Images**: Spatial, hierarchical features (pixels → edges → objects)
 - **Audio**: Temporal, frequency-based, variable length
@@ -74,6 +75,7 @@ Code search finds functions, classes, and patterns in massive codebases—but tr
 ### The Code Search Challenge
 
 Code has unique properties:
+
 - **Syntax vs semantics**: `list.sort()` and `sorted(list)` are syntactically different but semantically similar
 - **Multiple representations**: Code, comments, docstrings, test cases all describe intent
 - **Compositional**: Functions compose; understanding requires context
@@ -117,6 +119,7 @@ Scientific research produces millions of papers annually—PubMed has 35M+ artic
 ### The Scientific Search Challenge
 
 Scientific literature has unique characteristics:
+
 - **Domain terminology**: Specialized vocabulary (medical, chemistry, physics)
 - **Citation networks**: Papers cite related work (graph structure matters)
 - **Multi-entity**: Authors, institutions, chemicals, genes (entity linking)
@@ -161,6 +164,7 @@ Media assets—images, videos, audio—represent trillions of files across organ
 ### The Media Discovery Challenge
 
 Media has unique properties:
+
 - **Visual style**: Color palette, composition, lighting
 - **Creative intent**: Mood, emotion, message
 - **Temporal dynamics**: Video and audio evolve over time
@@ -205,6 +209,7 @@ Enterprise knowledge graphs connect entities—customers, products, employees, d
 ### The Knowledge Graph Challenge
 
 Traditional knowledge graphs use discrete representations (triples: subject-predicate-object). **Embedding-based graphs** represent entities and relations as vectors, enabling:
+
 - **Link prediction**: Predict missing relationships
 - **Entity resolution**: Merge duplicate entities
 - **Multi-hop reasoning**: Answer complex queries across relationships
