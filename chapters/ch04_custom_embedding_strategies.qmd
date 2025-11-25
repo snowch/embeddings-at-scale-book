@@ -59,11 +59,22 @@ For most organizations, **Level 3 (Full Model Fine-Tuning)** delivers 95% of the
 
 ### Decision Framework: When to Build Custom
 
-Use this framework to determine your approach:
+Use this framework to determine your approach. For each factor, assess whether your situation favors fine-tuning an existing model or building custom embeddings from scratch:
 
-```python
-{{< include /code_examples/ch04_custom_embedding_strategies/customembeddingdecisionframework.py >}}
-```
+| Factor | Favors Fine-Tuning | Favors Custom |
+|--------|-------------------|---------------|
+| **Training data** | <1M labeled examples | >10M labeled examples |
+| **Domain gap** | Low/medium (medical, financial) | High (genomics, specialized legal, non-text) |
+| **Performance requirement** | "Good enough" for business needs | World-class, no compromises |
+| **Specialized requirements** | Standard text/image | Multi-modal without pre-trained options, tiny models for edge, interpretability |
+| **Budget** | <$150K | >$500K |
+| **Timeline** | <6 months | >12 months |
+| **Team capability** | Limited ML expertise | Published researchers, prior large model experience |
+| **Competitive advantage** | Embeddings support product | Embeddings ARE the product/moat |
+
+**How to interpret**: If most factors point toward fine-tuning, start with Level 2 or 3. If several factors strongly favor custom (especially domain gap and competitive advantage), consider Level 4.
+
+**The hybrid path**: When factors are mixed, start with fine-tuning to establish a baseline and prove business value. This de-risks the investment before committing to custom development. Many successful systems follow this pattern—ship a fine-tuned model in months, then build custom after validating the opportunity.
 
 ### Illustrative Case Studies
 
