@@ -20,7 +20,7 @@ Traditional business rules face limitations:
 - **Cold start**: No rules exist for new products, markets, situations
 - **Suboptimality**: Rules encode human intuition, miss non-linear patterns
 
-**Embedding approach**: Learn entity embeddings (customers, products, transactions) and decision boundaries from historical outcomes. New decisions query: "find similar past cases, what happened?"
+**Embedding approach**: Learn entity embeddings (customers, products, transactions) and decision boundaries from historical outcomes. New decisions query: "find similar past cases, what happened?" See @sec-custom-embedding-strategies for guidance on building these embeddings, and @sec-siamese-networks for similarity-based learning approaches.
 
 ```python
 {{< include /code_examples/ch17_automated_decision_systems/from.py >}}
@@ -38,7 +38,7 @@ Traditional business rules face limitations:
 
 **Training:**
 
-- **Metric learning**: Entities with similar outcomes close in embedding space
+- **Metric learning**: Entities with similar outcomes close in embedding space (see @sec-siamese-networks)
 - **Multi-task**: Predict multiple outcomes jointly (default, LTV, churn)
 - **Temporal**: Weight recent cases higher (concept drift)
 - **Fairness**: Constrain to prevent disparate impact
@@ -72,7 +72,7 @@ Traditional pricing approaches:
 - **Segmented**: Fixed tiers (doesn't capture individual WTP)
 - **Regression**: Linear models (misses non-linear patterns)
 
-**Embedding approach**: Learn product embeddings (quality, brand, features) and customer embeddings (purchase history, preferences). Price = f(product_emb, customer_emb, context).
+**Embedding approach**: Learn product embeddings (quality, brand, features) and customer embeddings (purchase history, preferences). Price = f(product_emb, customer_emb, context). See @sec-custom-embedding-strategies for approaches to building these embeddings.
 
 ```python
 {{< include /code_examples/ch17_automated_decision_systems/class.py >}}
@@ -122,7 +122,7 @@ Traditional approaches:
 - **Heuristics**: Rules-of-thumb (use closest warehouse), suboptimal
 - **Simulation**: Slow, can't handle real-time decisions
 
-**Embedding approach**: Learn embeddings of facilities (warehouses, suppliers), products, and routes. Optimize decisions via learned representations that capture complex cost structures.
+**Embedding approach**: Learn embeddings of facilities (warehouses, suppliers), products, and routes. Optimize decisions via learned representations that capture complex cost structures. See @sec-custom-embedding-strategies for the decision framework on building domain-specific embeddings.
 
 ```python
 {{< include /code_examples/ch17_automated_decision_systems/class_1.py >}}
@@ -172,7 +172,7 @@ Traditional approaches:
 - **Actuarial tables**: Tabular risk by category (age, location)
 - **Rule-based**: Hard thresholds (if bankruptcy, reject)
 
-**Embedding approach**: Learn embeddings capturing risk from multi-modal data (text, images, graphs), enabling non-linear risk assessment that adapts to new data.
+**Embedding approach**: Learn embeddings capturing risk from multi-modal data (text, images, graphs), enabling non-linear risk assessment that adapts to new data. See @sec-custom-embedding-strategies for guidance on choosing the right level of customization for your domain.
 
 ```python
 {{< include /code_examples/ch17_automated_decision_systems/class_2.py >}}
@@ -222,7 +222,7 @@ Traditional approaches:
 - **Preventive**: Fix on schedule (unnecessary maintenance, still miss failures)
 - **Threshold-based**: Alert if sensor > threshold (brittle, misses complex patterns)
 
-**Embedding approach**: Learn equipment embeddings from multi-modal data (sensor streams, images, audio). Predict failure by detecting drift from normal operation patterns.
+**Embedding approach**: Learn equipment embeddings from multi-modal data (sensor streams, images, audio). Predict failure by detecting drift from normal operation patterns. See @sec-custom-embedding-strategies for approaches to building these embeddings, and @sec-contrastive-learning for training techniques.
 
 ```python
 {{< include /code_examples/ch17_automated_decision_systems/class_3.py >}}
@@ -245,7 +245,7 @@ Traditional approaches:
 - **Autoencoder**: Anomaly detection via reconstruction error
 - **Survival analysis**: Time-to-failure prediction
 - **Multi-modal fusion**: Combine sensors + images + audio
-- **Transfer learning**: Pre-train on similar equipment
+- **Transfer learning**: Pre-train on similar equipment (see @sec-custom-embedding-strategies)
 
 **Production:**
 

@@ -18,7 +18,7 @@ Traditional fraud detection faces limitations:
 - **Supervised learning**: Requires labeled fraud (rare, expensive), can't detect novel attacks
 - **Feature engineering**: Manual, domain-specific, doesn't capture complex patterns
 
-**Embedding approach**: Learn transaction embeddings capturing behavior patterns. Normal transactions cluster together; fraud transactions lie in sparse regions or form small, distinct clusters.
+**Embedding approach**: Learn transaction embeddings capturing behavior patterns. Normal transactions cluster together; fraud transactions lie in sparse regions or form small, distinct clusters. See @sec-custom-embedding-strategies for guidance on building these embeddings, and @sec-contrastive-learning for training techniques that learn to distinguish normal from anomalous patterns.
 
 ```python
 {{< include /code_examples/ch16_anomaly_detection_security/from.py >}}
@@ -39,7 +39,7 @@ Traditional fraud detection faces limitations:
 - **Clean training data**: Remove known fraud from training (autoencoders learn normal patterns only)
 - **Imbalanced data**: Expect 99%+ normal transactions
 - **Online learning**: Update embeddings daily with new normal transactions
-- **Hard negative mining**: Sample edge cases (high-value normal transactions)
+- **Hard negative mining**: Sample edge cases (high-value normal transactions) (see @sec-contrastive-learning)
 
 **Production:**
 
@@ -86,7 +86,7 @@ Traditional Security Information and Event Management (SIEM) systems use rules:
 - Evasion: Attackers split transfers, use slow exfiltration
 - Cannot detect novel attacks (zero-day exploits, new TTPs)
 
-**Embedding approach**: Learn normal behavior embeddings for each user/device. Anomalies = deviation from learned patterns.
+**Embedding approach**: Learn normal behavior embeddings for each user/device. Anomalies = deviation from learned patterns. See @sec-custom-embedding-strategies for approaches to building behavioral embeddings, from fine-tuning pre-trained models to custom architectures.
 
 ```python
 {{< include /code_examples/ch16_anomaly_detection_security/from_1.py >}}
@@ -140,7 +140,7 @@ Traditional quality control uses thresholds:
 - Correlated features (defects manifest as combinations of features)
 - Rare defects (< 0.1%) missed by simple thresholds
 
-**Embedding approach**: Learn product embeddings from sensor/image data. Normal products cluster tightly; defects are outliers.
+**Embedding approach**: Learn product embeddings from sensor/image data. Normal products cluster tightly; defects are outliers. See @sec-custom-embedding-strategies for guidance on choosing between pre-trained and custom embeddings for your domain.
 
 ```python
 {{< include /code_examples/ch16_anomaly_detection_security/from_2.py >}}
@@ -193,7 +193,7 @@ Traditional risk models use scores (credit score, financial ratios):
 - Sparse data for new entities (thin credit files)
 - Cannot capture network effects (company relationships, supply chain risk)
 
-**Embedding approach**: Learn entity embeddings from financial data, network relationships, and behavioral patterns. Risk propagates through networks.
+**Embedding approach**: Learn entity embeddings from financial data, network relationships, and behavioral patterns. Risk propagates through networks. See @sec-custom-embedding-strategies for the decision framework on building domain-specific embeddings.
 
 ```python
 {{< include /code_examples/ch16_anomaly_detection_security/class.py >}}
