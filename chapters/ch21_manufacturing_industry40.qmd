@@ -32,6 +32,7 @@ Traditional quality inspection faces limitations:
 ## Predictive Quality Control Best Practices
 
 **Data collection:**
+
 - **High-frequency sensors**: 100Hz-10kHz sampling for vibration, acoustic, position
 - **Multi-modal sensors**: Temperature, pressure, force, optical, acoustic, chemical
 - **Contextual data**: Material batch, tool wear state, environmental conditions
@@ -39,6 +40,7 @@ Traditional quality inspection faces limitations:
 - **Time synchronization**: Align sensors across measurement systems
 
 **Modeling:**
+
 - **Temporal models**: LSTMs, transformers, temporal CNNs for time-series
 - **Anomaly detection**: Isolation forests, autoencoders for novelty detection
 - **Transfer learning**: Pre-train on similar processes, fine-tune per machine
@@ -46,6 +48,7 @@ Traditional quality inspection faces limitations:
 - **Uncertainty quantification**: Confidence scores for decision support
 
 **Production deployment:**
+
 - **Edge inference**: Deploy models on factory floor (<10ms latency)
 - **Real-time processing**: Stream processing frameworks (Kafka, Flink)
 - **Explainability**: SHAP, integrated gradients for operator trust
@@ -53,6 +56,7 @@ Traditional quality inspection faces limitations:
 - **A/B testing**: Validate interventions reduce defect rates
 
 **Challenges:**
+
 - **Class imbalance**: Defects are rare (<1% of production)
 - **Concept drift**: Process changes over time (tool wear, seasonal effects)
 - **False positive costs**: Too many alerts cause alert fatigue
@@ -85,6 +89,7 @@ Traditional supply chain management faces limitations:
 ## Supply Chain Intelligence Best Practices
 
 **Data integration:**
+
 - **Supplier data**: Financial statements, certifications, performance KPIs, capacity
 - **Shipment tracking**: IoT sensors, carrier APIs, customs data, port congestion
 - **External signals**: Weather, geopolitical events, market trends, social media
@@ -92,6 +97,7 @@ Traditional supply chain management faces limitations:
 - **Demand signals**: Production schedules, inventory levels, customer orders
 
 **Modeling:**
+
 - **Graph neural networks**: Model supply network structure, propagate risks
 - **Time-series forecasting**: Predict delays, demand, prices, lead times
 - **Causal inference**: Identify root causes of disruptions vs correlations
@@ -99,6 +105,7 @@ Traditional supply chain management faces limitations:
 - **Ensemble methods**: Combine multiple models for robustness
 
 **Production:**
+
 - **Real-time monitoring**: Track 10K+ shipments, 100K+ parts simultaneously
 - **Scenario simulation**: "What-if" analysis for disruptions, capacity changes
 - **Integration**: Connect to ERP (SAP, Oracle), TMS, WMS, supplier portals
@@ -106,6 +113,7 @@ Traditional supply chain management faces limitations:
 - **Continuous learning**: Update models with actual disruption outcomes
 
 **Challenges:**
+
 - **Data quality**: Inconsistent supplier data, missing tier-2/3 visibility
 - **Rare events**: Major disruptions (pandemics, wars) have limited training data
 - **Multi-objective optimization**: Balance cost, risk, sustainability, resilience
@@ -138,6 +146,7 @@ Traditional equipment management faces limitations:
 ## Equipment Optimization Best Practices
 
 **Data collection:**
+
 - **High-frequency sensors**: Vibration (10kHz+), acoustic, temperature, power, oil analysis
 - **Operating conditions**: Speed, load, tool wear, material properties
 - **Maintenance records**: Historical maintenance actions, parts replaced, costs
@@ -145,6 +154,7 @@ Traditional equipment management faces limitations:
 - **Environmental**: Temperature, humidity, dust, operator skill level
 
 **Modeling:**
+
 - **Survival analysis**: Weibull, Cox proportional hazards for RUL prediction
 - **Temporal models**: LSTMs, transformers for degradation trajectories
 - **Transfer learning**: Pre-train on similar equipment, fine-tune per machine
@@ -152,6 +162,7 @@ Traditional equipment management faces limitations:
 - **Reinforcement learning**: Optimize maintenance timing and scheduling
 
 **Production deployment:**
+
 - **Edge computing**: Real-time inference on factory floor
 - **Digital twins**: Virtual models for simulation and optimization
 - **Integration**: SCADA, MES, CMMS, ERP connectivity
@@ -159,6 +170,7 @@ Traditional equipment management faces limitations:
 - **Continuous learning**: Update models with actual failure data
 
 **Challenges:**
+
 - **Rare failures**: Most equipment rarely fails (class imbalance)
 - **Sensor drift**: Sensors degrade over time, require recalibration
 - **Operating regime changes**: New products, speeds affect degradation
@@ -191,6 +203,7 @@ Traditional process management faces limitations:
 ## Process Automation Best Practices
 
 **Data collection:**
+
 - **Process data**: Parameters, sensor readings, cycle times, quality results
 - **Material tracking**: Batch numbers, material properties, supplier data
 - **Operator data**: Actions, skill levels, shift patterns
@@ -198,6 +211,7 @@ Traditional process management faces limitations:
 - **Contextual data**: Environmental conditions, production schedule, changeovers
 
 **Modeling:**
+
 - **Sequential models**: LSTMs, transformers for workflow trajectories
 - **Reinforcement learning**: Optimize process parameters through exploration
 - **Graph neural networks**: Model process dependencies and material flow
@@ -205,6 +219,7 @@ Traditional process management faces limitations:
 - **Multi-task learning**: Predict quality, cycle time, yield simultaneously
 
 **Production deployment:**
+
 - **Real-time monitoring**: Process state updates <1 second
 - **Safety-first**: Never compromise safety for optimization
 - **Gradual rollout**: A/B test changes, validate improvements
@@ -212,6 +227,7 @@ Traditional process management faces limitations:
 - **Explainability**: Show why recommendations are made
 
 **Challenges:**
+
 - **Process complexity**: 100+ parameters, non-linear interactions
 - **Concept drift**: Optimal parameters change with tool wear, materials
 - **Safety constraints**: Hard limits that cannot be violated
@@ -244,6 +260,7 @@ Traditional simulation and modeling faces limitations:
 ## Digital Twin Best Practices
 
 **Model development:**
+
 - **Data collection**: High-frequency operational data (sensors, actions, outcomes)
 - **Architecture selection**: State space models, physics-informed networks, hybrid
 - **Validation**: Extensive sim-to-real validation before deployment
@@ -251,6 +268,7 @@ Traditional simulation and modeling faces limitations:
 - **Continuous learning**: Update models from ongoing operations
 
 **Applications:**
+
 - **What-if analysis**: Simulate scenarios before implementation
 - **Optimization**: Find optimal operating parameters through simulation
 - **Predictive maintenance**: Forecast failures through state trajectory analysis
@@ -258,6 +276,7 @@ Traditional simulation and modeling faces limitations:
 - **Commissioning**: Virtual commissioning reduces startup time
 
 **Production deployment:**
+
 - **Real-time inference**: <10ms state updates for control applications
 - **Safety validation**: Verify actions safe before applying to physical system
 - **Model monitoring**: Track prediction errors to detect model drift
@@ -265,6 +284,7 @@ Traditional simulation and modeling faces limitations:
 - **Explainability**: Visualize state evolution, action impacts
 
 **Challenges:**
+
 - **Sim-to-real gap**: Models may not perfectly match reality
 - **Unmodeled phenomena**: Real systems have behaviors models miss
 - **Model maintenance**: Requires continuous recalibration

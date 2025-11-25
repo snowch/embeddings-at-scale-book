@@ -30,24 +30,28 @@ A complete RAG system comprises six stages:
 ## Enterprise RAG Best Practices
 
 **Architecture:**
+
 - Decouple components (retrieval, reranking, generation)
 - Use async/parallel processing where possible
 - Implement circuit breakers for each component
 - Cache frequent queries and intermediate results
 
 **Query Processing:**
+
 - Always classify intent (different strategies per type)
 - Extract and normalize entities
 - Use query expansion for better recall
 - Parse metadata filters from natural language
 
 **Retrieval:**
+
 - Start with high k (100-1000) for recall
 - Use multiple retrieval strategies (vector + keyword)
 - Apply metadata filters early (before reranking)
 - Log retrieval metrics for continuous improvement
 
 **Reranking:**
+
 - Essential for production accuracy (10-20% improvement)
 - Use cross-encoder models (more accurate than bi-encoders)
 - Batch reranking requests for efficiency
@@ -78,21 +82,25 @@ LLMs have fixed context windows (4K-128K tokens), but enterprise knowledge bases
 ## Context Window Optimization Best Practices
 
 **Passage extraction:**
+
 - Use sentence embeddings for relevance scoring
 - Keep consecutive sentences for narrative flow
 - Extract different amounts per query type (factual: less, explanation: more)
 
 **Deduplication:**
+
 - Use MinHash or embeddings for semantic similarity
 - Set threshold based on acceptable information loss (0.8-0.9)
 - Keep first occurrence (usually most complete)
 
 **Token counting:**
+
 - Use tokenizer from target LLM (different tokenizers vary)
 - Count precisely, don't estimate (estimation errors compound)
 - Reserve tokens for query, instructions, output (typically 20-30%)
 
 **Hierarchical assembly:**
+
 - Always include document titles/metadata
 - Prioritize key passages over full text
 - Add detail progressively until limit reached
@@ -151,22 +159,26 @@ Single-stage retrieval (retrieve top-k, done) sacrifices either recall or latenc
 ## Multi-Stage Retrieval Best Practices
 
 **Stage separation:**
+
 - Early stages: Fast, high recall (don't miss relevant docs)
 - Later stages: Slow, high precision (rank best docs highest)
 - Each stage should reduce candidates 50-90%
 
 **Stage selection:**
+
 - Always include: Vector retrieval (stage 1) + Reranking (stage 2)
 - Optional: Keyword filter, diversity filter, metadata filter
 - Add stages based on failure analysis (what's missing? what's wrong?)
 
 **Performance optimization:**
+
 - Cache vector search results (query embeddings stable)
 - Batch reranking requests (100 docs × 1ms each = 100ms, batched = 20ms)
 - Run filters in parallel when possible (keyword + metadata)
 - Monitor stage latencies separately (find bottlenecks)
 
 **Quality monitoring:**
+
 - Track recall @ each stage (is stage 1 missing relevant docs?)
 - Track precision @ each stage (is stage 2 improving ranking?)
 - A/B test stage variations (does keyword filter help?)
@@ -198,24 +210,28 @@ RAG systems combine retrieval and generation, requiring evaluation beyond standa
 ## RAG Evaluation Best Practices
 
 **Evaluation data:**
+
 - Start with 100-500 query-answer pairs
 - Cover diversity of query types (factual, how-to, comparison, etc.)
 - Include hard cases (contradictory docs, missing info, ambiguous queries)
 - Get human annotations for ground truth (expensive but essential)
 
 **Automated metrics:**
+
 - Retrieval: Recall@10, Recall@100, MRR
 - Generation: Semantic similarity to ground truth (SentenceTransformers)
 - Faithfulness: NLI models (check entailment between context and answer)
 - Attribution: Check if citations support claims
 
 **Human evaluation:**
+
 - Sample 10-20% for human review
 - Ask: Is answer accurate? Is answer complete? Are citations correct?
 - Use majority vote from 3+ annotators
 - Expensive but ground truth for calibrating automated metrics
 
 **Continuous evaluation:**
+
 - Evaluate on every model/prompt change
 - Track metrics over time (detect regressions)
 - A/B test in production (measure user satisfaction)
@@ -253,24 +269,28 @@ Real-world knowledge bases contain contradictions: different sources disagree, i
 ## Contradiction Handling Best Practices
 
 **Detection:**
+
 - Use NLI models for semantic contradiction detection
 - Extract claims with high precision (false contradictions confuse users)
 - Focus on factual contradictions (prices, dates, specifications)
 - Ignore stylistic differences (different phrasings of same fact)
 
 **Resolution strategies:**
+
 - **Temporal**: Always prefer recent information (but show date)
 - **Source authority**: Build credibility scores per source type
 - **Confidence**: Use when other signals unavailable
 - **Present multiple**: When confident both are valid (perspectives)
 
 **User experience:**
+
 - Always show sources when contradictions exist
 - Indicate confidence level ("likely", "possibly", "conflicting sources")
 - Provide dates when information might change
 - Allow users to see all perspectives (expandable sections)
 
 **Continuous improvement:**
+
 - Log user selections when presented with contradictions
 - Update source credibility based on user preferences
 - Retrain contradiction detection on corrected examples

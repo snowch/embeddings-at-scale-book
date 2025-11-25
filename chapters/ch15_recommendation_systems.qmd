@@ -29,18 +29,21 @@ Traditional collaborative filtering approaches have limitations:
 ## Collaborative Filtering Best Practices
 
 **Architecture:**
+
 - **Two-tower design**: Separate user and item encoders (enables independent updates)
 - **Dot product scoring**: Fast inference (matrix multiplication)
 - **Normalization**: L2-normalize embeddings for stable training
 - **Feature fusion**: Combine ID embeddings with content/metadata features
 
 **Training:**
+
 - **Negative sampling**: 4-10 negatives per positive (balance signal)
 - **Hard negative mining**: Sample popular items user didn't click (harder examples)
 - **Batch size**: Large batches (1024-8192) for stable gradients
 - **Learning rate**: Start high (0.001), decay over time
 
 **Serving:**
+
 - **Pre-compute item embeddings**: Items change slowly (update daily)
 - **Online user encoding**: Encode user on-the-fly from recent interactions
 - **ANN search**: Use Faiss/ScaNN for sub-millisecond retrieval
@@ -53,11 +56,13 @@ Traditional collaborative filtering approaches have limitations:
 Collaborative filtering suffers from **popularity bias**: Popular items recommended more often, creating rich-get-richer dynamics.
 
 **Consequences:**
+
 - Long-tail items never recommended
 - New items struggle to gain traction
 - Filter bubbles reinforce existing preferences
 
 **Mitigation strategies:**
+
 - **Debiasing**: Downweight popular items during training
 - **Exploration**: Reserve 10-20% of recommendations for exploration
 - **Diversity constraints**: Ensure recommendations span categories
@@ -77,6 +82,7 @@ Three cold start scenarios:
 3. **New system**: No users or items → cannot learn patterns
 
 **Traditional approaches fail:**
+
 - Collaborative filtering: Requires interaction history
 - Content-based: Ignores collaborative signal
 - Popularity-based: Ignores user preferences
@@ -89,18 +95,21 @@ Three cold start scenarios:
 ## Cold Start Best Practices
 
 **Content-based initialization:**
+
 - **Feature quality**: High-quality content features are critical
 - **Pre-training**: Pre-train content encoder on external data
 - **Fine-tuning**: Fine-tune on collaborative signal when available
 - **Smooth transition**: Gradually increase collaborative weight
 
 **Meta-learning:**
+
 - **Task sampling**: Sample diverse user tasks for meta-training
 - **Support set size**: 1-5 examples (balance adaptation vs overfitting)
 - **Adaptation steps**: 5-10 gradient steps for new users
 - **Regularization**: Prevent overfitting on small support sets
 
 **Hybrid approach:**
+
 - **Dynamic blending**: Adjust weights based on data availability
 - **Threshold tuning**: 10-20 interactions for full collaborative weight
 - **Fallback strategies**: Popularity-based when both signals weak
@@ -129,18 +138,21 @@ User preferences change:
 ## Real-Time Personalization Best Practices
 
 **Architecture:**
+
 - **Streaming infrastructure**: Kafka/Kinesis for event ingestion
 - **Session state**: Redis/Memcached for fast session access
 - **Incremental updates**: Update embeddings without full recomputation
 - **Cache strategy**: Invalidate user cache on interactions
 
 **Modeling:**
+
 - **Recency weighting**: Exponential decay (recent events matter more)
 - **Session encoder**: RNN/Transformer for sequential patterns
 - **Context awareness**: Time-of-day, device, location signals
 - **Hybrid fusion**: Base (long-term) + session (short-term) embeddings
 
 **Performance:**
+
 - **Latency target**: p95 < 100ms for embedding computation
 - **Throughput**: 10K+ updates/second per node
 - **Batching**: Micro-batch events for GPU efficiency
@@ -169,18 +181,21 @@ Accuracy-optimized systems suffer from:
 ## Diversity and Fairness Best Practices
 
 **Diversity techniques:**
+
 - **MMR reranking**: Balance relevance and diversity (λ=0.2-0.4)
 - **Category constraints**: Ensure minimum representation per category
 - **Similarity penalty**: Penalize items similar to already-selected
 - **Exploration bonus**: Boost under-explored items (10-20% of slots)
 
 **Fairness monitoring:**
+
 - **Coverage**: Track % of catalog recommended (target: 80%+)
 - **Gini coefficient**: Monitor inequality (target: <0.5)
 - **Category balance**: Ensure equitable exposure across categories
 - **A/B testing**: Measure impact on user satisfaction and business metrics
 
 **Trade-offs:**
+
 - **Accuracy loss**: Diversity/fairness often reduce short-term accuracy
 - **User satisfaction**: May improve long-term engagement (avoid boredom)
 - **Business value**: Long-tail exposure can discover hidden gems
@@ -196,6 +211,7 @@ Increasing diversity typically reduces short-term accuracy:
 - **Pure exploration**: 30%+ accuracy drop, maximum discovery
 
 **Mitigation strategies:**
+
 - **Adaptive λ**: Increase diversity for engaged users, decrease for new users
 - **Personalized diversity**: Learn per-user diversity preferences
 - **Long-term metrics**: Optimize for session success, not click-through rate
@@ -224,18 +240,21 @@ Challenges of multi-domain systems:
 ## Cross-Domain Transfer Best Practices
 
 **Architecture:**
+
 - **Shared user encoder**: Single embedding space for users across domains
 - **Domain-specific item encoders**: Separate embeddings per domain
 - **Domain bridges**: Learn mappings between domain embeddings
 - **Multi-task learning**: Joint optimization with domain-specific losses
 
 **Transfer strategies:**
+
 - **Pre-train + fine-tune**: Train on rich domain, fine-tune on sparse
 - **Freeze encoder**: Transfer user encoder, train only item encoder
 - **Gradual unfreezing**: Progressively unfreeze layers during fine-tuning
 - **Regularization**: L2 penalty to keep close to source weights
 
 **Evaluation:**
+
 - **Cross-domain metrics**: Measure improvement in sparse domain
 - **Cold start impact**: Test on new users/items in sparse domain
 - **Transfer quality**: Correlation between domain preferences

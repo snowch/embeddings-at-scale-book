@@ -29,18 +29,21 @@ Traditional ETL optimizes for data warehousing: schema normalization, aggregatio
 ## ETL Best Practices for Embeddings
 
 **Data quality:**
+
 - Validate at every stage (extract, transform, load)
 - Implement deduplication (exact and near-duplicate)
 - Handle missing values explicitly (don't drop silently)
 - Monitor data drift (distribution shifts over time)
 
 **Performance:**
+
 - Partition data for parallel processing (100-1000 partitions)
 - Use columnar formats (Parquet) for analytics
 - Implement checkpointing for fault tolerance
 - Optimize for I/O (sequential reads, batching)
 
 **Maintainability:**
+
 - Keep transformations simple and composable
 - Document feature engineering logic
 - Version control pipeline code
@@ -71,17 +74,20 @@ Batch ETL processes data hourly or daily, but many applications need **real-time
 ## Streaming Architecture Best Practices
 
 **Micro-batching:**
+
 - Batch window: 100-1000ms (balance latency vs throughput)
 - Batch size: 10-100 items (optimize for GPU)
 - Adaptive batching: Adjust based on load
 
 **Fault tolerance:**
+
 - Checkpointing: Save progress every N events
 - Exactly-once semantics: Idempotent operations
 - Dead letter queue: Handle failed events separately
 - Retry logic: Exponential backoff for transient failures
 
 **Monitoring:**
+
 - End-to-end latency (p50, p95, p99)
 - Throughput (events/second)
 - Error rate (failures / total events)
@@ -121,24 +127,28 @@ Traditional data quality focuses on completeness and correctness. **Embedding qu
 ## Data Quality Best Practices
 
 **Prevention:**
+
 - Validate at ingestion (catch issues early)
 - Implement schema contracts (enforce structure)
 - Use type systems (prevent type errors)
 - Automate quality checks (continuous validation)
 
 **Detection:**
+
 - Statistical profiling (baseline distributions)
 - Anomaly detection (outliers, drift)
 - Relationship validation (foreign keys, consistency)
 - Duplicate detection (exact and near-duplicate)
 
 **Remediation:**
+
 - Automated fixes (fill missing values, clip outliers)
 - Human review queue (ambiguous cases)
 - Dead letter queue (unfixable records)
 - Feedback loops (fix upstream sources)
 
 **Monitoring:**
+
 - Quality dashboards (real-time metrics)
 - Alerts on degradation (threshold breaches)
 - Trend analysis (quality over time)
@@ -167,17 +177,20 @@ Embedding systems have complex dependencies:
 ## Schema Evolution Best Practices
 
 **Safe evolution strategies:**
+
 - **Additive changes only**: Add fields, don't remove (backwards compatible)
 - **Deprecation before removal**: Mark fields deprecated for 1-2 versions
 - **Default values**: Provide defaults for new required fields
 - **Version tagging**: Tag data with schema version explicitly
 
 **Migration strategies:**
+
 - **Online migration**: Transform data on-read (lazy)
 - **Offline migration**: Reprocess entire dataset (eager)
 - **Hybrid**: Migrate hot data online, cold data offline
 
 **Compatibility levels:**
+
 - **Forward compatible**: New consumers can read old data
 - **Backward compatible**: Old consumers can read new data
 - **Full compatibility**: Both directions work
@@ -222,18 +235,21 @@ Each data source has unique characteristics:
 ## Multi-Source Fusion Best Practices
 
 **Schema management:**
+
 - **Canonical schema**: Define single target schema
 - **Schema registry**: Centralize source schema definitions
 - **Schema evolution**: Version schemas and migrate incrementally
 - **Type safety**: Validate types during alignment
 
 **Conflict resolution:**
+
 - **Priority-based**: Assign priority to sources (authority)
 - **Recency-based**: Prefer most recently updated value
 - **Quality-based**: Weight by source quality score
 - **Context-aware**: Consider semantic meaning
 
 **Performance:**
+
 - **Incremental fusion**: Only fuse changed entities
 - **Partitioning**: Partition by entity_id for parallel fusion
 - **Caching**: Cache fused results (invalidate on update)

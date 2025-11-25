@@ -30,6 +30,7 @@ Traditional trading signals face limitations:
 ## Trading Signal Best Practices
 
 **Data sources:**
+
 - **Price data**: Historical OHLCV, bid-ask spreads, order book depth
 - **Fundamentals**: Earnings, revenue, margins, debt, cash flow
 - **News**: Financial news, earnings calls, SEC filings
@@ -37,6 +38,7 @@ Traditional trading signals face limitations:
 - **Market data**: VIX, interest rates, sector indices, credit spreads
 
 **Modeling:**
+
 - **Time series**: LSTM/Transformer for temporal patterns
 - **Cross-sectional**: Learn relationships between securities
 - **Multi-modal**: Fuse price, fundamentals, news, alternative data
@@ -44,6 +46,7 @@ Traditional trading signals face limitations:
 - **Meta-learning**: Adapt quickly to regime changes
 
 **Production:**
+
 - **Low latency**: <10ms for high-frequency, <1s for daily signals
 - **Risk management**: Position limits, stop losses, correlation constraints
 - **Backtesting**: Out-of-sample testing on historical data
@@ -51,6 +54,7 @@ Traditional trading signals face limitations:
 - **Monitoring**: Track signal performance, attribution, regime changes
 
 **Challenges:**
+
 - **Overfitting**: Easy to find spurious patterns in financial data
 - **Regime changes**: Markets shift (2008 crisis, COVID), models break
 - **Data quality**: Corporate actions, survivorship bias, look-ahead bias
@@ -81,6 +85,7 @@ Traditional credit scoring faces limitations:
 ## Credit Risk Best Practices
 
 **Data sources:**
+
 - **Traditional**: Credit score, payment history, utilization, credit mix
 - **Alternative**: Rent/utility payments, bank transactions, employment history
 - **Behavioral**: Transaction patterns, savings behavior, bill-pay timing
@@ -88,6 +93,7 @@ Traditional credit scoring faces limitations:
 - **Contextual**: Income verification, regional economics, industry trends
 
 **Modeling:**
+
 - **Multi-modal fusion**: Combine traditional + alternative data
 - **Sequential models**: LSTM over transaction/payment history
 - **Graph neural networks**: Capture network effects
@@ -95,6 +101,7 @@ Traditional credit scoring faces limitations:
 - **Transfer learning**: Pre-train on large datasets
 
 **Production:**
+
 - **Explainability**: SHAP values, adverse action requirements
 - **Fairness monitoring**: Track approval/default rates by demographics
 - **Compliance**: FCRA, ECOA, state regulations
@@ -102,6 +109,7 @@ Traditional credit scoring faces limitations:
 - **A/B testing**: Test new models on small segments
 
 **Challenges:**
+
 - **Adverse selection**: Approved borrowers different from rejected
 - **Label lag**: Loans take months/years to default or repay
 - **Distribution shift**: Economic cycles change risk profiles
@@ -132,6 +140,7 @@ Traditional compliance systems face limitations:
 ## Compliance Automation Best Practices
 
 **Use cases:**
+
 - **AML**: Structuring, smurfing, trade-based money laundering
 - **Trading surveillance**: Spoofing, layering, wash trading, front-running
 - **Insider trading**: Employee trading around material events
@@ -139,6 +148,7 @@ Traditional compliance systems face limitations:
 - **KYC**: Identity verification, sanctions screening, PEP checks
 
 **Data sources:**
+
 - **Transactions**: Amount, timing, parties, geography
 - **Communications**: Emails, chats, recorded calls
 - **Documents**: Contracts, reports, disclosures
@@ -146,6 +156,7 @@ Traditional compliance systems face limitations:
 - **Network**: Relationships between entities
 
 **Modeling:**
+
 - **Semantic similarity**: Violations similar to rule descriptions
 - **Graph embeddings**: Network analysis for related-party transactions
 - **Sequential patterns**: Time-series analysis of behaviors
@@ -153,6 +164,7 @@ Traditional compliance systems face limitations:
 - **Few-shot learning**: Detect new violation types from few examples
 
 **Production:**
+
 - **Real-time**: Block high-risk transactions immediately
 - **Explainability**: Surface why events were flagged
 - **Human review**: Route alerts to compliance analysts
@@ -160,6 +172,7 @@ Traditional compliance systems face limitations:
 - **Reporting**: Automated SAR generation, regulatory reporting
 
 **Challenges:**
+
 - **False positives**: Too many alerts overwhelm analysts
 - **Evolving tactics**: Criminals adapt to detection methods
 - **Data quality**: Incomplete, inconsistent transaction data
@@ -190,6 +203,7 @@ Traditional customer analytics faces limitations:
 ## Customer Analytics Best Practices
 
 **Data sources:**
+
 - **Transactions**: Frequency, amount, product usage
 - **Engagement**: App usage, website visits, branch visits
 - **Service**: Support calls, complaints, resolutions
@@ -197,6 +211,7 @@ Traditional customer analytics faces limitations:
 - **External**: Credit bureau data, life events
 
 **Modeling:**
+
 - **Sequential**: LSTM over transaction/interaction history
 - **Lifecycle modeling**: Map embeddings to stages (acquisition, growth, mature, at-risk, churned)
 - **Propensity models**: Predict churn, cross-sell, upsell
@@ -204,6 +219,7 @@ Traditional customer analytics faces limitations:
 - **Transfer learning**: Pre-train on all customers, fine-tune per product
 
 **Production:**
+
 - **Real-time updates**: Update embeddings as transactions arrive
 - **Personalization**: Tailor offers, pricing, messaging to embeddings
 - **Intervention triggers**: Automatic alerts for at-risk customers
@@ -211,6 +227,7 @@ Traditional customer analytics faces limitations:
 - **Privacy**: Anonymize, aggregate where possible
 
 **Challenges:**
+
 - **Cold start**: New customers have minimal history
 - **Privacy**: Regulations limit data usage
 - **Fairness**: Avoid discriminatory segments/offers
@@ -241,6 +258,7 @@ Traditional sentiment analysis faces limitations:
 ## Sentiment Analysis Best Practices
 
 **Data sources:**
+
 - **News**: Financial news wires (Bloomberg, Reuters), company press releases
 - **Social media**: Twitter/X, Reddit (r/wallstreetbets), StockTwits
 - **Earnings calls**: Transcripts, audio recordings (tone analysis)
@@ -248,6 +266,7 @@ Traditional sentiment analysis faces limitations:
 - **SEC filings**: 10-K, 10-Q, 8-K (MD&A section sentiment)
 
 **Modeling:**
+
 - **Fine-tuning**: Start with financial BERT (FinBERT), fine-tune on outcomes
 - **Aspect-based**: Extract sentiment toward specific aspects (management, products, outlook)
 - **Multi-source**: Combine news, social, analyst sentiment
@@ -255,6 +274,7 @@ Traditional sentiment analysis faces limitations:
 - **Noise filtering**: Remove bots, spam, duplicate content
 
 **Production:**
+
 - **Low latency**: Process breaking news in <1 second
 - **Entity disambiguation**: Resolve ticker symbols, company names
 - **Aggregation**: Combine sentiment across multiple articles/posts
@@ -262,6 +282,7 @@ Traditional sentiment analysis faces limitations:
 - **Backtesting**: Validate signals on historical news + returns
 
 **Challenges:**
+
 - **Sarcasm**: Difficult to detect ("Great, just great" = negative)
 - **Context**: Same word different meanings ("Apple" company vs fruit)
 - **Timing**: Sentiment impact decays quickly (minutes to hours)

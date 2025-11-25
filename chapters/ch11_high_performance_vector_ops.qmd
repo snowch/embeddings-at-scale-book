@@ -40,12 +40,14 @@ Before resorting to approximation, several exact search optimizations provide si
 ## When to Use Exact vs. Approximate Search
 
 **Use exact search when:**
+
 - Corpus < 10M vectors (exact search fast enough with GPU)
 - Zero approximation error required (regulatory/compliance)
 - Have powerful GPUs (A100: 100M+ vectors/sec)
 - Latency budget > 10ms (allows brute force)
 
 **Use approximate search when:**
+
 - Corpus > 10M vectors (exact search too slow)
 - Can tolerate 95-99% recall (most applications)
 - Latency budget < 10ms (need sub-linear algorithms)
@@ -84,24 +86,28 @@ For billion-vector indices, exact search becomes infeasible. **Approximate neare
 ## Choosing the Right ANN Algorithm
 
 **Use IVF when:**
+
 - Batch processing (can afford slower build)
 - Memory constrained (IVF has lower overhead)
 - Low-dimensional embeddings (< 128 dims)
 - Large clusters acceptable (>1M vectors per cluster)
 
 **Use HNSW when:**
+
 - Online updates (incremental indexing)
 - High-dimensional embeddings (> 128 dims)
 - Need best recall-speed trade-off
 - Have memory for graph structure (~10-20 bytes/vector)
 
 **Use Product Quantization when:**
+
 - Massive scale (> 1B vectors)
 - Memory extremely constrained
 - Can tolerate reranking step
 - Storage cost dominates compute cost
 
 **Production systems often combine:**
+
 - HNSW + Product Quantization (graph structure + compression)
 - IVF + Product Quantization (partitioning + compression)
 - Multi-stage: Coarse filter (IVF) → Fine ranking (exact)
@@ -132,18 +138,21 @@ Modern GPUs provide 10-100× speedup for vector operations through massive paral
 ## GPU Optimization Best Practices
 
 **Memory management:**
+
 - Use FP16 when possible (2× capacity, minimal accuracy loss)
 - Pin memory for faster CPU→GPU transfers
 - Keep frequently accessed vectors in GPU memory
 - Use unified memory for > GPU capacity (automatic paging)
 
 **Computation optimization:**
+
 - Batch queries to amortize kernel launch overhead (10-100× speedup)
 - Use Tensor Cores (matrix multiplication) over element-wise ops
 - Minimize CPU-GPU synchronization points
 - Profile with `nvprof` or NSight to find bottlenecks
 
 **Multi-GPU scaling:**
+
 - Shard corpus across GPUs for > 80GB datasets
 - Use NCCL for fast inter-GPU communication
 - Pipeline data transfer and computation
@@ -162,12 +171,14 @@ Billion-vector indices exceed RAM capacity (1B × 512 dims × 4 bytes = 2TB). **
 ## Memory-Mapped Storage Best Practices
 
 **When to use:**
+
 - Dataset > available RAM
 - Can tolerate higher latency (10-100ms vs 1-10ms)
 - Access patterns have locality (similar vectors accessed together)
 - Cost-sensitive (avoid paying for 1TB+ RAM)
 
 **Optimizations:**
+
 - Use SSDs (10× faster than HDDs for random access)
 - Cluster similar vectors together (spatial locality → better caching)
 - Combine with RAM cache for hot vectors (90/10 rule applies)
@@ -175,6 +186,7 @@ Billion-vector indices exceed RAM capacity (1B × 512 dims × 4 bytes = 2TB). **
 - Use `madvise` to give OS paging hints
 
 **Avoid for:**
+
 - Real-time serving (< 10ms latency requirements)
 - Truly random access patterns (no cache benefits)
 - Frequently updated indices (mmap flush overhead)
@@ -192,22 +204,26 @@ Modern embedding systems serve thousands of concurrent queries. **Parallel query
 ## Parallel Processing Best Practices
 
 **Threading vs multiprocessing:**
+
 - Use threading for I/O-bound tasks (disk, network)
 - Use multiprocessing for CPU-bound tasks (avoids GIL)
 - Use GPU for massive parallelism (thousands of threads)
 
 **Batching strategies:**
+
 - Micro-batching (10-50ms window) for low latency
 - Macro-batching (1-10s window) for high throughput
 - Adaptive batching based on load
 
 **Load balancing:**
+
 - Round-robin for uniform replicas
 - Least-load for heterogeneous replicas
 - Latency-weighted for geographic distribution
 - Health checks to detect failed replicas
 
 **Scaling limits:**
+
 - CPU-bound: Scales to number of cores (8-96)
 - GPU-bound: Scales to GPU memory (80-640GB)
 - I/O-bound: Scales to disk/network bandwidth
