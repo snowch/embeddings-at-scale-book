@@ -90,24 +90,28 @@ Traditional Security Information and Event Management (SIEM) systems use rules:
 ## Threat Hunting Best Practices
 
 **Baselines:**
+
 - **Per-user baselines**: Each user has unique normal behavior
 - **Per-device baselines**: Each device has characteristic patterns
 - **Time-aware**: Behavior varies by time of day, day of week
 - **Context-aware**: Location, VPN usage, remote vs office
 
 **Features:**
+
 - **Login patterns**: Time, location, device, success/failure rate
 - **File access**: Paths accessed, read/write/delete ratios
 - **Network activity**: Connections, data volumes, destinations
 - **Process execution**: Binaries run, arguments, parent processes
 
 **Detection:**
+
 - **Sequential anomalies**: Unusual sequence of events (login → sensitive file → large upload)
 - **Statistical anomalies**: Unusual frequency, volume, or timing
 - **Behavioral drift**: Gradual change in behavior (slow compromise)
 - **Peer group analysis**: Deviation from similar users (same role, department)
 
 **Production:**
+
 - **Low latency**: <1 second for real-time alerting
 - **Prioritization**: Rank alerts by severity (combine multiple signals)
 - **Investigation workflow**: Provide context for analysts (what's unusual, why)
