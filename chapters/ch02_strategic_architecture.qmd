@@ -29,64 +29,73 @@ A good embedding vision should be ambitious enough to require 3-5 years of susta
 
 **2. What business metrics will improve?**
 
-Map embeddings to business outcomes, not technical metrics:
+Map embeddings to business outcomes, not technical metrics. The specific metrics depend on your industry and use case:
 
-```python
-class EmbeddingBusinessMetrics:
-    """Map embedding capabilities to business outcomes"""
+**E-commerce metrics:**
 
-    def __init__(self, business_context):
-        self.context = business_context
-        self.metric_map = {}
+| Metric | What Embeddings Improve | Typical Timeframe |
+|--------|------------------------|-------------------|
+| Conversion rate | Better product discovery → more purchases | 6-12 months |
+| Revenue per user | Personalized recommendations → higher basket value | 12-18 months |
+| Customer LTV | Improved experience → retention and repeat purchases | 18-24 months |
+| Search satisfaction | Semantic search → finding what users actually want | 3-6 months |
+| Zero-result rate | Understanding intent → always returning relevant results | 6-9 months |
 
-    def define_success_metrics(self):
-        """Define measurable business outcomes"""
+**Fraud detection metrics:**
 
-        if self.context == 'ecommerce':
-            return {
-                'primary_metrics': [
-                    {'metric': 'conversion_rate', 'baseline': 0.08, 'target': 0.12, 'timeline': '12mo'},
-                    {'metric': 'revenue_per_user', 'baseline': 420, 'target': 550, 'timeline': '18mo'},
-                    {'metric': 'customer_ltv', 'baseline': 850, 'target': 1200, 'timeline': '24mo'}
-                ],
-                'operational_metrics': [
-                    {'metric': 'search_satisfaction', 'baseline': 3.2, 'target': 4.3, 'timeline': '6mo'},
-                    {'metric': 'zero_result_rate', 'baseline': 0.15, 'target': 0.03, 'timeline': '9mo'}
-                ]
-            }
+| Metric | What Embeddings Improve | Typical Timeframe |
+|--------|------------------------|-------------------|
+| Fraud loss rate | Behavioral embeddings catch novel patterns | 12-18 months |
+| False positive rate | Better representations → fewer legitimate transactions blocked | 6-12 months |
+| Detection latency | Efficient similarity search → real-time decisions | 3-6 months |
+| New pattern adaptation | Continuous learning → faster response to emerging threats | 6-12 months |
 
-        elif self.context == 'fraud_detection':
-            return {
-                'primary_metrics': [
-                    {'metric': 'fraud_loss_rate', 'baseline': 0.0006, 'target': 0.00025, 'timeline': '18mo'},
-                    {'metric': 'false_positive_rate', 'baseline': 0.023, 'target': 0.004, 'timeline': '12mo'}
-                ],
-                'operational_metrics': [
-                    {'metric': 'detection_latency_ms', 'baseline': 250, 'target': 50, 'timeline': '6mo'},
-                    {'metric': 'new_pattern_adaptation_hours', 'baseline': 72, 'target': 2, 'timeline': '12mo'}
-                ]
-            }
+**Healthcare metrics:**
 
-        elif self.context == 'healthcare':
-            return {
-                'primary_metrics': [
-                    {'metric': 'physician_research_hours_per_week', 'baseline': 4.3, 'target': 0.8, 'timeline': '18mo'},
-                    {'metric': 'diagnostic_accuracy_rare_diseases', 'baseline': 0.45, 'target': 0.75, 'timeline': '24mo'},
-                    {'metric': 'readmission_rate', 'baseline': 0.147, 'target': 0.134, 'timeline': '24mo'}
-                ],
-                'operational_metrics': [
-                    {'metric': 'time_to_correct_diagnosis_hours', 'baseline': 18.5, 'target': 14.2, 'timeline': '18mo'}
-                ]
-            }
-```
+| Metric | What Embeddings Improve | Typical Timeframe |
+|--------|------------------------|-------------------|
+| Research time per case | Semantic search across literature and records | 12-18 months |
+| Diagnostic accuracy | Similar case retrieval for rare conditions | 18-24 months |
+| Readmission rate | Better patient matching → improved care protocols | 18-24 months |
+| Time to diagnosis | Faster retrieval of relevant clinical information | 12-18 months |
+
+:::{.callout-tip}
+## Choosing Your Metrics
+Start with 2-3 primary metrics that directly tie to business value. Add operational metrics (latency, satisfaction scores) as leading indicators that predict business impact before it fully materializes.
+:::
 
 **3. What data do we have (or can we get)?**
 
-Embedding quality is bounded by data quality and quantity. Conduct a data audit:
+Embedding quality is bounded by data quality and quantity. Before investing in embeddings, audit your data across these dimensions:
+
+| Factor | Key Questions | Ready | Needs Work |
+|--------|---------------|-------|------------|
+| **Volume** | How many records? | >100K for fine-tuning, >10K minimum | <10K limits embedding quality |
+| **Completeness** | What % of required fields are populated? | >90% populated | <70% creates sparse representations |
+| **Accuracy** | What's the validation/error rate? | >85% accurate | <70% (spam, duplicates, errors) |
+| **Coverage** | Does data span all important categories? | Representative of problem space | Missing key segments or edge cases |
+| **Freshness** | When was data last updated? | <30 days for dynamic domains | >90 days risks stale embeddings |
+| **Labeling** | What % is labeled? Label quality? | >50% high-quality labels | Unlabeled limits supervised approaches |
+
+For time-sensitive domains, you can model data freshness as exponential decay:
 
 ```python
-{{< include /code_examples/ch02_strategic_architecture/embeddingdataaudit.py >}}
+import math
+
+def calculate_data_freshness(days_since_update, half_life_days=90):
+    """
+    Score data freshness from 0-1 using exponential decay.
+    Half-life of 90 days: data loses half its "freshness" every 3 months.
+    """
+    return math.exp(-days_since_update * math.log(2) / half_life_days)
+
+# Examples: 0 days → 1.0, 90 days → 0.5, 180 days → 0.25, 365 days → 0.06
 ```
+
+:::{.callout-tip}
+## Data Gaps Are Addressable
+Low scores don't disqualify a data source—they identify where to invest. Poor accuracy? Add validation pipelines. Low coverage? Acquire supplementary data. Unlabeled? Consider self-supervised approaches or active labeling.
+:::
 
 **4. What is our embedding maturity level?**
 
