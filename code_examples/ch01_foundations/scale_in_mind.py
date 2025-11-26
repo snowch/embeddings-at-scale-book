@@ -11,7 +11,7 @@ SCHEMA_NAME = "my-schema"
 TABLE_NAME = "my-table"
 
 # Wrong: Single-node architecture
-embeddings = np.load('embeddings.npy')  # Doesn't scale
+embeddings = np.load("embeddings.npy")  # Doesn't scale
 dim = embeddings.shape[1]
 index = faiss.IndexFlatL2(dim)  # In-memory only
 index.add(embeddings)
@@ -27,16 +27,18 @@ with session.transaction() as tx:
 
     # Create the table.
     dimension = 5
-    columns = pa.schema([("id", pa.int64()),
-                         ("vec", pa.list_(pa.field(name="item", type=pa.float32(), nullable=False), dimension)),
-                         ('vec_timestamp', pa.timestamp('us'))])
+    columns = pa.schema(
+        [
+            ("id", pa.int64()),
+            ("vec", pa.list_(pa.field(name="item", type=pa.float32(), nullable=False), dimension)),
+            ("vec_timestamp", pa.timestamp("us")),
+        ]
+    )
 
     table = schema.table(TABLE_NAME) or schema.create_table(TABLE_NAME, columns)
 
     # Insert a few rows of data.
-    arrow_table = pa.table(schema=columns, data=[
-       ...
-    ])
+    arrow_table = pa.table(schema=columns, data=[...])
     table.insert(arrow_table)
 
 # Scales from millions to trillions with same API
