@@ -701,21 +701,40 @@ Direct benefits are measurable improvements in existing processes:
 
 **1. Search and Discovery Improvements**
 
-```python
-{{< include /code_examples/ch01_foundations/calculate_search_roi.py >}}
-```
+| Metric | Current | Target | Improvement |
+|--------|---------|--------|-------------|
+| Conversion rate | 8% | 12% | +50% |
+| Avg. time to find | 3.5 min | 1.5 min | -57% |
+| Zero-result rate | 15% | 3% | -80% |
+
+: Example search metrics before/after embeddings {.striped}
+
+| Benefit Category | Formula | Example Calculation |
+|-----------------|---------|---------------------|
+| Additional revenue | (target_rate − current_rate) × annual_searches × avg_transaction | (0.12 − 0.08) × 5M × $50 = **$10M** |
+| Recovered abandonments | reduced_zero_results × recovery_rate × avg_transaction | 600K × 0.30 × $50 = **$9M** |
+| Time saved | searches × time_reduction ÷ 60 | 5M × 2 min ÷ 60 = **167K hours** |
+
+: Search ROI calculation framework {.striped}
 
 **2. Operational Efficiency Gains**
 
-```python
-{{< include /code_examples/ch01_foundations/calculate_efficiency_roi.py >}}
-```
+| Benefit Category | Formula | Example (Document Review) |
+|-----------------|---------|---------------------------|
+| Hours saved | (current_time − target_time) × annual_volume | (4h − 1h) × 10K docs = **30K hours** |
+| Direct savings | hours_saved × hourly_cost | 30K × $500 = **$15M** |
+| Quality savings | volume × current_time × error_reduction × hourly_cost | 10K × 4h × 5% × $500 = **$1M** |
+
+: Efficiency ROI calculation framework {.striped}
 
 **3. Fraud and Risk Reduction**
 
-```python
-{{< include /code_examples/ch01_foundations/calculate_fraud_roi.py >}}
-```
+| Benefit Category | Formula | Example |
+|-----------------|---------|---------|
+| Fraud loss reduction | transaction_volume × (current_loss_rate − target_loss_rate) | $1B × (0.5% − 0.2%) = **$3M** |
+| False positive savings | reduced_FP_count × cost_per_FP | 50K × $25 = **$1.25M** |
+
+: Fraud detection ROI calculation framework {.striped}
 
 ### Measuring Indirect Value
 
@@ -723,39 +742,86 @@ Indirect benefits are harder to quantify but often larger than direct benefits:
 
 **1. Competitive Velocity**
 
-How much faster can you move than competitors?
+| Factor | Impact | How Embeddings Help |
+|--------|--------|---------------------|
+| Time to market | Weeks → Days | Semantic product discovery accelerates launches |
+| Adaptation speed | Weeks → Minutes | Add new patterns by inserting vectors, not retraining |
+| Innovation rate | Incremental → Step-change | Embedding analysis reveals non-obvious opportunities |
 
-- **Time to market**: Embedding-based product discovery reduces new product launch time
-- **Adaptation speed**: Systems adapt in minutes vs. weeks
-- **Innovation rate**: Embedding insights reveal new opportunities
+: Competitive velocity improvements {.striped}
 
 **2. Customer Lifetime Value Improvement**
 
-```python
-{{< include /code_examples/ch01_foundations/calculate_ltv_improvement.py >}}
-```
+| Benefit Category | Formula | Example |
+|-----------------|---------|---------|
+| LTV increase | current_LTV × churn_reduction | $500 × 15% = **$75/customer** |
+| Annual value | LTV_increase × customer_base × turnover_rate | $75 × 100K × 25% = **$1.9M** |
+
+: LTV improvement calculation {.striped}
+
+Embedding improvements reduce churn through better search (customers find what they need), better recommendations (more value delivered), and better support (faster issue resolution).
 
 **3. Data Moat Valuation**
 
-How much is it worth to have a competitive advantage competitors can't easily replicate?
+| Moat Factor | Calculation Approach | Example |
+|-------------|---------------------|---------|
+| Market share protection | addressable_market × prevented_share_loss | $1B × 5% = **$50M** |
+| Premium pricing | revenue × price_premium_enabled | $100M × 10% = **$10M** |
+| M&A valuation premium | company_value × moat_premium | $500M × 35% = **$175M** |
 
-- **Market share protection**: If your embedding moat prevents 5% market share loss in a $1B addressable market, that's $50M annual value
-- **Premium pricing**: If customers pay 10% more for superior experience, calculate revenue impact
-- **M&A valuation**: Companies with defensible data moats command 30-50% valuation premiums
+: Data moat valuation approaches {.striped}
 
 ### Risk-Adjusted Returns
 
 Not all embedding projects succeed. Adjust ROI estimates for risk:
 
-```python
-{{< include /code_examples/ch01_foundations/risk_adjusted_roi.py >}}
-```
+| Certainty Level | Probability | When to Apply |
+|-----------------|-------------|---------------|
+| High | 80-90% | Proven use case, good data quality |
+| Medium | 60-70% | Proven use case, decent data |
+| Low | 30-50% | Novel use case or poor data quality |
+
+: Risk probability guidelines {.striped}
+
+| Metric | Formula |
+|--------|---------|
+| Expected annual benefit | potential_benefit × probability_of_success |
+| NPV | −implementation_cost + Σ(annual_benefit − operating_cost) ÷ (1 + discount_rate)^year |
+| ROI % | (NPV ÷ implementation_cost) × 100 |
+| Payback period | implementation_cost ÷ (expected_benefit − operating_cost) |
+
+: Risk-adjusted ROI formulas (typically use 15% discount rate over 5 years) {.striped}
 
 ### Complete ROI Framework Template
 
-```python
-{{< include /code_examples/ch01_foundations/embeddingroicalculator.py >}}
-```
+Use this template to calculate total ROI for an embedding project:
+
+| Category | Line Item | Your Values |
+|----------|-----------|-------------|
+| **Direct Benefits** | | |
+| | Search/discovery improvements | $_______ |
+| | Operational efficiency gains | $_______ |
+| | Fraud/risk reduction | $_______ |
+| | **Subtotal Direct** | $_______ |
+| **Indirect Benefits** | | |
+| | Customer LTV improvement | $_______ |
+| | Competitive velocity (estimated) | $_______ |
+| | Data moat value (estimated) | $_______ |
+| | **Subtotal Indirect** | $_______ |
+| **Total Annual Benefit** | | $_______ |
+| **Costs** | | |
+| | Implementation (one-time) | $_______ |
+| | Annual operating | $_______ |
+| | Annual data/infrastructure | $_______ |
+| **Risk Adjustment** | | |
+| | Probability of success | _______% |
+| | Risk-adjusted annual benefit | $_______ |
+| **Final Metrics** | | |
+| | NPV (5-year) | $_______ |
+| | ROI % | _______% |
+| | Payback period | _______ years |
+
+: Embedding project ROI worksheet {.striped}
 
 ## Key Takeaways
 
