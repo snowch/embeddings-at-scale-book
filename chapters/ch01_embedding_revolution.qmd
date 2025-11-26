@@ -616,11 +616,7 @@ Sum: ~700 trillion potential embeddings for a complete representation of commerc
 
 **Storage and Compute Economics**:
 
-```python
-{{< include /code_examples/ch01_foundations/example_08.py >}}
-```
-
-At current cloud pricing, 256 trillion embeddings cost approximately $40-50M annually to store and serve. For large enterprises with $10B+ revenue, this is 0.4-0.5% of revenue to create potentially insurmountable competitive advantages.
+*Coming Soon*
 
 **Computational Feasibility**:
 
