@@ -8,8 +8,6 @@ BUCKET_NAME = "my-bucket"
 SCHEMA_NAME = "my-schema"
 TABLE_NAME = "my-table"
 
-# Right: Distributed-first architecture
-
 session = vastdb.connect(...)
 
 with session.transaction() as tx:

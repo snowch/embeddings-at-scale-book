@@ -4,7 +4,6 @@
 import faiss
 import numpy as np
 
-# Wrong: Single-node architecture
 embeddings = np.load("embeddings.npy")  # Doesn't scale
 dim = embeddings.shape[1]
 index = faiss.IndexFlatL2(dim)  # In-memory only

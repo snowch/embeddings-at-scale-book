@@ -636,9 +636,13 @@ Organizations building toward trillion-row scale should think differently:
 
 Don't build for your current 10M embeddings. Build for 10B. The architecture is different:
 
+Wrong: Single-node architecture
+
 ```python
 {{< include /code_examples/ch01_foundations/scale_in_mind_wrong.py >}}
 ```
+
+Right: Distributed-first architecture
 
 ```python
 {{< include /code_examples/ch01_foundations/scale_in_mind_right.py >}}
