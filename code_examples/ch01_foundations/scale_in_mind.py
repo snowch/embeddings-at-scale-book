@@ -1,16 +1,24 @@
 # Code from Chapter 01
 # Book: Embeddings at Scale
 
+import faiss
+import numpy as np
+import pyarrow as pa
+import vastdb
+
+BUCKET_NAME = "my-bucket"
+SCHEMA_NAME = "my-schema"
+TABLE_NAME = "my-table"
+
 # Wrong: Single-node architecture
 embeddings = np.load('embeddings.npy')  # Doesn't scale
+dim = embeddings.shape[1]
 index = faiss.IndexFlatL2(dim)  # In-memory only
 index.add(embeddings)
 
 
 # Right: Distributed-first architecture
 
-
-import vastdb
 session = vastdb.connect(...)
 
 with session.transaction() as tx:
