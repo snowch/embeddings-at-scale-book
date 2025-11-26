@@ -152,7 +152,7 @@ This property emerges naturally from how embeddings are trained and enables powe
 
 **3. Dimensionality and Information Density**
 
-Embeddings compress information into dense vectors. A typical word embedding uses 300-1024 dimensions to represent any word in a language. Compare this to one-hot encoding, which requires vocabulary_size dimensions (often 50,000+).
+Embeddings compress information into dense vectors. A typical embedding uses 768-1024 dimensions to represent complex semantic content. Compare this to one-hot encoding, which requires vocabulary_size dimensions (often 50,000+).
 
 ```python
 # Information density comparison
@@ -171,6 +171,11 @@ compression = vocabulary_size / embedding_dimensions  # ~65x compression
 ```
 
 This compression is possible because embeddings learn the **intrinsic dimensionality** of the data. Natural language, despite having 50,000+ words, can be represented in a much lower-dimensional space because words are not independent—they exhibit patterns and relationships.
+
+:::{.callout-note}
+## Word Embeddings vs Chunk Embeddings
+Early embedding systems like Word2Vec (2013) created one vector per word. Modern RAG systems work differently: they embed **chunks of text**—sentences, paragraphs, or passages—where each chunk receives a single vector that captures its complete semantic meaning. A 512-token paragraph and a 5-word sentence both become 768-dimensional vectors, but the paragraph's vector encodes far richer context. This distinction matters for retrieval systems: you're not searching through word embeddings, you're searching through chunk embeddings. See @sec-text-chunking for detailed coverage of chunking strategies and their impact on retrieval quality.
+:::
 
 **4. Learned Representations**
 

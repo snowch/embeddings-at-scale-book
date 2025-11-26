@@ -33,36 +33,38 @@ book:
         - chapters/ch10_scaling_embedding_training.qmd
         - chapters/ch11_high_performance_vector_ops.qmd
         - chapters/ch12_data_engineering.qmd
+        - chapters/ch13_text_chunking.qmd
+        - chapters/ch14_image_preparation.qmd
 
     - part: "Part IV: Advanced Applications"
       chapters:
-        - chapters/ch13_rag_at_scale.qmd
-        - chapters/ch14_semantic_search.qmd
-        - chapters/ch15_recommendation_systems.qmd
-        - chapters/ch16_anomaly_detection_security.qmd
-        - chapters/ch17_automated_decision_systems.qmd
+        - chapters/ch15_rag_at_scale.qmd
+        - chapters/ch16_semantic_search.qmd
+        - chapters/ch17_recommendation_systems.qmd
+        - chapters/ch18_anomaly_detection_security.qmd
+        - chapters/ch19_automated_decision_systems.qmd
 
     - part: "Part V: Industry Applications"
       chapters:
-        - chapters/ch18_financial_services.qmd
-        - chapters/ch19_healthcare_life_sciences.qmd
-        - chapters/ch20_retail_ecommerce.qmd
-        - chapters/ch21_manufacturing_industry40.qmd
-        - chapters/ch22_media_entertainment.qmd
+        - chapters/ch20_financial_services.qmd
+        - chapters/ch21_healthcare_life_sciences.qmd
+        - chapters/ch22_retail_ecommerce.qmd
+        - chapters/ch23_manufacturing_industry40.qmd
+        - chapters/ch24_media_entertainment.qmd
 
     - part: "Part VI: Future-Proofing & Optimization"
       chapters:
-        - chapters/ch23_performance_optimization.qmd
-        - chapters/ch24_security_privacy.qmd
-        - chapters/ch25_monitoring_observability.qmd
-        - chapters/ch26_future_trends.qmd
+        - chapters/ch25_performance_optimization.qmd
+        - chapters/ch26_security_privacy.qmd
+        - chapters/ch27_monitoring_observability.qmd
+        - chapters/ch28_future_trends.qmd
 
     - part: "Part VII: Implementation Roadmap"
       chapters:
-        - chapters/ch27_organizational_transformation.qmd
-        - chapters/ch28_implementation_roadmap.qmd
-        - chapters/ch29_case_studies.qmd
-        - chapters/ch30_path_forward.qmd
+        - chapters/ch29_organizational_transformation.qmd
+        - chapters/ch30_implementation_roadmap.qmd
+        - chapters/ch31_case_studies.qmd
+        - chapters/ch32_path_forward.qmd
 
     - references.qmd
 
