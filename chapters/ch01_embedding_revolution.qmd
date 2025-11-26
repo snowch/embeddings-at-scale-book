@@ -649,9 +649,7 @@ Don't build for your current 10M embeddings. Build for 10B. The architecture is 
 At trillion-row scale, data engineering dominates algorithm choice:
 
 - **Data quality**: 1% error rate on 1M embeddings = 10K bad embeddings (manageable). 1% on 1T embeddings = 10B bad embeddings (catastrophic).
-
 - **Data lineage**: When an embedding is wrong, you need to trace back to source data, transformation pipeline, model version, training run. At scale, this requires production-grade data infrastructure.
-
 - **Data evolution**: Embedding models improve. You need to version, migrate, and AB test new embeddings against old while serving trillion-row production traffic.
 
 **3. Build Moats Defensively**
