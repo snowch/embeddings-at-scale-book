@@ -637,7 +637,11 @@ Organizations building toward trillion-row scale should think differently:
 Don't build for your current 10M embeddings. Build for 10B. The architecture is different:
 
 ```python
-{{< include /code_examples/ch01_foundations/scale_in_mind.py >}}
+{{< include /code_examples/ch01_foundations/scale_in_mind_wrong.py >}}
+```
+
+```python
+{{< include /code_examples/ch01_foundations/scale_in_mind_right.py >}}
 ```
 
 **2. Invest in Data Infrastructure**
