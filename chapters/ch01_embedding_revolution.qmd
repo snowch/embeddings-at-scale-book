@@ -251,7 +251,98 @@ Embeddings transform how we represent information in computer systems:
 
 This fundamental shift enables applications that were impossible with traditional discrete representations: semantic search that understands intent, recommendation systems that discover surprising connections, and AI systems that reason about concepts rather than manipulate symbols.
 
-Now that we understand what embeddings are and their key properties, let's explore why they've become the foundation for competitive advantage in modern organizations.
+Now that we understand what embeddings are and their key properties, a natural question arises: why use embeddings at all instead of simply running a neural network to classify or score each item directly?
+
+## Why Embeddings Instead of Direct Classification?
+
+When faced with a problem like fraud detection, anomaly detection, or semantic search, practitioners often ask: "Why not just use a pre-trained model to score each item directly? Why bother with embeddings and vector databases?"
+
+This is an important architectural question. Both approaches use neural networks, but they solve problems in fundamentally different ways.
+
+### The Two Approaches
+
+**Direct Classification**: Run a neural network on each item to produce a score or label.
+
+```python
+# Direct classification approach
+def detect_fraud_direct(transaction):
+    # Run full model inference on each transaction
+    score = fraud_classifier.predict(transaction)  # 10-100ms per call
+    return score > threshold
+```
+
+**Embedding + Similarity**: Compute embeddings once, store them, then use fast similarity search.
+
+```python
+# Embedding approach
+def detect_fraud_embedding(transaction):
+    # Compute embedding (can be cached for known entities)
+    embedding = encoder.encode(transaction)  # 5-20ms, cacheable
+
+    # Fast similarity search against known patterns
+    distances, indices = vector_db.search(embedding, k=10)  # <1ms
+
+    # Anomaly = far from all normal patterns
+    return min(distances) > anomaly_threshold
+```
+
+### When Embeddings Win
+
+| Factor | Embedding + Vector DB | Direct NN Classifier |
+|--------|----------------------|---------------------|
+| **Novel pattern detection** | Detects "far from normal" without training on that specific pattern | Can only classify patterns it was trained on |
+| **Cost at scale** | Embed once, cheap similarity lookups (sub-ms) | Inference cost on every query ($$$  at billions/day) |
+| **Latency** | ~1ms vector lookup after embedding | 10-100ms+ full model inference |
+| **Adaptability** | Add new baselines/patterns by inserting vectors | Requires model retraining |
+| **Explainability** | "Similar to X, far from Y"—can show examples | "Score: 0.87"—harder to interpret |
+| **Labeled data requirement** | Works unsupervised (cluster normal behavior) | Needs labeled training examples |
+
+### The Zero-Day Argument
+
+For security and anomaly detection, the most compelling argument for embeddings is **zero-day detection**. A classifier can only recognize attack patterns present in its training data. An embedding system can detect "this behavior is unlike anything normal I've seen" without ever having seen that specific attack.
+
+```python
+# Classifier limitation: only knows trained attack types
+attack_types = ['sql_injection', 'xss', 'credential_stuffing']  # Fixed at training time
+
+# Embedding advantage: detects deviation from normal
+if distance_to_nearest_normal_cluster > threshold:
+    alert("Anomalous behavior detected")  # Works for novel attacks
+```
+
+### When Direct Classification Wins
+
+Embeddings aren't always the answer. Direct classification is better when:
+
+- **Categories are fixed and well-defined**: Sentiment analysis (positive/negative/neutral) doesn't need similarity search
+- **You need precise probability estimates**: Medical diagnosis requiring calibrated confidence scores
+- **Single-item decisions**: No need to compare against a corpus
+- **Low volume**: If you're processing 1,000 items/day, inference cost doesn't matter
+
+### The Hybrid Reality
+
+In practice, many production systems combine both approaches:
+
+```python
+def hybrid_detection(item):
+    # Stage 1: Fast embedding-based filtering
+    embedding = encoder.encode(item)
+    similar_items = vector_db.search(embedding, k=100)
+
+    if is_clearly_normal(similar_items):
+        return "normal"  # Fast path: no expensive inference
+
+    # Stage 2: Detailed classification for ambiguous cases
+    if is_ambiguous(similar_items):
+        score = expensive_classifier.predict(item)
+        return "fraud" if score > threshold else "normal"
+
+    return "anomaly"  # Far from everything known
+```
+
+This pattern—embeddings for fast filtering, classifiers for precise decisions—appears throughout this book in fraud detection (@sec-anomaly-detection-security), recommendation systems (@sec-recommendation-systems), and search (@sec-semantic-search).
+
+With this architectural choice clarified, let's explore why embeddings have become the foundation for competitive advantage in modern organizations.
 
 ## Why Embeddings Are the New Competitive Moat
 
