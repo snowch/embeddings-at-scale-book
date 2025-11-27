@@ -53,20 +53,21 @@ book:
         - chapters/ch24_media_entertainment.qmd
         - chapters/ch25_scientific_computing.qmd
         - chapters/ch26_defense_intelligence.qmd
+        - chapters/ch27_video_surveillance_analytics.qmd
 
     - part: "Part VI: Future-Proofing & Optimization"
       chapters:
-        - chapters/ch27_performance_optimization.qmd
-        - chapters/ch28_security_privacy.qmd
-        - chapters/ch29_monitoring_observability.qmd
-        - chapters/ch30_future_trends.qmd
+        - chapters/ch28_performance_optimization.qmd
+        - chapters/ch29_security_privacy.qmd
+        - chapters/ch30_monitoring_observability.qmd
+        - chapters/ch31_future_trends.qmd
 
     - part: "Part VII: Implementation Roadmap"
       chapters:
-        - chapters/ch31_organizational_transformation.qmd
-        - chapters/ch32_implementation_roadmap.qmd
-        - chapters/ch33_case_studies.qmd
-        - chapters/ch34_path_forward.qmd
+        - chapters/ch32_organizational_transformation.qmd
+        - chapters/ch33_implementation_roadmap.qmd
+        - chapters/ch34_case_studies.qmd
+        - chapters/ch35_path_forward.qmd
 
     - references.qmd
 

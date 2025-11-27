@@ -401,7 +401,7 @@ Global embedding systems face network constraints:
 
 ## Looking Ahead
 
-Chapter 28 addresses critical security and privacy considerations: embedding encryption and secure computation for protecting sensitive embeddings, privacy-preserving similarity search enabling queries without revealing query vectors or database contents, differential privacy for embeddings providing formal privacy guarantees, access control and audit trails for regulatory compliance, and GDPR and data sovereignty compliance for global deployments.
+Chapter 29 addresses critical security and privacy considerations: embedding encryption and secure computation for protecting sensitive embeddings, privacy-preserving similarity search enabling queries without revealing query vectors or database contents, differential privacy for embeddings providing formal privacy guarantees, access control and audit trails for regulatory compliance, and GDPR and data sovereignty compliance for global deployments.
 
 ## Further Reading
 

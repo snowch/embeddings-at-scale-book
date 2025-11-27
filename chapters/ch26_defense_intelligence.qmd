@@ -401,7 +401,9 @@ The performance figures below are illustrative based on published research and h
 
 ## Looking Ahead
 
-Part VI (Future-Proofing & Optimization) begins with Chapter 27, which covers performance optimization for embedding systems: hardware acceleration strategies including GPU clusters, TPUs, and specialized inference chips, memory optimization techniques for billion-parameter models, latency reduction for real-time applications, throughput scaling for batch processing, and cost optimization balancing quality against infrastructure spend.
+Chapter 27 covers video surveillance and analytics—a critical application area generating massive vector volumes across industries: real-time video embedding for continuous monitoring at scale, person re-identification tracking individuals across cameras and time, action recognition detecting behaviors and activities, anomaly detection identifying unusual events, forensic video search enabling investigators to find specific events across archives, and industry applications spanning retail loss prevention, smart city traffic and crowd monitoring, manufacturing safety compliance, and privacy-preserving analytics that balance security with civil liberties.
+
+Part VI (Future-Proofing & Optimization) then begins with Chapter 28, which covers performance optimization for embedding systems: hardware acceleration strategies including GPU clusters, TPUs, and specialized inference chips, memory optimization techniques for billion-parameter models, latency reduction for real-time applications, throughput scaling for batch processing, and cost optimization balancing quality against infrastructure spend.
 
 ## Further Reading
 
