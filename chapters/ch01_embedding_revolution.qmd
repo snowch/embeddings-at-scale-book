@@ -328,16 +328,90 @@ The learning process ensures embeddings capture the patterns that matter for you
 
 Word embeddings map words to vectors, capturing semantic and syntactic relationships:
 
-```python
-{{< include /code_examples/ch01_foundations/sentence_transformer_example.py >}}
+```{python}
+# code-fold: false
+
+"""
+Word Embeddings with SentenceTransformer
+
+Demonstrates how to use pre-trained models to create word embeddings and
+measure similarity between words.
+"""
+
+from sentence_transformers import SentenceTransformer
+from sklearn.metrics.pairwise import cosine_similarity
+
+# Load a pre-trained model
+model = SentenceTransformer("all-MiniLM-L6-v2")
+
+# Create embeddings for words/sentences
+words = ["cat", "dog", "puppy", "kitten", "automobile", "car"]
+embeddings = model.encode(words)
+
+# Find similar words
+similarities = cosine_similarity(embeddings)
+
+# 'cat' is most similar to 'kitten'
+# 'automobile' is most similar to 'car'
+print("Similarity matrix:")
+for i, word1 in enumerate(words):
+    for j, word2 in enumerate(words):
+        if i < j:
+            print(f"{word1} ↔ {word2}: {similarities[i][j]:.3f}")
 ```
 
 **Image Embeddings**
 
 Images can be embedded into vectors that capture visual content:
 
-```python
-{{< include /code_examples/ch01_foundations/image_embeddings_resnet.py >}}
+```{python}
+# code-fold: false
+
+"""
+Image Embeddings with ResNet
+
+Demonstrates how to create image embeddings using a pre-trained ResNet model.
+Images are converted to vectors that capture visual content, enabling
+similarity search across images.
+"""
+
+import torch
+from PIL import Image
+from torchvision import models, transforms
+
+# Load pre-trained image model
+model = models.resnet50(pretrained=True)
+model.eval()
+
+# Remove final classification layer to get embeddings
+embedding_model = torch.nn.Sequential(*list(model.children())[:-1])
+
+# Transform image to tensor
+transform = transforms.Compose(
+    [
+        transforms.Resize(256),
+        transforms.CenterCrop(224),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ]
+)
+
+
+def get_image_embedding(image_path):
+    """Convert image to embedding vector"""
+    img = Image.open(image_path)
+    img_tensor = transform(img).unsqueeze(0)
+
+    with torch.no_grad():
+        embedding = embedding_model(img_tensor)
+
+    return embedding.squeeze().numpy()  # 2048-dimensional vector
+
+
+# Use case: find visually similar images
+# image1_emb = get_image_embedding('cat1.jpg')
+# image2_emb = get_image_embedding('cat2.jpg')
+# similarity = cosine_similarity([image1_emb], [image2_emb])
 ```
 
 **Product Embeddings**
