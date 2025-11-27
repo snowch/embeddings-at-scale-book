@@ -292,7 +292,7 @@ Early embedding systems like Word2Vec (2013) created one vector per word. Modern
 
 Unlike hand-crafted features, embeddings are **learned from data** using machine learning. The learning process discovers patterns that might not be obvious to humans:
 
-```python
+```{python}
 #| code-fold: false
 
 # Simplified embedding learning process
