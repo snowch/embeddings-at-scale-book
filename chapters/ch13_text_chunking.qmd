@@ -146,7 +146,7 @@ Different chunking strategies suit different use cases. Here's a comprehensive o
 The simplest approach: split text into chunks of N characters or tokens.
 
 ```python
-{{< include /code_examples/ch12b_text_chunking/fixed_size_chunking.py >}}
+{{< include /code_examples/ch13_text_chunking/fixed_size_chunking.py >}}
 ```
 
 **Pros:**
@@ -168,7 +168,7 @@ The simplest approach: split text into chunks of N characters or tokens.
 Split on sentence boundaries, grouping sentences to reach target size.
 
 ```python
-{{< include /code_examples/ch12b_text_chunking/sentence_chunking.py >}}
+{{< include /code_examples/ch13_text_chunking/sentence_chunking.py >}}
 ```
 
 **Pros:**
@@ -190,7 +190,7 @@ Split on sentence boundaries, grouping sentences to reach target size.
 Use paragraph breaks as natural semantic boundaries.
 
 ```python
-{{< include /code_examples/ch12b_text_chunking/paragraph_chunking.py >}}
+{{< include /code_examples/ch13_text_chunking/paragraph_chunking.py >}}
 ```
 
 **Pros:**
@@ -212,7 +212,7 @@ Use paragraph breaks as natural semantic boundaries.
 Split based on topic shifts detected by embedding similarity.
 
 ```python
-{{< include /code_examples/ch12b_text_chunking/semantic_chunking.py >}}
+{{< include /code_examples/ch13_text_chunking/semantic_chunking.py >}}
 ```
 
 **Pros:**
@@ -234,7 +234,7 @@ Split based on topic shifts detected by embedding similarity.
 Try multiple splitters in order of preference, falling back as needed.
 
 ```python
-{{< include /code_examples/ch12b_text_chunking/recursive_chunking.py >}}
+{{< include /code_examples/ch13_text_chunking/recursive_chunking.py >}}
 ```
 
 **Pros:**
@@ -256,7 +256,7 @@ Try multiple splitters in order of preference, falling back as needed.
 Create overlapping chunks to preserve context at boundaries.
 
 ```python
-{{< include /code_examples/ch12b_text_chunking/sliding_window_chunking.py >}}
+{{< include /code_examples/ch13_text_chunking/sliding_window_chunking.py >}}
 ```
 
 **Pros:**
@@ -282,7 +282,7 @@ Different document types require different chunking approaches:
 PDFs present unique challenges: headers/footers on every page, multi-column layouts, embedded tables, and inconsistent text extraction.
 
 ```python
-{{< include /code_examples/ch12b_text_chunking/pdf_chunking.py >}}
+{{< include /code_examples/ch13_text_chunking/pdf_chunking.py >}}
 ```
 
 ### HTML Documents
@@ -290,7 +290,7 @@ PDFs present unique challenges: headers/footers on every page, multi-column layo
 HTML carries structural information that aids chunking:
 
 ```python
-{{< include /code_examples/ch12b_text_chunking/html_chunking.py >}}
+{{< include /code_examples/ch13_text_chunking/html_chunking.py >}}
 ```
 
 ### Markdown Documents
@@ -298,7 +298,7 @@ HTML carries structural information that aids chunking:
 Markdown headers provide explicit hierarchy:
 
 ```python
-{{< include /code_examples/ch12b_text_chunking/markdown_chunking.py >}}
+{{< include /code_examples/ch13_text_chunking/markdown_chunking.py >}}
 ```
 
 ### Source Code
@@ -306,7 +306,7 @@ Markdown headers provide explicit hierarchy:
 Code requires special handling to preserve syntactic units:
 
 ```python
-{{< include /code_examples/ch12b_text_chunking/code_chunking.py >}}
+{{< include /code_examples/ch13_text_chunking/code_chunking.py >}}
 ```
 
 ## Chunk Size Optimization
@@ -347,7 +347,7 @@ Based on production experience across different use cases:
 ### Finding Your Optimal Size
 
 ```python
-{{< include /code_examples/ch12b_text_chunking/chunk_size_evaluation.py >}}
+{{< include /code_examples/ch13_text_chunking/chunk_size_evaluation.py >}}
 ```
 
 ## Metadata Preservation
@@ -355,7 +355,7 @@ Based on production experience across different use cases:
 Chunks without context are less useful. Preserve metadata for filtering and context:
 
 ```python
-{{< include /code_examples/ch12b_text_chunking/metadata_preservation.py >}}
+{{< include /code_examples/ch13_text_chunking/metadata_preservation.py >}}
 ```
 
 ## Handling Special Content
@@ -365,7 +365,7 @@ Chunks without context are less useful. Preserve metadata for filtering and cont
 Tables require special handling—row-by-row chunking loses context:
 
 ```python
-{{< include /code_examples/ch12b_text_chunking/table_chunking.py >}}
+{{< include /code_examples/ch13_text_chunking/table_chunking.py >}}
 ```
 
 ### Lists
@@ -373,7 +373,7 @@ Tables require special handling—row-by-row chunking loses context:
 Numbered and bulleted lists should stay together when possible:
 
 ```python
-{{< include /code_examples/ch12b_text_chunking/list_chunking.py >}}
+{{< include /code_examples/ch13_text_chunking/list_chunking.py >}}
 ```
 
 ### Code Blocks
@@ -381,7 +381,7 @@ Numbered and bulleted lists should stay together when possible:
 Code embedded in documentation needs preservation:
 
 ```python
-{{< include /code_examples/ch12b_text_chunking/code_block_handling.py >}}
+{{< include /code_examples/ch13_text_chunking/code_block_handling.py >}}
 ```
 
 ## Production Chunking Pipeline
@@ -389,7 +389,7 @@ Code embedded in documentation needs preservation:
 Putting it all together into a production-ready pipeline:
 
 ```python
-{{< include /code_examples/ch12b_text_chunking/production_pipeline.py >}}
+{{< include /code_examples/ch13_text_chunking/production_pipeline.py >}}
 ```
 
 ## Evaluating Chunk Quality
@@ -399,7 +399,7 @@ How do you know if your chunking strategy is working?
 ### Retrieval Quality Metrics
 
 ```python
-{{< include /code_examples/ch12b_text_chunking/chunk_evaluation.py >}}
+{{< include /code_examples/ch13_text_chunking/chunk_evaluation.py >}}
 ```
 
 ### Common Failure Patterns
