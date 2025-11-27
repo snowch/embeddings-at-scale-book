@@ -26,7 +26,7 @@ Traditional drug discovery faces limitations:
 #| echo: true
 #| code-fold: true
 #| code-summary: "Show the code"
-#| file: code_examples/ch19_healthcare_life_sciences/from.py
+{{< include /code_examples/ch01_foundations/word_embeddings_similarity.py >}}
 ```
 
 :::{.callout-tip}
