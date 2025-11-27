@@ -48,3 +48,8 @@ Thumbs.db
 *.tmp
 *.temp
 *.bak
+
+**/*.quarto_ipynb
+
+/.luarc.json
+venv

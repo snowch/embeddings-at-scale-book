@@ -1,7 +1,8 @@
 # The Embedding Revolution {#sec-embedding-revolution}
 
-:::{.callout-note}
+::: callout-note
 ## Chapter Overview
+
 This chapter begins with the fundamentals of what embeddings are and their key properties, then explores why they have become a competitive advantage for organizations and how they transform everything from search to reasoning. We examine the technical evolution, establish frameworks for understanding embedding moats, and provide practical ROI calculation methods.
 :::
 
@@ -68,17 +69,16 @@ print(f"king vs apple: {similarity('king', 'apple'):.3f}")  # Low  (~0.53) - unr
 
 In this toy example, 'king' and 'queen' have similar embeddings because they're related concepts (both royalty). 'King' and 'apple' are dissimilar because they're unrelated.
 
-:::{.callout-tip icon=false}
+::: {.callout-tip icon="false"}
 ## Understanding Cosine Similarity
 
 Cosine similarity measures how similar two vectors are by calculating the cosine of the angle between them. It's the most common similarity metric for embeddings.
 
-**The Math:**
-$$\text{cosine\_similarity}(\mathbf{A}, \mathbf{B}) = \frac{\mathbf{A} \cdot \mathbf{B}}{||\mathbf{A}|| \times ||\mathbf{B}||} = \frac{\sum_{i=1}^{n} A_i B_i}{\sqrt{\sum_{i=1}^{n} A_i^2} \times \sqrt{\sum_{i=1}^{n} B_i^2}}$$
+**The Math:** $$\text{cosine\_similarity}(\mathbf{A}, \mathbf{B}) = \frac{\mathbf{A} \cdot \mathbf{B}}{||\mathbf{A}|| \times ||\mathbf{B}||} = \frac{\sum_{i=1}^{n} A_i B_i}{\sqrt{\sum_{i=1}^{n} A_i^2} \times \sqrt{\sum_{i=1}^{n} B_i^2}}$$
 
 **Intuition:**
 
-```
+```         
          B (queen)
         /
        / θ (small angle)
@@ -98,14 +98,13 @@ $$\text{cosine\_similarity}(\mathbf{A}, \mathbf{B}) = \frac{\mathbf{A} \cdot \ma
 
 **Key Properties:**
 
-- **Range**: Returns values from -1 to 1
-  - `1.0`: Vectors point in same direction (identical meaning)
-  - `0.0`: Vectors are orthogonal/perpendicular (unrelated)
-  - `-1.0`: Vectors point in opposite directions (opposite meaning)
-
-- **Magnitude-independent**: Only considers direction, not length
-  - `[1, 2, 3]` and `[2, 4, 6]` have similarity of 1.0 (same direction)
-  - This means we don't need to normalize our embeddings beforehand
+-   **Range**: Returns values from -1 to 1
+    -   `1.0`: Vectors point in same direction (identical meaning)
+    -   `0.0`: Vectors are orthogonal/perpendicular (unrelated)
+    -   `-1.0`: Vectors point in opposite directions (opposite meaning)
+-   **Magnitude-independent**: Only considers direction, not length
+    -   `[1, 2, 3]` and `[2, 4, 6]` have similarity of 1.0 (same direction)
+    -   This means we don't need to normalize our embeddings beforehand
 
 **Concrete Example:**
 
@@ -137,9 +136,9 @@ $$
 
 But cosine similarity is often better for embeddings because:
 
-1. **Scale-invariant**: "king" mentioned once vs. ten times shouldn't change its meaning
-2. **Captures semantic direction**: Two documents about "cats" are similar even if one is 10× longer
-3. **High-dimensional stability**: Works well even in 300+ dimensions where Euclidean distance suffers from the "curse of dimensionality"
+1.  **Scale-invariant**: "king" mentioned once vs. ten times shouldn't change its meaning
+2.  **Captures semantic direction**: Two documents about "cats" are similar even if one is 10× longer
+3.  **High-dimensional stability**: Works well even in 300+ dimensions where Euclidean distance suffers from the "curse of dimensionality"
 :::
 
 ### From Discrete to Continuous: Why Embeddings Matter
@@ -147,6 +146,7 @@ But cosine similarity is often better for embeddings because:
 Traditional computer systems represent objects discretely. Consider how we might represent words:
 
 **One-hot encoding** (traditional approach):
+
 ```{python}
 #| output: false
 #| code-fold: false
@@ -167,6 +167,7 @@ one_hot = {
 ```
 
 **Embedding representation** (modern approach):
+
 ```{python}
 #| output: false
 #| code-fold: false
@@ -186,10 +187,10 @@ embeddings = {
 
 This shift from discrete to continuous representations is profound:
 
-1. **Relationships are encoded**: Similar objects cluster together automatically
-2. **Interpolation is possible**: You can explore the space between known points
-3. **Dimensionality is flexible**: Use as many dimensions as needed to capture complexity
-4. **Learning is efficient**: Machine learning models can learn these representations from data
+1.  **Relationships are encoded**: Similar objects cluster together automatically
+2.  **Interpolation is possible**: You can explore the space between known points
+3.  **Dimensionality is flexible**: Use as many dimensions as needed to capture complexity
+4.  **Learning is efficient**: Machine learning models can learn these representations from data
 
 ### The Four Key Properties of Embeddings
 
@@ -283,8 +284,9 @@ print(f"Compression ratio: {compression:.0f}x")
 
 This compression is possible because embeddings learn the **intrinsic dimensionality** of the data. Natural language, despite having 50,000+ words, can be represented in a much lower-dimensional space because words are not independent—they exhibit patterns and relationships.
 
-:::{.callout-note}
+::: callout-note
 ## Word Embeddings vs Chunk Embeddings
+
 Early embedding systems like Word2Vec (2013) created one vector per word. Modern RAG systems work differently: they embed **chunks of text**—sentences, paragraphs, or passages—where each chunk receives a single vector that captures its complete semantic meaning. A 512-token paragraph and a 5-word sentence both become 768-dimensional vectors, but the paragraph's vector encodes far richer context. This distinction matters for retrieval systems: you're not searching through word embeddings, you're searching through chunk embeddings. See @sec-text-chunking for detailed coverage of chunking strategies and their impact on retrieval quality.
 :::
 
@@ -329,7 +331,7 @@ The learning process ensures embeddings capture the patterns that matter for you
 Word embeddings map words to vectors, capturing semantic and syntactic relationships:
 
 ```{python}
-# code-fold: false
+#| code-fold: false
 
 """
 Word Embeddings with SentenceTransformer
@@ -337,6 +339,10 @@ Word Embeddings with SentenceTransformer
 Demonstrates how to use pre-trained models to create word embeddings and
 measure similarity between words.
 """
+
+# Disable progress bars
+import os
+os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
 
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -365,7 +371,7 @@ for i, word1 in enumerate(words):
 Images can be embedded into vectors that capture visual content:
 
 ```{python}
-# code-fold: false
+#| code-fold: false
 
 """
 Image Embeddings with ResNet
@@ -373,52 +379,78 @@ Image Embeddings with ResNet
 Demonstrates how to create image embeddings using a pre-trained ResNet model.
 Images are converted to vectors that capture visual content, enabling
 similarity search across images.
+
+Sample images (generated):
+- Red: Warm colored random pattern
+- Blue: Cool colored random pattern  
+- Orange: Warm colored random pattern (similar to red)
 """
 
+import numpy as np
+import matplotlib.pyplot as plt
 import torch
 from PIL import Image
 from torchvision import models, transforms
+from sklearn.metrics.pairwise import cosine_similarity
 
-# Load pre-trained image model
-model = models.resnet50(pretrained=True)
+# Load pre-trained ResNet50, remove classification layer for embeddings
+model = models.resnet50(weights='IMAGENET1K_V1')
 model.eval()
-
-# Remove final classification layer to get embeddings
 embedding_model = torch.nn.Sequential(*list(model.children())[:-1])
 
-# Transform image to tensor
-transform = transforms.Compose(
-    [
-        transforms.Resize(256),
-        transforms.CenterCrop(224),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-    ]
-)
-
+transform = transforms.Compose([
+    transforms.Resize(256),
+    transforms.CenterCrop(224),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+])
 
 def get_image_embedding(image_path):
-    """Convert image to embedding vector"""
-    img = Image.open(image_path)
+    """Convert image to 2048-dimensional embedding vector."""
+    img = Image.open(image_path).convert('RGB')
     img_tensor = transform(img).unsqueeze(0)
-
     with torch.no_grad():
         embedding = embedding_model(img_tensor)
+    return embedding.squeeze().numpy()
 
-    return embedding.squeeze().numpy()  # 2048-dimensional vector
+# Generate synthetic images with distinct color patterns
+np.random.seed(42)
+patterns = {
+    'red': ([200, 50, 50], [255, 100, 100]),
+    'blue': ([50, 50, 200], [100, 100, 255]),
+    'orange': ([220, 120, 50], [255, 160, 80]),
+}
 
+for name, (low, high) in patterns.items():
+    img = np.random.randint(low, high, (300, 400, 3), dtype=np.uint8)
+    Image.fromarray(img).save(f'{name}.jpg')
 
-# Use case: find visually similar images
-# image1_emb = get_image_embedding('cat1.jpg')
-# image2_emb = get_image_embedding('cat2.jpg')
-# similarity = cosine_similarity([image1_emb], [image2_emb])
+embeddings = {name: get_image_embedding(f'{name}.jpg') for name in patterns}
+
+# Display images
+fig, axes = plt.subplots(1, 3, figsize=(6, 2))
+for ax, name in zip(axes, patterns):
+    ax.imshow(Image.open(f'{name}.jpg'))
+    ax.set_title(name.upper(), fontsize=14)
+    ax.axis('off')
+plt.suptitle('Image Embeddings Demo', fontsize=16)
+plt.tight_layout()
+plt.show()
+
+# Print similarities (red & orange should be most similar)
+print("Cosine Similarities:")
+names = list(patterns.keys())
+for i, n1 in enumerate(names):
+    for n2 in names[i+1:]:
+        sim = cosine_similarity([embeddings[n1]], [embeddings[n2]])[0][0]
+        print(f"  {n1} ↔ {n2}: {sim:.3f}")
 ```
 
 **Product Embeddings**
 
 E-commerce platforms embed products based on descriptions, images, and user behavior:
 
-```python
+``` python
 {{< include /code_examples/ch01_foundations/product_embedder.py >}}
 ```
 
@@ -426,7 +458,7 @@ E-commerce platforms embed products based on descriptions, images, and user beha
 
 Let's build a simple but complete embedding-based search system:
 
-```python
+``` python
 {{< include /code_examples/ch01_foundations/simple_embedding_search.py >}}
 ```
 
@@ -436,10 +468,10 @@ This simple system demonstrates the power of embeddings: it understands that "fe
 
 Embeddings transform how we represent information in computer systems:
 
-- **From exact matching to semantic understanding**: Systems understand meaning, not just keywords
-- **From manual feature engineering to learned representations**: Patterns emerge from data automatically
-- **From isolated objects to relationship networks**: Everything exists in context of everything else
-- **From static lookups to continuous reasoning**: Interpolation and extrapolation become possible
+-   **From exact matching to semantic understanding**: Systems understand meaning, not just keywords
+-   **From manual feature engineering to learned representations**: Patterns emerge from data automatically
+-   **From isolated objects to relationship networks**: Everything exists in context of everything else
+-   **From static lookups to continuous reasoning**: Interpolation and extrapolation become possible
 
 This fundamental shift enables applications that were impossible with traditional discrete representations: semantic search that understands intent, recommendation systems that discover surprising connections, and AI systems that reason about concepts rather than manipulate symbols.
 
@@ -455,12 +487,12 @@ This is an important architectural question. Both approaches use neural networks
 
 Here's what makes embeddings powerful: **they separate the expensive neural network computation from the decision-making step**.
 
-- **Classification**: Neural network runs at decision time. Every query pays the full inference cost.
-- **Embeddings**: Neural network runs once at indexing time. Decisions use cheap vector math.
+-   **Classification**: Neural network runs at decision time. Every query pays the full inference cost.
+-   **Embeddings**: Neural network runs once at indexing time. Decisions use cheap vector math.
 
 Think of it this way: a classifier is like calling an expert for every question. An embedding is like having the expert write down their knowledge once, then you can consult those notes instantly, forever.
 
-```
+```         
 Classification workflow:
   Query → [Neural Network] → Decision
           (expensive, every time)
@@ -478,7 +510,7 @@ The embedding *is* the neural network's understanding, frozen into a reusable ve
 
 **Direct Classification**: Run a neural network on each item to produce a score or label.
 
-```python
+``` python
 # Direct classification approach
 def detect_fraud_direct(transaction):
     # Run full model inference on each transaction
@@ -488,7 +520,7 @@ def detect_fraud_direct(transaction):
 
 **Embedding + Similarity**: Compute embeddings once, store them, then use fast similarity search.
 
-```python
+``` python
 # Embedding approach
 def detect_fraud_embedding(transaction):
     # Compute embedding (can be cached for known entities)
@@ -504,10 +536,10 @@ def detect_fraud_embedding(transaction):
 ### When Embeddings Win
 
 | Factor | Embedding + Vector DB | Direct NN Classifier |
-|--------|----------------------|---------------------|
+|----------------|-----------------------------|---------------------------|
 | **Novel pattern detection** | Detects "far from normal" without training on that specific pattern | Can only classify patterns it was trained on |
-| **Cost at scale** | Embed once, cheap similarity lookups (sub-ms) | Inference cost on every query ($$$  at billions/day) |
-| **Latency** | ~1ms vector lookup after embedding | 10-100ms+ full model inference |
+| **Cost at scale** | Embed once, cheap similarity lookups (sub-ms) | Inference cost on every query (\$\$\$ at billions/day) |
+| **Latency** | \~1ms vector lookup after embedding | 10-100ms+ full model inference |
 | **Adaptability** | Add new baselines/patterns by inserting vectors | Requires model retraining |
 | **Explainability** | "Similar to X, far from Y"—can show examples | "Score: 0.87"—harder to interpret |
 | **Labeled data requirement** | Works unsupervised (cluster normal behavior) | Needs labeled training examples |
@@ -516,7 +548,7 @@ def detect_fraud_embedding(transaction):
 
 The most compelling argument for embeddings is **novelty detection**. A classifier can only recognize categories present in its training data. An embedding system can detect "this is unlike anything I've seen before" without ever having trained on that specific category.
 
-```python
+``` python
 # Classifier limitation: only knows trained categories
 product_types = ['laptop', 'phone', 'tablet']  # Fixed at training time
 
@@ -531,16 +563,16 @@ This principle applies across domains: detecting novel fraud patterns (@sec-anom
 
 Embeddings aren't always the answer. Direct classification is better when:
 
-- **Categories are fixed and well-defined**: Sentiment analysis (positive/negative/neutral) doesn't need similarity search
-- **You need precise probability estimates**: Medical diagnosis requiring calibrated confidence scores
-- **Single-item decisions**: No need to compare against a corpus
-- **Low volume**: If you're processing 1,000 items/day, inference cost doesn't matter
+-   **Categories are fixed and well-defined**: Sentiment analysis (positive/negative/neutral) doesn't need similarity search
+-   **You need precise probability estimates**: Medical diagnosis requiring calibrated confidence scores
+-   **Single-item decisions**: No need to compare against a corpus
+-   **Low volume**: If you're processing 1,000 items/day, inference cost doesn't matter
 
 ### The Hybrid Reality
 
 In practice, many production systems combine both approaches:
 
-```python
+``` python
 def hybrid_detection(item):
     # Stage 1: Fast embedding-based filtering
     embedding = encoder.encode(item)
@@ -569,17 +601,17 @@ Organizations that master embeddings at scale are building competitive advantage
 
 **Data Network Effects**: Traditional competitive advantages often hit diminishing returns. A second distribution center provides less marginal value than the first. A tenth engineer is less impactful than the second. But embeddings exhibit increasing returns to scale in three ways:
 
-1. **Quality Compounds**: Each new data point doesn't just add information—it refines the entire embedding space. When a retailer adds their 10 millionth product to an embedding system, that product benefits from patterns learned from the previous 9,999,999 products. The embedding captures not just what that product *is*, but how it relates to everything else in the catalog.
+1.  **Quality Compounds**: Each new data point doesn't just add information—it refines the entire embedding space. When a retailer adds their 10 millionth product to an embedding system, that product benefits from patterns learned from the previous 9,999,999 products. The embedding captures not just what that product *is*, but how it relates to everything else in the catalog.
 
-2. **Coverage Expands Exponentially**: With N items in an embedding space, you have N² potential relationships to exploit. At 1 million items, that's 1 trillion relationships. At 1 billion items, it's 1 quintillion relationships. Most of these relationships are discovered automatically through the geometry of the embedding space, not manually curated.
+2.  **Coverage Expands Exponentially**: With N items in an embedding space, you have N² potential relationships to exploit. At 1 million items, that's 1 trillion relationships. At 1 billion items, it's 1 quintillion relationships. Most of these relationships are discovered automatically through the geometry of the embedding space, not manually curated.
 
-3. **Cold Start Becomes Warm Start**: New products, customers, or entities immediately benefit from the learned structure. A product added today is instantly positioned in a space informed by years of data. This is fundamentally different from starting from scratch.
+3.  **Cold Start Becomes Warm Start**: New products, customers, or entities immediately benefit from the learned structure. A product added today is instantly positioned in a space informed by years of data. This is fundamentally different from starting from scratch.
 
 Consider two competing platforms: Platform A has 100,000 products with a traditional search system. Platform B has 10,000 products but uses embeddings. Platform B's search will often outperform Platform A because it understands semantic relationships, synonyms, and implicit connections. Now scale this: when Platform B reaches 100,000 products, the gap widens further. The embedding space has learned richer patterns, better generalizations, and more nuanced relationships.
 
 **Accumulating Intelligence**: Unlike models that need complete retraining, embedding systems accumulate intelligence continuously:
 
-```python
+``` python
 # Traditional approach: retrain everything
 def traditional_update(all_data):
     model = train_from_scratch(all_data)  # Expensive, slow
@@ -601,11 +633,11 @@ Every query, every interaction, every new data point can inform the embedding sp
 
 **Compounding Complexity**: The most defensible moat is the one competitors don't even attempt to cross. Once an organization has:
 
-- 50+ billion embedded entities
-- Multi-modal embeddings spanning text, images, audio, and structured data
-- Years of production optimization and tuning
-- Custom domain-specific embedding models
-- Integrated embedding pipelines across dozens of systems
+-   50+ billion embedded entities
+-   Multi-modal embeddings spanning text, images, audio, and structured data
+-   Years of production optimization and tuning
+-   Custom domain-specific embedding models
+-   Integrated embedding pipelines across dozens of systems
 
 ...the cost and complexity of replication becomes prohibitive. It's not just the technology—it's the organizational knowledge, the edge cases handled, the optimizations discovered, and the integrations built.
 
@@ -621,8 +653,9 @@ While embedding moats strengthen, traditional competitive advantages are weakeni
 
 **Scale Economics**: Cloud computing has democratized infrastructure. A startup can spin up the same compute power as a Fortune 500 company. But they can't instantly replicate 100 billion embeddings refined over five years.
 
-:::{.callout-important}
+::: callout-important
 ## The Strategic Shift
+
 The competitive question has shifted from "Do we have AI?" to "How defensible is our learned representation of the world?" Organizations with rich, well-structured embedding spaces are building 21st-century moats.
 :::
 
@@ -634,7 +667,7 @@ The evolution of embeddings mirrors the evolution of AI itself—from brittle pa
 
 **Stage 1: Keyword Matching (1990s-2000s)**
 
-```python
+``` python
 {{< include /code_examples/ch01_foundations/keyword_search.py >}}
 ```
 
@@ -644,7 +677,7 @@ This approach dominated for decades. E-commerce sites required exact matches. En
 
 Information retrieval added statistical sophistication with TF-IDF (Term Frequency-Inverse Document Frequency), BM25, and other scoring functions. These methods could weight terms by importance and penalize common words.
 
-```python
+``` python
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -657,15 +690,15 @@ similarities = cosine_similarity(query_vector, doc_vectors)
 
 This was a major improvement, but still faced fundamental limitations:
 
-- Synonym problem: "car" and "automobile" were unrelated
-- Polysemy problem: "bank" (financial) vs "bank" (river)
-- No semantic understanding: "not good" treated same as "good"
+-   Synonym problem: "car" and "automobile" were unrelated
+-   Polysemy problem: "bank" (financial) vs "bank" (river)
+-   No semantic understanding: "not good" treated same as "good"
 
 **Stage 3: Topic Models and Latent Semantics (2000s-2010s)**
 
 LSA (Latent Semantic Analysis) and LDA (Latent Dirichlet Allocation) attempted to discover hidden topics in text:
 
-```python
+``` python
 from sklearn.decomposition import LatentDirichletAllocation
 
 # Discover hidden topics
@@ -677,16 +710,16 @@ topic_distributions = lda.fit_transform(document_term_matrix)
 
 This enabled finding documents about similar topics even without shared keywords. A breakthrough, but with limitations:
 
-- Fixed topic numbers required upfront
-- Topics not always interpretable
-- No transfer learning across domains
-- Shallow semantic understanding
+-   Fixed topic numbers required upfront
+-   Topics not always interpretable
+-   No transfer learning across domains
+-   Shallow semantic understanding
 
 **Stage 4: Neural Embeddings (2013-2020)**
 
 Word2Vec (2013) changed everything [@mikolov2013efficient]. Instead of hand-crafted features or statistical correlations, neural networks learned dense vector representations where semantic similarity corresponded to geometric proximity:
 
-```python
+``` python
 from gensim.models import Word2Vec
 
 # Train embeddings that capture semantic relationships
@@ -706,10 +739,10 @@ result = king - man + woman
 
 This was revolutionary. Suddenly:
 
-- Synonyms automatically clustered together
-- Analogies emerged from vector arithmetic
-- Transfer learning became possible
-- Semantic relationships were learned, not programmed
+-   Synonyms automatically clustered together
+-   Analogies emerged from vector arithmetic
+-   Transfer learning became possible
+-   Semantic relationships were learned, not programmed
 
 The progression from word embeddings (Word2Vec, GloVe) to sentence embeddings (Skip-Thought, InferSent) to document embeddings (Doc2Vec, Universal Sentence Encoder) expanded the scope from words to arbitrarily long text.
 
@@ -717,22 +750,22 @@ The progression from word embeddings (Word2Vec, GloVe) to sentence embeddings (S
 
 BERT [@devlin2018bert], GPT, and their descendants brought contextual embeddings—the same word gets different embeddings based on context:
 
-```python
+``` python
 {{< include /code_examples/ch01_foundations/example_06.py >}}
 ```
 
 This enables:
 
-- **Context-aware understanding**: "bank" means different things in different contexts
-- **Zero-shot capabilities**: Answer questions never seen before
-- **Multi-task transfer**: Pre-training on billions of documents transfers to specific tasks
-- **Semantic search at scale**: Find information based on meaning, not keywords
+-   **Context-aware understanding**: "bank" means different things in different contexts
+-   **Zero-shot capabilities**: Answer questions never seen before
+-   **Multi-task transfer**: Pre-training on billions of documents transfers to specific tasks
+-   **Semantic search at scale**: Find information based on meaning, not keywords
 
 ### From Retrieval to Reasoning
 
 The latest frontier transcends search entirely—embeddings enable reasoning. Consider Retrieval-Augmented Generation (RAG) [@lewis2020retrieval], where embeddings bridge knowledge retrieval and language generation:
 
-```python
+``` python
 def answer_question_with_rag(question, knowledge_base_embeddings, knowledge_base_text):
     # 1. Embed the question
     question_embedding = encoder.encode(question)
@@ -757,15 +790,16 @@ def answer_question_with_rag(question, knowledge_base_embeddings, knowledge_base
 
 This pattern enables:
 
-- **Technical support bots** that find relevant documentation and synthesize answers
-- **Medical diagnosis assistants** that retrieve similar cases and suggest differentials
-- **Legal research systems** that find precedents and draft arguments
-- **Code assistants** that find relevant examples and generate solutions
+-   **Technical support bots** that find relevant documentation and synthesize answers
+-   **Medical diagnosis assistants** that retrieve similar cases and suggest differentials
+-   **Legal research systems** that find precedents and draft arguments
+-   **Code assistants** that find relevant examples and generate solutions
 
 The embedding is the critical bridge—it determines what context reaches the reasoning system. Poor embeddings mean irrelevant context. Great embeddings mean the reasoning system has exactly what it needs.
 
-:::{.callout-tip}
+::: callout-tip
 ## The Reasoning Test
+
 Can your system answer questions it's never seen before by combining information in novel ways? If yes, you've crossed from search to reasoning. Embeddings are the bridge.
 :::
 
@@ -789,10 +823,10 @@ Embedding systems exhibit phase transitions at specific scale points:
 
 **100 Billion to 1 Trillion+ Embeddings**: We don't fully know yet. But early evidence suggests:
 
-- Emergent reasoning capabilities
-- Cross-lingual, cross-modal unification
-- Predictive capabilities that seem like magic
-- Competitive moats measured in years, not months
+-   Emergent reasoning capabilities
+-   Cross-lingual, cross-modal unification
+-   Predictive capabilities that seem like magic
+-   Competitive moats measured in years, not months
 
 ### Why 256 Trillion Rows?
 
@@ -800,13 +834,13 @@ This specific number appears frequently in next-generation embedding systems. Wh
 
 **Entity Coverage at Global Scale**:
 
-- 8 billion people × 10,000 behavioral vectors each = 80 trillion
-- 500 million businesses × 1,000 product/service vectors each = 500 trillion
-- 100 billion web pages × 100 passage embeddings each = 10 trillion
-- 1 trillion images × 10 crop/augmentation embeddings each = 10 trillion
-- 100 billion IoT devices × 1,000 time-series snapshots each = 100 trillion
+-   8 billion people × 10,000 behavioral vectors each = 80 trillion
+-   500 million businesses × 1,000 product/service vectors each = 500 trillion
+-   100 billion web pages × 100 passage embeddings each = 10 trillion
+-   1 trillion images × 10 crop/augmentation embeddings each = 10 trillion
+-   100 billion IoT devices × 1,000 time-series snapshots each = 100 trillion
 
-Sum: ~700 trillion potential embeddings for a complete representation of commercial activity globally. 256 trillion (2^48 rows) is a practical target that captures the majority.
+Sum: \~700 trillion potential embeddings for a complete representation of commercial activity globally. 256 trillion (2\^48 rows) is a practical target that captures the majority.
 
 **Storage and Compute Economics**:
 
@@ -816,7 +850,7 @@ Sum: ~700 trillion potential embeddings for a complete representation of commerc
 
 Modern vector databases can handle this scale:
 
-```python
+``` python
 {{< include /code_examples/ch01_foundations/example_09.py >}}
 ```
 
@@ -832,13 +866,13 @@ Don't build for your current 10M embeddings. Build for 10B. The architecture is 
 
 Wrong: Single-node architecture
 
-```python
+``` python
 {{< include /code_examples/ch01_foundations/scale_in_mind_wrong.py >}}
 ```
 
 Right: Distributed-first architecture
 
-```python
+``` python
 {{< include /code_examples/ch01_foundations/scale_in_mind_right.py >}}
 ```
 
@@ -846,19 +880,19 @@ Right: Distributed-first architecture
 
 At trillion-row scale, data engineering dominates algorithm choice:
 
-- **Data quality**: 1% error rate on 1M embeddings = 10K bad embeddings (manageable). 1% on 1T embeddings = 10B bad embeddings (catastrophic).
-- **Data lineage**: When an embedding is wrong, you need to trace back to source data, transformation pipeline, model version, training run. At scale, this requires production-grade data infrastructure.
-- **Data evolution**: Embedding models improve. You need to version, migrate, and AB test new embeddings against old while serving trillion-row production traffic.
+-   **Data quality**: 1% error rate on 1M embeddings = 10K bad embeddings (manageable). 1% on 1T embeddings = 10B bad embeddings (catastrophic).
+-   **Data lineage**: When an embedding is wrong, you need to trace back to source data, transformation pipeline, model version, training run. At scale, this requires production-grade data infrastructure.
+-   **Data evolution**: Embedding models improve. You need to version, migrate, and AB test new embeddings against old while serving trillion-row production traffic.
 
 **3. Build Moats Defensively**
 
 At trillion-row scale, the moat isn't just data volume—it's:
 
-- **Validated quality**: Every embedding verified correct
-- **Operational excellence**: 99.99% uptime at scale
-- **Continuous learning**: Daily improvements from production feedback
-- **Multi-modal integration**: Unified space across data types
-- **Domain expertise**: Embeddings optimized for your specific use case
+-   **Validated quality**: Every embedding verified correct
+-   **Operational excellence**: 99.99% uptime at scale
+-   **Continuous learning**: Daily improvements from production feedback
+-   **Multi-modal integration**: Unified space across data types
+-   **Domain expertise**: Embeddings optimized for your specific use case
 
 Competitors can get compute. They can get algorithms. They can even get data. But they can't get years of production-hardened, domain-optimized, continuously-improved trillion-row embedding systems.
 
@@ -866,10 +900,10 @@ Competitors can get compute. They can get algorithms. They can even get data. Bu
 
 Nobody knows what becomes possible at trillion-row scale. But history suggests:
 
-- Unexpected patterns will emerge
-- Novel applications will become feasible
-- Reasoning capabilities will surprise you
-- Competitive advantages will appear in unexpected places
+-   Unexpected patterns will emerge
+-   Novel applications will become feasible
+-   Reasoning capabilities will surprise you
+-   Competitive advantages will appear in unexpected places
 
 Build flexibility into your architecture to exploit these emergent capabilities when they appear.
 
@@ -883,18 +917,18 @@ Direct benefits are measurable improvements in existing processes:
 
 **1. Search and Discovery Improvements**
 
-| Metric | Current | Target | Improvement |
-|--------|---------|--------|-------------|
-| Conversion rate | 8% | 12% | +50% |
-| Avg. time to find | 3.5 min | 1.5 min | -57% |
-| Zero-result rate | 15% | 3% | -80% |
+| Metric            | Current | Target  | Improvement |
+|-------------------|---------|---------|-------------|
+| Conversion rate   | 8%      | 12%     | +50%        |
+| Avg. time to find | 3.5 min | 1.5 min | -57%        |
+| Zero-result rate  | 15%     | 3%      | -80%        |
 
 : Example search metrics before/after embeddings {.striped}
 
 | Benefit Category | Formula | Example Calculation |
-|-----------------|---------|---------------------|
-| Additional revenue | (target_rate − current_rate) × annual_searches × avg_transaction | (0.12 − 0.08) × 5M × $50 = **$10M** |
-| Recovered abandonments | reduced_zero_results × recovery_rate × avg_transaction | 600K × 0.30 × $50 = **$9M** |
+|-------------------------|-----------------|-------------------------------|
+| Additional revenue | (target_rate − current_rate) × annual_searches × avg_transaction | (0.12 − 0.08) × 5M × \$50 = **\$10M** |
+| Recovered abandonments | reduced_zero_results × recovery_rate × avg_transaction | 600K × 0.30 × \$50 = **\$9M** |
 | Time saved | searches × time_reduction ÷ 60 | 5M × 2 min ÷ 60 = **167K hours** |
 
 : Search ROI calculation framework {.striped}
@@ -902,19 +936,19 @@ Direct benefits are measurable improvements in existing processes:
 **2. Operational Efficiency Gains**
 
 | Benefit Category | Formula | Example (Document Review) |
-|-----------------|---------|---------------------------|
+|---------------------|-----------------|----------------------------------|
 | Hours saved | (current_time − target_time) × annual_volume | (4h − 1h) × 10K docs = **30K hours** |
-| Direct savings | hours_saved × hourly_cost | 30K × $500 = **$15M** |
-| Quality savings | volume × current_time × error_reduction × hourly_cost | 10K × 4h × 5% × $500 = **$1M** |
+| Direct savings | hours_saved × hourly_cost | 30K × \$500 = **\$15M** |
+| Quality savings | volume × current_time × error_reduction × hourly_cost | 10K × 4h × 5% × \$500 = **\$1M** |
 
 : Efficiency ROI calculation framework {.striped}
 
 **3. Fraud and Risk Reduction**
 
 | Benefit Category | Formula | Example |
-|-----------------|---------|---------|
-| Fraud loss reduction | transaction_volume × (current_loss_rate − target_loss_rate) | $1B × (0.5% − 0.2%) = **$3M** |
-| False positive savings | reduced_FP_count × cost_per_FP | 50K × $25 = **$1.25M** |
+|----------------------------------|-------------------|-------------------|
+| Fraud loss reduction | transaction_volume × (current_loss_rate − target_loss_rate) | \$1B × (0.5% − 0.2%) = **\$3M** |
+| False positive savings | reduced_FP_count × cost_per_FP | 50K × \$25 = **\$1.25M** |
 
 : Fraud detection ROI calculation framework {.striped}
 
@@ -925,7 +959,7 @@ Indirect benefits are harder to quantify but often larger than direct benefits:
 **1. Competitive Velocity**
 
 | Factor | Impact | How Embeddings Help |
-|--------|--------|---------------------|
+|-----------------|-----------------|---------------------------------------|
 | Time to market | Weeks → Days | Semantic product discovery accelerates launches |
 | Adaptation speed | Weeks → Minutes | Add new patterns by inserting vectors, not retraining |
 | Innovation rate | Incremental → Step-change | Embedding analysis reveals non-obvious opportunities |
@@ -935,9 +969,9 @@ Indirect benefits are harder to quantify but often larger than direct benefits:
 **2. Customer Lifetime Value Improvement**
 
 | Benefit Category | Formula | Example |
-|-----------------|---------|---------|
-| LTV increase | current_LTV × churn_reduction | $500 × 15% = **$75/customer** |
-| Annual value | LTV_increase × customer_base × turnover_rate | $75 × 100K × 25% = **$1.9M** |
+|----------------------------------|-------------------|-------------------|
+| LTV increase | current_LTV × churn_reduction | \$500 × 15% = **\$75/customer** |
+| Annual value | LTV_increase × customer_base × turnover_rate | \$75 × 100K × 25% = **\$1.9M** |
 
 : LTV improvement calculation {.striped}
 
@@ -946,10 +980,10 @@ Embedding improvements reduce churn through better search (customers find what t
 **3. Data Moat Valuation**
 
 | Moat Factor | Calculation Approach | Example |
-|-------------|---------------------|---------|
-| Market share protection | addressable_market × prevented_share_loss | $1B × 5% = **$50M** |
-| Premium pricing | revenue × price_premium_enabled | $100M × 10% = **$10M** |
-| M&A valuation premium | company_value × moat_premium | $500M × 35% = **$175M** |
+|---------------------|----------------------------------|------------------|
+| Market share protection | addressable_market × prevented_share_loss | \$1B × 5% = **\$50M** |
+| Premium pricing | revenue × price_premium_enabled | \$100M × 10% = **\$10M** |
+| M&A valuation premium | company_value × moat_premium | \$500M × 35% = **\$175M** |
 
 : Data moat valuation approaches {.striped}
 
@@ -957,18 +991,18 @@ Embedding improvements reduce churn through better search (customers find what t
 
 Not all embedding projects succeed. Adjust ROI estimates for risk:
 
-| Certainty Level | Probability | When to Apply |
-|-----------------|-------------|---------------|
-| High | 80-90% | Proven use case, good data quality |
-| Medium | 60-70% | Proven use case, decent data |
-| Low | 30-50% | Novel use case or poor data quality |
+| Certainty Level | Probability | When to Apply                       |
+|-----------------|-------------|-------------------------------------|
+| High            | 80-90%      | Proven use case, good data quality  |
+| Medium          | 60-70%      | Proven use case, decent data        |
+| Low             | 30-50%      | Novel use case or poor data quality |
 
 : Risk probability guidelines {.striped}
 
 | Metric | Formula |
-|--------|---------|
+|----------------------------------|--------------------------------------|
 | Expected annual benefit | potential_benefit × probability_of_success |
-| NPV | −implementation_cost + Σ(annual_benefit − operating_cost) ÷ (1 + discount_rate)^year |
+| NPV | −implementation_cost + Σ(annual_benefit − operating_cost) ÷ (1 + discount_rate)\^year |
 | ROI % | (NPV ÷ implementation_cost) × 100 |
 | Payback period | implementation_cost ÷ (expected_benefit − operating_cost) |
 
@@ -979,45 +1013,45 @@ Not all embedding projects succeed. Adjust ROI estimates for risk:
 Use this template to calculate total ROI for an embedding project:
 
 | Category | Line Item | Your Values |
-|----------|-----------|-------------|
-| **Direct Benefits** | | |
-| | Search/discovery improvements | $_______ |
-| | Operational efficiency gains | $_______ |
-| | Fraud/risk reduction | $_______ |
-| | **Subtotal Direct** | $_______ |
-| **Indirect Benefits** | | |
-| | Customer LTV improvement | $_______ |
-| | Competitive velocity (estimated) | $_______ |
-| | Data moat value (estimated) | $_______ |
-| | **Subtotal Indirect** | $_______ |
-| **Total Annual Benefit** | | $_______ |
-| **Costs** | | |
-| | Implementation (one-time) | $_______ |
-| | Annual operating | $_______ |
-| | Annual data/infrastructure | $_______ |
-| **Risk Adjustment** | | |
-| | Probability of success | _______% |
-| | Risk-adjusted annual benefit | $_______ |
-| **Final Metrics** | | |
-| | NPV (5-year) | $_______ |
-| | ROI % | _______% |
-| | Payback period | _______ years |
+|----|----|----|
+| **Direct Benefits** |  |  |
+|  | Search/discovery improvements | \$\_\_\_\_\_\_\_ |
+|  | Operational efficiency gains | \$\_\_\_\_\_\_\_ |
+|  | Fraud/risk reduction | \$\_\_\_\_\_\_\_ |
+|  | **Subtotal Direct** | \$\_\_\_\_\_\_\_ |
+| **Indirect Benefits** |  |  |
+|  | Customer LTV improvement | \$\_\_\_\_\_\_\_ |
+|  | Competitive velocity (estimated) | \$\_\_\_\_\_\_\_ |
+|  | Data moat value (estimated) | \$\_\_\_\_\_\_\_ |
+|  | **Subtotal Indirect** | \$\_\_\_\_\_\_\_ |
+| **Total Annual Benefit** |  | \$\_\_\_\_\_\_\_ |
+| **Costs** |  |  |
+|  | Implementation (one-time) | \$\_\_\_\_\_\_\_ |
+|  | Annual operating | \$\_\_\_\_\_\_\_ |
+|  | Annual data/infrastructure | \$\_\_\_\_\_\_\_ |
+| **Risk Adjustment** |  |  |
+|  | Probability of success | \_\_\_\_\_\_\_% |
+|  | Risk-adjusted annual benefit | \$\_\_\_\_\_\_\_ |
+| **Final Metrics** |  |  |
+|  | NPV (5-year) | \$\_\_\_\_\_\_\_ |
+|  | ROI % | \_\_\_\_\_\_\_% |
+|  | Payback period | \_\_\_\_\_\_\_ years |
 
 : Embedding project ROI worksheet {.striped}
 
 ## Key Takeaways
 
-- **Embeddings create defensible competitive moats** through data network effects, accumulating intelligence, and compounding complexity that competitors cannot easily replicate
+-   **Embeddings create defensible competitive moats** through data network effects, accumulating intelligence, and compounding complexity that competitors cannot easily replicate
 
-- **The evolution from keyword search to embedding-based reasoning** represents a fundamental phase change in capabilities—from brittle pattern matching to flexible semantic understanding that enables novel applications
+-   **The evolution from keyword search to embedding-based reasoning** represents a fundamental phase change in capabilities—from brittle pattern matching to flexible semantic understanding that enables novel applications
 
-- **Scale creates emergent capabilities** that cannot be predicted from small-scale experiments—trillion-row embedding systems will unlock capabilities we don't yet fully understand
+-   **Scale creates emergent capabilities** that cannot be predicted from small-scale experiments—trillion-row embedding systems will unlock capabilities we don't yet fully understand
 
-- **Multi-modal embeddings provide strong competitive advantages** by unifying different data types (text, images, structured data, time series) into a single geometric space where relationships automatically emerge
+-   **Multi-modal embeddings provide strong competitive advantages** by unifying different data types (text, images, structured data, time series) into a single geometric space where relationships automatically emerge
 
-- **Continuous learning loops are essential**—static embeddings become stale; production systems must accumulate intelligence from every query, interaction, and outcome
+-   **Continuous learning loops are essential**—static embeddings become stale; production systems must accumulate intelligence from every query, interaction, and outcome
 
-- **ROI is quantifiable using structured frameworks** that account for direct benefits (efficiency, revenue), indirect benefits (competitive velocity, customer LTV), and risk-adjusted returns
+-   **ROI is quantifiable using structured frameworks** that account for direct benefits (efficiency, revenue), indirect benefits (competitive velocity, customer LTV), and risk-adjusted returns
 
 ## Looking Ahead
 
@@ -1027,9 +1061,9 @@ The revolution is here. The question is no longer whether to adopt embeddings, b
 
 ## Further Reading
 
-- Mikolov, T., et al. (2013). "Efficient Estimation of Word Representations in Vector Space." *arXiv:1301.3781*
-- Devlin, J., et al. (2018). "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding." *arXiv:1810.04805*
-- Radford, A., et al. (2021). "Learning Transferable Visual Models From Natural Language Supervision." *arXiv:2103.00020* (CLIP)
-- Johnson, J., et al. (2019). "Billion-scale similarity search with GPUs." *IEEE Transactions on Big Data*
-- Lewis, P., et al. (2020). "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks." *arXiv:2005.11401*
-- Sparck Jones, K. (1972). "A statistical interpretation of term specificity and its application in retrieval." *Journal of Documentation*, 28(1), 11-21.
+-   Mikolov, T., et al. (2013). "Efficient Estimation of Word Representations in Vector Space." *arXiv:1301.3781*
+-   Devlin, J., et al. (2018). "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding." *arXiv:1810.04805*
+-   Radford, A., et al. (2021). "Learning Transferable Visual Models From Natural Language Supervision." *arXiv:2103.00020* (CLIP)
+-   Johnson, J., et al. (2019). "Billion-scale similarity search with GPUs." *IEEE Transactions on Big Data*
+-   Lewis, P., et al. (2020). "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks." *arXiv:2005.11401*
+-   Sparck Jones, K. (1972). "A statistical interpretation of term specificity and its application in retrieval." *Journal of Documentation*, 28(1), 11-21.
