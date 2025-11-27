@@ -139,9 +139,7 @@ class IncidentDetector(nn.Module):
             # ... more incidents
         ]
 
-    def forward(
-        self, video_clip: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward(self, video_clip: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Detect incidents in traffic video.
 
@@ -217,9 +215,7 @@ class CrowdAnalyzer(nn.Module):
         # Crowd behavior classifier
         self.behavior_head = nn.Linear(128, 5)  # normal, gathering, dispersing, panic, protest
 
-    def forward(
-        self, crowd_image: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward(self, crowd_image: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Analyze crowd scene.
 
@@ -309,9 +305,7 @@ class SmartCityAnalyticsSystem:
         Returns:
             Incident detection results
         """
-        incident_logits, severity_logits, _ = self.incident_detector(
-            video_clip.unsqueeze(0)
-        )
+        incident_logits, severity_logits, _ = self.incident_detector(video_clip.unsqueeze(0))
 
         incident_probs = F.softmax(incident_logits, dim=-1)
         incident_idx = incident_probs.argmax(dim=-1).item()
@@ -353,9 +347,7 @@ class SmartCityAnalyticsSystem:
         Returns:
             Crowd analysis results
         """
-        density_map, total_count, behavior_logits = self.crowd_analyzer(
-            image.unsqueeze(0)
-        )
+        density_map, total_count, behavior_logits = self.crowd_analyzer(image.unsqueeze(0))
 
         behavior_probs = F.softmax(behavior_logits, dim=-1)
         behavior_names = ["normal", "gathering", "dispersing", "panic", "protest"]

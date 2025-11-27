@@ -10,6 +10,7 @@ import torch.nn.functional as F
 @dataclass
 class ClimateEmbeddingConfig:
     """Configuration for climate and weather embedding models."""
+
     n_pressure_levels: int = 13  # Vertical levels
     n_surface_vars: int = 4  # 2m temp, 10m wind u/v, mslp
     n_atmospheric_vars: int = 5  # T, u, v, q, z per level
@@ -44,36 +45,35 @@ class SphericalPositionalEncoding(nn.Module):
         d_per_coord = d_model // 4
 
         # Frequency scales
-        freqs = torch.exp(torch.arange(0, d_per_coord, 2) *
-                         -(math.log(10000.0) / d_per_coord))
+        freqs = torch.exp(torch.arange(0, d_per_coord, 2) * -(math.log(10000.0) / d_per_coord))
 
         # Latitude encoding (account for poles)
         lat_enc = torch.zeros(max_lat, d_per_coord)
         for i, f in enumerate(freqs):
-            lat_enc[:, 2*i] = torch.sin(lat_rad * f)
-            lat_enc[:, 2*i+1] = torch.cos(lat_rad * f)
+            lat_enc[:, 2 * i] = torch.sin(lat_rad * f)
+            lat_enc[:, 2 * i + 1] = torch.cos(lat_rad * f)
 
         # Longitude encoding (periodic)
         lon_enc = torch.zeros(max_lon, d_per_coord)
         for i, f in enumerate(freqs):
-            lon_enc[:, 2*i] = torch.sin(lon_rad * f)
-            lon_enc[:, 2*i+1] = torch.cos(lon_rad * f)
+            lon_enc[:, 2 * i] = torch.sin(lon_rad * f)
+            lon_enc[:, 2 * i + 1] = torch.cos(lon_rad * f)
 
         # Combine into full positional encoding
         pe = torch.zeros(max_lat, max_lon, d_model)
         for i in range(max_lat):
             for j in range(max_lon):
                 pe[i, j, :d_per_coord] = lat_enc[i]
-                pe[i, j, d_per_coord:2*d_per_coord] = lon_enc[j]
+                pe[i, j, d_per_coord : 2 * d_per_coord] = lon_enc[j]
                 # Cross terms for spherical geometry
-                pe[i, j, 2*d_per_coord:3*d_per_coord] = lat_enc[i] * torch.cos(lon_rad[j])
-                pe[i, j, 3*d_per_coord:] = lat_enc[i] * torch.sin(lon_rad[j])
+                pe[i, j, 2 * d_per_coord : 3 * d_per_coord] = lat_enc[i] * torch.cos(lon_rad[j])
+                pe[i, j, 3 * d_per_coord :] = lat_enc[i] * torch.sin(lon_rad[j])
 
-        self.register_buffer('pe', pe)
+        self.register_buffer("pe", pe)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Add positional encoding to input."""
-        return x + self.pe[:x.shape[1], :x.shape[2], :x.shape[3]]
+        return x + self.pe[: x.shape[1], : x.shape[2], : x.shape[3]]
 
 
 class WeatherStateEncoder(nn.Module):
@@ -93,10 +93,7 @@ class WeatherStateEncoder(nn.Module):
 
         # Patch embedding (like Vision Transformer)
         self.patch_embed = nn.Conv2d(
-            n_input,
-            config.hidden_dim,
-            kernel_size=config.patch_size,
-            stride=config.patch_size
+            n_input, config.hidden_dim, kernel_size=config.patch_size, stride=config.patch_size
         )
 
         # Calculate number of patches
@@ -113,18 +110,14 @@ class WeatherStateEncoder(nn.Module):
             nhead=8,
             dim_feedforward=config.hidden_dim * 4,
             batch_first=True,
-            norm_first=True
+            norm_first=True,
         )
         self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=8)
 
         # Project to embedding dimension
         self.projection = nn.Linear(config.hidden_dim, config.embedding_dim)
 
-    def forward(
-        self,
-        surface_vars: torch.Tensor,
-        atmospheric_vars: torch.Tensor
-    ) -> torch.Tensor:
+    def forward(self, surface_vars: torch.Tensor, atmospheric_vars: torch.Tensor) -> torch.Tensor:
         """
         Encode weather state.
 
@@ -183,7 +176,7 @@ class ClimatePatternEncoder(nn.Module):
             nn.MaxPool2d(4),
             nn.Conv2d(128, 256, 3, padding=1),
             nn.ReLU(),
-            nn.AdaptiveAvgPool2d(8)
+            nn.AdaptiveAvgPool2d(8),
         )
 
         self.ocean_encoder = nn.Sequential(
@@ -195,21 +188,17 @@ class ClimatePatternEncoder(nn.Module):
             nn.MaxPool2d(4),
             nn.Conv2d(128, 256, 3, padding=1),
             nn.ReLU(),
-            nn.AdaptiveAvgPool2d(8)
+            nn.AdaptiveAvgPool2d(8),
         )
 
         # Fusion and projection
         self.fusion = nn.Sequential(
             nn.Linear(256 * 64 * 2, config.hidden_dim),
             nn.ReLU(),
-            nn.Linear(config.hidden_dim, config.embedding_dim)
+            nn.Linear(config.hidden_dim, config.embedding_dim),
         )
 
-    def forward(
-        self,
-        atmosphere: torch.Tensor,
-        ocean: torch.Tensor
-    ) -> torch.Tensor:
+    def forward(self, atmosphere: torch.Tensor, ocean: torch.Tensor) -> torch.Tensor:
         """
         Encode coupled atmosphere-ocean state.
 
@@ -246,29 +235,24 @@ class SatelliteImageEncoder(nn.Module):
             nn.BatchNorm2d(64),
             nn.ReLU(),
             nn.MaxPool2d(2),
-
             nn.Conv2d(64, 128, 3, padding=1),
             nn.BatchNorm2d(128),
             nn.ReLU(),
             nn.MaxPool2d(2),
-
             nn.Conv2d(128, 256, 3, padding=1),
             nn.BatchNorm2d(256),
             nn.ReLU(),
             nn.MaxPool2d(2),
-
             nn.Conv2d(256, 512, 3, padding=1),
             nn.BatchNorm2d(512),
             nn.ReLU(),
-            nn.AdaptiveAvgPool2d(1)
+            nn.AdaptiveAvgPool2d(1),
         )
 
         self.projection = nn.Linear(512, embedding_dim)
 
     def forward(
-        self,
-        imagery: torch.Tensor,
-        cloud_mask: Optional[torch.Tensor] = None
+        self, imagery: torch.Tensor, cloud_mask: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
         """
         Encode multi-spectral satellite imagery.
@@ -308,17 +292,14 @@ class WeatherForecastSystem:
             nn.ReLU(),
             nn.Linear(config.hidden_dim, config.hidden_dim),
             nn.ReLU(),
-            nn.Linear(config.hidden_dim, config.embedding_dim)
+            nn.Linear(config.hidden_dim, config.embedding_dim),
         )
 
         # Decoder: reconstruct atmospheric state from embedding
         self.decoder = None  # Would be a full decoder network
 
     def forecast(
-        self,
-        current_surface: torch.Tensor,
-        current_atmos: torch.Tensor,
-        forecast_hours: int = 24
+        self, current_surface: torch.Tensor, current_atmos: torch.Tensor, forecast_hours: int = 24
     ) -> list[torch.Tensor]:
         """
         Generate weather forecast.

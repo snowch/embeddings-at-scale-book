@@ -63,9 +63,7 @@ class PPEDetector(nn.Module):
             "high_visibility_clothing",
         ]
 
-    def forward(
-        self, person_crop: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor, dict]:
+    def forward(self, person_crop: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, dict]:
         """
         Detect PPE on person.
 
@@ -131,9 +129,7 @@ class SafetyViolationDetector(nn.Module):
         )
 
         # Multi-label violation classifier
-        self.violation_classifier = nn.Linear(
-            config.hidden_dim, config.n_safety_violations
-        )
+        self.violation_classifier = nn.Linear(config.hidden_dim, config.n_safety_violations)
 
         # Risk level assessment
         self.risk_head = nn.Sequential(
@@ -160,9 +156,7 @@ class SafetyViolationDetector(nn.Module):
             "housekeeping_violation",
         ]
 
-    def forward(
-        self, video_clip: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward(self, video_clip: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Detect safety violations.
 
@@ -234,9 +228,7 @@ class ZoneMonitor(nn.Module):
             nn.ReLU(),  # Non-negative
         )
 
-    def forward(
-        self, zone_image: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, zone_image: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Monitor restricted zone.
 
@@ -343,9 +335,7 @@ class ManufacturingSafetySystem:
         Returns:
             Safety analysis results
         """
-        violation_logits, risk_logits, _ = self.violation_detector(
-            video_clip.unsqueeze(0)
-        )
+        violation_logits, risk_logits, _ = self.violation_detector(video_clip.unsqueeze(0))
 
         # Get violations above threshold
         violation_probs = torch.sigmoid(violation_logits)[0]
@@ -357,10 +347,12 @@ class ManufacturingSafetySystem:
                     if i < len(self.violation_detector.violation_names)
                     else f"violation_{i}"
                 )
-                detected_violations.append({
-                    "violation": violation_name,
-                    "confidence": prob.item(),
-                })
+                detected_violations.append(
+                    {
+                        "violation": violation_name,
+                        "confidence": prob.item(),
+                    }
+                )
 
         # Risk assessment
         risk_probs = F.softmax(risk_logits, dim=-1)[0]

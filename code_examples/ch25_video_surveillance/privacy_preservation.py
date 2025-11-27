@@ -78,7 +78,7 @@ class FaceAnonymizer(nn.Module):
         sigma = self.blur_sigma
 
         x = torch.arange(kernel_size, device=image.device) - kernel_size // 2
-        gaussian_1d = torch.exp(-x**2 / (2 * sigma**2))
+        gaussian_1d = torch.exp(-(x**2) / (2 * sigma**2))
         gaussian_2d = gaussian_1d.outer(gaussian_1d)
         gaussian_2d = gaussian_2d / gaussian_2d.sum()
         kernel = gaussian_2d.view(1, 1, kernel_size, kernel_size)
@@ -144,9 +144,7 @@ class PrivacyPreservingEncoder(nn.Module):
         # Privacy gradient reversal (during training)
         # Ensures embeddings don't leak identity
 
-    def add_dp_noise(
-        self, embedding: torch.Tensor, epsilon: float = 1.0
-    ) -> torch.Tensor:
+    def add_dp_noise(self, embedding: torch.Tensor, epsilon: float = 1.0) -> torch.Tensor:
         """
         Add differential privacy noise.
 
@@ -166,9 +164,7 @@ class PrivacyPreservingEncoder(nn.Module):
 
         return F.normalize(noisy, dim=-1)
 
-    def forward(
-        self, image: torch.Tensor, add_noise: bool = True
-    ) -> torch.Tensor:
+    def forward(self, image: torch.Tensor, add_noise: bool = True) -> torch.Tensor:
         """
         Extract privacy-preserving embedding.
 
@@ -284,16 +280,18 @@ class PrivacyAuditLogger:
 
         log_id = str(uuid.uuid4())
 
-        self.logs.append({
-            "log_id": log_id,
-            "timestamp": time.time(),
-            "user_id": user_id,
-            "action": action,
-            "data_type": data_type,
-            "camera_id": camera_id,
-            "time_range": time_range,
-            "purpose": purpose,
-        })
+        self.logs.append(
+            {
+                "log_id": log_id,
+                "timestamp": time.time(),
+                "user_id": user_id,
+                "action": action,
+                "data_type": data_type,
+                "camera_id": camera_id,
+                "time_range": time_range,
+                "purpose": purpose,
+            }
+        )
 
         return log_id
 
@@ -321,15 +319,17 @@ class PrivacyAuditLogger:
 
         log_id = str(uuid.uuid4())
 
-        self.logs.append({
-            "log_id": log_id,
-            "timestamp": time.time(),
-            "event_type": "processing",
-            "process_type": process_type,
-            "input_data": input_data,
-            "output_data": output_data,
-            "privacy_measures": privacy_measures,
-        })
+        self.logs.append(
+            {
+                "log_id": log_id,
+                "timestamp": time.time(),
+                "event_type": "processing",
+                "process_type": process_type,
+                "input_data": input_data,
+                "output_data": output_data,
+                "privacy_measures": privacy_measures,
+            }
+        )
 
         return log_id
 
@@ -349,9 +349,7 @@ class PrivacyAuditLogger:
             Compliance report summary
         """
         relevant_logs = [
-            log
-            for log in self.logs
-            if start_time <= log.get("timestamp", 0) <= end_time
+            log for log in self.logs if start_time <= log.get("timestamp", 0) <= end_time
         ]
 
         # Aggregate statistics

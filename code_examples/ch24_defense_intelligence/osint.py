@@ -1,13 +1,15 @@
+from dataclasses import dataclass
+from typing import Optional
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass
 class OSINTConfig:
     """Configuration for open-source intelligence embedding models."""
+
     vocab_size: int = 50000
     max_seq_length: int = 512
     embedding_dim: int = 768
@@ -37,7 +39,7 @@ class MultiModalDocumentEncoder(nn.Module):
             d_model=config.embedding_dim,
             nhead=config.n_heads,
             dim_feedforward=config.hidden_dim,
-            batch_first=True
+            batch_first=True,
         )
         self.text_transformer = nn.TransformerEncoder(encoder_layer, num_layers=config.n_layers)
 
@@ -53,14 +55,14 @@ class MultiModalDocumentEncoder(nn.Module):
         self.fusion = nn.Sequential(
             nn.Linear(config.embedding_dim * 2, config.embedding_dim),
             nn.ReLU(),
-            nn.Linear(config.embedding_dim, config.embedding_dim)
+            nn.Linear(config.embedding_dim, config.embedding_dim),
         )
 
     def forward(
         self,
         text_ids: torch.Tensor,
         text_mask: torch.Tensor,
-        image_features: Optional[torch.Tensor] = None
+        image_features: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """
         Encode document with text and optional images.
@@ -78,9 +80,7 @@ class MultiModalDocumentEncoder(nn.Module):
         # Encode text
         positions = torch.arange(seq_len, device=text_ids.device).unsqueeze(0)
         text_emb = self.token_embed(text_ids) + self.position_embed(positions)
-        text_features = self.text_transformer(
-            text_emb, src_key_padding_mask=~text_mask.bool()
-        )
+        text_features = self.text_transformer(text_emb, src_key_padding_mask=~text_mask.bool())
 
         # Pool text
         text_emb = text_features * text_mask.unsqueeze(-1)
@@ -93,9 +93,7 @@ class MultiModalDocumentEncoder(nn.Module):
         img_emb = self.image_projection(image_features)
 
         # Cross-modal attention (text attends to images)
-        attended, _ = self.cross_attention(
-            text_features, img_emb, img_emb
-        )
+        attended, _ = self.cross_attention(text_features, img_emb, img_emb)
         img_context = attended.mean(dim=1)
 
         # Fuse modalities
@@ -121,7 +119,7 @@ class SourceCredibilityEncoder(nn.Module):
         self.source_encoder = nn.Sequential(
             nn.Linear(50, config.hidden_dim),  # Source metadata features
             nn.ReLU(),
-            nn.Linear(config.hidden_dim, config.embedding_dim)
+            nn.Linear(config.hidden_dim, config.embedding_dim),
         )
 
         # Historical content encoder (past articles from source)
@@ -129,7 +127,7 @@ class SourceCredibilityEncoder(nn.Module):
             input_size=config.embedding_dim,
             hidden_size=config.embedding_dim,
             num_layers=2,
-            batch_first=True
+            batch_first=True,
         )
 
         # Credibility scorer
@@ -137,13 +135,11 @@ class SourceCredibilityEncoder(nn.Module):
             nn.Linear(config.embedding_dim * 2, config.hidden_dim),
             nn.ReLU(),
             nn.Linear(config.hidden_dim, 1),
-            nn.Sigmoid()
+            nn.Sigmoid(),
         )
 
     def forward(
-        self,
-        source_features: torch.Tensor,
-        historical_embeddings: torch.Tensor
+        self, source_features: torch.Tensor, historical_embeddings: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Encode source and assess credibility.
@@ -192,19 +188,15 @@ class NarrativeTracker(nn.Module):
                 d_model=config.embedding_dim,
                 nhead=config.n_heads,
                 dim_feedforward=config.hidden_dim,
-                batch_first=True
+                batch_first=True,
             ),
-            num_layers=4
+            num_layers=4,
         )
 
         # Narrative state embedding
         self.narrative_projection = nn.Linear(config.embedding_dim, config.embedding_dim)
 
-    def forward(
-        self,
-        document_embeddings: torch.Tensor,
-        timestamps: torch.Tensor
-    ) -> torch.Tensor:
+    def forward(self, document_embeddings: torch.Tensor, timestamps: torch.Tensor) -> torch.Tensor:
         """
         Track narrative from document sequence.
 
@@ -245,14 +237,14 @@ class InfluenceOperationDetector(nn.Module):
         self.behavior_encoder = nn.Sequential(
             nn.Linear(100, config.hidden_dim),  # Behavioral features
             nn.ReLU(),
-            nn.Linear(config.hidden_dim, config.embedding_dim)
+            nn.Linear(config.hidden_dim, config.embedding_dim),
         )
 
         # Content pattern encoder
         self.content_encoder = nn.Sequential(
             nn.Linear(config.embedding_dim, config.hidden_dim),
             nn.ReLU(),
-            nn.Linear(config.hidden_dim, config.embedding_dim)
+            nn.Linear(config.hidden_dim, config.embedding_dim),
         )
 
         # Coordination detector
@@ -260,13 +252,11 @@ class InfluenceOperationDetector(nn.Module):
             nn.Linear(config.embedding_dim * 2, config.hidden_dim),
             nn.ReLU(),
             nn.Linear(config.hidden_dim, 1),
-            nn.Sigmoid()
+            nn.Sigmoid(),
         )
 
     def forward(
-        self,
-        behavior_features: torch.Tensor,
-        content_embeddings: torch.Tensor
+        self, behavior_features: torch.Tensor, content_embeddings: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Detect coordinated behavior.
@@ -298,26 +288,22 @@ class InfluenceOperationDetector(nn.Module):
         return account_emb, coordination_score
 
     def find_coordinated_clusters(
-        self,
-        account_embeddings: torch.Tensor,
-        threshold: float = 0.9
+        self, account_embeddings: torch.Tensor, threshold: float = 0.9
     ) -> list[list[int]]:
         """
         Cluster accounts that appear coordinated.
         """
-        n = account_embeddings.shape[0]
+        _n = account_embeddings.shape[0]  # noqa: F841
         similarities = F.cosine_similarity(
-            account_embeddings.unsqueeze(1),
-            account_embeddings.unsqueeze(0),
-            dim=2
+            account_embeddings.unsqueeze(1), account_embeddings.unsqueeze(0), dim=2
         )
 
         # Find highly similar account pairs
         coordinated_pairs = (similarities > threshold).nonzero()
 
         # Build clusters
-        clusters = []
-        assigned = set()
+        clusters: list[set[int]] = []
+        _assigned: set[int] = set()  # noqa: F841
 
         for i, j in coordinated_pairs:
             i, j = i.item(), j.item()
@@ -356,10 +342,7 @@ class OSINTSearchSystem:
         self.doc_metadata = None
 
     def search(
-        self,
-        query_embedding: torch.Tensor,
-        k: int = 20,
-        min_credibility: float = 0.5
+        self, query_embedding: torch.Tensor, k: int = 20, min_credibility: float = 0.5
     ) -> list[dict]:
         """
         Search documents with credibility filtering.
@@ -367,9 +350,7 @@ class OSINTSearchSystem:
         if self.doc_embeddings is None:
             raise ValueError("Index not built")
 
-        similarities = F.cosine_similarity(
-            query_embedding.unsqueeze(0), self.doc_embeddings
-        )
+        similarities = F.cosine_similarity(query_embedding.unsqueeze(0), self.doc_embeddings)
 
         # Sort by similarity
         sorted_indices = torch.argsort(similarities, descending=True)
@@ -378,23 +359,21 @@ class OSINTSearchSystem:
         for idx in sorted_indices:
             metadata = self.doc_metadata[idx.item()]
             if metadata.get("credibility", 1.0) >= min_credibility:
-                results.append({
-                    "doc_id": metadata["id"],
-                    "title": metadata["title"],
-                    "source": metadata["source"],
-                    "credibility": metadata.get("credibility", 1.0),
-                    "similarity": similarities[idx].item()
-                })
+                results.append(
+                    {
+                        "doc_id": metadata["id"],
+                        "title": metadata["title"],
+                        "source": metadata["source"],
+                        "credibility": metadata.get("credibility", 1.0),
+                        "similarity": similarities[idx].item(),
+                    }
+                )
                 if len(results) >= k:
                     break
 
         return results
 
-    def summarize_topic(
-        self,
-        topic_embedding: torch.Tensor,
-        n_docs: int = 50
-    ) -> dict:
+    def summarize_topic(self, topic_embedding: torch.Tensor, n_docs: int = 50) -> dict:
         """
         Summarize a topic from relevant documents.
         """
@@ -417,5 +396,5 @@ class OSINTSearchSystem:
             "n_documents": len(results),
             "sources": sources,
             "avg_credibility": sum(r["credibility"] for r in results) / len(results),
-            "top_documents": results[:10]
+            "top_documents": results[:10],
         }

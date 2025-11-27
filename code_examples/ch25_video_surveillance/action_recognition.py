@@ -304,15 +304,15 @@ class ActionRecognitionSystem:
             for j in range(top_k):
                 idx = top_indices[i, j].item()
                 action_name = (
-                    self.action_names[idx]
-                    if idx < len(self.action_names)
-                    else f"action_{idx}"
+                    self.action_names[idx] if idx < len(self.action_names) else f"action_{idx}"
                 )
-                batch_preds.append({
-                    "action": action_name,
-                    "confidence": top_probs[i, j].item(),
-                    "action_id": idx,
-                })
+                batch_preds.append(
+                    {
+                        "action": action_name,
+                        "confidence": top_probs[i, j].item(),
+                        "action_id": idx,
+                    }
+                )
             predictions.append(batch_preds)
 
         return predictions
@@ -351,11 +351,13 @@ class ActionRecognitionSystem:
                         if action_id < len(self.action_names)
                         else f"action_{action_id}"
                     )
-                    violations.append({
-                        "batch_idx": i,
-                        "action": action_name,
-                        "confidence": probs[i, action_id].item(),
-                        "action_id": action_id,
-                    })
+                    violations.append(
+                        {
+                            "batch_idx": i,
+                            "action": action_name,
+                            "confidence": probs[i, action_id].item(),
+                            "action_id": action_id,
+                        }
+                    )
 
         return violations

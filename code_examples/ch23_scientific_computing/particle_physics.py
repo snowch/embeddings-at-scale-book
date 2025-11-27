@@ -9,6 +9,7 @@ import torch.nn.functional as F
 @dataclass
 class ParticlePhysicsConfig:
     """Configuration for particle physics embedding models."""
+
     particle_features: int = 7  # pt, eta, phi, E, charge, pid, etc.
     max_particles: int = 128
     hidden_dim: int = 256
@@ -38,10 +39,7 @@ class ParticleFeatureEmbedding(nn.Module):
         self.charge_embed = nn.Embedding(3, config.hidden_dim // 4)
 
     def forward(
-        self,
-        kinematics: torch.Tensor,
-        particle_ids: torch.Tensor,
-        charges: torch.Tensor
+        self, kinematics: torch.Tensor, particle_ids: torch.Tensor, charges: torch.Tensor
     ) -> torch.Tensor:
         """
         Embed particle features.
@@ -85,7 +83,7 @@ class ParticleCloudEncoder(nn.Module):
             nhead=config.n_heads,
             dim_feedforward=config.hidden_dim * 4,
             batch_first=True,
-            norm_first=True
+            norm_first=True,
         )
         self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=config.n_layers)
 
@@ -97,7 +95,7 @@ class ParticleCloudEncoder(nn.Module):
         kinematics: torch.Tensor,
         particle_ids: torch.Tensor,
         charges: torch.Tensor,
-        mask: Optional[torch.Tensor] = None
+        mask: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """
         Encode collision event.
@@ -154,29 +152,28 @@ class JetEncoder(nn.Module):
         self.constituent_embed = nn.Linear(config.particle_features, config.hidden_dim)
 
         # Edge convolution layers (for local structure)
-        self.edge_convs = nn.ModuleList([
-            nn.Sequential(
-                nn.Linear(2 * config.hidden_dim, config.hidden_dim),
-                nn.ReLU(),
-                nn.Linear(config.hidden_dim, config.hidden_dim)
-            ) for _ in range(3)
-        ])
+        self.edge_convs = nn.ModuleList(
+            [
+                nn.Sequential(
+                    nn.Linear(2 * config.hidden_dim, config.hidden_dim),
+                    nn.ReLU(),
+                    nn.Linear(config.hidden_dim, config.hidden_dim),
+                )
+                for _ in range(3)
+            ]
+        )
 
         # Global attention
-        self.attention = nn.MultiheadAttention(
-            config.hidden_dim, config.n_heads, batch_first=True
-        )
+        self.attention = nn.MultiheadAttention(config.hidden_dim, config.n_heads, batch_first=True)
 
         self.readout = nn.Sequential(
             nn.Linear(config.hidden_dim, config.hidden_dim),
             nn.ReLU(),
-            nn.Linear(config.hidden_dim, config.embedding_dim)
+            nn.Linear(config.hidden_dim, config.embedding_dim),
         )
 
     def forward(
-        self,
-        constituents: torch.Tensor,
-        mask: Optional[torch.Tensor] = None
+        self, constituents: torch.Tensor, mask: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
         """
         Encode jet from constituents.
@@ -231,14 +228,14 @@ class LorentzInvariantEncoder(nn.Module):
         self.invariant_mlp = nn.Sequential(
             nn.Linear(config.max_particles * 3, config.hidden_dim),  # masses, delta_R, etc.
             nn.ReLU(),
-            nn.Linear(config.hidden_dim, config.hidden_dim)
+            nn.Linear(config.hidden_dim, config.hidden_dim),
         )
 
         # Combine with particle-level features
         self.fusion = nn.Sequential(
             nn.Linear(config.hidden_dim * 2, config.hidden_dim),
             nn.ReLU(),
-            nn.Linear(config.hidden_dim, config.embedding_dim)
+            nn.Linear(config.hidden_dim, config.embedding_dim),
         )
 
         self.particle_encoder = ParticleCloudEncoder(config)
@@ -274,14 +271,17 @@ class LorentzInvariantEncoder(nn.Module):
         delta_eta = eta.unsqueeze(2) - eta.unsqueeze(1)
         delta_phi = phi.unsqueeze(2) - phi.unsqueeze(1)
         # Wrap phi difference to [-pi, pi]
-        delta_phi = torch.remainder(delta_phi + 3.14159, 2*3.14159) - 3.14159
+        delta_phi = torch.remainder(delta_phi + 3.14159, 2 * 3.14159) - 3.14159
         delta_R = torch.sqrt(delta_eta**2 + delta_phi**2)
 
         # Flatten invariants
-        invariants = torch.cat([
-            masses,
-            delta_R[:, :, :n_particles//2].flatten(1)  # Subsample for fixed size
-        ], dim=-1)
+        invariants = torch.cat(
+            [
+                masses,
+                delta_R[:, :, : n_particles // 2].flatten(1),  # Subsample for fixed size
+            ],
+            dim=-1,
+        )
 
         return invariants
 
@@ -290,7 +290,7 @@ class LorentzInvariantEncoder(nn.Module):
         kinematics: torch.Tensor,
         particle_ids: torch.Tensor,
         charges: torch.Tensor,
-        mask: Optional[torch.Tensor] = None
+        mask: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """
         Encode event with Lorentz invariance.
@@ -326,7 +326,7 @@ class AnomalyDetector:
             nn.ReLU(),
             nn.Linear(config.hidden_dim, config.hidden_dim),
             nn.ReLU(),
-            nn.Linear(config.hidden_dim, config.max_particles * 4)  # Reconstruct kinematics
+            nn.Linear(config.hidden_dim, config.max_particles * 4),  # Reconstruct kinematics
         )
 
     def compute_anomaly_score(
@@ -334,7 +334,7 @@ class AnomalyDetector:
         kinematics: torch.Tensor,
         particle_ids: torch.Tensor,
         charges: torch.Tensor,
-        mask: Optional[torch.Tensor] = None
+        mask: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """
         Compute anomaly score for events.
@@ -372,7 +372,7 @@ class TriggerClassifier:
         self.encoder = nn.Sequential(
             nn.Linear(config.particle_features * 10, config.hidden_dim),  # Top 10 particles
             nn.ReLU(),
-            nn.Linear(config.hidden_dim, config.embedding_dim)
+            nn.Linear(config.hidden_dim, config.embedding_dim),
         )
 
         self.classifier = nn.Linear(config.embedding_dim, 5)  # Signal categories

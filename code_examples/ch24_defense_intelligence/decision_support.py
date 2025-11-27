@@ -1,13 +1,14 @@
+from dataclasses import dataclass
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass
 class DecisionSupportConfig:
     """Configuration for decision support embedding models."""
+
     embedding_dim: int = 768
     hidden_dim: int = 3072
     n_heads: int = 12
@@ -28,13 +29,15 @@ class SituationEncoder(nn.Module):
         self.config = config
 
         # Source-specific encoders
-        self.source_encoders = nn.ModuleDict({
-            'geoint': nn.Linear(512, config.embedding_dim),
-            'sigint': nn.Linear(512, config.embedding_dim),
-            'humint': nn.Linear(256, config.embedding_dim),
-            'osint': nn.Linear(512, config.embedding_dim),
-            'cyber': nn.Linear(256, config.embedding_dim)
-        })
+        self.source_encoders = nn.ModuleDict(
+            {
+                "geoint": nn.Linear(512, config.embedding_dim),
+                "sigint": nn.Linear(512, config.embedding_dim),
+                "humint": nn.Linear(256, config.embedding_dim),
+                "osint": nn.Linear(512, config.embedding_dim),
+                "cyber": nn.Linear(256, config.embedding_dim),
+            }
+        )
 
         # Source type embedding
         self.source_type_embed = nn.Embedding(config.n_source_types, config.embedding_dim)
@@ -45,9 +48,9 @@ class SituationEncoder(nn.Module):
                 d_model=config.embedding_dim,
                 nhead=config.n_heads,
                 dim_feedforward=config.hidden_dim,
-                batch_first=True
+                batch_first=True,
             ),
-            num_layers=config.n_layers
+            num_layers=config.n_layers,
         )
 
         # Situation classification
@@ -58,13 +61,11 @@ class SituationEncoder(nn.Module):
             nn.Linear(config.embedding_dim, config.hidden_dim // 2),
             nn.ReLU(),
             nn.Linear(config.hidden_dim // 2, 1),
-            nn.Sigmoid()
+            nn.Sigmoid(),
         )
 
     def forward(
-        self,
-        source_embeddings: dict[str, torch.Tensor],
-        source_types: torch.Tensor
+        self, source_embeddings: dict[str, torch.Tensor], source_types: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Encode situation from multi-source intelligence.
@@ -94,7 +95,7 @@ class SituationEncoder(nn.Module):
 
         # Add source type embeddings
         source_type_emb = self.source_type_embed(source_types)
-        stacked = stacked + source_type_emb[:, :stacked.shape[1]]
+        stacked = stacked + source_type_emb[:, : stacked.shape[1]]
 
         # Fuse across sources
         fused = self.fusion_transformer(stacked)
@@ -126,28 +127,28 @@ class CourseOfActionEncoder(nn.Module):
         self.action_encoder = nn.Sequential(
             nn.Linear(200, config.hidden_dim),  # Action parameters
             nn.ReLU(),
-            nn.Linear(config.hidden_dim, config.embedding_dim)
+            nn.Linear(config.hidden_dim, config.embedding_dim),
         )
 
         # Resource requirements encoder
         self.resource_encoder = nn.Sequential(
             nn.Linear(50, config.hidden_dim // 2),
             nn.ReLU(),
-            nn.Linear(config.hidden_dim // 2, config.embedding_dim)
+            nn.Linear(config.hidden_dim // 2, config.embedding_dim),
         )
 
         # Expected outcome encoder
         self.outcome_encoder = nn.Sequential(
             nn.Linear(100, config.hidden_dim // 2),
             nn.ReLU(),
-            nn.Linear(config.hidden_dim // 2, config.embedding_dim)
+            nn.Linear(config.hidden_dim // 2, config.embedding_dim),
         )
 
         # Fusion
         self.fusion = nn.Sequential(
             nn.Linear(config.embedding_dim * 3, config.hidden_dim),
             nn.ReLU(),
-            nn.Linear(config.hidden_dim, config.embedding_dim)
+            nn.Linear(config.hidden_dim, config.embedding_dim),
         )
 
         # Risk assessment
@@ -155,14 +156,14 @@ class CourseOfActionEncoder(nn.Module):
             nn.Linear(config.embedding_dim, config.hidden_dim // 2),
             nn.ReLU(),
             nn.Linear(config.hidden_dim // 2, 1),
-            nn.Sigmoid()
+            nn.Sigmoid(),
         )
 
     def forward(
         self,
         action_params: torch.Tensor,
         resource_reqs: torch.Tensor,
-        expected_outcomes: torch.Tensor
+        expected_outcomes: torch.Tensor,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Encode course of action.
@@ -208,7 +209,7 @@ class PrecedentRetrieval(nn.Module):
         self.outcome_encoder = nn.Sequential(
             nn.Linear(100, config.hidden_dim),
             nn.ReLU(),
-            nn.Linear(config.hidden_dim, config.embedding_dim)
+            nn.Linear(config.hidden_dim, config.embedding_dim),
         )
 
         # Relevance scoring
@@ -216,14 +217,14 @@ class PrecedentRetrieval(nn.Module):
             nn.Linear(config.embedding_dim * 2, config.hidden_dim // 2),
             nn.ReLU(),
             nn.Linear(config.hidden_dim // 2, 1),
-            nn.Sigmoid()
+            nn.Sigmoid(),
         )
 
     def forward(
         self,
         current_situation: torch.Tensor,
         historical_situations: torch.Tensor,
-        historical_outcomes: torch.Tensor
+        historical_outcomes: torch.Tensor,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Score relevance of historical precedents.
@@ -242,9 +243,7 @@ class PrecedentRetrieval(nn.Module):
 
         # Compute relevance scores
         # Expand current for comparison
-        current_expanded = current_proj.unsqueeze(0).expand(
-            historical_situations.shape[0], -1
-        )
+        current_expanded = current_proj.unsqueeze(0).expand(historical_situations.shape[0], -1)
 
         combined = torch.cat([current_expanded, historical_situations], dim=-1)
         relevance = self.relevance_head(combined).squeeze(-1)
@@ -270,27 +269,25 @@ class RiskAssessment(nn.Module):
         self.situation_risk = nn.Sequential(
             nn.Linear(config.embedding_dim, config.hidden_dim),
             nn.ReLU(),
-            nn.Linear(config.hidden_dim, 50)  # 50 risk factors
+            nn.Linear(config.hidden_dim, 50),  # 50 risk factors
         )
 
         # Action risk factors
         self.action_risk = nn.Sequential(
             nn.Linear(config.embedding_dim, config.hidden_dim),
             nn.ReLU(),
-            nn.Linear(config.hidden_dim, 50)
+            nn.Linear(config.hidden_dim, 50),
         )
 
         # Combined risk assessment
         self.risk_fusion = nn.Sequential(
             nn.Linear(100, config.hidden_dim // 2),
             nn.ReLU(),
-            nn.Linear(config.hidden_dim // 2, 5)  # 5 risk categories
+            nn.Linear(config.hidden_dim // 2, 5),  # 5 risk categories
         )
 
     def forward(
-        self,
-        situation_embedding: torch.Tensor,
-        action_embedding: torch.Tensor
+        self, situation_embedding: torch.Tensor, action_embedding: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Assess risks.
@@ -330,9 +327,7 @@ class DecisionSupportSystem:
         self.precedent_metadata = None
 
     def analyze_situation(
-        self,
-        source_embeddings: dict[str, torch.Tensor],
-        source_types: torch.Tensor
+        self, source_embeddings: dict[str, torch.Tensor], source_types: torch.Tensor
     ) -> dict:
         """
         Analyze current situation.
@@ -348,14 +343,10 @@ class DecisionSupportSystem:
             "embedding": situation_emb,
             "situation_type": predicted_type.item(),
             "type_confidence": situation_probs.max().item(),
-            "urgency": urgency.item()
+            "urgency": urgency.item(),
         }
 
-    def retrieve_precedents(
-        self,
-        situation_embedding: torch.Tensor,
-        k: int = 10
-    ) -> list[dict]:
+    def retrieve_precedents(self, situation_embedding: torch.Tensor, k: int = 10) -> list[dict]:
         """
         Retrieve relevant historical precedents.
         """
@@ -363,21 +354,21 @@ class DecisionSupportSystem:
             return []
 
         relevance, outcome_embs = self.precedent_retrieval(
-            situation_embedding,
-            self.precedent_situations,
-            self.precedent_outcomes
+            situation_embedding, self.precedent_situations, self.precedent_outcomes
         )
 
         top_k = torch.topk(relevance, min(k, len(relevance)))
 
         precedents = []
         for idx, score in zip(top_k.indices, top_k.values):
-            precedents.append({
-                "precedent_id": self.precedent_metadata[idx]["id"],
-                "description": self.precedent_metadata[idx]["description"],
-                "outcome": self.precedent_metadata[idx]["outcome"],
-                "relevance": score.item()
-            })
+            precedents.append(
+                {
+                    "precedent_id": self.precedent_metadata[idx]["id"],
+                    "description": self.precedent_metadata[idx]["description"],
+                    "outcome": self.precedent_metadata[idx]["outcome"],
+                    "relevance": score.item(),
+                }
+            )
 
         return precedents
 
@@ -386,30 +377,24 @@ class DecisionSupportSystem:
         situation_embedding: torch.Tensor,
         action_params: torch.Tensor,
         resource_reqs: torch.Tensor,
-        expected_outcomes: torch.Tensor
+        expected_outcomes: torch.Tensor,
     ) -> dict:
         """
         Evaluate a course of action.
         """
-        coa_emb, coa_risk = self.coa_encoder(
-            action_params, resource_reqs, expected_outcomes
-        )
+        coa_emb, coa_risk = self.coa_encoder(action_params, resource_reqs, expected_outcomes)
 
-        risk_factors, risk_categories = self.risk_assessment(
-            situation_embedding, coa_emb
-        )
+        risk_factors, risk_categories = self.risk_assessment(situation_embedding, coa_emb)
 
         return {
             "embedding": coa_emb,
             "overall_risk": coa_risk.item(),
             "risk_categories": risk_categories.tolist(),
-            "top_risk_factors": torch.topk(risk_factors.squeeze(), 5)
+            "top_risk_factors": torch.topk(risk_factors.squeeze(), 5),
         }
 
     def compare_coas(
-        self,
-        coa_embeddings: list[torch.Tensor],
-        situation_embedding: torch.Tensor
+        self, coa_embeddings: list[torch.Tensor], situation_embedding: torch.Tensor
     ) -> list[dict]:
         """
         Compare multiple courses of action.
@@ -420,16 +405,12 @@ class DecisionSupportSystem:
         coa_stack = torch.stack(coa_embeddings)
 
         # Compute situation alignment
-        alignments = F.cosine_similarity(
-            situation_embedding.unsqueeze(0), coa_stack
-        )
+        alignments = F.cosine_similarity(situation_embedding.unsqueeze(0), coa_stack)
 
         for i, (emb, align) in enumerate(zip(coa_embeddings, alignments)):
-            comparisons.append({
-                "coa_index": i,
-                "situation_alignment": align.item(),
-                "embedding": emb
-            })
+            comparisons.append(
+                {"coa_index": i, "situation_alignment": align.item(), "embedding": emb}
+            )
 
         # Sort by alignment
         comparisons.sort(key=lambda x: x["situation_alignment"], reverse=True)
@@ -437,10 +418,7 @@ class DecisionSupportSystem:
         return comparisons
 
     def generate_recommendation(
-        self,
-        situation_analysis: dict,
-        precedents: list[dict],
-        coa_evaluations: list[dict]
+        self, situation_analysis: dict, precedents: list[dict], coa_evaluations: list[dict]
     ) -> dict:
         """
         Generate decision recommendation with justification.
@@ -449,30 +427,24 @@ class DecisionSupportSystem:
         # Real system would use more sophisticated reasoning
 
         # Filter to acceptable risk
-        acceptable_coas = [
-            coa for coa in coa_evaluations
-            if coa["overall_risk"] < 0.7
-        ]
+        acceptable_coas = [coa for coa in coa_evaluations if coa["overall_risk"] < 0.7]
 
         if not acceptable_coas:
             return {
                 "recommendation": None,
                 "reasoning": "No courses of action meet acceptable risk thresholds",
                 "precedents_considered": len(precedents),
-                "urgency": situation_analysis["urgency"]
+                "urgency": situation_analysis["urgency"],
             }
 
         # Select highest alignment COA
-        best_coa = max(
-            acceptable_coas,
-            key=lambda x: x.get("situation_alignment", 0)
-        )
+        best_coa = max(acceptable_coas, key=lambda x: x.get("situation_alignment", 0))
 
         return {
             "recommendation": best_coa,
-            "reasoning": f"Selected based on situation alignment and acceptable risk",
+            "reasoning": "Selected based on situation alignment and acceptable risk",
             "precedents_considered": len(precedents),
             "similar_precedent": precedents[0] if precedents else None,
             "urgency": situation_analysis["urgency"],
-            "confidence": 1 - best_coa["overall_risk"]
+            "confidence": 1 - best_coa["overall_risk"],
         }
