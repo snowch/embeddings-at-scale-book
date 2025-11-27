@@ -1,8 +1,9 @@
+from dataclasses import dataclass
+from typing import Optional
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass
@@ -252,7 +253,7 @@ class LorentzInvariantEncoder(nn.Module):
         Returns:
             invariants: [batch, n_invariants] invariant masses, angles, etc.
         """
-        batch_size = kinematics.shape[0]
+        _batch_size = kinematics.shape[0]  # noqa: F841
         n_particles = kinematics.shape[1]
 
         # Convert to (px, py, pz, E)
