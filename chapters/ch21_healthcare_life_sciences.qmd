@@ -23,7 +23,9 @@ Traditional drug discovery faces limitations:
 **Embedding approach**: Learn molecular embeddings from structure, encode protein binding sites, predict interactions in embedding space. Similar molecules have similar properties; novel compounds can be evaluated instantly through nearest neighbor search in embedding space before any physical synthesis.
 
 ```{python}
-#| eval: false
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show the code"
 #| file: code_examples/ch19_healthcare_life_sciences/from.py
 ```
 
