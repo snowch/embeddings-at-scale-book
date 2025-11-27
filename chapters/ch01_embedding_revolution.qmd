@@ -17,6 +17,7 @@ Here's the key insight: in an embedding space, **similarity in meaning correspon
 
 ```{python}
 #| echo: true
+
 """
 Word Embeddings Similarity Example
 
