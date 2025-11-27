@@ -1,13 +1,14 @@
 """Table-aware chunking that preserves tabular structure."""
 
-from typing import List, Optional, Tuple
-from dataclasses import dataclass
 import re
+from dataclasses import dataclass
+from typing import List, Optional, Tuple
 
 
 @dataclass
 class TableChunk:
     """A chunk containing table data with context."""
+
     text: str
     table_markdown: str
     caption: Optional[str] = None
@@ -25,12 +26,12 @@ def detect_tables(text: str) -> List[Tuple[int, int, str]]:
     tables = []
 
     # Detect Markdown tables
-    md_table_pattern = r'(\|[^\n]+\|\n\|[-:| ]+\|\n(?:\|[^\n]+\|\n?)+)'
+    md_table_pattern = r"(\|[^\n]+\|\n\|[-:| ]+\|\n(?:\|[^\n]+\|\n?)+)"
     for match in re.finditer(md_table_pattern, text):
         tables.append((match.start(), match.end(), match.group(0)))
 
     # Detect ASCII tables (simple grid format)
-    ascii_pattern = r'(\+[-+]+\+\n(?:\|[^\n]+\|\n)+\+[-+]+\+)'
+    ascii_pattern = r"(\+[-+]+\+\n(?:\|[^\n]+\|\n)+\+[-+]+\+)"
     for match in re.finditer(ascii_pattern, text):
         tables.append((match.start(), match.end(), match.group(0)))
 
@@ -39,29 +40,25 @@ def detect_tables(text: str) -> List[Tuple[int, int, str]]:
 
 def parse_markdown_table(table_text: str) -> Tuple[List[str], List[List[str]]]:
     """Parse a Markdown table into headers and rows."""
-    lines = [line.strip() for line in table_text.strip().split('\n')]
+    lines = [line.strip() for line in table_text.strip().split("\n")]
 
     if len(lines) < 2:
         return [], []
 
     # Parse header row
-    headers = [cell.strip() for cell in lines[0].split('|')[1:-1]]
+    headers = [cell.strip() for cell in lines[0].split("|")[1:-1]]
 
     # Skip separator line, parse data rows
     rows = []
     for line in lines[2:]:
-        if line.startswith('|'):
-            cells = [cell.strip() for cell in line.split('|')[1:-1]]
+        if line.startswith("|"):
+            cells = [cell.strip() for cell in line.split("|")[1:-1]]
             rows.append(cells)
 
     return headers, rows
 
 
-def table_to_text(
-    headers: List[str],
-    rows: List[List[str]],
-    format: str = 'natural'
-) -> str:
+def table_to_text(headers: List[str], rows: List[List[str]], format: str = "natural") -> str:
     """
     Convert table to natural language for embedding.
 
@@ -73,18 +70,18 @@ def table_to_text(
     Returns:
         Text representation of the table
     """
-    if format == 'natural':
+    if format == "natural":
         lines = []
         for row in rows:
             parts = []
             for header, value in zip(headers, row):
-                if value and value != '-':
+                if value and value != "-":
                     parts.append(f"{header} is {value}")
             if parts:
                 lines.append(". ".join(parts) + ".")
         return "\n".join(lines)
 
-    elif format == 'structured':
+    elif format == "structured":
         lines = []
         for i, row in enumerate(rows):
             row_text = f"Row {i + 1}: "
@@ -94,9 +91,11 @@ def table_to_text(
 
     else:
         # Keep as markdown
-        return f"| {' | '.join(headers)} |\n" + \
-               f"|{'|'.join(['---'] * len(headers))}|\n" + \
-               "\n".join(f"| {' | '.join(row)} |" for row in rows)
+        return (
+            f"| {' | '.join(headers)} |\n"
+            + f"|{'|'.join(['---'] * len(headers))}|\n"
+            + "\n".join(f"| {' | '.join(row)} |" for row in rows)
+        )
 
 
 class TableAwareChunker:
@@ -113,8 +112,8 @@ class TableAwareChunker:
         self,
         chunk_size: int = 500,
         chunk_overlap: int = 50,
-        table_format: str = 'natural',
-        max_table_rows_per_chunk: int = 10
+        table_format: str = "natural",
+        max_table_rows_per_chunk: int = 10,
     ):
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
@@ -131,6 +130,7 @@ class TableAwareChunker:
 
         if not tables:
             from recursive_chunking import RecursiveChunker
+
             chunker = RecursiveChunker(self.chunk_size, self.chunk_overlap)
             return chunker.chunk(text)
 
@@ -142,6 +142,7 @@ class TableAwareChunker:
             if start > last_end:
                 pre_text = text[last_end:start]
                 from recursive_chunking import RecursiveChunker
+
                 chunker = RecursiveChunker(self.chunk_size, self.chunk_overlap)
                 chunks.extend(chunker.chunk(pre_text))
 
@@ -155,6 +156,7 @@ class TableAwareChunker:
         if last_end < len(text):
             post_text = text[last_end:]
             from recursive_chunking import RecursiveChunker
+
             chunker = RecursiveChunker(self.chunk_size, self.chunk_overlap)
             chunks.extend(chunker.chunk(post_text))
 
@@ -176,7 +178,7 @@ class TableAwareChunker:
         # Large table: split into row groups
         chunks = []
         for i in range(0, len(rows), self.max_table_rows):
-            row_group = rows[i:i + self.max_table_rows]
+            row_group = rows[i : i + self.max_table_rows]
             text = table_to_text(headers, row_group, self.table_format)
 
             header_context = f"[Table columns: {', '.join(headers)}]\n"
@@ -215,10 +217,7 @@ These benchmarks were run on identical hardware.
     """
 
     chunker = TableAwareChunker(
-        chunk_size=300,
-        chunk_overlap=30,
-        table_format='natural',
-        max_table_rows_per_chunk=5
+        chunk_size=300, chunk_overlap=30, table_format="natural", max_table_rows_per_chunk=5
     )
 
     chunks = chunker.chunk_with_tables(sample_text)

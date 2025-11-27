@@ -1,15 +1,16 @@
 """Chunk metadata preservation for filtering and context."""
 
-from typing import List, Dict, Any, Optional
-from dataclasses import dataclass, field
-from datetime import datetime
 import hashlib
 import json
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 
 @dataclass
 class ChunkMetadata:
     """Comprehensive metadata for a text chunk."""
+
     # Source identification
     source_id: str
     source_type: str  # pdf, html, markdown, etc.
@@ -38,27 +39,28 @@ class ChunkMetadata:
     def to_dict(self) -> Dict:
         """Convert to dictionary for storage."""
         return {
-            'source_id': self.source_id,
-            'source_type': self.source_type,
-            'source_url': self.source_url,
-            'page_number': self.page_number,
-            'section_title': self.section_title,
-            'section_hierarchy': self.section_hierarchy,
-            'start_char': self.start_char,
-            'end_char': self.end_char,
-            'language': self.language,
-            'content_type': self.content_type,
-            'word_count': self.word_count,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'modified_at': self.modified_at.isoformat() if self.modified_at else None,
-            'indexed_at': self.indexed_at.isoformat(),
-            'custom': self.custom
+            "source_id": self.source_id,
+            "source_type": self.source_type,
+            "source_url": self.source_url,
+            "page_number": self.page_number,
+            "section_title": self.section_title,
+            "section_hierarchy": self.section_hierarchy,
+            "start_char": self.start_char,
+            "end_char": self.end_char,
+            "language": self.language,
+            "content_type": self.content_type,
+            "word_count": self.word_count,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "modified_at": self.modified_at.isoformat() if self.modified_at else None,
+            "indexed_at": self.indexed_at.isoformat(),
+            "custom": self.custom,
         }
 
 
 @dataclass
 class EnrichedChunk:
     """A chunk with its text, embedding, and metadata."""
+
     chunk_id: str
     text: str
     metadata: ChunkMetadata
@@ -80,19 +82,11 @@ class MetadataPreservingChunker:
     Chunker that preserves and enriches metadata throughout the process.
     """
 
-    def __init__(
-        self,
-        chunk_size: int = 500,
-        chunk_overlap: int = 50
-    ):
+    def __init__(self, chunk_size: int = 500, chunk_overlap: int = 50):
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
 
-    def chunk_document(
-        self,
-        text: str,
-        source_metadata: Dict[str, Any]
-    ) -> List[EnrichedChunk]:
+    def chunk_document(self, text: str, source_metadata: Dict[str, Any]) -> List[EnrichedChunk]:
         """
         Chunk a document while preserving metadata.
 
@@ -105,10 +99,7 @@ class MetadataPreservingChunker:
         """
         from recursive_chunking import RecursiveChunker
 
-        chunker = RecursiveChunker(
-            chunk_size=self.chunk_size,
-            chunk_overlap=self.chunk_overlap
-        )
+        chunker = RecursiveChunker(chunk_size=self.chunk_size, chunk_overlap=self.chunk_overlap)
 
         raw_chunks = chunker.chunk(text)
         enriched_chunks = []
@@ -123,66 +114,62 @@ class MetadataPreservingChunker:
 
             # Create metadata
             metadata = ChunkMetadata(
-                source_id=source_metadata.get('id', 'unknown'),
-                source_type=source_metadata.get('type', 'unknown'),
-                source_url=source_metadata.get('url'),
+                source_id=source_metadata.get("id", "unknown"),
+                source_type=source_metadata.get("type", "unknown"),
+                source_url=source_metadata.get("url"),
                 page_number=self._estimate_page(start_pos, source_metadata),
-                section_title=source_metadata.get('current_section'),
-                section_hierarchy=source_metadata.get('section_path', []),
+                section_title=source_metadata.get("current_section"),
+                section_hierarchy=source_metadata.get("section_path", []),
                 start_char=start_pos,
                 end_char=end_pos,
-                language=source_metadata.get('language', 'en'),
+                language=source_metadata.get("language", "en"),
                 content_type=self._detect_content_type(chunk_text),
                 word_count=len(chunk_text.split()),
-                created_at=source_metadata.get('created_at'),
-                modified_at=source_metadata.get('modified_at'),
-                custom=source_metadata.get('custom', {})
+                created_at=source_metadata.get("created_at"),
+                modified_at=source_metadata.get("modified_at"),
+                custom=source_metadata.get("custom", {}),
             )
 
-            enriched_chunks.append(EnrichedChunk(
-                chunk_id='',  # Will be auto-generated
-                text=chunk_text,
-                metadata=metadata
-            ))
+            enriched_chunks.append(
+                EnrichedChunk(
+                    chunk_id="",  # Will be auto-generated
+                    text=chunk_text,
+                    metadata=metadata,
+                )
+            )
 
             current_pos = end_pos
 
         return enriched_chunks
 
-    def _estimate_page(
-        self,
-        char_position: int,
-        source_metadata: Dict
-    ) -> Optional[int]:
+    def _estimate_page(self, char_position: int, source_metadata: Dict) -> Optional[int]:
         """Estimate page number from character position."""
-        chars_per_page = source_metadata.get('chars_per_page', 3000)
+        chars_per_page = source_metadata.get("chars_per_page", 3000)
         if chars_per_page:
             return (char_position // chars_per_page) + 1
-        return source_metadata.get('page_number')
+        return source_metadata.get("page_number")
 
     def _detect_content_type(self, text: str) -> str:
         """Detect the type of content in a chunk."""
         # Check for code patterns
-        code_indicators = ['def ', 'class ', 'function ', 'import ', '{', '}', '();']
+        code_indicators = ["def ", "class ", "function ", "import ", "{", "}", "();"]
         if any(indicator in text for indicator in code_indicators):
-            return 'code'
+            return "code"
 
         # Check for list patterns
-        lines = text.split('\n')
-        list_lines = sum(1 for line in lines if line.strip().startswith(('-', '*', '•', '1.')))
+        lines = text.split("\n")
+        list_lines = sum(1 for line in lines if line.strip().startswith(("-", "*", "•", "1.")))
         if list_lines > len(lines) * 0.5:
-            return 'list'
+            return "list"
 
         # Check for table-like content
-        if '|' in text and text.count('|') > 5:
-            return 'table'
+        if "|" in text and text.count("|") > 5:
+            return "table"
 
-        return 'text'
+        return "text"
 
 
-def prepare_for_vector_db(
-    chunks: List[EnrichedChunk]
-) -> List[Dict]:
+def prepare_for_vector_db(chunks: List[EnrichedChunk]) -> List[Dict]:
     """
     Prepare chunks for insertion into a vector database.
 
@@ -192,10 +179,10 @@ def prepare_for_vector_db(
 
     for chunk in chunks:
         record = {
-            'id': chunk.chunk_id,
-            'text': chunk.text,
-            'embedding': chunk.embedding,
-            'metadata': chunk.metadata.to_dict()
+            "id": chunk.chunk_id,
+            "text": chunk.text,
+            "embedding": chunk.embedding,
+            "metadata": chunk.metadata.to_dict(),
         }
         records.append(record)
 
@@ -207,7 +194,7 @@ def build_filter_query(
     language: Optional[str] = None,
     content_type: Optional[str] = None,
     date_range: Optional[tuple] = None,
-    custom_filters: Optional[Dict] = None
+    custom_filters: Optional[Dict] = None,
 ) -> Dict:
     """
     Build a metadata filter query for vector database search.
@@ -217,26 +204,23 @@ def build_filter_query(
     filters = {}
 
     if source_type:
-        filters['source_type'] = {'$eq': source_type}
+        filters["source_type"] = {"$eq": source_type}
 
     if language:
-        filters['language'] = {'$eq': language}
+        filters["language"] = {"$eq": language}
 
     if content_type:
-        filters['content_type'] = {'$eq': content_type}
+        filters["content_type"] = {"$eq": content_type}
 
     if date_range:
         start, end = date_range
-        filters['indexed_at'] = {
-            '$gte': start.isoformat(),
-            '$lte': end.isoformat()
-        }
+        filters["indexed_at"] = {"$gte": start.isoformat(), "$lte": end.isoformat()}
 
     if custom_filters:
         for key, value in custom_filters.items():
-            filters[f'custom.{key}'] = {'$eq': value}
+            filters[f"custom.{key}"] = {"$eq": value}
 
-    return {'$and': [filters]} if filters else {}
+    return {"$and": [filters]} if filters else {}
 
 
 # Example usage
@@ -264,17 +248,13 @@ if __name__ == "__main__":
     """
 
     source_metadata = {
-        'id': 'doc_001',
-        'type': 'markdown',
-        'url': 'https://example.com/ml-guide.md',
-        'language': 'en',
-        'created_at': datetime(2024, 1, 15),
-        'modified_at': datetime(2024, 6, 1),
-        'custom': {
-            'author': 'Jane Smith',
-            'category': 'tutorial',
-            'difficulty': 'beginner'
-        }
+        "id": "doc_001",
+        "type": "markdown",
+        "url": "https://example.com/ml-guide.md",
+        "language": "en",
+        "created_at": datetime(2024, 1, 15),
+        "modified_at": datetime(2024, 6, 1),
+        "custom": {"author": "Jane Smith", "category": "tutorial", "difficulty": "beginner"},
     }
 
     chunker = MetadataPreservingChunker(chunk_size=200, chunk_overlap=20)

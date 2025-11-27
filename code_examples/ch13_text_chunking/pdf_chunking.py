@@ -1,13 +1,14 @@
 """PDF-aware text chunking with structure preservation."""
 
-from typing import List, Dict, Optional
-from dataclasses import dataclass, field
 import re
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional
 
 
 @dataclass
 class PDFChunk:
     """A chunk extracted from a PDF with metadata."""
+
     text: str
     page_numbers: List[int]
     section_title: Optional[str] = None
@@ -27,7 +28,7 @@ class PDFChunker:
         chunk_size: int = 500,
         chunk_overlap: int = 50,
         remove_headers_footers: bool = True,
-        detect_sections: bool = True
+        detect_sections: bool = True,
     ):
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
@@ -63,11 +64,7 @@ class PDFChunker:
                 sections = self._detect_sections(text)
                 for section_title, section_text in sections:
                     current_section = section_title or current_section
-                    page_chunks = self._chunk_text(
-                        section_text,
-                        page_num + 1,
-                        current_section
-                    )
+                    page_chunks = self._chunk_text(section_text, page_num + 1, current_section)
                     chunks.extend(page_chunks)
             else:
                 page_chunks = self._chunk_text(text, page_num + 1, current_section)
@@ -78,19 +75,14 @@ class PDFChunker:
         # Merge small chunks across pages
         return self._merge_small_chunks(chunks)
 
-    def _remove_headers_footers(
-        self,
-        text: str,
-        page_num: int,
-        total_pages: int
-    ) -> str:
+    def _remove_headers_footers(self, text: str, page_num: int, total_pages: int) -> str:
         """Remove common header/footer patterns."""
-        lines = text.split('\n')
+        lines = text.split("\n")
 
         # Remove page numbers
         page_pattern = re.compile(
-            rf'^\s*({page_num + 1}|Page\s+{page_num + 1}|{page_num + 1}\s*/\s*{total_pages})\s*$',
-            re.IGNORECASE
+            rf"^\s*({page_num + 1}|Page\s+{page_num + 1}|{page_num + 1}\s*/\s*{total_pages})\s*$",
+            re.IGNORECASE,
         )
 
         # Filter lines
@@ -106,27 +98,27 @@ class PDFChunker:
 
             # Skip likely footers (last few lines with common patterns)
             if i >= len(lines) - 3:
-                if re.match(r'^\s*©|confidential|draft', line, re.IGNORECASE):
+                if re.match(r"^\s*©|confidential|draft", line, re.IGNORECASE):
                     continue
 
             filtered.append(line)
 
-        return '\n'.join(filtered)
+        return "\n".join(filtered)
 
     def _detect_sections(self, text: str) -> List[tuple]:
         """Detect section headers and split text accordingly."""
         # Common section header patterns
         header_patterns = [
-            r'^(?:Chapter\s+)?(\d+\.?\s+[A-Z][^\n]+)$',  # Numbered sections
-            r'^([A-Z][A-Z\s]+)$',  # ALL CAPS headers
-            r'^(#{1,3}\s+.+)$',  # Markdown-style headers
+            r"^(?:Chapter\s+)?(\d+\.?\s+[A-Z][^\n]+)$",  # Numbered sections
+            r"^([A-Z][A-Z\s]+)$",  # ALL CAPS headers
+            r"^(#{1,3}\s+.+)$",  # Markdown-style headers
         ]
 
         sections = []
         current_title = None
         current_text = []
 
-        for line in text.split('\n'):
+        for line in text.split("\n"):
             is_header = False
 
             for pattern in header_patterns:
@@ -134,7 +126,7 @@ class PDFChunker:
                 if match:
                     # Save previous section
                     if current_text:
-                        sections.append((current_title, '\n'.join(current_text)))
+                        sections.append((current_title, "\n".join(current_text)))
 
                     current_title = match.group(1)
                     current_text = []
@@ -146,32 +138,21 @@ class PDFChunker:
 
         # Don't forget last section
         if current_text:
-            sections.append((current_title, '\n'.join(current_text)))
+            sections.append((current_title, "\n".join(current_text)))
 
         return sections if sections else [(None, text)]
 
-    def _chunk_text(
-        self,
-        text: str,
-        page_num: int,
-        section_title: Optional[str]
-    ) -> List[PDFChunk]:
+    def _chunk_text(self, text: str, page_num: int, section_title: Optional[str]) -> List[PDFChunk]:
         """Chunk text into appropriately sized pieces."""
         from recursive_chunking import RecursiveChunker
 
-        chunker = RecursiveChunker(
-            chunk_size=self.chunk_size,
-            chunk_overlap=self.chunk_overlap
-        )
+        chunker = RecursiveChunker(chunk_size=self.chunk_size, chunk_overlap=self.chunk_overlap)
 
         text_chunks = chunker.chunk(text)
 
         return [
             PDFChunk(
-                text=chunk,
-                page_numbers=[page_num],
-                section_title=section_title,
-                chunk_type="text"
+                text=chunk, page_numbers=[page_num], section_title=section_title, chunk_type="text"
             )
             for chunk in text_chunks
             if chunk.strip()
@@ -188,8 +169,8 @@ class PDFChunker:
         for next_chunk in chunks[1:]:
             # Merge if same section and combined size is acceptable
             can_merge = (
-                current.section_title == next_chunk.section_title and
-                len(current.text) + len(next_chunk.text) < self.chunk_size
+                current.section_title == next_chunk.section_title
+                and len(current.text) + len(next_chunk.text) < self.chunk_size
             )
 
             if can_merge:
@@ -197,7 +178,7 @@ class PDFChunker:
                     text=current.text + "\n\n" + next_chunk.text,
                     page_numbers=list(set(current.page_numbers + next_chunk.page_numbers)),
                     section_title=current.section_title,
-                    chunk_type=current.chunk_type
+                    chunk_type=current.chunk_type,
                 )
             else:
                 merged.append(current)
@@ -239,10 +220,7 @@ if __name__ == "__main__":
 
     # Demonstrate chunking logic
     chunker = PDFChunker(
-        chunk_size=200,
-        chunk_overlap=30,
-        remove_headers_footers=True,
-        detect_sections=True
+        chunk_size=200, chunk_overlap=30, remove_headers_footers=True, detect_sections=True
     )
 
     # Simulate section detection

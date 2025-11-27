@@ -1,13 +1,11 @@
 """Vision Transformer (ViT) based image embeddings."""
 
 from typing import List, Optional, Tuple
+
 import numpy as np
 
 
-def extract_vit_embeddings(
-    images: List,
-    model_name: str = 'vit_b_16'
-) -> np.ndarray:
+def extract_vit_embeddings(images: List, model_name: str = "vit_b_16") -> np.ndarray:
     """
     Extract embeddings using Vision Transformer.
 
@@ -32,27 +30,26 @@ def extract_vit_embeddings(
 
     # Select model
     model_fn = {
-        'vit_b_16': models.vit_b_16,
-        'vit_b_32': models.vit_b_32,
-        'vit_l_16': models.vit_l_16,
+        "vit_b_16": models.vit_b_16,
+        "vit_b_32": models.vit_b_32,
+        "vit_l_16": models.vit_l_16,
     }[model_name]
 
-    model = model_fn(weights='IMAGENET1K_V1')
+    model = model_fn(weights="IMAGENET1K_V1")
     model.eval()
 
     # Remove classification head
     model.heads = torch.nn.Identity()
 
     # ViT expects 224x224 images
-    preprocess = transforms.Compose([
-        transforms.Resize(256),
-        transforms.CenterCrop(224),
-        transforms.ToTensor(),
-        transforms.Normalize(
-            mean=[0.485, 0.456, 0.406],
-            std=[0.229, 0.224, 0.225]
-        ),
-    ])
+    preprocess = transforms.Compose(
+        [
+            transforms.Resize(256),
+            transforms.CenterCrop(224),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ]
+    )
 
     embeddings = []
 
@@ -68,10 +65,7 @@ def extract_vit_embeddings(
     return np.array(embeddings)
 
 
-def visualize_vit_patches(
-    image,
-    patch_size: int = 16
-) -> Tuple[np.ndarray, int]:
+def visualize_vit_patches(image, patch_size: int = 16) -> Tuple[np.ndarray, int]:
     """
     Visualize how ViT splits an image into patches.
 
@@ -82,8 +76,8 @@ def visualize_vit_patches(
     Returns:
         Tuple of (image with patch grid, number of patches)
     """
-    from PIL import Image, ImageDraw
     import numpy as np
+    from PIL import Image, ImageDraw
 
     if isinstance(image, np.ndarray):
         image = Image.fromarray(image)
@@ -98,21 +92,18 @@ def visualize_vit_patches(
     for i in range(1, num_patches_per_side):
         # Vertical lines
         x = i * patch_size
-        draw.line([(x, 0), (x, 224)], fill='red', width=1)
+        draw.line([(x, 0), (x, 224)], fill="red", width=1)
 
         # Horizontal lines
         y = i * patch_size
-        draw.line([(0, y), (224, y)], fill='red', width=1)
+        draw.line([(0, y), (224, y)], fill="red", width=1)
 
-    total_patches = num_patches_per_side ** 2
+    total_patches = num_patches_per_side**2
 
     return np.array(image), total_patches
 
 
-def extract_patch_embeddings(
-    image,
-    model_name: str = 'vit_b_16'
-) -> np.ndarray:
+def extract_patch_embeddings(image, model_name: str = "vit_b_16") -> np.ndarray:
     """
     Extract embeddings for each patch (before aggregation).
 
@@ -134,18 +125,17 @@ def extract_patch_embeddings(
     import torchvision.transforms as transforms
     from PIL import Image
 
-    model = models.vit_b_16(weights='IMAGENET1K_V1')
+    model = models.vit_b_16(weights="IMAGENET1K_V1")
     model.eval()
 
-    preprocess = transforms.Compose([
-        transforms.Resize(256),
-        transforms.CenterCrop(224),
-        transforms.ToTensor(),
-        transforms.Normalize(
-            mean=[0.485, 0.456, 0.406],
-            std=[0.229, 0.224, 0.225]
-        ),
-    ])
+    preprocess = transforms.Compose(
+        [
+            transforms.Resize(256),
+            transforms.CenterCrop(224),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ]
+    )
 
     if isinstance(image, np.ndarray):
         image = Image.fromarray(image)
@@ -185,54 +175,46 @@ class ViTEmbedder:
     """
 
     def __init__(
-        self,
-        model_name: str = 'vit_b_16',
-        device: Optional[str] = None,
-        batch_size: int = 32
+        self, model_name: str = "vit_b_16", device: Optional[str] = None, batch_size: int = 32
     ):
         import torch
         import torchvision.models as models
         import torchvision.transforms as transforms
 
-        self.device = device or ('cuda' if torch.cuda.is_available() else 'cpu')
+        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.batch_size = batch_size
         self.model_name = model_name
 
         # Model dimensions
         self.embedding_dims = {
-            'vit_b_16': 768,
-            'vit_b_32': 768,
-            'vit_l_16': 1024,
+            "vit_b_16": 768,
+            "vit_b_32": 768,
+            "vit_l_16": 1024,
         }
         self.embedding_dim = self.embedding_dims[model_name]
 
         # Load model
         model_fn = {
-            'vit_b_16': models.vit_b_16,
-            'vit_b_32': models.vit_b_32,
-            'vit_l_16': models.vit_l_16,
+            "vit_b_16": models.vit_b_16,
+            "vit_b_32": models.vit_b_32,
+            "vit_l_16": models.vit_l_16,
         }[model_name]
 
-        self.model = model_fn(weights='IMAGENET1K_V1')
+        self.model = model_fn(weights="IMAGENET1K_V1")
         self.model.heads = torch.nn.Identity()
         self.model = self.model.to(self.device)
         self.model.eval()
 
-        self.preprocess = transforms.Compose([
-            transforms.Resize(256),
-            transforms.CenterCrop(224),
-            transforms.ToTensor(),
-            transforms.Normalize(
-                mean=[0.485, 0.456, 0.406],
-                std=[0.229, 0.224, 0.225]
-            ),
-        ])
+        self.preprocess = transforms.Compose(
+            [
+                transforms.Resize(256),
+                transforms.CenterCrop(224),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            ]
+        )
 
-    def encode(
-        self,
-        images: List,
-        normalize: bool = True
-    ) -> np.ndarray:
+    def encode(self, images: List, normalize: bool = True) -> np.ndarray:
         """
         Encode images to embeddings.
 
@@ -249,7 +231,7 @@ class ViTEmbedder:
         all_embeddings = []
 
         for i in range(0, len(images), self.batch_size):
-            batch_images = images[i:i + self.batch_size]
+            batch_images = images[i : i + self.batch_size]
 
             tensors = []
             for img in batch_images:
@@ -294,12 +276,12 @@ if __name__ == "__main__":
     print("\nExtracting patch-level embeddings...")
     patch_embeddings = extract_patch_embeddings(sample_image)
     print(f"All token embeddings shape: {patch_embeddings.shape}")
-    print(f"  - CLS token: 1")
+    print("  - CLS token: 1")
     print(f"  - Patch tokens: {patch_embeddings.shape[0] - 1}")
 
     # Using the embedder class
     print("\nUsing ViTEmbedder class...")
-    embedder = ViTEmbedder(model_name='vit_b_16')
+    embedder = ViTEmbedder(model_name="vit_b_16")
     embeddings = embedder.encode([sample_image])
     print(f"Embedding shape: {embeddings.shape}")
     print(f"Embedding dimension: {embedder.embedding_dim}")

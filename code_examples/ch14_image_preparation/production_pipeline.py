@@ -1,11 +1,12 @@
 """Production image embedding pipeline."""
 
-from typing import List, Dict, Optional, Iterator
+import hashlib
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-import hashlib
-import logging
+from typing import Dict, Iterator, List, Optional
+
 import numpy as np
 
 logging.basicConfig(level=logging.INFO)
@@ -14,15 +15,17 @@ logger = logging.getLogger(__name__)
 
 class ProcessingMode(Enum):
     """Image processing modes."""
-    STANDARD = "standard"     # Single embedding per image
+
+    STANDARD = "standard"  # Single embedding per image
     MULTI_CROP = "multi_crop"  # Multiple crops aggregated
-    TILED = "tiled"           # For large images
-    OBJECT_LEVEL = "object"   # Embed detected objects
+    TILED = "tiled"  # For large images
+    OBJECT_LEVEL = "object"  # Embed detected objects
 
 
 @dataclass
 class ImageMetadata:
     """Metadata for a processed image."""
+
     image_id: str
     source_path: Optional[str] = None
     width: int = 0
@@ -37,6 +40,7 @@ class ImageMetadata:
 @dataclass
 class ProcessedImage:
     """Result of image processing."""
+
     image_id: str
     embedding: np.ndarray
     metadata: ImageMetadata
@@ -46,6 +50,7 @@ class ProcessedImage:
 @dataclass
 class PipelineConfig:
     """Configuration for the image pipeline."""
+
     # Model settings
     model_name: str = "resnet50"
     embedding_dim: int = 2048
@@ -93,17 +98,17 @@ class ImageEmbeddingPipeline:
         logger.info(f"Initializing pipeline with {self.config.model_name}")
 
         # Initialize encoder based on model name
-        if 'vit' in self.config.model_name.lower():
+        if "vit" in self.config.model_name.lower():
             from vit_embeddings import ViTEmbedder
+
             self._encoder = ViTEmbedder(
-                model_name=self.config.model_name,
-                batch_size=self.config.batch_size
+                model_name=self.config.model_name, batch_size=self.config.batch_size
             )
         else:
             from cnn_embeddings import CNNEmbedder
+
             self._encoder = CNNEmbedder(
-                model_name=self.config.model_name,
-                batch_size=self.config.batch_size
+                model_name=self.config.model_name, batch_size=self.config.batch_size
             )
 
         self._initialized = True
@@ -114,7 +119,7 @@ class ImageEmbeddingPipeline:
         image,
         image_id: Optional[str] = None,
         source_path: Optional[str] = None,
-        custom_metadata: Optional[Dict] = None
+        custom_metadata: Optional[Dict] = None,
     ) -> Optional[ProcessedImage]:
         """
         Process a single image through the pipeline.
@@ -144,10 +149,11 @@ class ImageEmbeddingPipeline:
         # Quality check
         if self.config.enable_quality_filter:
             from quality_assessment import assess_image_quality
+
             quality = assess_image_quality(
                 pil_image,
                 min_resolution=self.config.min_resolution,
-                blur_threshold=self.config.blur_threshold
+                blur_threshold=self.config.blur_threshold,
             )
             if not quality.passed:
                 logger.warning(f"Image {image_id} failed quality check: {quality.issues}")
@@ -184,24 +190,21 @@ class ImageEmbeddingPipeline:
             source_path=source_path,
             width=w,
             height=h,
-            format=pil_image.format or 'unknown',
+            format=pil_image.format or "unknown",
             processing_mode=self.config.processing_mode.value,
             quality_score=quality_score,
-            custom=custom_metadata or {}
+            custom=custom_metadata or {},
         )
 
         return ProcessedImage(
             image_id=image_id,
             embedding=embedding,
             metadata=metadata,
-            additional_embeddings=additional
+            additional_embeddings=additional,
         )
 
     def process_batch(
-        self,
-        images: List,
-        image_ids: Optional[List[str]] = None,
-        skip_failures: bool = True
+        self, images: List, image_ids: Optional[List[str]] = None, skip_failures: bool = True
     ) -> Iterator[ProcessedImage]:
         """
         Process multiple images efficiently.
@@ -243,7 +246,7 @@ class ImageEmbeddingPipeline:
             self._encoder,
             target_size=self.config.target_size,
             num_crops=5,
-            aggregation='mean'
+            aggregation="mean",
         )
 
         return embedding, None
@@ -255,34 +258,32 @@ class ImageEmbeddingPipeline:
         processor = TiledImageProcessor(
             tile_size=self.config.target_size,
             overlap=self.config.tile_overlap,
-            max_tiles=self.config.max_tiles
+            max_tiles=self.config.max_tiles,
         )
 
         result = processor.process(image, self._encoder)
 
         additional = {
-            'tile_embeddings': result['tile_embeddings'],
-            'tile_positions': result['tile_positions']
+            "tile_embeddings": result["tile_embeddings"],
+            "tile_positions": result["tile_positions"],
         }
 
-        return result['aggregate_embedding'], additional
+        return result["aggregate_embedding"], additional
 
     def _process_objects(self, image) -> tuple:
         """Object-level processing."""
         from object_detection_embedding import ObjectLevelEmbedder
 
-        embedder = ObjectLevelEmbedder(
-            embedding_model=self.config.model_name
-        )
+        embedder = ObjectLevelEmbedder(embedding_model=self.config.model_name)
 
         result = embedder.process_image(image)
 
         # Use scene embedding as primary
-        embedding = result['scene_embedding']
+        embedding = result["scene_embedding"]
 
         # Store object embeddings as additional
         object_embeddings = {}
-        for i, obj in enumerate(result['objects']):
+        for i, obj in enumerate(result["objects"]):
             if obj.embedding is not None:
                 key = f"object_{i}_{obj.class_name}"
                 object_embeddings[key] = obj.embedding
@@ -296,9 +297,7 @@ class ImageEmbeddingPipeline:
         return f"img_{content_hash[:12]}"
 
 
-def prepare_for_vector_db(
-    processed_images: List[ProcessedImage]
-) -> List[Dict]:
+def prepare_for_vector_db(processed_images: List[ProcessedImage]) -> List[Dict]:
     """
     Prepare processed images for vector database insertion.
 
@@ -308,17 +307,17 @@ def prepare_for_vector_db(
 
     for img in processed_images:
         record = {
-            'id': img.image_id,
-            'embedding': img.embedding.tolist(),
-            'metadata': {
-                'width': img.metadata.width,
-                'height': img.metadata.height,
-                'format': img.metadata.format,
-                'processing_mode': img.metadata.processing_mode,
-                'quality_score': img.metadata.quality_score,
-                'processed_at': img.metadata.processed_at.isoformat(),
-                **img.metadata.custom
-            }
+            "id": img.image_id,
+            "embedding": img.embedding.tolist(),
+            "metadata": {
+                "width": img.metadata.width,
+                "height": img.metadata.height,
+                "format": img.metadata.format,
+                "processing_mode": img.metadata.processing_mode,
+                "quality_score": img.metadata.quality_score,
+                "processed_at": img.metadata.processed_at.isoformat(),
+                **img.metadata.custom,
+            },
         }
         records.append(record)
 
@@ -326,15 +325,17 @@ def prepare_for_vector_db(
         if img.additional_embeddings:
             for key, emb in img.additional_embeddings.items():
                 if isinstance(emb, np.ndarray):
-                    records.append({
-                        'id': f"{img.image_id}_{key}",
-                        'embedding': emb.tolist(),
-                        'metadata': {
-                            'parent_id': img.image_id,
-                            'embedding_type': key,
-                            **img.metadata.custom
+                    records.append(
+                        {
+                            "id": f"{img.image_id}_{key}",
+                            "embedding": emb.tolist(),
+                            "metadata": {
+                                "parent_id": img.image_id,
+                                "embedding_type": key,
+                                **img.metadata.custom,
+                            },
                         }
-                    })
+                    )
 
     return records
 
@@ -348,16 +349,15 @@ if __name__ == "__main__":
 
     # Create sample images
     sample_images = [
-        Image.fromarray(np.random.randint(0, 255, (300, 400, 3), dtype=np.uint8))
-        for _ in range(3)
+        Image.fromarray(np.random.randint(0, 255, (300, 400, 3), dtype=np.uint8)) for _ in range(3)
     ]
 
     # Configure pipeline
     config = PipelineConfig(
-        model_name='resnet50',
+        model_name="resnet50",
         processing_mode=ProcessingMode.STANDARD,
         enable_quality_filter=False,  # Disable for demo
-        batch_size=8
+        batch_size=8,
     )
 
     pipeline = ImageEmbeddingPipeline(config)

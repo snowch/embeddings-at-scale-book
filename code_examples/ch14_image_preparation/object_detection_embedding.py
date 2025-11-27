@@ -1,13 +1,15 @@
 """Object detection followed by individual object embedding."""
 
-from typing import List, Dict, Tuple, Optional
 from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple
+
 import numpy as np
 
 
 @dataclass
 class DetectedObject:
     """An object detected in an image."""
+
     bbox: Tuple[int, int, int, int]  # x1, y1, x2, y2
     class_name: str
     confidence: float
@@ -16,9 +18,7 @@ class DetectedObject:
 
 
 def detect_objects_yolo(
-    image,
-    confidence_threshold: float = 0.5,
-    model_name: str = 'yolov5s'
+    image, confidence_threshold: float = 0.5, model_name: str = "yolov5s"
 ) -> List[DetectedObject]:
     """
     Detect objects using YOLOv5.
@@ -38,7 +38,7 @@ def detect_objects_yolo(
         image = Image.fromarray(image)
 
     # Load YOLOv5 model
-    model = torch.hub.load('ultralytics/yolov5', model_name, pretrained=True)
+    model = torch.hub.load("ultralytics/yolov5", model_name, pretrained=True)
     model.conf = confidence_threshold
 
     # Run detection
@@ -54,20 +54,20 @@ def detect_objects_yolo(
         img_array = np.array(image)
         cropped = img_array[y1:y2, x1:x2]
 
-        detections.append(DetectedObject(
-            bbox=(x1, y1, x2, y2),
-            class_name=class_name,
-            confidence=float(conf),
-            cropped_image=cropped
-        ))
+        detections.append(
+            DetectedObject(
+                bbox=(x1, y1, x2, y2),
+                class_name=class_name,
+                confidence=float(conf),
+                cropped_image=cropped,
+            )
+        )
 
     return detections
 
 
 def embed_detected_objects(
-    detections: List[DetectedObject],
-    encoder,
-    min_size: int = 32
+    detections: List[DetectedObject], encoder, min_size: int = 32
 ) -> List[DetectedObject]:
     """
     Generate embeddings for each detected object.
@@ -118,11 +118,11 @@ class ObjectLevelEmbedder:
 
     def __init__(
         self,
-        detection_model: str = 'yolov5s',
-        embedding_model: str = 'resnet50',
+        detection_model: str = "yolov5s",
+        embedding_model: str = "resnet50",
         confidence_threshold: float = 0.5,
         min_object_size: int = 32,
-        target_classes: Optional[List[str]] = None
+        target_classes: Optional[List[str]] = None,
     ):
         self.detection_model = detection_model
         self.confidence_threshold = confidence_threshold
@@ -131,6 +131,7 @@ class ObjectLevelEmbedder:
 
         # Initialize embedding model
         from cnn_embeddings import CNNEmbedder
+
         self.encoder = CNNEmbedder(model_name=embedding_model)
 
     def process_image(self, image) -> Dict:
@@ -154,7 +155,7 @@ class ObjectLevelEmbedder:
         detections = detect_objects_yolo(
             pil_image,
             confidence_threshold=self.confidence_threshold,
-            model_name=self.detection_model
+            model_name=self.detection_model,
         )
 
         # Filter by target classes if specified
@@ -162,20 +163,16 @@ class ObjectLevelEmbedder:
             detections = [d for d in detections if d.class_name in self.target_classes]
 
         # Embed objects
-        detections = embed_detected_objects(
-            detections,
-            self.encoder,
-            min_size=self.min_object_size
-        )
+        detections = embed_detected_objects(detections, self.encoder, min_size=self.min_object_size)
 
         # Get scene-level embedding
         scene_embedding = self.encoder.encode([pil_image])[0]
 
         return {
-            'objects': detections,
-            'scene_embedding': scene_embedding,
-            'num_objects': len([d for d in detections if d.embedding is not None]),
-            'image_size': image.shape[:2]
+            "objects": detections,
+            "scene_embedding": scene_embedding,
+            "num_objects": len([d for d in detections if d.embedding is not None]),
+            "image_size": image.shape[:2],
         }
 
     def batch_process(self, images: List) -> List[Dict]:
@@ -184,8 +181,7 @@ class ObjectLevelEmbedder:
 
 
 def create_object_index(
-    processed_results: List[Dict],
-    include_scenes: bool = True
+    processed_results: List[Dict], include_scenes: bool = True
 ) -> Tuple[np.ndarray, List[Dict]]:
     """
     Create a searchable index from object embeddings.
@@ -202,33 +198,31 @@ def create_object_index(
 
     for img_idx, result in enumerate(processed_results):
         # Add object embeddings
-        for obj in result['objects']:
+        for obj in result["objects"]:
             if obj.embedding is not None:
                 embeddings.append(obj.embedding)
-                metadata.append({
-                    'type': 'object',
-                    'image_idx': img_idx,
-                    'class': obj.class_name,
-                    'bbox': obj.bbox,
-                    'confidence': obj.confidence
-                })
+                metadata.append(
+                    {
+                        "type": "object",
+                        "image_idx": img_idx,
+                        "class": obj.class_name,
+                        "bbox": obj.bbox,
+                        "confidence": obj.confidence,
+                    }
+                )
 
         # Add scene embedding
         if include_scenes:
-            embeddings.append(result['scene_embedding'])
-            metadata.append({
-                'type': 'scene',
-                'image_idx': img_idx,
-                'num_objects': result['num_objects']
-            })
+            embeddings.append(result["scene_embedding"])
+            metadata.append(
+                {"type": "scene", "image_idx": img_idx, "num_objects": result["num_objects"]}
+            )
 
     return np.array(embeddings), metadata
 
 
 # Example usage
 if __name__ == "__main__":
-    from PIL import Image
-
     # This example requires YOLOv5 and an image with objects
     print("Object Detection + Embedding Pipeline")
     print("=" * 50)

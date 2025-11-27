@@ -1,13 +1,14 @@
 """HTML-aware text chunking with structure preservation."""
 
-from typing import List, Dict, Optional
-from dataclasses import dataclass
 import re
+from dataclasses import dataclass
+from typing import List, Optional
 
 
 @dataclass
 class HTMLChunk:
     """A chunk extracted from HTML with metadata."""
+
     text: str
     tag_path: str  # e.g., "html > body > article > section"
     heading: Optional[str] = None
@@ -23,22 +24,30 @@ class HTMLChunker:
 
     # Tags that typically contain coherent content blocks
     BLOCK_TAGS = {
-        'article', 'section', 'div', 'p', 'blockquote',
-        'li', 'td', 'th', 'figcaption', 'aside'
+        "article",
+        "section",
+        "div",
+        "p",
+        "blockquote",
+        "li",
+        "td",
+        "th",
+        "figcaption",
+        "aside",
     }
 
     # Tags that define sections with headings
-    SECTION_TAGS = {'article', 'section', 'main', 'aside'}
+    SECTION_TAGS = {"article", "section", "main", "aside"}
 
     # Heading tags in order of importance
-    HEADING_TAGS = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']
+    HEADING_TAGS = ["h1", "h2", "h3", "h4", "h5", "h6"]
 
     def __init__(
         self,
         chunk_size: int = 500,
         chunk_overlap: int = 50,
         preserve_structure: bool = True,
-        include_headings: bool = True
+        include_headings: bool = True,
     ):
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
@@ -57,10 +66,10 @@ class HTMLChunker:
         """
         from bs4 import BeautifulSoup
 
-        soup = BeautifulSoup(html, 'html.parser')
+        soup = BeautifulSoup(html, "html.parser")
 
         # Remove script and style elements
-        for element in soup(['script', 'style', 'nav', 'footer', 'header']):
+        for element in soup(["script", "style", "nav", "footer", "header"]):
             element.decompose()
 
         if self.preserve_structure:
@@ -75,11 +84,11 @@ class HTMLChunker:
 
         # Find main content area
         main_content = (
-            soup.find('main') or
-            soup.find('article') or
-            soup.find('div', class_=re.compile(r'content|main|article')) or
-            soup.body or
-            soup
+            soup.find("main")
+            or soup.find("article")
+            or soup.find("div", class_=re.compile(r"content|main|article"))
+            or soup.body
+            or soup
         )
 
         # Process section by section
@@ -94,9 +103,7 @@ class HTMLChunker:
 
             # Chunk the section content
             section_chunks = self._split_text(
-                section_text,
-                current_heading,
-                self._get_tag_path(section)
+                section_text, current_heading, self._get_tag_path(section)
             )
             chunks.extend(section_chunks)
 
@@ -104,7 +111,7 @@ class HTMLChunker:
 
     def _chunk_flat(self, soup) -> List[HTMLChunk]:
         """Simple flat chunking of all text content."""
-        text = soup.get_text(separator='\n', strip=True)
+        text = soup.get_text(separator="\n", strip=True)
         return self._split_text(text, None, "body")
 
     def _find_sections(self, element):
@@ -113,12 +120,11 @@ class HTMLChunker:
         sections = element.find_all(self.SECTION_TAGS)
 
         if sections:
-            for section in sections:
-                yield section
+            yield from sections
         else:
             # Fall back to paragraphs and divs
             for child in element.children:
-                if hasattr(child, 'name'):
+                if hasattr(child, "name"):
                     if child.name in self.BLOCK_TAGS:
                         yield child
                     elif child.name in self.HEADING_TAGS:
@@ -136,10 +142,10 @@ class HTMLChunker:
     def _extract_text(self, element) -> str:
         """Extract clean text from an element."""
         # Get text with newlines between block elements
-        text = element.get_text(separator='\n', strip=True)
+        text = element.get_text(separator="\n", strip=True)
 
         # Clean up multiple newlines
-        text = re.sub(r'\n{3,}', '\n\n', text)
+        text = re.sub(r"\n{3,}", "\n\n", text)
 
         return text
 
@@ -148,23 +154,18 @@ class HTMLChunker:
         path = []
         current = element
 
-        while current and hasattr(current, 'name') and current.name:
+        while current and hasattr(current, "name") and current.name:
             tag_info = current.name
-            if current.get('id'):
+            if current.get("id"):
                 tag_info += f"#{current['id']}"
-            elif current.get('class'):
+            elif current.get("class"):
                 tag_info += f".{current['class'][0]}"
             path.insert(0, tag_info)
             current = current.parent
 
-        return ' > '.join(path[-4:])  # Last 4 levels
+        return " > ".join(path[-4:])  # Last 4 levels
 
-    def _split_text(
-        self,
-        text: str,
-        heading: Optional[str],
-        tag_path: str
-    ) -> List[HTMLChunk]:
+    def _split_text(self, text: str, heading: Optional[str], tag_path: str) -> List[HTMLChunk]:
         """Split text into chunks."""
         from recursive_chunking import RecursiveChunker
 
@@ -172,19 +173,12 @@ class HTMLChunker:
         if self.include_headings and heading:
             text = f"## {heading}\n\n{text}"
 
-        chunker = RecursiveChunker(
-            chunk_size=self.chunk_size,
-            chunk_overlap=self.chunk_overlap
-        )
+        chunker = RecursiveChunker(chunk_size=self.chunk_size, chunk_overlap=self.chunk_overlap)
 
         text_chunks = chunker.chunk(text)
 
         return [
-            HTMLChunk(
-                text=chunk,
-                tag_path=tag_path,
-                heading=heading
-            )
+            HTMLChunk(text=chunk, tag_path=tag_path, heading=heading)
             for chunk in text_chunks
             if chunk.strip()
         ]
@@ -233,10 +227,7 @@ if __name__ == "__main__":
     """
 
     chunker = HTMLChunker(
-        chunk_size=200,
-        chunk_overlap=20,
-        preserve_structure=True,
-        include_headings=True
+        chunk_size=200, chunk_overlap=20, preserve_structure=True, include_headings=True
     )
 
     chunks = chunker.chunk_html(sample_html)

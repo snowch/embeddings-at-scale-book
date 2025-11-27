@@ -1,13 +1,14 @@
 """Markdown-aware text chunking with header hierarchy preservation."""
 
-from typing import List, Optional, Tuple
-from dataclasses import dataclass
 import re
+from dataclasses import dataclass
+from typing import List, Tuple
 
 
 @dataclass
 class MarkdownChunk:
     """A chunk from a Markdown document with context."""
+
     text: str
     header_hierarchy: List[str]  # [h1, h2, h3, ...]
     header_level: int
@@ -27,7 +28,7 @@ class MarkdownChunker:
         chunk_size: int = 500,
         chunk_overlap: int = 50,
         include_header_context: bool = True,
-        min_chunk_size: int = 100
+        min_chunk_size: int = 100,
     ):
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
@@ -44,7 +45,7 @@ class MarkdownChunker:
         Returns:
             List of MarkdownChunk objects
         """
-        lines = markdown.split('\n')
+        lines = markdown.split("\n")
         sections = self._parse_sections(lines)
         chunks = self._chunk_sections(sections)
 
@@ -53,21 +54,16 @@ class MarkdownChunker:
     def _parse_sections(self, lines: List[str]) -> List[dict]:
         """Parse Markdown into sections based on headers."""
         sections = []
-        current_section = {
-            'headers': [],
-            'content': [],
-            'start_line': 0,
-            'level': 0
-        }
+        current_section = {"headers": [], "content": [], "start_line": 0, "level": 0}
         header_stack = []  # Track header hierarchy
 
         for i, line in enumerate(lines):
-            header_match = re.match(r'^(#{1,6})\s+(.+)$', line)
+            header_match = re.match(r"^(#{1,6})\s+(.+)$", line)
 
             if header_match:
                 # Save current section if it has content
-                if current_section['content']:
-                    current_section['end_line'] = i - 1
+                if current_section["content"]:
+                    current_section["end_line"] = i - 1
                     sections.append(current_section)
 
                 # Update header stack
@@ -82,17 +78,17 @@ class MarkdownChunker:
 
                 # Start new section
                 current_section = {
-                    'headers': [h[1] for h in header_stack],
-                    'content': [line],
-                    'start_line': i,
-                    'level': level
+                    "headers": [h[1] for h in header_stack],
+                    "content": [line],
+                    "start_line": i,
+                    "level": level,
                 }
             else:
-                current_section['content'].append(line)
+                current_section["content"].append(line)
 
         # Don't forget last section
-        if current_section['content']:
-            current_section['end_line'] = len(lines) - 1
+        if current_section["content"]:
+            current_section["end_line"] = len(lines) - 1
             sections.append(current_section)
 
         return sections
@@ -102,35 +98,39 @@ class MarkdownChunker:
         chunks = []
 
         for section in sections:
-            content = '\n'.join(section['content'])
+            content = "\n".join(section["content"])
 
             # Add header context if requested
-            if self.include_header_context and section['headers']:
-                header_context = self._build_header_context(section['headers'])
+            if self.include_header_context and section["headers"]:
+                header_context = self._build_header_context(section["headers"])
             else:
                 header_context = ""
 
             # If section is small enough, keep as single chunk
             if len(content) <= self.chunk_size:
                 if content.strip():
-                    chunks.append(MarkdownChunk(
-                        text=header_context + content if header_context else content,
-                        header_hierarchy=section['headers'],
-                        header_level=section['level'],
-                        start_line=section['start_line'],
-                        end_line=section.get('end_line', section['start_line'])
-                    ))
+                    chunks.append(
+                        MarkdownChunk(
+                            text=header_context + content if header_context else content,
+                            header_hierarchy=section["headers"],
+                            header_level=section["level"],
+                            start_line=section["start_line"],
+                            end_line=section.get("end_line", section["start_line"]),
+                        )
+                    )
             else:
                 # Split large sections
                 sub_chunks = self._split_section(content, header_context)
-                for i, sub_text in enumerate(sub_chunks):
-                    chunks.append(MarkdownChunk(
-                        text=sub_text,
-                        header_hierarchy=section['headers'],
-                        header_level=section['level'],
-                        start_line=section['start_line'],
-                        end_line=section.get('end_line', section['start_line'])
-                    ))
+                for sub_text in sub_chunks:
+                    chunks.append(
+                        MarkdownChunk(
+                            text=sub_text,
+                            header_hierarchy=section["headers"],
+                            header_level=section["level"],
+                            start_line=section["start_line"],
+                            end_line=section.get("end_line", section["start_line"]),
+                        )
+                    )
 
         return chunks
 
@@ -142,11 +142,7 @@ class MarkdownChunker:
         # Format as breadcrumb
         return " > ".join(headers) + "\n\n"
 
-    def _split_section(
-        self,
-        content: str,
-        header_context: str
-    ) -> List[str]:
+    def _split_section(self, content: str, header_context: str) -> List[str]:
         """Split a large section into smaller chunks."""
         from recursive_chunking import RecursiveChunker
 
@@ -157,13 +153,13 @@ class MarkdownChunker:
             chunk_size=effective_chunk_size,
             chunk_overlap=self.chunk_overlap,
             separators=[
-                "\n\n",   # Paragraphs
-                "\n- ",   # List items
-                "\n* ",   # List items
-                "\n",     # Lines
-                ". ",     # Sentences
-                " "       # Words
-            ]
+                "\n\n",  # Paragraphs
+                "\n- ",  # List items
+                "\n* ",  # List items
+                "\n",  # Lines
+                ". ",  # Sentences
+                " ",  # Words
+            ],
         )
 
         text_chunks = chunker.chunk(content)
@@ -188,15 +184,13 @@ def extract_code_blocks(markdown: str) -> Tuple[str, List[dict]]:
 
     def replace_code(match):
         index = len(code_blocks)
-        code_blocks.append({
-            'language': match.group(1) or '',
-            'code': match.group(2),
-            'full_match': match.group(0)
-        })
+        code_blocks.append(
+            {"language": match.group(1) or "", "code": match.group(2), "full_match": match.group(0)}
+        )
         return placeholder_pattern.format(index)
 
     # Match fenced code blocks
-    pattern = r'```(\w*)\n(.*?)```'
+    pattern = r"```(\w*)\n(.*?)```"
     cleaned = re.sub(pattern, replace_code, markdown, flags=re.DOTALL)
 
     return cleaned, code_blocks
@@ -251,11 +245,7 @@ PCA and t-SNE reduce the number of features while
 preserving important information.
     """
 
-    chunker = MarkdownChunker(
-        chunk_size=300,
-        chunk_overlap=30,
-        include_header_context=True
-    )
+    chunker = MarkdownChunker(chunk_size=300, chunk_overlap=30, include_header_context=True)
 
     chunks = chunker.chunk_markdown(sample_markdown)
 
