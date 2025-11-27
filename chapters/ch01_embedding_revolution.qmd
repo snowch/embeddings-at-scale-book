@@ -694,6 +694,20 @@ Embedding workflow:
 
 The embedding *is* the neural network's understanding, frozen into a reusable vector. Once computed, comparing two embeddings is just a dot product—pure math that runs in microseconds, not milliseconds.
 
+::: {.callout-note}
+## Why Is Similarity Search Orders of Magnitude Faster?
+
+The speed difference comes from two factors: **skipping expensive computation** and **using optimized indexing**.
+
+**1. Classification requires a full forward pass.** After generating an embedding, a classifier must multiply it through a final weight matrix of size $D \times C$ (embedding dimension × number of classes), apply softmax, and compute probabilities for every class. With thousands of classes, this is substantial computation—repeated for every query.
+
+**2. Similarity search skips the classification head entirely.** The query embedding is compared directly against pre-computed database embeddings using simple distance metrics (cosine similarity or dot product). No weight matrices, no softmax—just vector math.
+
+**3. Approximate Nearest Neighbor (ANN) algorithms avoid brute-force search.** Instead of computing similarity against every vector in the database, algorithms like HNSW and IVF use pre-built index structures to prune the search space dramatically. A billion-vector database might only require checking a few thousand candidates to find the top matches.
+
+The result: similarity search runs in sub-millisecond time regardless of database size, while classification cost scales with the number of classes. See @sec-vector-database-fundamentals for detailed coverage of ANN indexing strategies.
+:::
+
 ### The Two Approaches
 
 **Direct Classification**: Run a neural network on each item to produce a score or label.
