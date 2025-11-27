@@ -1,8 +1,9 @@
+from dataclasses import dataclass
+from typing import Optional
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass
@@ -271,10 +272,10 @@ class MolecularGraphEncoder(nn.Module):
         x = self.atom_embed(atom_features)
 
         # Create attention mask from adjacency (or use full attention)
-        attn_mask = None
+        _attn_mask = None  # noqa: F841
         if mask is not None:
             # Mask out padding atoms
-            attn_mask = ~mask.unsqueeze(1).expand(-1, mask.shape[1], -1)
+            _attn_mask = ~mask.unsqueeze(1).expand(-1, mask.shape[1], -1)
 
         # Message passing with attention
         for i, (attn, ffn) in enumerate(zip(self.attention_layers, self.ffn_layers)):

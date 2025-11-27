@@ -1,8 +1,9 @@
+from dataclasses import dataclass
+from typing import Optional
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass
@@ -103,7 +104,7 @@ class BioacousticEncoder(nn.Module):
         self.config = config
 
         # Spectrogram dimensions
-        n_frames = int(config.audio_length * config.sample_rate / 512)  # hop_length=512
+        _n_frames = int(config.audio_length * config.sample_rate / 512)  # noqa: F841 hop_length=512
 
         # CNN on mel spectrogram
         self.spectrogram_encoder = nn.Sequential(

@@ -1,9 +1,10 @@
+import math
+from dataclasses import dataclass
+from typing import Optional
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from dataclasses import dataclass
-from typing import Optional
-import math
 
 
 @dataclass
@@ -134,7 +135,7 @@ class WeatherStateEncoder(nn.Module):
         Returns:
             embeddings: [batch, embedding_dim] state embeddings
         """
-        batch_size = surface_vars.shape[0]
+        _batch_size = surface_vars.shape[0]  # noqa: F841
 
         # Flatten atmospheric levels into channels
         atmos_flat = atmospheric_vars.flatten(1, 2)  # [batch, n_atmos*n_levels, lat, lon]
