@@ -9,6 +9,7 @@ import numpy as np
 @dataclass
 class EvaluationResult:
     """Results from chunk size evaluation."""
+
     chunk_size: int
     num_chunks: int
     avg_chunk_length: float
@@ -24,7 +25,7 @@ def evaluate_chunk_sizes(
     ground_truth: List[List[int]],  # For each query, list of relevant doc indices
     chunk_sizes: Optional[List[int]] = None,
     overlap_ratio: float = 0.1,
-    top_k: int = 5
+    top_k: int = 5,
 ) -> List[EvaluationResult]:
     """
     Evaluate retrieval quality across different chunk sizes.
@@ -46,7 +47,7 @@ def evaluate_chunk_sizes(
     if chunk_sizes is None:
         chunk_sizes = [128, 256, 512, 1024]
 
-    model = SentenceTransformer('all-MiniLM-L6-v2')
+    model = SentenceTransformer("all-MiniLM-L6-v2")
     results = []
 
     for chunk_size in chunk_sizes:
@@ -93,17 +94,23 @@ def evaluate_chunk_sizes(
         # Calculate aggregate metrics
         avg_precision = np.mean(precisions)
         avg_recall = np.mean(recalls)
-        f1 = 2 * avg_precision * avg_recall / (avg_precision + avg_recall) if (avg_precision + avg_recall) > 0 else 0
+        f1 = (
+            2 * avg_precision * avg_recall / (avg_precision + avg_recall)
+            if (avg_precision + avg_recall) > 0
+            else 0
+        )
 
-        results.append(EvaluationResult(
-            chunk_size=chunk_size,
-            num_chunks=len(all_chunks),
-            avg_chunk_length=np.mean([len(c) for c in all_chunks]),
-            retrieval_precision=avg_precision,
-            retrieval_recall=avg_recall,
-            retrieval_f1=f1,
-            avg_relevance_score=np.mean(relevance_scores)
-        ))
+        results.append(
+            EvaluationResult(
+                chunk_size=chunk_size,
+                num_chunks=len(all_chunks),
+                avg_chunk_length=np.mean([len(c) for c in all_chunks]),
+                retrieval_precision=avg_precision,
+                retrieval_recall=avg_recall,
+                retrieval_f1=f1,
+                avg_relevance_score=np.mean(relevance_scores),
+            )
+        )
 
     return results
 
@@ -113,7 +120,7 @@ def find_optimal_chunk_size(
     sample_queries: List[str],
     ground_truth: List[List[int]],
     search_range: Tuple[int, int] = (64, 1024),
-    num_iterations: int = 5
+    num_iterations: int = 5,
 ) -> int:
     """
     Use binary search to find optimal chunk size.
@@ -135,10 +142,7 @@ def find_optimal_chunk_size(
 
         # Evaluate three points
         sizes = [low, mid, high]
-        results = evaluate_chunk_sizes(
-            documents, sample_queries, ground_truth,
-            chunk_sizes=sizes
-        )
+        results = evaluate_chunk_sizes(documents, sample_queries, ground_truth, chunk_sizes=sizes)
 
         # Find best F1 score
         best_idx = np.argmax([r.retrieval_f1 for r in results])
@@ -161,20 +165,20 @@ def analyze_chunk_statistics(chunks: List[str]) -> Dict:
     lengths = [len(c) for c in chunks]
 
     return {
-        'num_chunks': len(chunks),
-        'total_chars': sum(lengths),
-        'avg_length': np.mean(lengths),
-        'std_length': np.std(lengths),
-        'min_length': min(lengths),
-        'max_length': max(lengths),
-        'median_length': np.median(lengths),
-        'length_distribution': {
-            '0-100': sum(1 for length in lengths if length < 100),
-            '100-250': sum(1 for length in lengths if 100 <= length < 250),
-            '250-500': sum(1 for length in lengths if 250 <= length < 500),
-            '500-1000': sum(1 for length in lengths if 500 <= length < 1000),
-            '1000+': sum(1 for length in lengths if length >= 1000),
-        }
+        "num_chunks": len(chunks),
+        "total_chars": sum(lengths),
+        "avg_length": np.mean(lengths),
+        "std_length": np.std(lengths),
+        "min_length": min(lengths),
+        "max_length": max(lengths),
+        "median_length": np.median(lengths),
+        "length_distribution": {
+            "0-100": sum(1 for length in lengths if length < 100),
+            "100-250": sum(1 for length in lengths if 100 <= length < 250),
+            "250-500": sum(1 for length in lengths if 250 <= length < 500),
+            "500-1000": sum(1 for length in lengths if 500 <= length < 1000),
+            "1000+": sum(1 for length in lengths if length >= 1000),
+        },
     }
 
 
@@ -184,37 +188,34 @@ if __name__ == "__main__":
     sample_docs = [
         """Machine learning is a subset of artificial intelligence that focuses
         on building systems that learn from data. It enables computers to
-        improve their performance on tasks through experience.""" * 5,
-
+        improve their performance on tasks through experience."""
+        * 5,
         """Neural networks are computing systems inspired by biological neural
         networks. They consist of interconnected nodes that process information
-        using connectionist approaches to computation.""" * 5,
-
+        using connectionist approaches to computation."""
+        * 5,
         """Deep learning is part of a broader family of machine learning methods
         based on artificial neural networks with representation learning.
-        Learning can be supervised, semi-supervised or unsupervised.""" * 5,
+        Learning can be supervised, semi-supervised or unsupervised."""
+        * 5,
     ]
 
     sample_queries = [
         "What is machine learning?",
         "How do neural networks work?",
-        "What is deep learning?"
+        "What is deep learning?",
     ]
 
     # Ground truth: which documents are relevant for each query
     ground_truth = [
-        [0],        # Query 1 relates to doc 0
-        [1],        # Query 2 relates to doc 1
-        [2],        # Query 3 relates to doc 2
+        [0],  # Query 1 relates to doc 0
+        [1],  # Query 2 relates to doc 1
+        [2],  # Query 3 relates to doc 2
     ]
 
     print("Evaluating chunk sizes...\n")
     results = evaluate_chunk_sizes(
-        sample_docs,
-        sample_queries,
-        ground_truth,
-        chunk_sizes=[128, 256, 512],
-        top_k=3
+        sample_docs, sample_queries, ground_truth, chunk_sizes=[128, 256, 512], top_k=3
     )
 
     print("Results:")
@@ -223,7 +224,9 @@ if __name__ == "__main__":
     print("-" * 70)
 
     for r in results:
-        print(f"{r.chunk_size:>6} | {r.num_chunks:>6} | {r.retrieval_precision:>9.3f} | {r.retrieval_recall:>6.3f} | {r.retrieval_f1:>6.3f}")
+        print(
+            f"{r.chunk_size:>6} | {r.num_chunks:>6} | {r.retrieval_precision:>9.3f} | {r.retrieval_recall:>6.3f} | {r.retrieval_f1:>6.3f}"
+        )
 
     # Find best
     best = max(results, key=lambda x: x.retrieval_f1)

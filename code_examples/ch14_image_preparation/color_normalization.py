@@ -15,7 +15,7 @@ CLIP_STD = (0.26862954, 0.26130258, 0.27577711)
 def normalize_image(
     image: np.ndarray,
     mean: Tuple[float, ...] = IMAGENET_MEAN,
-    std: Tuple[float, ...] = IMAGENET_STD
+    std: Tuple[float, ...] = IMAGENET_STD,
 ) -> np.ndarray:
     """
     Apply channel-wise normalization.
@@ -44,7 +44,7 @@ def normalize_image(
 def denormalize_image(
     image: np.ndarray,
     mean: Tuple[float, ...] = IMAGENET_MEAN,
-    std: Tuple[float, ...] = IMAGENET_STD
+    std: Tuple[float, ...] = IMAGENET_STD,
 ) -> np.ndarray:
     """
     Reverse normalization for visualization.
@@ -58,11 +58,7 @@ def denormalize_image(
     return image
 
 
-def convert_color_space(
-    image: np.ndarray,
-    source: str = 'RGB',
-    target: str = 'RGB'
-) -> np.ndarray:
+def convert_color_space(image: np.ndarray, source: str = "RGB", target: str = "RGB") -> np.ndarray:
     """
     Convert between color spaces.
 
@@ -71,15 +67,15 @@ def convert_color_space(
     import cv2
 
     conversions = {
-        ('RGB', 'BGR'): cv2.COLOR_RGB2BGR,
-        ('BGR', 'RGB'): cv2.COLOR_BGR2RGB,
-        ('RGB', 'GRAY'): cv2.COLOR_RGB2GRAY,
-        ('BGR', 'GRAY'): cv2.COLOR_BGR2GRAY,
-        ('GRAY', 'RGB'): cv2.COLOR_GRAY2RGB,
-        ('RGB', 'LAB'): cv2.COLOR_RGB2LAB,
-        ('LAB', 'RGB'): cv2.COLOR_LAB2RGB,
-        ('RGB', 'HSV'): cv2.COLOR_RGB2HSV,
-        ('HSV', 'RGB'): cv2.COLOR_HSV2RGB,
+        ("RGB", "BGR"): cv2.COLOR_RGB2BGR,
+        ("BGR", "RGB"): cv2.COLOR_BGR2RGB,
+        ("RGB", "GRAY"): cv2.COLOR_RGB2GRAY,
+        ("BGR", "GRAY"): cv2.COLOR_BGR2GRAY,
+        ("GRAY", "RGB"): cv2.COLOR_GRAY2RGB,
+        ("RGB", "LAB"): cv2.COLOR_RGB2LAB,
+        ("LAB", "RGB"): cv2.COLOR_LAB2RGB,
+        ("RGB", "HSV"): cv2.COLOR_RGB2HSV,
+        ("HSV", "RGB"): cv2.COLOR_HSV2RGB,
     }
 
     key = (source.upper(), target.upper())
@@ -91,10 +87,7 @@ def convert_color_space(
         raise ValueError(f"Unsupported conversion: {source} -> {target}")
 
 
-def histogram_equalization(
-    image: np.ndarray,
-    clip_limit: float = 2.0
-) -> np.ndarray:
+def histogram_equalization(image: np.ndarray, clip_limit: float = 2.0) -> np.ndarray:
     """
     Apply CLAHE (Contrast Limited Adaptive Histogram Equalization).
 
@@ -113,10 +106,7 @@ def histogram_equalization(
     return cv2.cvtColor(lab, cv2.COLOR_LAB2RGB)
 
 
-def white_balance(
-    image: np.ndarray,
-    method: str = 'gray_world'
-) -> np.ndarray:
+def white_balance(image: np.ndarray, method: str = "gray_world") -> np.ndarray:
     """
     Apply white balance correction.
 
@@ -126,7 +116,7 @@ def white_balance(
     """
     image = image.astype(np.float32)
 
-    if method == 'gray_world':
+    if method == "gray_world":
         # Calculate average of each channel
         avg_r = np.mean(image[:, :, 0])
         avg_g = np.mean(image[:, :, 1])
@@ -138,7 +128,7 @@ def white_balance(
         image[:, :, 1] = image[:, :, 1] * (avg_gray / avg_g)
         image[:, :, 2] = image[:, :, 2] * (avg_gray / avg_b)
 
-    elif method == 'max_white':
+    elif method == "max_white":
         # Use percentile to avoid outliers
         max_r = np.percentile(image[:, :, 0], 99)
         max_g = np.percentile(image[:, :, 1], 99)
@@ -158,19 +148,19 @@ class ColorNormalizer:
 
     def __init__(
         self,
-        model_type: str = 'imagenet',
+        model_type: str = "imagenet",
         apply_white_balance: bool = False,
-        apply_histogram_eq: bool = False
+        apply_histogram_eq: bool = False,
     ):
         self.model_type = model_type
         self.apply_white_balance = apply_white_balance
         self.apply_histogram_eq = apply_histogram_eq
 
         # Set normalization values based on model
-        if model_type == 'imagenet':
+        if model_type == "imagenet":
             self.mean = IMAGENET_MEAN
             self.std = IMAGENET_STD
-        elif model_type == 'clip':
+        elif model_type == "clip":
             self.mean = CLIP_MEAN
             self.std = CLIP_STD
         else:
@@ -215,9 +205,6 @@ if __name__ == "__main__":
     print(f"Roundtrip difference: {diff:.2f}")
 
     # Test color normalizer
-    normalizer = ColorNormalizer(
-        model_type='imagenet',
-        apply_white_balance=True
-    )
+    normalizer = ColorNormalizer(model_type="imagenet", apply_white_balance=True)
     result = normalizer.normalize(sample)
     print(f"\nWith white balance: range [{result.min():.2f}, {result.max():.2f}]")

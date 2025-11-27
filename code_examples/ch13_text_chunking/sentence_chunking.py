@@ -14,17 +14,14 @@ def split_into_sentences(text: str) -> List[str]:
     abbreviations = r"(?<![A-Z][a-z]\.)(?<![A-Z]\.)(?<!\s[A-Z]\.)"
 
     # Split on sentence-ending punctuation followed by space and capital
-    pattern = abbreviations + r'(?<=[.!?])\s+(?=[A-Z])'
+    pattern = abbreviations + r"(?<=[.!?])\s+(?=[A-Z])"
 
     sentences = re.split(pattern, text)
     return [s.strip() for s in sentences if s.strip()]
 
 
 def chunk_by_sentences(
-    text: str,
-    target_size: int = 256,
-    max_size: int = 512,
-    overlap_sentences: int = 1
+    text: str, target_size: int = 256, max_size: int = 512, overlap_sentences: int = 1
 ) -> List[str]:
     """
     Group sentences into chunks of approximately target_size tokens.
@@ -68,9 +65,7 @@ def chunk_by_sentences(
             # Start new chunk with overlap
             if overlap_sentences > 0:
                 current_chunk = current_chunk[-overlap_sentences:]
-                current_tokens = sum(
-                    len(encoding.encode(s)) for s in current_chunk
-                )
+                current_tokens = sum(len(encoding.encode(s)) for s in current_chunk)
             else:
                 current_chunk = []
                 current_tokens = 0
@@ -104,11 +99,7 @@ if __name__ == "__main__":
     achieved state-of-the-art results across many tasks.
     """
 
-    chunks = chunk_by_sentences(
-        sample_text,
-        target_size=100,
-        overlap_sentences=1
-    )
+    chunks = chunk_by_sentences(sample_text, target_size=100, overlap_sentences=1)
 
     print(f"Created {len(chunks)} chunks:\n")
     for i, chunk in enumerate(chunks):

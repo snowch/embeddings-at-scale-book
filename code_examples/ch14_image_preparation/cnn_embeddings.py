@@ -6,9 +6,7 @@ import numpy as np
 
 
 def extract_resnet_embeddings(
-    images: List,
-    model_name: str = 'resnet50',
-    layer: str = 'avg_pool'
+    images: List, model_name: str = "resnet50", layer: str = "avg_pool"
 ) -> np.ndarray:
     """
     Extract embeddings using a pre-trained ResNet model.
@@ -28,12 +26,12 @@ def extract_resnet_embeddings(
 
     # Select model
     model_fn = {
-        'resnet18': models.resnet18,
-        'resnet50': models.resnet50,
-        'resnet101': models.resnet101,
+        "resnet18": models.resnet18,
+        "resnet50": models.resnet50,
+        "resnet101": models.resnet101,
     }[model_name]
 
-    model = model_fn(weights='IMAGENET1K_V1')
+    model = model_fn(weights="IMAGENET1K_V1")
     model.eval()
 
     # Remove final classification layer to get embeddings
@@ -42,15 +40,14 @@ def extract_resnet_embeddings(
     feature_extractor = torch.nn.Sequential(*modules)
 
     # Standard ImageNet preprocessing
-    preprocess = transforms.Compose([
-        transforms.Resize(256),
-        transforms.CenterCrop(224),
-        transforms.ToTensor(),
-        transforms.Normalize(
-            mean=[0.485, 0.456, 0.406],
-            std=[0.229, 0.224, 0.225]
-        ),
-    ])
+    preprocess = transforms.Compose(
+        [
+            transforms.Resize(256),
+            transforms.CenterCrop(224),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ]
+    )
 
     embeddings = []
 
@@ -74,8 +71,7 @@ def extract_resnet_embeddings(
 
 
 def extract_efficientnet_embeddings(
-    images: List,
-    model_name: str = 'efficientnet_b0'
+    images: List, model_name: str = "efficientnet_b0"
 ) -> np.ndarray:
     """
     Extract embeddings using EfficientNet.
@@ -92,21 +88,20 @@ def extract_efficientnet_embeddings(
     import torchvision.transforms as transforms
     from PIL import Image
 
-    model = models.efficientnet_b0(weights='IMAGENET1K_V1')
+    model = models.efficientnet_b0(weights="IMAGENET1K_V1")
     model.eval()
 
     # Remove classifier to get embeddings
     model.classifier = torch.nn.Identity()
 
-    preprocess = transforms.Compose([
-        transforms.Resize(256),
-        transforms.CenterCrop(224),
-        transforms.ToTensor(),
-        transforms.Normalize(
-            mean=[0.485, 0.456, 0.406],
-            std=[0.229, 0.224, 0.225]
-        ),
-    ])
+    preprocess = transforms.Compose(
+        [
+            transforms.Resize(256),
+            transforms.CenterCrop(224),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ]
+    )
 
     embeddings = []
 
@@ -130,24 +125,21 @@ class CNNEmbedder:
     """
 
     def __init__(
-        self,
-        model_name: str = 'resnet50',
-        device: Optional[str] = None,
-        batch_size: int = 32
+        self, model_name: str = "resnet50", device: Optional[str] = None, batch_size: int = 32
     ):
         import torch
         import torchvision.models as models
         import torchvision.transforms as transforms
 
-        self.device = device or ('cuda' if torch.cuda.is_available() else 'cpu')
+        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.batch_size = batch_size
 
         # Load model
-        if model_name == 'resnet50':
-            model = models.resnet50(weights='IMAGENET1K_V1')
+        if model_name == "resnet50":
+            model = models.resnet50(weights="IMAGENET1K_V1")
             self.embedding_dim = 2048
-        elif model_name == 'resnet18':
-            model = models.resnet18(weights='IMAGENET1K_V1')
+        elif model_name == "resnet18":
+            model = models.resnet18(weights="IMAGENET1K_V1")
             self.embedding_dim = 512
         else:
             raise ValueError(f"Unknown model: {model_name}")
@@ -158,15 +150,14 @@ class CNNEmbedder:
         self.model = self.model.to(self.device)
         self.model.eval()
 
-        self.preprocess = transforms.Compose([
-            transforms.Resize(256),
-            transforms.CenterCrop(224),
-            transforms.ToTensor(),
-            transforms.Normalize(
-                mean=[0.485, 0.456, 0.406],
-                std=[0.229, 0.224, 0.225]
-            ),
-        ])
+        self.preprocess = transforms.Compose(
+            [
+                transforms.Resize(256),
+                transforms.CenterCrop(224),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            ]
+        )
 
     def encode(self, images: List) -> np.ndarray:
         """
@@ -185,7 +176,7 @@ class CNNEmbedder:
 
         # Process in batches
         for i in range(0, len(images), self.batch_size):
-            batch_images = images[i:i + self.batch_size]
+            batch_images = images[i : i + self.batch_size]
 
             # Preprocess batch
             tensors = []
@@ -219,12 +210,12 @@ if __name__ == "__main__":
 
     # Extract embeddings using different methods
     print("Extracting ResNet50 embeddings...")
-    embeddings = extract_resnet_embeddings([sample_image], model_name='resnet50')
+    embeddings = extract_resnet_embeddings([sample_image], model_name="resnet50")
     print(f"  Shape: {embeddings.shape}")
     print(f"  First 5 values: {embeddings[0][:5]}")
 
     print("\nUsing CNNEmbedder class...")
-    embedder = CNNEmbedder(model_name='resnet50')
+    embedder = CNNEmbedder(model_name="resnet50")
     embeddings = embedder.encode([sample_image, sample_image])
     print(f"  Shape: {embeddings.shape}")
     print(f"  Embedding dimension: {embedder.embedding_dim}")

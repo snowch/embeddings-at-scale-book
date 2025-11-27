@@ -8,17 +8,18 @@ import numpy as np
 
 class ResizeStrategy(Enum):
     """Available resize strategies."""
-    STRETCH = "stretch"           # Resize ignoring aspect ratio
-    CENTER_CROP = "center_crop"   # Resize then crop center
-    RANDOM_CROP = "random_crop"   # Resize then random crop (for training)
-    PAD = "pad"                   # Resize with padding to preserve aspect ratio
-    MULTI_CROP = "multi_crop"     # Multiple crops for ensemble embedding
+
+    STRETCH = "stretch"  # Resize ignoring aspect ratio
+    CENTER_CROP = "center_crop"  # Resize then crop center
+    RANDOM_CROP = "random_crop"  # Resize then random crop (for training)
+    PAD = "pad"  # Resize with padding to preserve aspect ratio
+    MULTI_CROP = "multi_crop"  # Multiple crops for ensemble embedding
 
 
 def resize_for_embedding(
     image,
     target_size: Tuple[int, int] = (224, 224),
-    strategy: ResizeStrategy = ResizeStrategy.CENTER_CROP
+    strategy: ResizeStrategy = ResizeStrategy.CENTER_CROP,
 ) -> np.ndarray:
     """
     Resize image using specified strategy.
@@ -74,9 +75,7 @@ def _center_crop(image, target_size: Tuple[int, int]) -> np.ndarray:
 
 
 def _resize_with_pad(
-    image,
-    target_size: Tuple[int, int],
-    pad_color: Tuple[int, int, int] = (0, 0, 0)
+    image, target_size: Tuple[int, int], pad_color: Tuple[int, int, int] = (0, 0, 0)
 ) -> np.ndarray:
     """Resize preserving aspect ratio, pad to target size."""
     from PIL import Image
@@ -92,7 +91,7 @@ def _resize_with_pad(
     image = image.resize((new_w, new_h))
 
     # Create padded canvas
-    padded = Image.new('RGB', target_size, pad_color)
+    padded = Image.new("RGB", target_size, pad_color)
     paste_x = (target_w - new_w) // 2
     paste_y = (target_h - new_h) // 2
     padded.paste(image, (paste_x, paste_y))
@@ -105,7 +104,7 @@ def multi_crop_embedding(
     encoder,
     target_size: Tuple[int, int] = (224, 224),
     num_crops: int = 5,
-    aggregation: str = 'mean'
+    aggregation: str = "mean",
 ) -> np.ndarray:
     """
     Create embedding from multiple crops of the image.
@@ -160,21 +159,17 @@ def multi_crop_embedding(
     embeddings = encoder.encode(crops)
 
     # Aggregate
-    if aggregation == 'mean':
+    if aggregation == "mean":
         return np.mean(embeddings, axis=0)
-    elif aggregation == 'max':
+    elif aggregation == "max":
         return np.max(embeddings, axis=0)
-    elif aggregation == 'concat':
+    elif aggregation == "concat":
         return embeddings.flatten()
     else:
         raise ValueError(f"Unknown aggregation: {aggregation}")
 
 
-def adaptive_resize(
-    image,
-    max_size: int = 1024,
-    min_size: int = 224
-) -> np.ndarray:
+def adaptive_resize(image, max_size: int = 1024, min_size: int = 224) -> np.ndarray:
     """
     Adaptively resize image based on its dimensions.
 

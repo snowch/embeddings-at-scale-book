@@ -9,6 +9,7 @@ import numpy as np
 @dataclass
 class QualityResult:
     """Result of image quality assessment."""
+
     passed: bool
     blur_score: float
     brightness: float
@@ -25,7 +26,7 @@ def assess_image_quality(
     min_brightness: float = 0.1,
     max_brightness: float = 0.9,
     min_contrast: float = 0.1,
-    blur_threshold: float = 100.0
+    blur_threshold: float = 100.0,
 ) -> QualityResult:
     """
     Assess image quality for embedding suitability.
@@ -98,14 +99,11 @@ def assess_image_quality(
         contrast=contrast,
         resolution_ok=resolution_ok,
         aspect_ratio_ok=aspect_ratio_ok,
-        issues=issues
+        issues=issues,
     )
 
 
-def detect_duplicate_images(
-    images: List,
-    threshold: float = 0.95
-) -> List[Tuple[int, int]]:
+def detect_duplicate_images(images: List, threshold: float = 0.95) -> List[Tuple[int, int]]:
     """
     Detect duplicate or near-duplicate images using perceptual hashing.
 
@@ -182,27 +180,27 @@ def compute_image_statistics(image) -> Dict:
         image_array = image
 
     stats = {
-        'height': image_array.shape[0],
-        'width': image_array.shape[1],
-        'channels': image_array.shape[2] if len(image_array.shape) == 3 else 1,
-        'dtype': str(image_array.dtype),
+        "height": image_array.shape[0],
+        "width": image_array.shape[1],
+        "channels": image_array.shape[2] if len(image_array.shape) == 3 else 1,
+        "dtype": str(image_array.dtype),
     }
 
     # Per-channel statistics
     if len(image_array.shape) == 3:
-        for i, channel in enumerate(['red', 'green', 'blue']):
+        for i, channel in enumerate(["red", "green", "blue"]):
             ch = image_array[:, :, i]
-            stats[f'{channel}_mean'] = float(np.mean(ch))
-            stats[f'{channel}_std'] = float(np.std(ch))
-            stats[f'{channel}_min'] = int(np.min(ch))
-            stats[f'{channel}_max'] = int(np.max(ch))
+            stats[f"{channel}_mean"] = float(np.mean(ch))
+            stats[f"{channel}_std"] = float(np.std(ch))
+            stats[f"{channel}_min"] = int(np.min(ch))
+            stats[f"{channel}_max"] = int(np.max(ch))
     else:
-        stats['gray_mean'] = float(np.mean(image_array))
-        stats['gray_std'] = float(np.std(image_array))
+        stats["gray_mean"] = float(np.mean(image_array))
+        stats["gray_std"] = float(np.std(image_array))
 
     # Overall statistics
-    stats['aspect_ratio'] = stats['width'] / stats['height']
-    stats['total_pixels'] = stats['width'] * stats['height']
+    stats["aspect_ratio"] = stats["width"] / stats["height"]
+    stats["total_pixels"] = stats["width"] * stats["height"]
 
     return stats
 
@@ -219,7 +217,7 @@ class ImageQualityFilter:
         min_resolution: int = 100,
         max_aspect_ratio: float = 4.0,
         blur_threshold: float = 100.0,
-        remove_duplicates: bool = True
+        remove_duplicates: bool = True,
     ):
         self.min_resolution = min_resolution
         self.max_aspect_ratio = max_aspect_ratio
@@ -243,7 +241,7 @@ class ImageQualityFilter:
                 img,
                 min_resolution=self.min_resolution,
                 max_aspect_ratio=self.max_aspect_ratio,
-                blur_threshold=self.blur_threshold
+                blur_threshold=self.blur_threshold,
             )
             if result.passed:
                 valid_indices.append(i)
@@ -279,7 +277,11 @@ if __name__ == "__main__":
         ("Good quality", np.random.randint(0, 255, (500, 400, 3), dtype=np.uint8)),
         ("Too small", np.random.randint(0, 255, (50, 40, 3), dtype=np.uint8)),
         ("Too dark", np.random.randint(0, 30, (200, 200, 3), dtype=np.uint8)),
-        ("Low contrast", np.full((200, 200, 3), 128, dtype=np.uint8) + np.random.randint(-5, 5, (200, 200, 3), dtype=np.int8).astype(np.uint8)),
+        (
+            "Low contrast",
+            np.full((200, 200, 3), 128, dtype=np.uint8)
+            + np.random.randint(-5, 5, (200, 200, 3), dtype=np.int8).astype(np.uint8),
+        ),
     ]
 
     for name, img_array in test_cases:

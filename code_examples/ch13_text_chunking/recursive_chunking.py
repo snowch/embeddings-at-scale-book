@@ -12,30 +12,23 @@ class RecursiveChunker:
     """
 
     def __init__(
-        self,
-        chunk_size: int = 500,
-        chunk_overlap: int = 50,
-        separators: Optional[List[str]] = None
+        self, chunk_size: int = 500, chunk_overlap: int = 50, separators: Optional[List[str]] = None
     ):
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
         self.separators = separators or [
-            "\n\n",      # Paragraph breaks (strongest)
-            "\n",        # Line breaks
-            ". ",        # Sentences
-            ", ",        # Clauses
-            " ",         # Words (last resort)
+            "\n\n",  # Paragraph breaks (strongest)
+            "\n",  # Line breaks
+            ". ",  # Sentences
+            ", ",  # Clauses
+            " ",  # Words (last resort)
         ]
 
     def chunk(self, text: str) -> List[str]:
         """Split text recursively using separator hierarchy."""
         return self._recursive_split(text, self.separators)
 
-    def _recursive_split(
-        self,
-        text: str,
-        separators: List[str]
-    ) -> List[str]:
+    def _recursive_split(self, text: str, separators: List[str]) -> List[str]:
         """Recursively split text, trying separators in order."""
 
         # Base case: text is small enough
@@ -129,14 +122,14 @@ class MarkdownChunker(RecursiveChunker):
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
             separators=[
-                "\n## ",    # H2 headers
-                "\n### ",   # H3 headers
+                "\n## ",  # H2 headers
+                "\n### ",  # H3 headers
                 "\n#### ",  # H4 headers
-                "\n\n",     # Paragraphs
-                "\n",       # Lines
-                ". ",       # Sentences
-                " ",        # Words
-            ]
+                "\n\n",  # Paragraphs
+                "\n",  # Lines
+                ". ",  # Sentences
+                " ",  # Words
+            ],
         )
 
 
@@ -148,12 +141,12 @@ class CodeChunker(RecursiveChunker):
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
             separators=[
-                "\nclass ",     # Class definitions
-                "\ndef ",       # Function definitions
-                "\n\n",         # Blank lines
-                "\n",           # Lines
-                " ",            # Words
-            ]
+                "\nclass ",  # Class definitions
+                "\ndef ",  # Function definitions
+                "\n\n",  # Blank lines
+                "\n",  # Lines
+                " ",  # Words
+            ],
         )
 
 

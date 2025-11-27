@@ -9,7 +9,7 @@ def semantic_chunk(
     text: str,
     similarity_threshold: float = 0.5,
     min_chunk_sentences: int = 2,
-    max_chunk_sentences: int = 10
+    max_chunk_sentences: int = 10,
 ) -> List[str]:
     """
     Split text at semantic boundaries detected by embedding similarity drops.
@@ -27,7 +27,7 @@ def semantic_chunk(
     from sentence_transformers import SentenceTransformer
 
     # Load embedding model
-    model = SentenceTransformer('all-MiniLM-L6-v2')
+    model = SentenceTransformer("all-MiniLM-L6-v2")
 
     # Split into sentences
     sentences = split_into_sentences(text)
@@ -50,10 +50,7 @@ def semantic_chunk(
     current_chunk = [sentences[0]]
 
     for sentence, sim in zip(sentences[1:], similarities):
-        should_split = (
-            sim < similarity_threshold and
-            len(current_chunk) >= min_chunk_sentences
-        )
+        should_split = sim < similarity_threshold and len(current_chunk) >= min_chunk_sentences
         force_split = len(current_chunk) >= max_chunk_sentences
 
         if should_split or force_split:
@@ -70,8 +67,7 @@ def semantic_chunk(
 
 
 def semantic_chunk_with_breakpoints(
-    text: str,
-    percentile_threshold: int = 25
+    text: str, percentile_threshold: int = 25
 ) -> Tuple[List[str], List[float]]:
     """
     Split at natural breakpoints using percentile-based threshold.
@@ -81,7 +77,7 @@ def semantic_chunk_with_breakpoints(
     from sentence_chunking import split_into_sentences
     from sentence_transformers import SentenceTransformer
 
-    model = SentenceTransformer('all-MiniLM-L6-v2')
+    model = SentenceTransformer("all-MiniLM-L6-v2")
     sentences = split_into_sentences(text)
 
     if len(sentences) < 2:

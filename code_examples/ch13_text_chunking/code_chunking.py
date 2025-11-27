@@ -9,6 +9,7 @@ from typing import List, Optional
 @dataclass
 class CodeChunk:
     """A chunk of source code with metadata."""
+
     code: str
     language: str
     chunk_type: str  # function, class, module, block
@@ -26,10 +27,7 @@ class CodeChunker:
     """
 
     def __init__(
-        self,
-        chunk_size: int = 1000,
-        include_docstrings: bool = True,
-        include_imports: bool = True
+        self, chunk_size: int = 1000, include_docstrings: bool = True, include_imports: bool = True
     ):
         self.chunk_size = chunk_size
         self.include_docstrings = include_docstrings
@@ -49,18 +47,15 @@ class CodeChunker:
     def _chunk_python_ast(self, code: str, tree: ast.Module) -> List[CodeChunk]:
         """Extract chunks from Python AST."""
         chunks = []
-        lines = code.split('\n')
+        lines = code.split("\n")
 
         # Extract imports as a single chunk
         if self.include_imports:
             imports = self._extract_imports(tree, lines)
             if imports:
-                chunks.append(CodeChunk(
-                    code=imports,
-                    language='python',
-                    chunk_type='imports',
-                    name='imports'
-                ))
+                chunks.append(
+                    CodeChunk(code=imports, language="python", chunk_type="imports", name="imports")
+                )
 
         # Extract classes and functions
         for node in ast.walk(tree):
@@ -85,45 +80,45 @@ class CodeChunker:
         for node in ast.iter_child_nodes(tree):
             if isinstance(node, (ast.Import, ast.ImportFrom)):
                 start = node.lineno - 1
-                end = node.end_lineno if hasattr(node, 'end_lineno') else start + 1
+                end = node.end_lineno if hasattr(node, "end_lineno") else start + 1
                 import_lines.extend(lines[start:end])
 
-        return '\n'.join(import_lines)
+        return "\n".join(import_lines)
 
     def _extract_class(self, node: ast.ClassDef, lines: List[str]) -> CodeChunk:
         """Extract a class definition."""
         start = node.lineno - 1
-        end = node.end_lineno if hasattr(node, 'end_lineno') else self._find_end(lines, start)
+        end = node.end_lineno if hasattr(node, "end_lineno") else self._find_end(lines, start)
 
-        code = '\n'.join(lines[start:end])
+        code = "\n".join(lines[start:end])
         docstring = ast.get_docstring(node) if self.include_docstrings else None
 
         return CodeChunk(
             code=code,
-            language='python',
-            chunk_type='class',
+            language="python",
+            chunk_type="class",
             name=node.name,
             docstring=docstring,
             start_line=start + 1,
-            end_line=end
+            end_line=end,
         )
 
     def _extract_function(self, node, lines: List[str]) -> CodeChunk:
         """Extract a function definition."""
         start = node.lineno - 1
-        end = node.end_lineno if hasattr(node, 'end_lineno') else self._find_end(lines, start)
+        end = node.end_lineno if hasattr(node, "end_lineno") else self._find_end(lines, start)
 
-        code = '\n'.join(lines[start:end])
+        code = "\n".join(lines[start:end])
         docstring = ast.get_docstring(node) if self.include_docstrings else None
 
         return CodeChunk(
             code=code,
-            language='python',
-            chunk_type='function',
+            language="python",
+            chunk_type="function",
             name=node.name,
             docstring=docstring,
             start_line=start + 1,
-            end_line=end
+            end_line=end,
         )
 
     def _is_method(self, node, tree: ast.Module) -> bool:
@@ -157,24 +152,28 @@ class CodeChunker:
         chunks = []
 
         # Match class definitions
-        class_pattern = r'^class\s+(\w+).*?(?=\nclass\s|\ndef\s|\Z)'
+        class_pattern = r"^class\s+(\w+).*?(?=\nclass\s|\ndef\s|\Z)"
         for match in re.finditer(class_pattern, code, re.MULTILINE | re.DOTALL):
-            chunks.append(CodeChunk(
-                code=match.group(0).strip(),
-                language='python',
-                chunk_type='class',
-                name=match.group(1)
-            ))
+            chunks.append(
+                CodeChunk(
+                    code=match.group(0).strip(),
+                    language="python",
+                    chunk_type="class",
+                    name=match.group(1),
+                )
+            )
 
         # Match function definitions
-        func_pattern = r'^def\s+(\w+).*?(?=\ndef\s|\nclass\s|\Z)'
+        func_pattern = r"^def\s+(\w+).*?(?=\ndef\s|\nclass\s|\Z)"
         for match in re.finditer(func_pattern, code, re.MULTILINE | re.DOTALL):
-            chunks.append(CodeChunk(
-                code=match.group(0).strip(),
-                language='python',
-                chunk_type='function',
-                name=match.group(1)
-            ))
+            chunks.append(
+                CodeChunk(
+                    code=match.group(0).strip(),
+                    language="python",
+                    chunk_type="function",
+                    name=match.group(1),
+                )
+            )
 
         return chunks
 
@@ -183,43 +182,45 @@ class CodeChunker:
         chunks = []
 
         # Match function declarations
-        func_pattern = r'(?:export\s+)?(?:async\s+)?function\s+(\w+)\s*\([^)]*\)\s*\{[^}]*\}'
+        func_pattern = r"(?:export\s+)?(?:async\s+)?function\s+(\w+)\s*\([^)]*\)\s*\{[^}]*\}"
         for match in re.finditer(func_pattern, code, re.DOTALL):
-            chunks.append(CodeChunk(
-                code=match.group(0),
-                language='javascript',
-                chunk_type='function',
-                name=match.group(1)
-            ))
+            chunks.append(
+                CodeChunk(
+                    code=match.group(0),
+                    language="javascript",
+                    chunk_type="function",
+                    name=match.group(1),
+                )
+            )
 
         # Match arrow functions assigned to variables
-        arrow_pattern = r'(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s+)?\([^)]*\)\s*=>\s*\{[^}]*\}'
+        arrow_pattern = r"(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s+)?\([^)]*\)\s*=>\s*\{[^}]*\}"
         for match in re.finditer(arrow_pattern, code, re.DOTALL):
-            chunks.append(CodeChunk(
-                code=match.group(0),
-                language='javascript',
-                chunk_type='function',
-                name=match.group(1)
-            ))
+            chunks.append(
+                CodeChunk(
+                    code=match.group(0),
+                    language="javascript",
+                    chunk_type="function",
+                    name=match.group(1),
+                )
+            )
 
         # Match class declarations
-        class_pattern = r'(?:export\s+)?class\s+(\w+)(?:\s+extends\s+\w+)?\s*\{[^}]*\}'
+        class_pattern = r"(?:export\s+)?class\s+(\w+)(?:\s+extends\s+\w+)?\s*\{[^}]*\}"
         for match in re.finditer(class_pattern, code, re.DOTALL):
-            chunks.append(CodeChunk(
-                code=match.group(0),
-                language='javascript',
-                chunk_type='class',
-                name=match.group(1)
-            ))
+            chunks.append(
+                CodeChunk(
+                    code=match.group(0),
+                    language="javascript",
+                    chunk_type="class",
+                    name=match.group(1),
+                )
+            )
 
         return chunks
 
 
-def chunk_code_for_embedding(
-    code: str,
-    language: str,
-    max_tokens: int = 512
-) -> List[str]:
+def chunk_code_for_embedding(code: str, language: str, max_tokens: int = 512) -> List[str]:
     """
     Prepare code chunks for embedding with context.
 
@@ -227,9 +228,9 @@ def chunk_code_for_embedding(
     """
     chunker = CodeChunker(chunk_size=max_tokens * 4)  # Rough char estimate
 
-    if language == 'python':
+    if language == "python":
         chunks = chunker.chunk_python(code)
-    elif language in ('javascript', 'typescript'):
+    elif language in ("javascript", "typescript"):
         chunks = chunker.chunk_javascript(code)
     else:
         # Generic chunking for other languages

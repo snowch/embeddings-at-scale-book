@@ -9,6 +9,7 @@ import numpy as np
 @dataclass
 class Tile:
     """A tile extracted from a larger image."""
+
     image: np.ndarray
     x: int  # Top-left x coordinate in original image
     y: int  # Top-left y coordinate in original image
@@ -19,10 +20,7 @@ class Tile:
 
 
 def tile_image(
-    image,
-    tile_size: Tuple[int, int] = (224, 224),
-    overlap: float = 0.1,
-    min_coverage: float = 0.5
+    image, tile_size: Tuple[int, int] = (224, 224), overlap: float = 0.1, min_coverage: float = 0.5
 ) -> List[Tile]:
     """
     Split a large image into overlapping tiles.
@@ -69,18 +67,20 @@ def tile_image(
                 # Pad if necessary
                 if tile_img.shape[0] < tile_h or tile_img.shape[1] < tile_w:
                     padded = np.zeros((tile_h, tile_w, image.shape[2]), dtype=image.dtype)
-                    padded[:tile_img.shape[0], :tile_img.shape[1]] = tile_img
+                    padded[: tile_img.shape[0], : tile_img.shape[1]] = tile_img
                     tile_img = padded
 
-                tiles.append(Tile(
-                    image=tile_img,
-                    x=x,
-                    y=y,
-                    width=x_end - x,
-                    height=y_end - y,
-                    row=row,
-                    col=col
-                ))
+                tiles.append(
+                    Tile(
+                        image=tile_img,
+                        x=x,
+                        y=y,
+                        width=x_end - x,
+                        height=y_end - y,
+                        row=row,
+                        col=col,
+                    )
+                )
 
             x += stride_x
             col += 1
@@ -96,7 +96,7 @@ def embed_tiled_image(
     encoder,
     tile_size: Tuple[int, int] = (224, 224),
     overlap: float = 0.1,
-    aggregation: str = 'mean'
+    aggregation: str = "mean",
 ) -> np.ndarray:
     """
     Create embedding for large image using tiling.
@@ -125,11 +125,11 @@ def embed_tiled_image(
     embeddings = encoder.encode(tile_images)
 
     # Aggregate
-    if aggregation == 'mean':
+    if aggregation == "mean":
         return np.mean(embeddings, axis=0)
-    elif aggregation == 'max':
+    elif aggregation == "max":
         return np.max(embeddings, axis=0)
-    elif aggregation == 'weighted':
+    elif aggregation == "weighted":
         # Weight by tile coverage and distance from center
         weights = []
         h, w = image.shape[:2] if isinstance(image, np.ndarray) else image.size[::-1]
@@ -142,7 +142,7 @@ def embed_tiled_image(
             # Distance from center weight (closer = higher weight)
             tile_center_x = tile.x + tile.width / 2
             tile_center_y = tile.y + tile.height / 2
-            distance = np.sqrt((tile_center_x - center_x)**2 + (tile_center_y - center_y)**2)
+            distance = np.sqrt((tile_center_x - center_x) ** 2 + (tile_center_y - center_y) ** 2)
             max_distance = np.sqrt(center_x**2 + center_y**2)
             distance_weight = 1 - (distance / max_distance)
 
@@ -156,10 +156,7 @@ def embed_tiled_image(
         raise ValueError(f"Unknown aggregation: {aggregation}")
 
 
-def reconstruct_from_tiles(
-    tiles: List[Tile],
-    original_size: Tuple[int, int]
-) -> np.ndarray:
+def reconstruct_from_tiles(tiles: List[Tile], original_size: Tuple[int, int]) -> np.ndarray:
     """
     Reconstruct image from tiles (for visualization/debugging).
 
@@ -176,8 +173,10 @@ def reconstruct_from_tiles(
         x, y = tile.x, tile.y
         tile_h, tile_w = tile.height, tile.width
 
-        accumulated[y:y+tile_h, x:x+tile_w] += tile.image[:tile_h, :tile_w].astype(np.float32)
-        counts[y:y+tile_h, x:x+tile_w] += 1
+        accumulated[y : y + tile_h, x : x + tile_w] += tile.image[:tile_h, :tile_w].astype(
+            np.float32
+        )
+        counts[y : y + tile_h, x : x + tile_w] += 1
 
     # Average where tiles overlap
     counts = np.maximum(counts, 1)  # Avoid division by zero
@@ -196,7 +195,7 @@ class TiledImageProcessor:
         tile_size: Tuple[int, int] = (224, 224),
         overlap: float = 0.1,
         max_tiles: Optional[int] = None,
-        selection_strategy: str = 'all'  # 'all', 'grid', 'important'
+        selection_strategy: str = "all",  # 'all', 'grid', 'important'
     ):
         self.tile_size = tile_size
         self.overlap = overlap
@@ -218,27 +217,27 @@ class TiledImageProcessor:
         all_tiles = tile_image(image_array, self.tile_size, self.overlap)
 
         # Select tiles based on strategy
-        if self.selection_strategy == 'grid' and self.max_tiles:
+        if self.selection_strategy == "grid" and self.max_tiles:
             selected_tiles = self._select_grid(all_tiles)
-        elif self.selection_strategy == 'important':
+        elif self.selection_strategy == "important":
             selected_tiles = self._select_important(all_tiles)
         else:
             selected_tiles = all_tiles
 
         # Limit if needed
         if self.max_tiles and len(selected_tiles) > self.max_tiles:
-            selected_tiles = selected_tiles[:self.max_tiles]
+            selected_tiles = selected_tiles[: self.max_tiles]
 
         # Embed
         tile_images = [Image.fromarray(t.image) for t in selected_tiles]
         embeddings = encoder.encode(tile_images)
 
         return {
-            'tile_embeddings': embeddings,
-            'tile_positions': [(t.x, t.y, t.width, t.height) for t in selected_tiles],
-            'aggregate_embedding': np.mean(embeddings, axis=0),
-            'num_tiles': len(selected_tiles),
-            'original_size': image_array.shape[:2]
+            "tile_embeddings": embeddings,
+            "tile_positions": [(t.x, t.y, t.width, t.height) for t in selected_tiles],
+            "aggregate_embedding": np.mean(embeddings, axis=0),
+            "num_tiles": len(selected_tiles),
+            "original_size": image_array.shape[:2],
         }
 
     def _select_grid(self, tiles: List[Tile]) -> List[Tile]:
@@ -276,7 +275,6 @@ class TiledImageProcessor:
 
 # Example usage
 if __name__ == "__main__":
-
     # Create a large sample image
     large_image = np.random.randint(0, 255, (1000, 800, 3), dtype=np.uint8)
     print(f"Original image size: {large_image.shape}")

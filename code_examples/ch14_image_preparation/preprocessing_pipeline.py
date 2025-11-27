@@ -9,12 +9,13 @@ import numpy as np
 @dataclass
 class PreprocessConfig:
     """Configuration for image preprocessing."""
+
     target_size: Tuple[int, int] = (224, 224)
-    resize_method: str = 'resize'  # 'resize', 'crop', 'pad'
+    resize_method: str = "resize"  # 'resize', 'crop', 'pad'
     normalize: bool = True
     mean: Tuple[float, ...] = (0.485, 0.456, 0.406)
     std: Tuple[float, ...] = (0.229, 0.224, 0.225)
-    color_mode: str = 'RGB'
+    color_mode: str = "RGB"
 
 
 class ImagePreprocessor:
@@ -48,17 +49,17 @@ class ImagePreprocessor:
             image = Image.fromarray(image)
 
         # Color space conversion
-        if self.config.color_mode == 'RGB' and image.mode != 'RGB':
-            image = image.convert('RGB')
-        elif self.config.color_mode == 'L' and image.mode != 'L':
-            image = image.convert('L')
+        if self.config.color_mode == "RGB" and image.mode != "RGB":
+            image = image.convert("RGB")
+        elif self.config.color_mode == "L" and image.mode != "L":
+            image = image.convert("L")
 
         # Resize/crop/pad
-        if self.config.resize_method == 'resize':
+        if self.config.resize_method == "resize":
             image = self._resize(image)
-        elif self.config.resize_method == 'crop':
+        elif self.config.resize_method == "crop":
             image = self._center_crop(image)
-        elif self.config.resize_method == 'pad':
+        elif self.config.resize_method == "pad":
             image = self._resize_with_pad(image)
 
         # Convert to numpy
@@ -82,11 +83,11 @@ class ImagePreprocessor:
         """Preprocess a batch of images."""
         return np.stack([self.preprocess(img) for img in images])
 
-    def _resize(self, image) -> 'Image':
+    def _resize(self, image) -> "Image":
         """Simple resize to target size."""
         return image.resize(self.config.target_size)
 
-    def _center_crop(self, image) -> 'Image':
+    def _center_crop(self, image) -> "Image":
         """Resize then center crop to target size."""
         # First resize so smaller dimension matches target
         w, h = image.size
@@ -102,7 +103,7 @@ class ImagePreprocessor:
         top = (new_h - target_h) // 2
         return image.crop((left, top, left + target_w, top + target_h))
 
-    def _resize_with_pad(self, image) -> 'Image':
+    def _resize_with_pad(self, image) -> "Image":
         """Resize preserving aspect ratio with padding."""
         from PIL import Image as PILImage
 
@@ -146,13 +147,13 @@ def create_torchvision_transform(config: PreprocessConfig):
     transforms = []
 
     # Resize/crop
-    if config.resize_method == 'resize':
+    if config.resize_method == "resize":
         transforms.append(T.Resize(config.target_size))
-    elif config.resize_method == 'crop':
+    elif config.resize_method == "crop":
         larger_size = max(config.target_size) + 32
         transforms.append(T.Resize(larger_size))
         transforms.append(T.CenterCrop(config.target_size))
-    elif config.resize_method == 'pad':
+    elif config.resize_method == "pad":
         # Custom padding transform
         transforms.append(T.Resize(config.target_size))
 
@@ -174,12 +175,8 @@ if __name__ == "__main__":
     print(f"Original size: {sample_image.size}")
 
     # Test different resize methods
-    for method in ['resize', 'crop', 'pad']:
-        config = PreprocessConfig(
-            target_size=(224, 224),
-            resize_method=method,
-            normalize=True
-        )
+    for method in ["resize", "crop", "pad"]:
+        config = PreprocessConfig(target_size=(224, 224), resize_method=method, normalize=True)
         preprocessor = ImagePreprocessor(config)
         result = preprocessor.preprocess(sample_image)
         print(f"\n{method.upper()} method:")

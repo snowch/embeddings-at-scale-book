@@ -5,10 +5,7 @@ from typing import List
 
 
 def chunk_by_paragraphs(
-    text: str,
-    min_chunk_size: int = 100,
-    max_chunk_size: int = 500,
-    combine_short: bool = True
+    text: str, min_chunk_size: int = 100, max_chunk_size: int = 500, combine_short: bool = True
 ) -> List[str]:
     """
     Split text on paragraph boundaries, optionally combining short paragraphs.
@@ -23,7 +20,7 @@ def chunk_by_paragraphs(
         List of text chunks
     """
     # Split on double newlines (paragraph boundaries)
-    paragraphs = re.split(r'\n\s*\n', text)
+    paragraphs = re.split(r"\n\s*\n", text)
     paragraphs = [p.strip() for p in paragraphs if p.strip()]
 
     chunks = []
@@ -43,13 +40,15 @@ def chunk_by_paragraphs(
 
             # Split long paragraph (fall back to sentence splitting)
             from sentence_chunking import chunk_by_sentences
+
             sub_chunks = chunk_by_sentences(para, target_size=max_chunk_size // 4)
             chunks.extend(sub_chunks)
             continue
 
         # Combine short paragraphs if enabled
-        if (combine_short and current_size + para_size < min_chunk_size) or \
-           current_size + para_size <= max_chunk_size:
+        if (
+            combine_short and current_size + para_size < min_chunk_size
+        ) or current_size + para_size <= max_chunk_size:
             current_chunk.append(para)
             current_size += para_size
         else:
@@ -89,10 +88,7 @@ or sentences.
     """
 
     chunks = chunk_by_paragraphs(
-        sample_text,
-        min_chunk_size=150,
-        max_chunk_size=400,
-        combine_short=True
+        sample_text, min_chunk_size=150, max_chunk_size=400, combine_short=True
     )
 
     print(f"Created {len(chunks)} chunks:\n")

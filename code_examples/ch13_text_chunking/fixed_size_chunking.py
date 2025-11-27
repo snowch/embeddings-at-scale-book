@@ -74,13 +74,16 @@ def chunk_by_tokens(text: str, chunk_size: int = 256, overlap: int = 25) -> List
 
 # Example usage
 if __name__ == "__main__":
-    sample_text = """
+    sample_text = (
+        """
     Machine learning has transformed how we process and understand data.
     Neural networks, inspired by biological neurons, can learn complex patterns.
     Deep learning extends this with multiple layers of abstraction.
     Transformers revolutionized NLP with attention mechanisms.
     Embeddings provide dense vector representations of semantic meaning.
-    """ * 5  # Repeat to create longer text
+    """
+        * 5
+    )  # Repeat to create longer text
 
     # Character-based chunking
     char_chunks = chunk_by_characters(sample_text, chunk_size=200, overlap=20)

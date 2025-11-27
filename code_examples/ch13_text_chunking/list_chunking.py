@@ -8,6 +8,7 @@ from typing import List
 @dataclass
 class ListBlock:
     """A detected list block in text."""
+
     start_pos: int
     end_pos: int
     text: str
@@ -28,31 +29,33 @@ def detect_lists(text: str) -> List[ListBlock]:
     lists = []
 
     # Bullet list pattern
-    bullet_pattern = r'((?:^[ \t]*[-*•][ \t]+.+$\n?)+)'
+    bullet_pattern = r"((?:^[ \t]*[-*•][ \t]+.+$\n?)+)"
 
     # Numbered list pattern
-    numbered_pattern = r'((?:^[ \t]*(?:\d+\.|[a-z]\.)[ \t]+.+$\n?)+)'
+    numbered_pattern = r"((?:^[ \t]*(?:\d+\.|[a-z]\.)[ \t]+.+$\n?)+)"
 
-    for pattern, list_type in [(bullet_pattern, 'bullet'), (numbered_pattern, 'numbered')]:
+    for pattern, list_type in [(bullet_pattern, "bullet"), (numbered_pattern, "numbered")]:
         for match in re.finditer(pattern, text, re.MULTILINE):
             items = parse_list_items(match.group(0), list_type)
-            lists.append(ListBlock(
-                start_pos=match.start(),
-                end_pos=match.end(),
-                text=match.group(0),
-                list_type=list_type,
-                items=items
-            ))
+            lists.append(
+                ListBlock(
+                    start_pos=match.start(),
+                    end_pos=match.end(),
+                    text=match.group(0),
+                    list_type=list_type,
+                    items=items,
+                )
+            )
 
     return sorted(lists, key=lambda x: x.start_pos)
 
 
 def parse_list_items(list_text: str, list_type: str) -> List[str]:
     """Parse individual items from a list block."""
-    if list_type == 'bullet':
-        pattern = r'^[ \t]*[-*•][ \t]+(.+)$'
+    if list_type == "bullet":
+        pattern = r"^[ \t]*[-*•][ \t]+(.+)$"
     else:  # numbered
-        pattern = r'^[ \t]*(?:\d+\.|[a-z]\.)[ \t]+(.+)$'
+        pattern = r"^[ \t]*(?:\d+\.|[a-z]\.)[ \t]+(.+)$"
 
     items = []
     for match in re.finditer(pattern, list_text, re.MULTILINE):
@@ -74,7 +77,7 @@ class ListAwareChunker:
         chunk_size: int = 500,
         chunk_overlap: int = 50,
         max_list_items_per_chunk: int = 20,
-        list_context_prefix: bool = True
+        list_context_prefix: bool = True,
     ):
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
@@ -91,6 +94,7 @@ class ListAwareChunker:
 
         if not lists:
             from recursive_chunking import RecursiveChunker
+
             chunker = RecursiveChunker(self.chunk_size, self.chunk_overlap)
             return chunker.chunk(text)
 
@@ -103,8 +107,9 @@ class ListAwareChunker:
 
             # Chunk text before list
             if list_block.start_pos > last_end:
-                pre_text = text[last_end:list_block.start_pos]
+                pre_text = text[last_end : list_block.start_pos]
                 from recursive_chunking import RecursiveChunker
+
                 chunker = RecursiveChunker(self.chunk_size, self.chunk_overlap)
                 pre_chunks = chunker.chunk(pre_text)
                 chunks.extend(pre_chunks)
@@ -119,6 +124,7 @@ class ListAwareChunker:
         if last_end < len(text):
             post_text = text[last_end:]
             from recursive_chunking import RecursiveChunker
+
             chunker = RecursiveChunker(self.chunk_size, self.chunk_overlap)
             chunks.extend(chunker.chunk(post_text))
 
@@ -135,12 +141,12 @@ class ListAwareChunker:
         preceding_text = text[search_start:list_start]
 
         # Find last heading
-        heading_match = re.search(r'^#+\s+.+$', preceding_text, re.MULTILINE)
+        heading_match = re.search(r"^#+\s+.+$", preceding_text, re.MULTILINE)
         if heading_match:
             return heading_match.group(0).strip()
 
         # Find last sentence
-        sentences = re.split(r'[.!?]\s+', preceding_text)
+        sentences = re.split(r"[.!?]\s+", preceding_text)
         if sentences and len(sentences[-1]) > 10:
             return sentences[-1].strip()
 
@@ -161,7 +167,7 @@ class ListAwareChunker:
         # Large list: split into groups
         chunks = []
         for i in range(0, len(items), self.max_list_items):
-            item_group = items[i:i + self.max_list_items]
+            item_group = items[i : i + self.max_list_items]
             list_text = self._format_list(item_group, list_block.list_type)
 
             if self.list_context_prefix and context:
@@ -175,10 +181,10 @@ class ListAwareChunker:
 
     def _format_list(self, items: List[str], list_type: str) -> str:
         """Format items back into a list."""
-        if list_type == 'bullet':
-            return '\n'.join(f"- {item}" for item in items)
+        if list_type == "bullet":
+            return "\n".join(f"- {item}" for item in items)
         else:
-            return '\n'.join(f"{i + 1}. {item}" for i, item in enumerate(items))
+            return "\n".join(f"{i + 1}. {item}" for i, item in enumerate(items))
 
 
 def merge_adjacent_lists(text: str) -> str:
@@ -189,10 +195,7 @@ def merge_adjacent_lists(text: str) -> str:
     """
     # Merge consecutive bullet lists
     text = re.sub(
-        r'((?:^[-*•]\s+.+$\n)+)\n+((?:^[-*•]\s+.+$\n?)+)',
-        r'\1\2',
-        text,
-        flags=re.MULTILINE
+        r"((?:^[-*•]\s+.+$\n)+)\n+((?:^[-*•]\s+.+$\n?)+)", r"\1\2", text, flags=re.MULTILINE
     )
 
     # Merge consecutive numbered lists (renumber)
@@ -236,10 +239,7 @@ Each algorithm has its strengths and weaknesses.
     """
 
     chunker = ListAwareChunker(
-        chunk_size=400,
-        chunk_overlap=30,
-        max_list_items_per_chunk=5,
-        list_context_prefix=True
+        chunk_size=400, chunk_overlap=30, max_list_items_per_chunk=5, list_context_prefix=True
     )
 
     chunks = chunker.chunk_with_lists(sample_text)

@@ -9,6 +9,7 @@ import numpy as np
 @dataclass
 class ChunkQualityMetrics:
     """Quality metrics for a set of chunks."""
+
     # Size metrics
     avg_chunk_size: float
     std_chunk_size: float
@@ -29,7 +30,7 @@ def evaluate_chunk_quality(
     chunks: List[str],
     queries: Optional[List[str]] = None,
     ground_truth: Optional[List[List[int]]] = None,
-    k: int = 5
+    k: int = 5,
 ) -> ChunkQualityMetrics:
     """
     Evaluate the quality of a chunking strategy.
@@ -59,7 +60,7 @@ def evaluate_chunk_quality(
         min_chunk_size=min(sizes),
         max_chunk_size=max(sizes),
         avg_word_count=np.mean(word_counts),
-        unique_terms_ratio=unique_ratio
+        unique_terms_ratio=unique_ratio,
     )
 
     # Retrieval metrics if ground truth provided
@@ -73,15 +74,12 @@ def evaluate_chunk_quality(
 
 
 def _evaluate_retrieval(
-    chunks: List[str],
-    queries: List[str],
-    ground_truth: List[List[int]],
-    k: int
+    chunks: List[str], queries: List[str], ground_truth: List[List[int]], k: int
 ) -> Tuple[float, float, float]:
     """Evaluate retrieval performance."""
     from sentence_transformers import SentenceTransformer
 
-    model = SentenceTransformer('all-MiniLM-L6-v2')
+    model = SentenceTransformer("all-MiniLM-L6-v2")
 
     # Embed chunks
     chunk_embeddings = model.encode(chunks)
@@ -119,10 +117,7 @@ def _evaluate_retrieval(
 
 
 def compare_chunking_strategies(
-    text: str,
-    strategies: Dict[str, callable],
-    queries: List[str],
-    ground_truth: List[List[int]]
+    text: str, strategies: Dict[str, callable], queries: List[str], ground_truth: List[List[int]]
 ) -> Dict[str, ChunkQualityMetrics]:
     """
     Compare multiple chunking strategies on the same document.
@@ -147,10 +142,7 @@ def compare_chunking_strategies(
 
 
 def analyze_failure_cases(
-    chunks: List[str],
-    queries: List[str],
-    ground_truth: List[List[int]],
-    k: int = 5
+    chunks: List[str], queries: List[str], ground_truth: List[List[int]], k: int = 5
 ) -> List[Dict]:
     """
     Identify queries where retrieval failed.
@@ -159,7 +151,7 @@ def analyze_failure_cases(
     """
     from sentence_transformers import SentenceTransformer
 
-    model = SentenceTransformer('all-MiniLM-L6-v2')
+    model = SentenceTransformer("all-MiniLM-L6-v2")
     chunk_embeddings = model.encode(chunks)
 
     failures = []
@@ -173,23 +165,27 @@ def analyze_failure_cases(
 
         if len(relevant_retrieved) == 0:
             # Complete failure - no relevant chunks retrieved
-            failures.append({
-                'query': query,
-                'expected_chunks': [chunks[i][:100] for i in relevant_indices],
-                'retrieved_chunks': [chunks[i][:100] for i in top_k_indices],
-                'expected_similarities': [similarities[i] for i in relevant_indices],
-                'retrieved_similarities': [similarities[i] for i in top_k_indices],
-                'failure_type': 'complete'
-            })
+            failures.append(
+                {
+                    "query": query,
+                    "expected_chunks": [chunks[i][:100] for i in relevant_indices],
+                    "retrieved_chunks": [chunks[i][:100] for i in top_k_indices],
+                    "expected_similarities": [similarities[i] for i in relevant_indices],
+                    "retrieved_similarities": [similarities[i] for i in top_k_indices],
+                    "failure_type": "complete",
+                }
+            )
         elif len(relevant_retrieved) < len(relevant_indices):
             # Partial failure - some relevant chunks missed
             missed = set(relevant_indices) - relevant_retrieved
-            failures.append({
-                'query': query,
-                'missed_chunks': [chunks[i][:100] for i in missed],
-                'missed_similarities': [similarities[i] for i in missed],
-                'failure_type': 'partial'
-            })
+            failures.append(
+                {
+                    "query": query,
+                    "missed_chunks": [chunks[i][:100] for i in missed],
+                    "missed_similarities": [similarities[i] for i in missed],
+                    "failure_type": "partial",
+                }
+            )
 
     return failures
 
@@ -209,14 +205,12 @@ def suggest_improvements(metrics: ChunkQualityMetrics) -> List[str]:
 
     if metrics.avg_chunk_size < 100:
         suggestions.append(
-            "Chunks are very small. Consider increasing chunk size to "
-            "preserve more context."
+            "Chunks are very small. Consider increasing chunk size to preserve more context."
         )
 
     if metrics.avg_chunk_size > 1000:
         suggestions.append(
-            "Chunks are quite large. Consider reducing chunk size for "
-            "better retrieval precision."
+            "Chunks are quite large. Consider reducing chunk size for better retrieval precision."
         )
 
     # Retrieval analysis
@@ -266,12 +260,7 @@ if __name__ == "__main__":
         [1],  # Second query relates to chunk 1
     ]
 
-    metrics = evaluate_chunk_quality(
-        sample_chunks,
-        sample_queries,
-        sample_ground_truth,
-        k=3
-    )
+    metrics = evaluate_chunk_quality(sample_chunks, sample_queries, sample_ground_truth, k=3)
 
     print("Chunk Quality Metrics:")
     print(f"  Avg chunk size: {metrics.avg_chunk_size:.0f} chars")
