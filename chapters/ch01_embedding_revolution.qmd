@@ -325,18 +325,20 @@ def detect_fraud_embedding(transaction):
 | **Explainability** | "Similar to X, far from Y"—can show examples | "Score: 0.87"—harder to interpret |
 | **Labeled data requirement** | Works unsupervised (cluster normal behavior) | Needs labeled training examples |
 
-### The Zero-Day Argument
+### The Novelty Detection Argument
 
-For security and anomaly detection, the most compelling argument for embeddings is **zero-day detection**. A classifier can only recognize attack patterns present in its training data. An embedding system can detect "this behavior is unlike anything normal I've seen" without ever having seen that specific attack.
+The most compelling argument for embeddings is **novelty detection**. A classifier can only recognize categories present in its training data. An embedding system can detect "this is unlike anything I've seen before" without ever having trained on that specific category.
 
 ```python
-# Classifier limitation: only knows trained attack types
-attack_types = ['sql_injection', 'xss', 'credential_stuffing']  # Fixed at training time
+# Classifier limitation: only knows trained categories
+product_types = ['laptop', 'phone', 'tablet']  # Fixed at training time
 
-# Embedding advantage: detects deviation from normal
-if distance_to_nearest_normal_cluster > threshold:
-    alert("Anomalous behavior detected")  # Works for novel attacks
+# Embedding advantage: detects novelty
+if distance_to_nearest_known_cluster > threshold:
+    flag("Novel item detected")  # Works for new product types, unusual behavior, etc.
 ```
+
+This principle applies across domains: detecting novel fraud patterns (@sec-anomaly-detection-security), identifying emerging product categories, flagging unusual user behavior, or discovering new scientific phenomena. The embedding captures "normal" as a geometric region—anything far from that region is worth investigating.
 
 ### When Direct Classification Wins
 

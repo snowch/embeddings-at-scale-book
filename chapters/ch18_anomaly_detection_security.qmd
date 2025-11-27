@@ -89,6 +89,17 @@ Traditional Security Information and Event Management (SIEM) systems use rules:
 - Evasion: Attackers split transfers, use slow exfiltration
 - Cannot detect novel attacks (zero-day exploits, new TTPs)
 
+**The Zero-Day Argument**: The most compelling case for embeddings in security is **zero-day detection**. A classifier can only recognize attack patterns present in its training data. An embedding system can detect "this behavior is unlike anything normal I've seen" without ever having seen that specific attack.
+
+```python
+# Classifier limitation: only knows trained attack types
+attack_types = ['sql_injection', 'xss', 'credential_stuffing']  # Fixed at training time
+
+# Embedding advantage: detects deviation from normal
+if distance_to_nearest_normal_cluster > threshold:
+    alert("Anomalous behavior detected")  # Works for novel attacks
+```
+
 **Embedding approach**: Learn normal behavior embeddings for each user/device. Anomalies = deviation from learned patterns. See @sec-custom-embedding-strategies for approaches to building behavioral embeddings, from fine-tuning pre-trained models to custom architectures.
 
 ```python
