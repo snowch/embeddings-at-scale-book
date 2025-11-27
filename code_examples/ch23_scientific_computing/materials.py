@@ -9,6 +9,7 @@ import torch.nn.functional as F
 @dataclass
 class MaterialsConfig:
     """Configuration for materials science embedding models."""
+
     atom_features: int = 92  # One-hot for elements
     bond_features: int = 10
     hidden_dim: int = 256
@@ -35,13 +36,11 @@ class AtomEmbedding(nn.Module):
         self.property_mlp = nn.Sequential(
             nn.Linear(8, 32),  # electronegativity, radius, etc.
             nn.ReLU(),
-            nn.Linear(32, embedding_dim)
+            nn.Linear(32, embedding_dim),
         )
 
     def forward(
-        self,
-        atomic_numbers: torch.Tensor,
-        atomic_properties: Optional[torch.Tensor] = None
+        self, atomic_numbers: torch.Tensor, atomic_properties: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
         """
         Embed atoms.
@@ -79,23 +78,18 @@ class CrystalGraphConv(nn.Module):
             nn.Linear(2 * hidden_dim + edge_dim, hidden_dim),
             nn.ReLU(),
             nn.Linear(hidden_dim, hidden_dim),
-            nn.Sigmoid()
+            nn.Sigmoid(),
         )
 
         # Node update
         self.node_mlp = nn.Sequential(
-            nn.Linear(2 * hidden_dim, hidden_dim),
-            nn.ReLU(),
-            nn.Linear(hidden_dim, hidden_dim)
+            nn.Linear(2 * hidden_dim, hidden_dim), nn.ReLU(), nn.Linear(hidden_dim, hidden_dim)
         )
 
         self.bn = nn.BatchNorm1d(hidden_dim)
 
     def forward(
-        self,
-        node_features: torch.Tensor,
-        edge_index: torch.Tensor,
-        edge_features: torch.Tensor
+        self, node_features: torch.Tensor, edge_index: torch.Tensor, edge_features: torch.Tensor
     ) -> torch.Tensor:
         """
         Perform graph convolution.
@@ -146,24 +140,25 @@ class CrystalGraphEncoder(nn.Module):
 
         # Atom embedding
         self.atom_embed = AtomEmbedding(
-            n_elements=config.atom_features,
-            embedding_dim=config.hidden_dim
+            n_elements=config.atom_features, embedding_dim=config.hidden_dim
         )
 
         # Edge feature projection
         self.edge_embed = nn.Linear(config.bond_features, config.hidden_dim)
 
         # Graph convolution layers
-        self.conv_layers = nn.ModuleList([
-            CrystalGraphConv(config.hidden_dim, config.hidden_dim)
-            for _ in range(config.n_conv_layers)
-        ])
+        self.conv_layers = nn.ModuleList(
+            [
+                CrystalGraphConv(config.hidden_dim, config.hidden_dim)
+                for _ in range(config.n_conv_layers)
+            ]
+        )
 
         # Readout
         self.readout = nn.Sequential(
             nn.Linear(config.hidden_dim, config.hidden_dim),
             nn.ReLU(),
-            nn.Linear(config.hidden_dim, config.embedding_dim)
+            nn.Linear(config.hidden_dim, config.embedding_dim),
         )
 
     def forward(
@@ -171,7 +166,7 @@ class CrystalGraphEncoder(nn.Module):
         atomic_numbers: torch.Tensor,
         edge_index: torch.Tensor,
         edge_features: torch.Tensor,
-        batch: torch.Tensor
+        batch: torch.Tensor,
     ) -> torch.Tensor:
         """
         Encode crystal structure.
@@ -228,26 +223,27 @@ class MolecularGraphEncoder(nn.Module):
         self.bond_embed = nn.Linear(config.bond_features, config.hidden_dim)
 
         # Message passing layers with attention
-        self.attention_layers = nn.ModuleList([
-            nn.MultiheadAttention(
-                config.hidden_dim,
-                config.n_attention_heads,
-                batch_first=True
-            ) for _ in range(config.n_conv_layers)
-        ])
+        self.attention_layers = nn.ModuleList(
+            [
+                nn.MultiheadAttention(config.hidden_dim, config.n_attention_heads, batch_first=True)
+                for _ in range(config.n_conv_layers)
+            ]
+        )
 
-        self.ffn_layers = nn.ModuleList([
-            nn.Sequential(
-                nn.Linear(config.hidden_dim, config.hidden_dim * 4),
-                nn.GELU(),
-                nn.Linear(config.hidden_dim * 4, config.hidden_dim)
-            ) for _ in range(config.n_conv_layers)
-        ])
+        self.ffn_layers = nn.ModuleList(
+            [
+                nn.Sequential(
+                    nn.Linear(config.hidden_dim, config.hidden_dim * 4),
+                    nn.GELU(),
+                    nn.Linear(config.hidden_dim * 4, config.hidden_dim),
+                )
+                for _ in range(config.n_conv_layers)
+            ]
+        )
 
-        self.layer_norms = nn.ModuleList([
-            nn.LayerNorm(config.hidden_dim)
-            for _ in range(config.n_conv_layers * 2)
-        ])
+        self.layer_norms = nn.ModuleList(
+            [nn.LayerNorm(config.hidden_dim) for _ in range(config.n_conv_layers * 2)]
+        )
 
         self.readout = nn.Linear(config.hidden_dim, config.embedding_dim)
 
@@ -255,7 +251,7 @@ class MolecularGraphEncoder(nn.Module):
         self,
         atom_features: torch.Tensor,
         adjacency: torch.Tensor,
-        mask: Optional[torch.Tensor] = None
+        mask: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """
         Encode molecule.
@@ -281,13 +277,13 @@ class MolecularGraphEncoder(nn.Module):
         for i, (attn, ffn) in enumerate(zip(self.attention_layers, self.ffn_layers)):
             # Self-attention
             residual = x
-            x = self.layer_norms[2*i](x)
+            x = self.layer_norms[2 * i](x)
             x, _ = attn(x, x, x, key_padding_mask=~mask if mask is not None else None)
             x = residual + x
 
             # Feed-forward
             residual = x
-            x = self.layer_norms[2*i + 1](x)
+            x = self.layer_norms[2 * i + 1](x)
             x = residual + ffn(x)
 
         # Global pooling (mean over valid atoms)
@@ -323,7 +319,7 @@ class MaterialsPropertyPredictor:
         atomic_numbers: torch.Tensor,
         edge_index: torch.Tensor,
         edge_features: torch.Tensor,
-        batch: torch.Tensor
+        batch: torch.Tensor,
     ) -> dict[str, torch.Tensor]:
         """
         Predict material properties from structure.
@@ -336,7 +332,7 @@ class MaterialsPropertyPredictor:
         return {
             "formation_energy": self.formation_energy_head(embedding),
             "band_gap": self.band_gap_head(embedding),
-            "stability": torch.sigmoid(self.stability_head(embedding))
+            "stability": torch.sigmoid(self.stability_head(embedding)),
         }
 
     def find_similar_materials(
@@ -344,7 +340,7 @@ class MaterialsPropertyPredictor:
         query_embedding: torch.Tensor,
         database_embeddings: torch.Tensor,
         database_properties: dict,
-        k: int = 10
+        k: int = 10,
     ) -> list[dict]:
         """
         Find materials with similar structure/properties.
@@ -352,20 +348,19 @@ class MaterialsPropertyPredictor:
         Useful for identifying known materials similar to
         a computationally designed candidate.
         """
-        similarities = F.cosine_similarity(
-            query_embedding.unsqueeze(0),
-            database_embeddings
-        )
+        similarities = F.cosine_similarity(query_embedding.unsqueeze(0), database_embeddings)
 
         top_k = torch.topk(similarities, k)
 
         results = []
         for idx, sim in zip(top_k.indices, top_k.values):
-            results.append({
-                "index": idx.item(),
-                "similarity": sim.item(),
-                "formation_energy": database_properties["formation_energy"][idx].item(),
-                "band_gap": database_properties["band_gap"][idx].item()
-            })
+            results.append(
+                {
+                    "index": idx.item(),
+                    "similarity": sim.item(),
+                    "formation_energy": database_properties["formation_energy"][idx].item(),
+                    "band_gap": database_properties["band_gap"][idx].item(),
+                }
+            )
 
         return results

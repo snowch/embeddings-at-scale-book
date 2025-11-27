@@ -104,14 +104,10 @@ class ClipEncoder(nn.Module):
             nn.Conv3d(64, 128, kernel_size=(3, 3, 3), stride=(1, 2, 2), padding=(1, 1, 1)),
             nn.BatchNorm3d(128),
             nn.ReLU(),
-            nn.Conv3d(
-                128, 256, kernel_size=(3, 3, 3), stride=(2, 2, 2), padding=(1, 1, 1)
-            ),
+            nn.Conv3d(128, 256, kernel_size=(3, 3, 3), stride=(2, 2, 2), padding=(1, 1, 1)),
             nn.BatchNorm3d(256),
             nn.ReLU(),
-            nn.Conv3d(
-                256, 512, kernel_size=(3, 3, 3), stride=(2, 2, 2), padding=(1, 1, 1)
-            ),
+            nn.Conv3d(256, 512, kernel_size=(3, 3, 3), stride=(2, 2, 2), padding=(1, 1, 1)),
             nn.BatchNorm3d(512),
             nn.ReLU(),
             nn.AdaptiveAvgPool3d(1),
@@ -184,9 +180,7 @@ class HierarchicalVideoProcessor(nn.Module):
         event_logits = self.event_classifier(embedding)
         return embedding, event_logits
 
-    def forward(
-        self, frames: torch.Tensor, process_clips: bool = False
-    ) -> dict[str, torch.Tensor]:
+    def forward(self, frames: torch.Tensor, process_clips: bool = False) -> dict[str, torch.Tensor]:
         """
         Process video with optional clip analysis.
 
@@ -236,9 +230,7 @@ class StreamProcessor:
         # Frame buffers per camera
         self.frame_buffers: dict[str, list[torch.Tensor]] = {}
 
-    def process_stream_batch(
-        self, camera_id: str, frames: torch.Tensor
-    ) -> list[dict]:
+    def process_stream_batch(self, camera_id: str, frames: torch.Tensor) -> list[dict]:
         """
         Process batch of frames from a camera stream.
 

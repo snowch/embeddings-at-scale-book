@@ -9,6 +9,7 @@ import torch.nn.functional as F
 @dataclass
 class GEOINTConfig:
     """Configuration for geospatial intelligence embedding models."""
+
     image_size: int = 512
     n_spectral_bands: int = 4  # RGB + NIR or multispectral
     embedding_dim: int = 512
@@ -35,7 +36,6 @@ class SatelliteImageEncoder(nn.Module):
             nn.BatchNorm2d(64),
             nn.ReLU(),
             nn.MaxPool2d(3, stride=2, padding=1),
-
             nn.Conv2d(64, 128, 3, padding=1),
             nn.BatchNorm2d(128),
             nn.ReLU(),
@@ -43,7 +43,6 @@ class SatelliteImageEncoder(nn.Module):
             nn.BatchNorm2d(128),
             nn.ReLU(),
             nn.MaxPool2d(2),
-
             nn.Conv2d(128, 256, 3, padding=1),
             nn.BatchNorm2d(256),
             nn.ReLU(),
@@ -51,11 +50,10 @@ class SatelliteImageEncoder(nn.Module):
             nn.BatchNorm2d(256),
             nn.ReLU(),
             nn.MaxPool2d(2),
-
             nn.Conv2d(256, 512, 3, padding=1),
             nn.BatchNorm2d(512),
             nn.ReLU(),
-            nn.AdaptiveAvgPool2d(1)
+            nn.AdaptiveAvgPool2d(1),
         )
 
         self.projection = nn.Linear(512, config.embedding_dim)
@@ -96,16 +94,14 @@ class ChangeDetectionEncoder(nn.Module):
             nn.ReLU(),
             nn.Linear(config.hidden_dim, config.hidden_dim // 2),
             nn.ReLU(),
-            nn.Linear(config.hidden_dim // 2, config.embedding_dim)
+            nn.Linear(config.hidden_dim // 2, config.embedding_dim),
         )
 
         # Change type classifier
         self.change_classifier = nn.Linear(config.embedding_dim, 10)  # Change types
 
     def forward(
-        self,
-        image_before: torch.Tensor,
-        image_after: torch.Tensor
+        self, image_before: torch.Tensor, image_after: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Analyze changes between two temporal images.
@@ -145,31 +141,29 @@ class ObjectDetectionEncoder(nn.Module):
         self.config = config
 
         # Feature pyramid network style architecture
-        self.backbone = nn.ModuleList([
-            nn.Sequential(
-                nn.Conv2d(config.n_spectral_bands, 64, 3, padding=1),
-                nn.BatchNorm2d(64),
-                nn.ReLU(),
-                nn.MaxPool2d(2)
-            ),
-            nn.Sequential(
-                nn.Conv2d(64, 128, 3, padding=1),
-                nn.BatchNorm2d(128),
-                nn.ReLU(),
-                nn.MaxPool2d(2)
-            ),
-            nn.Sequential(
-                nn.Conv2d(128, 256, 3, padding=1),
-                nn.BatchNorm2d(256),
-                nn.ReLU(),
-                nn.MaxPool2d(2)
-            ),
-            nn.Sequential(
-                nn.Conv2d(256, 512, 3, padding=1),
-                nn.BatchNorm2d(512),
-                nn.ReLU()
-            )
-        ])
+        self.backbone = nn.ModuleList(
+            [
+                nn.Sequential(
+                    nn.Conv2d(config.n_spectral_bands, 64, 3, padding=1),
+                    nn.BatchNorm2d(64),
+                    nn.ReLU(),
+                    nn.MaxPool2d(2),
+                ),
+                nn.Sequential(
+                    nn.Conv2d(64, 128, 3, padding=1),
+                    nn.BatchNorm2d(128),
+                    nn.ReLU(),
+                    nn.MaxPool2d(2),
+                ),
+                nn.Sequential(
+                    nn.Conv2d(128, 256, 3, padding=1),
+                    nn.BatchNorm2d(256),
+                    nn.ReLU(),
+                    nn.MaxPool2d(2),
+                ),
+                nn.Sequential(nn.Conv2d(256, 512, 3, padding=1), nn.BatchNorm2d(512), nn.ReLU()),
+            ]
+        )
 
         # Object embedding from ROI features
         self.roi_embed = nn.Sequential(
@@ -177,17 +171,13 @@ class ObjectDetectionEncoder(nn.Module):
             nn.Flatten(),
             nn.Linear(512 * 49, config.hidden_dim),
             nn.ReLU(),
-            nn.Linear(config.hidden_dim, config.embedding_dim)
+            nn.Linear(config.hidden_dim, config.embedding_dim),
         )
 
         # Classification head
         self.classifier = nn.Linear(config.embedding_dim, config.n_object_classes)
 
-    def encode_region(
-        self,
-        images: torch.Tensor,
-        boxes: torch.Tensor
-    ) -> torch.Tensor:
+    def encode_region(self, images: torch.Tensor, boxes: torch.Tensor) -> torch.Tensor:
         """
         Encode detected object regions.
 
@@ -221,7 +211,7 @@ class ObjectDetectionEncoder(nn.Module):
                 fx2 = max(fx2, fx1 + 1)
                 fy2 = max(fy2, fy1 + 1)
 
-                roi = x[b:b+1, :, fy1:fy2, fx1:fx2]
+                roi = x[b : b + 1, :, fy1:fy2, fx1:fx2]
                 emb = self.roi_embed(roi)
                 batch_embs.append(emb)
 
@@ -230,9 +220,7 @@ class ObjectDetectionEncoder(nn.Module):
         return torch.stack(object_embeddings)
 
     def forward(
-        self,
-        images: torch.Tensor,
-        boxes: torch.Tensor
+        self, images: torch.Tensor, boxes: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Detect and classify objects.
@@ -270,18 +258,16 @@ class ActivityPatternEncoder(nn.Module):
                 d_model=config.embedding_dim,
                 nhead=8,
                 dim_feedforward=config.hidden_dim,
-                batch_first=True
+                batch_first=True,
             ),
-            num_layers=4
+            num_layers=4,
         )
 
         # Activity pattern embedding
         self.pattern_embed = nn.Linear(config.embedding_dim, config.embedding_dim)
 
     def forward(
-        self,
-        image_sequence: torch.Tensor,
-        timestamps: Optional[torch.Tensor] = None
+        self, image_sequence: torch.Tensor, timestamps: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
         """
         Encode activity pattern from image sequence.
@@ -324,11 +310,7 @@ class GEOINTSearchSystem:
         self.archive_embeddings = None
         self.archive_metadata = None
 
-    def search_similar_scenes(
-        self,
-        query_image: torch.Tensor,
-        k: int = 10
-    ) -> list[dict]:
+    def search_similar_scenes(self, query_image: torch.Tensor, k: int = 10) -> list[dict]:
         """
         Find similar scenes in imagery archive.
         """
@@ -337,28 +319,25 @@ class GEOINTSearchSystem:
         if self.archive_embeddings is None:
             raise ValueError("Archive not indexed")
 
-        similarities = F.cosine_similarity(
-            query_emb, self.archive_embeddings
-        )
+        similarities = F.cosine_similarity(query_emb, self.archive_embeddings)
 
         top_k = torch.topk(similarities, k)
 
         results = []
         for idx, sim in zip(top_k.indices, top_k.values):
-            results.append({
-                "image_id": self.archive_metadata[idx]["id"],
-                "location": self.archive_metadata[idx]["location"],
-                "timestamp": self.archive_metadata[idx]["timestamp"],
-                "similarity": sim.item()
-            })
+            results.append(
+                {
+                    "image_id": self.archive_metadata[idx]["id"],
+                    "location": self.archive_metadata[idx]["location"],
+                    "timestamp": self.archive_metadata[idx]["timestamp"],
+                    "similarity": sim.item(),
+                }
+            )
 
         return results
 
     def detect_significant_changes(
-        self,
-        before: torch.Tensor,
-        after: torch.Tensor,
-        threshold: float = 0.3
+        self, before: torch.Tensor, after: torch.Tensor, threshold: float = 0.3
     ) -> dict:
         """
         Detect if significant change occurred between images.
@@ -377,5 +356,5 @@ class GEOINTSearchSystem:
             "significant_change": change_magnitude.item() > threshold,
             "change_magnitude": change_magnitude.item(),
             "change_type": predicted_type.item(),
-            "change_embedding": change_emb
+            "change_embedding": change_emb,
         }

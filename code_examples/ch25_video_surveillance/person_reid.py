@@ -45,17 +45,14 @@ class PartBasedReIDEncoder(nn.Module):
 
         # Part embeddings
         self.part_embeddings = nn.ModuleList(
-            [nn.Linear(512, config.embedding_dim // config.n_parts)
-             for _ in range(config.n_parts)]
+            [nn.Linear(512, config.embedding_dim // config.n_parts) for _ in range(config.n_parts)]
         )
 
         # Global embedding
         self.global_pool = nn.AdaptiveAvgPool2d(1)
         self.global_embedding = nn.Linear(512, config.embedding_dim)
 
-    def _resblock(
-        self, in_channels: int, out_channels: int, stride: int = 1
-    ) -> nn.Sequential:
+    def _resblock(self, in_channels: int, out_channels: int, stride: int = 1) -> nn.Sequential:
         """Residual block."""
         return nn.Sequential(
             nn.Conv2d(in_channels, out_channels, 3, stride=stride, padding=1),
@@ -66,9 +63,7 @@ class PartBasedReIDEncoder(nn.Module):
             nn.ReLU(),
         )
 
-    def forward(
-        self, images: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, images: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Extract person embeddings.
 
@@ -216,9 +211,7 @@ class PersonTracker:
             return None
 
         gallery = torch.stack(self.gallery_embeddings)
-        similarities = F.cosine_similarity(
-            query_embedding.unsqueeze(0), gallery
-        )
+        similarities = F.cosine_similarity(query_embedding.unsqueeze(0), gallery)
 
         best_idx = similarities.argmax().item()
         best_sim = similarities[best_idx].item()
@@ -228,8 +221,7 @@ class PersonTracker:
                 "person_id": self.gallery_metadata[best_idx]["person_id"],
                 "confidence": best_sim,
                 "previous_camera": self.gallery_metadata[best_idx].get("last_camera"),
-                "time_gap": timestamp
-                - self.gallery_metadata[best_idx].get("last_seen", 0),
+                "time_gap": timestamp - self.gallery_metadata[best_idx].get("last_seen", 0),
             }
 
         return None
@@ -352,11 +344,7 @@ class HardTripletMiner:
             hardest_neg_idx = torch.where(diff_person)[0][neg_dists.argmin()]
 
             # Check if this is a valid triplet (violates margin)
-            if (
-                dist_matrix[i, hardest_pos_idx] - dist_matrix[i, hardest_neg_idx]
-                + self.margin
-                > 0
-            ):
+            if dist_matrix[i, hardest_pos_idx] - dist_matrix[i, hardest_neg_idx] + self.margin > 0:
                 anchors.append(i)
                 positives.append(hardest_pos_idx.item())
                 negatives.append(hardest_neg_idx.item())

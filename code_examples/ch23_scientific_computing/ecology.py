@@ -9,6 +9,7 @@ import torch.nn.functional as F
 @dataclass
 class EcologyConfig:
     """Configuration for ecology embedding models."""
+
     image_size: int = 224
     audio_length: int = 10  # seconds
     sample_rate: int = 22050
@@ -37,35 +38,34 @@ class SpeciesImageEncoder(nn.Module):
             nn.BatchNorm2d(64),
             nn.ReLU(),
             nn.MaxPool2d(3, stride=2, padding=1),
-
             nn.Conv2d(64, 128, 3, padding=1),
             nn.BatchNorm2d(128),
             nn.ReLU(),
             nn.MaxPool2d(2),
-
             nn.Conv2d(128, 256, 3, padding=1),
             nn.BatchNorm2d(256),
             nn.ReLU(),
             nn.MaxPool2d(2),
-
             nn.Conv2d(256, 512, 3, padding=1),
             nn.BatchNorm2d(512),
             nn.ReLU(),
-            nn.AdaptiveAvgPool2d(1)
+            nn.AdaptiveAvgPool2d(1),
         )
 
         self.projection = nn.Linear(512, config.embedding_dim)
 
         # Hierarchical classification heads (Kingdom -> Phylum -> ... -> Species)
-        self.taxonomy_heads = nn.ModuleDict({
-            'kingdom': nn.Linear(config.embedding_dim, 5),
-            'phylum': nn.Linear(config.embedding_dim, 35),
-            'class': nn.Linear(config.embedding_dim, 100),
-            'order': nn.Linear(config.embedding_dim, 500),
-            'family': nn.Linear(config.embedding_dim, 1500),
-            'genus': nn.Linear(config.embedding_dim, 5000),
-            'species': nn.Linear(config.embedding_dim, config.n_species)
-        })
+        self.taxonomy_heads = nn.ModuleDict(
+            {
+                "kingdom": nn.Linear(config.embedding_dim, 5),
+                "phylum": nn.Linear(config.embedding_dim, 35),
+                "class": nn.Linear(config.embedding_dim, 100),
+                "order": nn.Linear(config.embedding_dim, 500),
+                "family": nn.Linear(config.embedding_dim, 1500),
+                "genus": nn.Linear(config.embedding_dim, 5000),
+                "species": nn.Linear(config.embedding_dim, config.n_species),
+            }
+        )
 
     def forward(self, images: torch.Tensor) -> tuple[torch.Tensor, dict]:
         """
@@ -83,10 +83,7 @@ class SpeciesImageEncoder(nn.Module):
         embeddings = F.normalize(embeddings, dim=-1)
 
         # Hierarchical predictions
-        taxonomy_logits = {
-            level: head(embeddings)
-            for level, head in self.taxonomy_heads.items()
-        }
+        taxonomy_logits = {level: head(embeddings) for level, head in self.taxonomy_heads.items()}
 
         return embeddings, taxonomy_logits
 
@@ -112,27 +109,24 @@ class BioacousticEncoder(nn.Module):
             nn.BatchNorm2d(32),
             nn.ReLU(),
             nn.MaxPool2d((2, 2)),
-
             nn.Conv2d(32, 64, kernel_size=(3, 3), padding=1),
             nn.BatchNorm2d(64),
             nn.ReLU(),
             nn.MaxPool2d((2, 2)),
-
             nn.Conv2d(64, 128, kernel_size=(3, 3), padding=1),
             nn.BatchNorm2d(128),
             nn.ReLU(),
             nn.MaxPool2d((2, 2)),
-
             nn.Conv2d(128, 256, kernel_size=(3, 3), padding=1),
             nn.BatchNorm2d(256),
             nn.ReLU(),
-            nn.AdaptiveAvgPool2d((4, 4))
+            nn.AdaptiveAvgPool2d((4, 4)),
         )
 
         self.projection = nn.Sequential(
             nn.Linear(256 * 16, config.hidden_dim),
             nn.ReLU(),
-            nn.Linear(config.hidden_dim, config.embedding_dim)
+            nn.Linear(config.hidden_dim, config.embedding_dim),
         )
 
     def forward(self, spectrograms: torch.Tensor) -> torch.Tensor:
@@ -176,16 +170,14 @@ class DNABarcodeEncoder(nn.Module):
             nn.BatchNorm1d(128),
             nn.ReLU(),
             nn.MaxPool1d(2),
-
             nn.Conv1d(128, 256, kernel_size=5, padding=2),
             nn.BatchNorm1d(256),
             nn.ReLU(),
             nn.MaxPool1d(2),
-
             nn.Conv1d(256, 512, kernel_size=3, padding=1),
             nn.BatchNorm1d(512),
             nn.ReLU(),
-            nn.AdaptiveAvgPool1d(16)
+            nn.AdaptiveAvgPool1d(16),
         )
 
         # Transformer for long-range dependencies
@@ -196,11 +188,7 @@ class DNABarcodeEncoder(nn.Module):
 
         self.projection = nn.Linear(512, config.embedding_dim)
 
-    def forward(
-        self,
-        sequences: torch.Tensor,
-        mask: Optional[torch.Tensor] = None
-    ) -> torch.Tensor:
+    def forward(self, sequences: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
         """
         Encode DNA barcode sequence.
 
@@ -254,21 +242,23 @@ class MultiModalSpeciesEncoder(nn.Module):
         self.fusion = nn.Sequential(
             nn.Linear(config.embedding_dim * 3, config.hidden_dim),
             nn.ReLU(),
-            nn.Linear(config.hidden_dim, config.embedding_dim)
+            nn.Linear(config.hidden_dim, config.embedding_dim),
         )
 
         # Modality-specific confidence
-        self.confidence_heads = nn.ModuleDict({
-            'image': nn.Linear(config.embedding_dim, 1),
-            'audio': nn.Linear(config.embedding_dim, 1),
-            'dna': nn.Linear(config.embedding_dim, 1)
-        })
+        self.confidence_heads = nn.ModuleDict(
+            {
+                "image": nn.Linear(config.embedding_dim, 1),
+                "audio": nn.Linear(config.embedding_dim, 1),
+                "dna": nn.Linear(config.embedding_dim, 1),
+            }
+        )
 
     def forward(
         self,
         image: Optional[torch.Tensor] = None,
         spectrogram: Optional[torch.Tensor] = None,
-        dna_sequence: Optional[torch.Tensor] = None
+        dna_sequence: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, dict]:
         """
         Encode species from available modalities.
@@ -289,26 +279,20 @@ class MultiModalSpeciesEncoder(nn.Module):
         if image is not None:
             img_emb, _ = self.image_encoder(image)
             embeddings.append(img_emb)
-            modality_names.append('image')
-            confidences['image'] = torch.sigmoid(
-                self.confidence_heads['image'](img_emb)
-            )
+            modality_names.append("image")
+            confidences["image"] = torch.sigmoid(self.confidence_heads["image"](img_emb))
 
         if spectrogram is not None:
             audio_emb = self.audio_encoder(spectrogram)
             embeddings.append(audio_emb)
-            modality_names.append('audio')
-            confidences['audio'] = torch.sigmoid(
-                self.confidence_heads['audio'](audio_emb)
-            )
+            modality_names.append("audio")
+            confidences["audio"] = torch.sigmoid(self.confidence_heads["audio"](audio_emb))
 
         if dna_sequence is not None:
             dna_emb = self.dna_encoder(dna_sequence)
             embeddings.append(dna_emb)
-            modality_names.append('dna')
-            confidences['dna'] = torch.sigmoid(
-                self.confidence_heads['dna'](dna_emb)
-            )
+            modality_names.append("dna")
+            confidences["dna"] = torch.sigmoid(self.confidence_heads["dna"](dna_emb))
 
         if len(embeddings) == 0:
             raise ValueError("At least one modality must be provided")
@@ -348,10 +332,7 @@ class BiodiversitySurveySystem:
         self.species_metadata = None  # List of species info
 
     def identify_species(
-        self,
-        embedding: torch.Tensor,
-        k: int = 5,
-        threshold: float = 0.7
+        self, embedding: torch.Tensor, k: int = 5, threshold: float = 0.7
     ) -> list[dict]:
         """
         Identify species from embedding.
@@ -367,30 +348,26 @@ class BiodiversitySurveySystem:
         if self.species_embeddings is None:
             raise ValueError("Species database not loaded")
 
-        similarities = F.cosine_similarity(
-            embedding.unsqueeze(0),
-            self.species_embeddings
-        )
+        similarities = F.cosine_similarity(embedding.unsqueeze(0), self.species_embeddings)
 
         top_k = torch.topk(similarities, k)
 
         candidates = []
         for idx, sim in zip(top_k.indices, top_k.values):
             if sim.item() >= threshold:
-                candidates.append({
-                    'species_id': self.species_metadata[idx]['id'],
-                    'scientific_name': self.species_metadata[idx]['scientific_name'],
-                    'common_name': self.species_metadata[idx]['common_name'],
-                    'confidence': sim.item(),
-                    'taxonomy': self.species_metadata[idx]['taxonomy']
-                })
+                candidates.append(
+                    {
+                        "species_id": self.species_metadata[idx]["id"],
+                        "scientific_name": self.species_metadata[idx]["scientific_name"],
+                        "common_name": self.species_metadata[idx]["common_name"],
+                        "confidence": sim.item(),
+                        "taxonomy": self.species_metadata[idx]["taxonomy"],
+                    }
+                )
 
         return candidates
 
-    def compute_diversity_metrics(
-        self,
-        site_embeddings: list[torch.Tensor]
-    ) -> dict:
+    def compute_diversity_metrics(self, site_embeddings: list[torch.Tensor]) -> dict:
         """
         Compute biodiversity metrics from species detections at a site.
 
@@ -401,7 +378,7 @@ class BiodiversitySurveySystem:
             Diversity metrics (richness, evenness, etc.)
         """
         if len(site_embeddings) == 0:
-            return {'richness': 0, 'shannon_index': 0, 'simpson_index': 0}
+            return {"richness": 0, "shannon_index": 0, "simpson_index": 0}
 
         # Stack embeddings
         embeddings = torch.stack(site_embeddings)
@@ -420,7 +397,7 @@ class BiodiversitySurveySystem:
         simpson_index = 1.0 - (1.0 / unique_species) if unique_species > 0 else 0
 
         return {
-            'richness': unique_species,
-            'shannon_index': shannon_index.item(),
-            'simpson_index': simpson_index
+            "richness": unique_species,
+            "shannon_index": shannon_index.item(),
+            "simpson_index": simpson_index,
         }

@@ -9,6 +9,7 @@ import torch.nn.functional as F
 @dataclass
 class AstroEmbeddingConfig:
     """Configuration for astronomical embedding models."""
+
     image_size: int = 64  # Galaxy image size
     n_bands: int = 5  # Multi-band imaging (u, g, r, i, z)
     embedding_dim: int = 256
@@ -35,27 +36,24 @@ class GalaxyMorphologyEncoder(nn.Module):
             nn.BatchNorm2d(64),
             nn.ReLU(),
             nn.MaxPool2d(2),
-
             nn.Conv2d(64, 128, kernel_size=3, padding=1),
             nn.BatchNorm2d(128),
             nn.ReLU(),
             nn.MaxPool2d(2),
-
             nn.Conv2d(128, 256, kernel_size=3, padding=1),
             nn.BatchNorm2d(256),
             nn.ReLU(),
             nn.MaxPool2d(2),
-
             nn.Conv2d(256, 512, kernel_size=3, padding=1),
             nn.BatchNorm2d(512),
             nn.ReLU(),
-            nn.AdaptiveAvgPool2d(1)  # Global average pooling
+            nn.AdaptiveAvgPool2d(1),  # Global average pooling
         )
 
         self.projection = nn.Sequential(
             nn.Linear(512, config.hidden_dim),
             nn.ReLU(),
-            nn.Linear(config.hidden_dim, config.embedding_dim)
+            nn.Linear(config.hidden_dim, config.embedding_dim),
         )
 
     def forward(self, images: torch.Tensor) -> torch.Tensor:
@@ -92,16 +90,14 @@ class StellarSpectrumEncoder(nn.Module):
             nn.BatchNorm1d(64),
             nn.ReLU(),
             nn.MaxPool1d(4),
-
             nn.Conv1d(64, 128, kernel_size=5, padding=2),
             nn.BatchNorm1d(128),
             nn.ReLU(),
             nn.MaxPool1d(4),
-
             nn.Conv1d(128, 256, kernel_size=3, padding=1),
             nn.BatchNorm1d(256),
             nn.ReLU(),
-            nn.AdaptiveAvgPool1d(32)
+            nn.AdaptiveAvgPool1d(32),
         )
 
         # Attention over spectral regions (emission/absorption lines)
@@ -110,13 +106,11 @@ class StellarSpectrumEncoder(nn.Module):
         self.projection = nn.Sequential(
             nn.Linear(256 * 32, config.hidden_dim),
             nn.ReLU(),
-            nn.Linear(config.hidden_dim, config.embedding_dim)
+            nn.Linear(config.hidden_dim, config.embedding_dim),
         )
 
     def forward(
-        self,
-        spectra: torch.Tensor,
-        wavelength_mask: Optional[torch.Tensor] = None
+        self, spectra: torch.Tensor, wavelength_mask: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
         """
         Encode stellar spectra.
@@ -175,7 +169,7 @@ class TransientLightCurveEncoder(nn.Module):
         times: torch.Tensor,
         magnitudes: torch.Tensor,
         errors: torch.Tensor,
-        mask: Optional[torch.Tensor] = None
+        mask: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """
         Encode light curves with irregular sampling.
@@ -234,7 +228,7 @@ class AstronomicalSearchSystem:
         times: torch.Tensor,
         mags: torch.Tensor,
         errors: torch.Tensor,
-        reference_embeddings: dict[str, torch.Tensor]
+        reference_embeddings: dict[str, torch.Tensor],
     ) -> dict[str, float]:
         """
         Classify a transient event by comparing to reference classes.
@@ -262,34 +256,29 @@ class AstronomicalSearchSystem:
         if total > 0:
             probs = {k: max(0, v) / total for k, v in similarities.items()}
         else:
-            probs = {k: 1/len(similarities) for k in similarities}
+            probs = {k: 1 / len(similarities) for k in similarities}
 
         return probs
 
-    def find_similar_objects(
-        self,
-        query_embedding: torch.Tensor,
-        k: int = 10
-    ) -> list[dict]:
+    def find_similar_objects(self, query_embedding: torch.Tensor, k: int = 10) -> list[dict]:
         """
         Find k most similar astronomical objects in catalog.
         """
         if self.catalog_embeddings is None:
             raise ValueError("Catalog not loaded")
 
-        similarities = F.cosine_similarity(
-            query_embedding.unsqueeze(0),
-            self.catalog_embeddings
-        )
+        similarities = F.cosine_similarity(query_embedding.unsqueeze(0), self.catalog_embeddings)
 
         top_k = torch.topk(similarities, k)
 
         results = []
         for idx, sim in zip(top_k.indices, top_k.values):
-            results.append({
-                "object_id": self.catalog_metadata[idx]["id"],
-                "similarity": sim.item(),
-                "metadata": self.catalog_metadata[idx]
-            })
+            results.append(
+                {
+                    "object_id": self.catalog_metadata[idx]["id"],
+                    "similarity": sim.item(),
+                    "metadata": self.catalog_metadata[idx],
+                }
+            )
 
         return results

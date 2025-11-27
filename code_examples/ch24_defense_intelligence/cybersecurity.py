@@ -9,6 +9,7 @@ import torch.nn.functional as F
 @dataclass
 class CyberConfig:
     """Configuration for cybersecurity embedding models."""
+
     n_syscall_types: int = 500
     n_api_types: int = 1000
     max_sequence_length: int = 1000
@@ -41,7 +42,7 @@ class BehavioralEncoder(nn.Module):
             hidden_size=config.embedding_dim,
             num_layers=2,
             batch_first=True,
-            bidirectional=True
+            bidirectional=True,
         )
 
         # Project to embedding
@@ -51,7 +52,7 @@ class BehavioralEncoder(nn.Module):
         self,
         action_ids: torch.Tensor,
         context_features: torch.Tensor,
-        mask: Optional[torch.Tensor] = None
+        mask: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """
         Encode behavioral sequence.
@@ -103,7 +104,7 @@ class MalwareEncoder(nn.Module):
         self.static_encoder = nn.Sequential(
             nn.Linear(1000, config.hidden_dim),  # Static features
             nn.ReLU(),
-            nn.Linear(config.hidden_dim, config.embedding_dim)
+            nn.Linear(config.hidden_dim, config.embedding_dim),
         )
 
         # Dynamic feature encoder (API call sequences)
@@ -114,16 +115,16 @@ class MalwareEncoder(nn.Module):
                 d_model=config.embedding_dim,
                 nhead=8,
                 dim_feedforward=config.hidden_dim,
-                batch_first=True
+                batch_first=True,
             ),
-            num_layers=4
+            num_layers=4,
         )
 
         # Fusion
         self.fusion = nn.Sequential(
             nn.Linear(config.embedding_dim * 2, config.hidden_dim),
             nn.ReLU(),
-            nn.Linear(config.hidden_dim, config.embedding_dim)
+            nn.Linear(config.hidden_dim, config.embedding_dim),
         )
 
         # Family classifier
@@ -133,7 +134,7 @@ class MalwareEncoder(nn.Module):
         self,
         static_features: torch.Tensor,
         api_sequence: torch.Tensor,
-        api_mask: Optional[torch.Tensor] = None
+        api_mask: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Encode malware sample.
@@ -154,12 +155,12 @@ class MalwareEncoder(nn.Module):
         # Encode dynamic behavior
         api_emb = self.api_embed(api_sequence)
         if api_mask is not None:
-            dynamic_features = self.dynamic_encoder(
-                api_emb, src_key_padding_mask=~api_mask.bool()
-            )
+            dynamic_features = self.dynamic_encoder(api_emb, src_key_padding_mask=~api_mask.bool())
             # Masked mean pooling
             dynamic_features = dynamic_features * api_mask.unsqueeze(-1)
-            dynamic_emb = dynamic_features.sum(dim=1) / api_mask.sum(dim=1, keepdim=True).clamp(min=1)
+            dynamic_emb = dynamic_features.sum(dim=1) / api_mask.sum(dim=1, keepdim=True).clamp(
+                min=1
+            )
         else:
             dynamic_features = self.dynamic_encoder(api_emb)
             dynamic_emb = dynamic_features.mean(dim=1)
@@ -193,7 +194,7 @@ class NetworkTrafficEncoder(nn.Module):
         self.flow_encoder = nn.Sequential(
             nn.Linear(40, config.hidden_dim),  # Packet/flow features
             nn.ReLU(),
-            nn.Linear(config.hidden_dim, config.embedding_dim)
+            nn.Linear(config.hidden_dim, config.embedding_dim),
         )
 
         # Temporal pattern encoder
@@ -201,22 +202,21 @@ class NetworkTrafficEncoder(nn.Module):
             input_size=config.embedding_dim,
             hidden_size=config.embedding_dim,
             num_layers=2,
-            batch_first=True
+            batch_first=True,
         )
 
         # Anomaly scorer
         self.anomaly_head = nn.Sequential(
             nn.Linear(config.embedding_dim, config.hidden_dim),
             nn.ReLU(),
-            nn.Linear(config.hidden_dim, 1)
+            nn.Linear(config.hidden_dim, 1),
         )
 
         # Attack type classifier
         self.attack_classifier = nn.Linear(config.embedding_dim, config.n_attack_types)
 
     def forward(
-        self,
-        flow_features: torch.Tensor
+        self, flow_features: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Encode network traffic.
@@ -265,7 +265,7 @@ class ThreatActorProfiler(nn.Module):
         self.infra_encoder = nn.Sequential(
             nn.Linear(200, config.hidden_dim),
             nn.ReLU(),
-            nn.Linear(config.hidden_dim, config.embedding_dim)
+            nn.Linear(config.hidden_dim, config.embedding_dim),
         )
 
         # Temporal pattern (attack timing)
@@ -277,18 +277,15 @@ class ThreatActorProfiler(nn.Module):
                 d_model=config.embedding_dim,
                 nhead=8,
                 dim_feedforward=config.hidden_dim,
-                batch_first=True
+                batch_first=True,
             ),
-            num_layers=4
+            num_layers=4,
         )
 
         self.projection = nn.Linear(config.embedding_dim, config.embedding_dim)
 
     def forward(
-        self,
-        ttp_ids: torch.Tensor,
-        infra_features: torch.Tensor,
-        temporal_features: torch.Tensor
+        self, ttp_ids: torch.Tensor, infra_features: torch.Tensor, temporal_features: torch.Tensor
     ) -> torch.Tensor:
         """
         Create threat actor profile.
@@ -338,11 +335,7 @@ class ThreatIntelligenceSystem:
         self.actor_embeddings = None
         self.actor_metadata = None
 
-    def detect_anomaly(
-        self,
-        behavior_embedding: torch.Tensor,
-        threshold: float = 0.7
-    ) -> dict:
+    def detect_anomaly(self, behavior_embedding: torch.Tensor, threshold: float = 0.7) -> dict:
         """
         Detect behavioral anomaly.
         """
@@ -351,8 +344,7 @@ class ThreatIntelligenceSystem:
 
         # Find nearest baseline behavior
         similarities = F.cosine_similarity(
-            behavior_embedding.unsqueeze(0),
-            self.baseline_embeddings
+            behavior_embedding.unsqueeze(0), self.baseline_embeddings
         )
 
         max_similarity = similarities.max().item()
@@ -361,14 +353,10 @@ class ThreatIntelligenceSystem:
         return {
             "is_anomaly": is_anomaly,
             "similarity_to_baseline": max_similarity,
-            "confidence": 1 - max_similarity if is_anomaly else max_similarity
+            "confidence": 1 - max_similarity if is_anomaly else max_similarity,
         }
 
-    def classify_malware(
-        self,
-        static_features: torch.Tensor,
-        api_sequence: torch.Tensor
-    ) -> dict:
+    def classify_malware(self, static_features: torch.Tensor, api_sequence: torch.Tensor) -> dict:
         """
         Classify malware sample.
         """
@@ -382,7 +370,7 @@ class ThreatIntelligenceSystem:
             "embedding": embedding,
             "predicted_family": predicted_family.item(),
             "confidence": confidence.item(),
-            "family_probabilities": family_probs
+            "family_probabilities": family_probs,
         }
 
     def attribute_attack(
@@ -390,7 +378,7 @@ class ThreatIntelligenceSystem:
         ttp_ids: torch.Tensor,
         infra_features: torch.Tensor,
         temporal_features: torch.Tensor,
-        k: int = 5
+        k: int = 5,
     ) -> list[dict]:
         """
         Attribute attack to known threat actors.
@@ -400,19 +388,19 @@ class ThreatIntelligenceSystem:
         if self.actor_embeddings is None:
             return []
 
-        similarities = F.cosine_similarity(
-            attack_profile, self.actor_embeddings
-        )
+        similarities = F.cosine_similarity(attack_profile, self.actor_embeddings)
 
         top_k = torch.topk(similarities, k)
 
         attributions = []
         for idx, sim in zip(top_k.indices, top_k.values):
-            attributions.append({
-                "actor_id": self.actor_metadata[idx]["id"],
-                "actor_name": self.actor_metadata[idx]["name"],
-                "confidence": sim.item(),
-                "known_ttps": self.actor_metadata[idx]["ttps"]
-            })
+            attributions.append(
+                {
+                    "actor_id": self.actor_metadata[idx]["id"],
+                    "actor_name": self.actor_metadata[idx]["name"],
+                    "confidence": sim.item(),
+                    "known_ttps": self.actor_metadata[idx]["ttps"],
+                }
+            )
 
         return attributions

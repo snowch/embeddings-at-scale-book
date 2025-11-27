@@ -47,30 +47,21 @@ class VideoAutoencoder(nn.Module):
         # Decoder
         self.decoder = nn.Sequential(
             nn.ConvTranspose3d(
-                config.embedding_dim, 256, kernel_size=3, stride=2, padding=1,
-                output_padding=1
+                config.embedding_dim, 256, kernel_size=3, stride=2, padding=1, output_padding=1
             ),
             nn.BatchNorm3d(256),
             nn.ReLU(),
-            nn.ConvTranspose3d(
-                256, 128, kernel_size=3, stride=2, padding=1, output_padding=1
-            ),
+            nn.ConvTranspose3d(256, 128, kernel_size=3, stride=2, padding=1, output_padding=1),
             nn.BatchNorm3d(128),
             nn.ReLU(),
-            nn.ConvTranspose3d(
-                128, 64, kernel_size=3, stride=2, padding=1, output_padding=1
-            ),
+            nn.ConvTranspose3d(128, 64, kernel_size=3, stride=2, padding=1, output_padding=1),
             nn.BatchNorm3d(64),
             nn.ReLU(),
-            nn.ConvTranspose3d(
-                64, 3, kernel_size=3, stride=2, padding=1, output_padding=1
-            ),
+            nn.ConvTranspose3d(64, 3, kernel_size=3, stride=2, padding=1, output_padding=1),
             nn.Sigmoid(),
         )
 
-    def forward(
-        self, video: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward(self, video: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Encode and reconstruct video.
 
@@ -191,9 +182,7 @@ class MemoryAugmentedAnomalyDetector(nn.Module):
         self.projection = nn.Linear(256, config.embedding_dim)
 
         # Memory bank of normal prototypes
-        self.memory = nn.Parameter(
-            torch.randn(config.memory_size, config.embedding_dim) * 0.02
-        )
+        self.memory = nn.Parameter(torch.randn(config.memory_size, config.embedding_dim) * 0.02)
 
         # Decoder from memory-augmented representation
         self.decoder = nn.Sequential(
@@ -210,9 +199,7 @@ class MemoryAugmentedAnomalyDetector(nn.Module):
             nn.Sigmoid(),
         )
 
-    def forward(
-        self, video: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward(self, video: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Detect anomalies using memory augmentation.
 
@@ -293,7 +280,7 @@ class VideoAnomalyDetectionSystem:
             # Split into past/future
             t = video.shape[2]
             past = video[:, :, : t // 2]
-            future = video[:, :, t // 2:]
+            future = video[:, :, t // 2 :]
             _, pred_error = self.predictor(past, future)
             scores.append(pred_error)
 
@@ -330,20 +317,20 @@ class VideoAnomalyDetectionSystem:
         scores = self.compute_anomaly_score(video, method="ensemble")
 
         # Get context-specific threshold
-        threshold = self.context_baselines.get(camera_id, {}).get(
-            "threshold", self.threshold
-        )
+        threshold = self.context_baselines.get(camera_id, {}).get("threshold", self.threshold)
 
         anomalies = []
         for i, score in enumerate(scores):
             if score.item() > threshold:
-                anomalies.append({
-                    "batch_idx": i,
-                    "anomaly_score": score.item(),
-                    "camera_id": camera_id,
-                    "timestamp": timestamp,
-                    "confidence": min(1.0, (score.item() - threshold) / threshold),
-                })
+                anomalies.append(
+                    {
+                        "batch_idx": i,
+                        "anomaly_score": score.item(),
+                        "camera_id": camera_id,
+                        "timestamp": timestamp,
+                        "confidence": min(1.0, (score.item() - threshold) / threshold),
+                    }
+                )
 
         return anomalies
 

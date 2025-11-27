@@ -111,9 +111,7 @@ class AttributeExtractor(nn.Module):
             # ... more attributes
         ]
 
-    def forward(
-        self, images: torch.Tensor
-    ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
+    def forward(self, images: torch.Tensor) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
         """
         Extract attributes from images.
 
@@ -256,12 +254,14 @@ class VideoArchiveIndex:
         frame_id = len(self.frame_embeddings)
         self.frame_embeddings.append(embedding)
         self.frame_attributes.append(attr_dict)
-        self.frame_metadata.append({
-            "frame_id": frame_id,
-            "camera_id": camera_id,
-            "timestamp": timestamp,
-            "frame_number": frame_number,
-        })
+        self.frame_metadata.append(
+            {
+                "frame_id": frame_id,
+                "camera_id": camera_id,
+                "timestamp": timestamp,
+                "frame_number": frame_number,
+            }
+        )
 
         return frame_id
 
@@ -316,11 +316,13 @@ class VideoArchiveIndex:
         for idx, sim in zip(top_k.indices, top_k.values):
             if sim.item() < 0:
                 continue
-            results.append({
-                **self.frame_metadata[idx],
-                "similarity": sim.item(),
-                "attributes": self.frame_attributes[idx],
-            })
+            results.append(
+                {
+                    **self.frame_metadata[idx],
+                    "similarity": sim.item(),
+                    "attributes": self.frame_attributes[idx],
+                }
+            )
 
         return results
 
@@ -358,11 +360,13 @@ class VideoArchiveIndex:
             if scores:
                 match_score = sum(scores) / len(scores)
                 if match_score >= threshold:
-                    results.append({
-                        **self.frame_metadata[i],
-                        "match_score": match_score,
-                        "attributes": frame_attrs,
-                    })
+                    results.append(
+                        {
+                            **self.frame_metadata[i],
+                            "match_score": match_score,
+                            "attributes": frame_attrs,
+                        }
+                    )
 
         # Sort by match score
         results.sort(key=lambda x: x["match_score"], reverse=True)
@@ -396,26 +400,28 @@ class VideoArchiveIndex:
             bucket_end = bucket_start + bucket_size
 
             # Get frames in this bucket
-            bucket_mask = [
-                bucket_start <= ts < bucket_end for ts in timestamps
-            ]
+            bucket_mask = [bucket_start <= ts < bucket_end for ts in timestamps]
             bucket_sims = similarities[bucket_mask]
 
             if len(bucket_sims) > 0:
-                timeline.append({
-                    "start": bucket_start,
-                    "end": bucket_end,
-                    "count": len(bucket_sims),
-                    "max_similarity": bucket_sims.max().item(),
-                    "avg_similarity": bucket_sims.mean().item(),
-                })
+                timeline.append(
+                    {
+                        "start": bucket_start,
+                        "end": bucket_end,
+                        "count": len(bucket_sims),
+                        "max_similarity": bucket_sims.max().item(),
+                        "avg_similarity": bucket_sims.mean().item(),
+                    }
+                )
             else:
-                timeline.append({
-                    "start": bucket_start,
-                    "end": bucket_end,
-                    "count": 0,
-                    "max_similarity": 0,
-                    "avg_similarity": 0,
-                })
+                timeline.append(
+                    {
+                        "start": bucket_start,
+                        "end": bucket_end,
+                        "count": 0,
+                        "max_similarity": 0,
+                        "avg_similarity": 0,
+                    }
+                )
 
         return timeline

@@ -9,6 +9,7 @@ import torch.nn.functional as F
 @dataclass
 class AutonomousConfig:
     """Configuration for autonomous systems embedding models."""
+
     lidar_points: int = 16384
     image_size: int = 256
     radar_bins: int = 256
@@ -42,7 +43,7 @@ class MultiSensorFusion(nn.Module):
             nn.Conv2d(128, 256, 3, padding=1),
             nn.BatchNorm2d(256),
             nn.ReLU(),
-            nn.AdaptiveAvgPool2d(8)
+            nn.AdaptiveAvgPool2d(8),
         )
         self.camera_projection = nn.Linear(256 * 64, config.embedding_dim)
 
@@ -59,7 +60,7 @@ class MultiSensorFusion(nn.Module):
             nn.MaxPool1d(4),
             nn.Conv1d(128, 256, 3, padding=1),
             nn.ReLU(),
-            nn.AdaptiveAvgPool1d(16)
+            nn.AdaptiveAvgPool1d(16),
         )
         self.radar_projection = nn.Linear(256 * 16, config.embedding_dim)
 
@@ -72,21 +73,23 @@ class MultiSensorFusion(nn.Module):
         self.fusion = nn.Sequential(
             nn.Linear(config.embedding_dim * 3, config.hidden_dim),
             nn.ReLU(),
-            nn.Linear(config.hidden_dim, config.embedding_dim)
+            nn.Linear(config.hidden_dim, config.embedding_dim),
         )
 
         # Confidence estimation per modality
-        self.confidence_heads = nn.ModuleDict({
-            'camera': nn.Linear(config.embedding_dim, 1),
-            'lidar': nn.Linear(config.embedding_dim, 1),
-            'radar': nn.Linear(config.embedding_dim, 1)
-        })
+        self.confidence_heads = nn.ModuleDict(
+            {
+                "camera": nn.Linear(config.embedding_dim, 1),
+                "lidar": nn.Linear(config.embedding_dim, 1),
+                "radar": nn.Linear(config.embedding_dim, 1),
+            }
+        )
 
     def forward(
         self,
         camera: Optional[torch.Tensor] = None,
         lidar: Optional[torch.Tensor] = None,
-        radar: Optional[torch.Tensor] = None
+        radar: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, dict]:
         """
         Fuse available sensor modalities.
@@ -109,28 +112,22 @@ class MultiSensorFusion(nn.Module):
             cam_emb = self.camera_projection(cam_feat)
             cam_emb = F.normalize(cam_emb, dim=-1)
             embeddings.append(cam_emb)
-            modalities.append('camera')
-            confidences['camera'] = torch.sigmoid(
-                self.confidence_heads['camera'](cam_emb)
-            )
+            modalities.append("camera")
+            confidences["camera"] = torch.sigmoid(self.confidence_heads["camera"](cam_emb))
 
         if lidar is not None:
             lidar_emb = self.lidar_encoder(lidar)
             embeddings.append(lidar_emb)
-            modalities.append('lidar')
-            confidences['lidar'] = torch.sigmoid(
-                self.confidence_heads['lidar'](lidar_emb)
-            )
+            modalities.append("lidar")
+            confidences["lidar"] = torch.sigmoid(self.confidence_heads["lidar"](lidar_emb))
 
         if radar is not None:
             radar_feat = self.radar_encoder(radar).flatten(1)
             radar_emb = self.radar_projection(radar_feat)
             radar_emb = F.normalize(radar_emb, dim=-1)
             embeddings.append(radar_emb)
-            modalities.append('radar')
-            confidences['radar'] = torch.sigmoid(
-                self.confidence_heads['radar'](radar_emb)
-            )
+            modalities.append("radar")
+            confidences["radar"] = torch.sigmoid(self.confidence_heads["radar"](radar_emb))
 
         if len(embeddings) == 0:
             raise ValueError("At least one sensor modality required")
@@ -164,18 +161,12 @@ class PointCloudEncoder(nn.Module):
 
         # PointNet-style architecture
         self.point_encoder = nn.Sequential(
-            nn.Linear(3, 64),
-            nn.ReLU(),
-            nn.Linear(64, 128),
-            nn.ReLU(),
-            nn.Linear(128, 256)
+            nn.Linear(3, 64), nn.ReLU(), nn.Linear(64, 128), nn.ReLU(), nn.Linear(128, 256)
         )
 
         # Global feature aggregation
         self.global_encoder = nn.Sequential(
-            nn.Linear(256, 512),
-            nn.ReLU(),
-            nn.Linear(512, config.embedding_dim)
+            nn.Linear(256, 512), nn.ReLU(), nn.Linear(512, config.embedding_dim)
         )
 
     def forward(self, points: torch.Tensor) -> torch.Tensor:
@@ -224,7 +215,7 @@ class TerrainEncoder(nn.Module):
             nn.MaxPool2d(2),
             nn.Conv2d(128, 256, 3, padding=1),
             nn.ReLU(),
-            nn.AdaptiveAvgPool2d(4)
+            nn.AdaptiveAvgPool2d(4),
         )
 
         self.projection = nn.Linear(256 * 16, config.embedding_dim)
@@ -260,35 +251,32 @@ class MissionContextEncoder(nn.Module):
         self.mission_encoder = nn.Sequential(
             nn.Linear(100, config.hidden_dim),  # Mission parameters
             nn.ReLU(),
-            nn.Linear(config.hidden_dim, config.embedding_dim)
+            nn.Linear(config.hidden_dim, config.embedding_dim),
         )
 
         # Constraint encoder
         self.constraint_encoder = nn.Sequential(
             nn.Linear(50, config.hidden_dim),  # ROE, boundaries, etc.
             nn.ReLU(),
-            nn.Linear(config.hidden_dim, config.embedding_dim)
+            nn.Linear(config.hidden_dim, config.embedding_dim),
         )
 
         # State encoder (platform status, resources)
         self.state_encoder = nn.Sequential(
             nn.Linear(30, config.hidden_dim),
             nn.ReLU(),
-            nn.Linear(config.hidden_dim, config.embedding_dim)
+            nn.Linear(config.hidden_dim, config.embedding_dim),
         )
 
         # Fusion
         self.fusion = nn.Sequential(
             nn.Linear(config.embedding_dim * 3, config.hidden_dim),
             nn.ReLU(),
-            nn.Linear(config.hidden_dim, config.embedding_dim)
+            nn.Linear(config.hidden_dim, config.embedding_dim),
         )
 
     def forward(
-        self,
-        mission_params: torch.Tensor,
-        constraints: torch.Tensor,
-        platform_state: torch.Tensor
+        self, mission_params: torch.Tensor, constraints: torch.Tensor, platform_state: torch.Tensor
     ) -> torch.Tensor:
         """
         Encode mission context.
@@ -327,7 +315,7 @@ class MultiAgentCoordination(nn.Module):
         self.agent_encoder = nn.Sequential(
             nn.Linear(50, config.hidden_dim),  # Position, heading, status, capabilities
             nn.ReLU(),
-            nn.Linear(config.hidden_dim, config.embedding_dim)
+            nn.Linear(config.hidden_dim, config.embedding_dim),
         )
 
         # Team coordination via attention
@@ -336,18 +324,16 @@ class MultiAgentCoordination(nn.Module):
                 d_model=config.embedding_dim,
                 nhead=8,
                 dim_feedforward=config.hidden_dim,
-                batch_first=True
+                batch_first=True,
             ),
-            num_layers=4
+            num_layers=4,
         )
 
         # Task assignment head
         self.task_head = nn.Linear(config.embedding_dim, 10)  # Task types
 
     def forward(
-        self,
-        agent_states: torch.Tensor,
-        agent_mask: Optional[torch.Tensor] = None
+        self, agent_states: torch.Tensor, agent_mask: Optional[torch.Tensor] = None
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Coordinate agent team.
@@ -365,9 +351,7 @@ class MultiAgentCoordination(nn.Module):
 
         # Team coordination
         if agent_mask is not None:
-            coordinated = self.team_attention(
-                agent_emb, src_key_padding_mask=~agent_mask.bool()
-            )
+            coordinated = self.team_attention(agent_emb, src_key_padding_mask=~agent_mask.bool())
         else:
             coordinated = self.team_attention(agent_emb)
 
@@ -394,11 +378,7 @@ class AutonomousNavigationSystem:
         self.terrain_database = None
         self.terrain_positions = None
 
-    def localize(
-        self,
-        observed_terrain: torch.Tensor,
-        search_radius_km: float = 10.0
-    ) -> dict:
+    def localize(self, observed_terrain: torch.Tensor, search_radius_km: float = 10.0) -> dict:
         """
         Localize using terrain matching (GPS-denied).
         """
@@ -409,9 +389,7 @@ class AutonomousNavigationSystem:
         obs_emb = self.terrain_encoder(observed_terrain)
 
         # Match against database
-        similarities = F.cosine_similarity(
-            obs_emb, self.terrain_database
-        )
+        similarities = F.cosine_similarity(obs_emb, self.terrain_database)
 
         # Find best match
         best_idx = similarities.argmax()
@@ -420,14 +398,14 @@ class AutonomousNavigationSystem:
         return {
             "position": self.terrain_positions[best_idx],
             "confidence": best_sim.item(),
-            "match_index": best_idx.item()
+            "match_index": best_idx.item(),
         }
 
     def plan_path(
         self,
         current_embedding: torch.Tensor,
         goal_embedding: torch.Tensor,
-        context_embedding: torch.Tensor
+        context_embedding: torch.Tensor,
     ) -> list[torch.Tensor]:
         """
         Plan path considering mission context.

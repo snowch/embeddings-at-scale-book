@@ -9,6 +9,7 @@ import torch.nn.functional as F
 @dataclass
 class SIGINTConfig:
     """Configuration for signals intelligence embedding models."""
+
     vocab_size: int = 50000
     max_seq_length: int = 512
     embedding_dim: int = 768
@@ -43,7 +44,7 @@ class MultilingualTextEncoder(nn.Module):
             nhead=config.n_heads,
             dim_feedforward=config.hidden_dim,
             batch_first=True,
-            norm_first=True
+            norm_first=True,
         )
         self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=config.n_layers)
 
@@ -53,7 +54,7 @@ class MultilingualTextEncoder(nn.Module):
         self,
         input_ids: torch.Tensor,
         attention_mask: Optional[torch.Tensor] = None,
-        language_ids: Optional[torch.Tensor] = None
+        language_ids: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """
         Encode text to language-agnostic embeddings.
@@ -113,14 +114,14 @@ class EntityEmbedding(nn.Module):
         self.attribute_encoder = nn.Sequential(
             nn.Linear(100, config.hidden_dim),  # 100 attribute features
             nn.ReLU(),
-            nn.Linear(config.hidden_dim, config.embedding_dim)
+            nn.Linear(config.hidden_dim, config.embedding_dim),
         )
 
         # Fusion
         self.fusion = nn.Sequential(
             nn.Linear(config.embedding_dim * 2, config.embedding_dim),
             nn.ReLU(),
-            nn.Linear(config.embedding_dim, config.embedding_dim)
+            nn.Linear(config.embedding_dim, config.embedding_dim),
         )
 
     def forward(
@@ -128,7 +129,7 @@ class EntityEmbedding(nn.Module):
         name_ids: torch.Tensor,
         name_mask: torch.Tensor,
         attributes: torch.Tensor,
-        language_ids: Optional[torch.Tensor] = None
+        language_ids: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """
         Encode entity to embedding.
@@ -173,7 +174,7 @@ class CommunicationPatternEncoder(nn.Module):
         self.metadata_encoder = nn.Sequential(
             nn.Linear(50, config.hidden_dim),
             nn.ReLU(),
-            nn.Linear(config.hidden_dim, config.embedding_dim)
+            nn.Linear(config.hidden_dim, config.embedding_dim),
         )
 
         # Temporal pattern encoder
@@ -182,16 +183,14 @@ class CommunicationPatternEncoder(nn.Module):
             hidden_size=config.embedding_dim,
             num_layers=2,
             batch_first=True,
-            bidirectional=True
+            bidirectional=True,
         )
 
         # Project bidirectional output
         self.projection = nn.Linear(config.embedding_dim * 2, config.embedding_dim)
 
     def forward(
-        self,
-        comm_features: torch.Tensor,
-        sequence_mask: Optional[torch.Tensor] = None
+        self, comm_features: torch.Tensor, sequence_mask: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
         """
         Encode communication pattern.
@@ -238,18 +237,16 @@ class NetworkGraphEncoder(nn.Module):
         self.node_encoder = nn.Linear(config.embedding_dim, config.embedding_dim)
 
         # Graph attention layers
-        self.gat_layers = nn.ModuleList([
-            GraphAttentionLayer(config.embedding_dim, config.embedding_dim, n_heads=8)
-            for _ in range(3)
-        ])
+        self.gat_layers = nn.ModuleList(
+            [
+                GraphAttentionLayer(config.embedding_dim, config.embedding_dim, n_heads=8)
+                for _ in range(3)
+            ]
+        )
 
         self.output_projection = nn.Linear(config.embedding_dim, config.embedding_dim)
 
-    def forward(
-        self,
-        node_features: torch.Tensor,
-        edge_index: torch.Tensor
-    ) -> torch.Tensor:
+    def forward(self, node_features: torch.Tensor, edge_index: torch.Tensor) -> torch.Tensor:
         """
         Encode nodes in communication network.
 
@@ -295,7 +292,7 @@ class GraphAttentionLayer(nn.Module):
         # Attention scores for edges
         q_src = q[src]  # [n_edges, n_heads, head_dim]
         k_dst = k[dst]
-        attn = (q_src * k_dst).sum(dim=-1) / (self.head_dim ** 0.5)
+        attn = (q_src * k_dst).sum(dim=-1) / (self.head_dim**0.5)
         attn = F.softmax(attn, dim=0)  # Simplified softmax
 
         # Aggregate
@@ -327,7 +324,7 @@ class EntityResolutionSystem:
         name_ids: torch.Tensor,
         name_mask: torch.Tensor,
         attributes: torch.Tensor,
-        threshold: float = 0.85
+        threshold: float = 0.85,
     ) -> list[dict]:
         """
         Find matching entities in database.
@@ -337,26 +334,24 @@ class EntityResolutionSystem:
         if self.entity_embeddings is None:
             return []
 
-        similarities = F.cosine_similarity(
-            query_emb.unsqueeze(0), self.entity_embeddings
-        )
+        similarities = F.cosine_similarity(query_emb.unsqueeze(0), self.entity_embeddings)
 
         # Return matches above threshold
         matches = []
         for idx, sim in enumerate(similarities[0]):
             if sim.item() >= threshold:
-                matches.append({
-                    "entity_id": self.entity_metadata[idx]["id"],
-                    "name": self.entity_metadata[idx]["name"],
-                    "confidence": sim.item()
-                })
+                matches.append(
+                    {
+                        "entity_id": self.entity_metadata[idx]["id"],
+                        "name": self.entity_metadata[idx]["name"],
+                        "confidence": sim.item(),
+                    }
+                )
 
         return sorted(matches, key=lambda x: x["confidence"], reverse=True)
 
     def cluster_identities(
-        self,
-        embeddings: torch.Tensor,
-        threshold: float = 0.8
+        self, embeddings: torch.Tensor, threshold: float = 0.8
     ) -> list[list[int]]:
         """
         Cluster embeddings into identity groups.
@@ -364,9 +359,7 @@ class EntityResolutionSystem:
         Returns list of clusters (each cluster = same identity).
         """
         n = embeddings.shape[0]
-        similarities = F.cosine_similarity(
-            embeddings.unsqueeze(1), embeddings.unsqueeze(0), dim=2
-        )
+        similarities = F.cosine_similarity(embeddings.unsqueeze(1), embeddings.unsqueeze(0), dim=2)
 
         # Simple greedy clustering
         assigned = set()

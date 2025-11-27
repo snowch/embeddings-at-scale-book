@@ -88,9 +88,7 @@ class ShopliftingDetector(nn.Module):
             # ... more behaviors
         ]
 
-    def forward(
-        self, video_clip: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward(self, video_clip: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Analyze video for shoplifting indicators.
 
@@ -241,9 +239,7 @@ class QueueAnalyzer(nn.Module):
             nn.Sigmoid(),
         )
 
-    def forward(
-        self, queue_region: torch.Tensor
-    ) -> dict[str, torch.Tensor]:
+    def forward(self, queue_region: torch.Tensor) -> dict[str, torch.Tensor]:
         """
         Analyze queue from checkout region.
 
@@ -358,10 +354,10 @@ class RetailAnalyticsSystem:
             return {"error": "No analyses provided"}
 
         # Aggregate metrics
-        suspicion_scores = [a.get("suspicion_score", 0) for a in all_analyses
-                          if "suspicion_score" in a]
-        queue_lengths = [a.get("queue_length", 0) for a in all_analyses
-                        if "queue_length" in a]
+        suspicion_scores = [
+            a.get("suspicion_score", 0) for a in all_analyses if "suspicion_score" in a
+        ]
+        queue_lengths = [a.get("queue_length", 0) for a in all_analyses if "queue_length" in a]
 
         # Count behaviors
         behavior_counts: dict[str, int] = {}
@@ -373,13 +369,13 @@ class RetailAnalyticsSystem:
         return {
             "time_period_hours": time_period_hours,
             "total_analyses": len(all_analyses),
-            "avg_suspicion_score": (sum(suspicion_scores) / len(suspicion_scores)
-                                   if suspicion_scores else 0),
+            "avg_suspicion_score": (
+                sum(suspicion_scores) / len(suspicion_scores) if suspicion_scores else 0
+            ),
             "high_suspicion_incidents": sum(
                 1 for s in suspicion_scores if s > self.suspicion_threshold
             ),
-            "avg_queue_length": (sum(queue_lengths) / len(queue_lengths)
-                                if queue_lengths else 0),
+            "avg_queue_length": (sum(queue_lengths) / len(queue_lengths) if queue_lengths else 0),
             "max_queue_length": max(queue_lengths) if queue_lengths else 0,
             "behavior_distribution": behavior_counts,
         }
