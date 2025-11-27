@@ -63,3 +63,58 @@ class ProductEmbedder:
         top_indices = similarities.argsort()[-top_k:][::-1]
 
         return [all_products[i] for i in top_indices]
+
+
+# --- Demonstration with sample products ---
+
+class Product:
+    """Simple product for demonstration"""
+
+    def __init__(self, title, description, category, image=None):
+        self.title = title
+        self.description = description
+        self.category = category
+        self.image = image
+
+
+# Sample product catalog
+products = [
+    Product(
+        "Wireless Bluetooth Headphones",
+        "Over-ear noise cancelling headphones with 30hr battery",
+        "electronics",
+    ),
+    Product(
+        "Premium Earbuds Pro",
+        "True wireless earbuds with active noise cancellation",
+        "electronics",
+    ),
+    Product(
+        "Running Shoes",
+        "Lightweight breathable athletic shoes for running",
+        "footwear",
+    ),
+    Product(
+        "Trail Hiking Boots",
+        "Waterproof boots for outdoor hiking adventures",
+        "footwear",
+    ),
+    Product(
+        "Coffee Maker",
+        "Automatic drip coffee machine with timer",
+        "kitchen",
+    ),
+]
+
+if __name__ == "__main__":
+    # Create embedder (uses text model only for demo - no images)
+    embedder = ProductEmbedder()
+
+    # Embed all products
+    embeddings = {p.title: embedder.text_model.encode(f"{p.title} {p.description}") for p in products}
+
+    # Show product similarities
+    print("Product Similarities:")
+    print(f"  Headphones ↔ Earbuds:  {cosine_similarity([embeddings['Wireless Bluetooth Headphones']], [embeddings['Premium Earbuds Pro']])[0][0]:.3f}")  # High - both audio
+    print(f"  Running Shoes ↔ Boots: {cosine_similarity([embeddings['Running Shoes']], [embeddings['Trail Hiking Boots']])[0][0]:.3f}")  # High - both footwear
+    print(f"  Headphones ↔ Coffee:   {cosine_similarity([embeddings['Wireless Bluetooth Headphones']], [embeddings['Coffee Maker']])[0][0]:.3f}")  # Low - unrelated
