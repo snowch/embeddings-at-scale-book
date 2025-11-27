@@ -243,7 +243,7 @@ This property emerges naturally from how embeddings are trained and enables powe
 
 Embeddings compress information into dense vectors. A typical embedding uses 768-1024 dimensions to represent complex semantic content. Compare this to one-hot encoding, which requires vocabulary_size dimensions (often 50,000+).
 
-```python
+```{python}
 # Information density comparison
 vocabulary_size = 50000
 
@@ -256,7 +256,8 @@ embedding_dimensions = 768  # 768 dimensions
 embedding_nonzero = 768  # All dimensions contain information
 
 # Compression ratio
-compression = vocabulary_size / embedding_dimensions  # ~65x compression
+compression = vocabulary_size / embedding_dimensions
+print(f"Compression ratio: {compression:.0f}x")
 ```
 
 This compression is possible because embeddings learn the **intrinsic dimensionality** of the data. Natural language, despite having 50,000+ words, can be represented in a much lower-dimensional space because words are not independent—they exhibit patterns and relationships.
