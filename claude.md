@@ -241,6 +241,45 @@ Security or safety concerns
 3. **Handle Errors**: Include error handling
 4. **Scale Considerations**: Show how code scales
 5. **Security**: Don't introduce vulnerabilities
+6. **Format and Lint**: Always run formatting and linting (see below)
+
+### Code Formatting and Linting (Required)
+
+**After creating or modifying Python files in `code_examples/`**, always run:
+
+```bash
+# Format the code
+ruff format code_examples/<chapter_directory>/
+
+# Check for lint errors and auto-fix
+ruff check --fix code_examples/<chapter_directory>/
+
+# If errors remain that can't be auto-fixed, manually fix them
+ruff check code_examples/<chapter_directory>/
+```
+
+**Common lint issues to watch for:**
+- **I001**: Import sorting (stdlib → third-party → local)
+- **F401**: Unused imports (remove them)
+- **F841**: Unused variables (remove or prefix with `_`)
+- **B007**: Unused loop variables (use `_` instead)
+- **E741**: Ambiguous variable names (don't use `l`, `O`, `I`)
+
+**Example workflow when adding code:**
+```bash
+# 1. Create/edit Python files
+# 2. Format all files in the directory
+ruff format code_examples/ch14_image_preparation/
+
+# 3. Check and fix lint issues
+ruff check --fix code_examples/ch14_image_preparation/
+
+# 4. If any errors remain, manually fix them
+# 5. Verify all checks pass
+ruff check code_examples/ch14_image_preparation/
+```
+
+See `LINTING.md` for full details on the linting setup and configuration.
 
 ## Common Quarto Gotchas
 
