@@ -1,8 +1,8 @@
+from dataclasses import dataclass
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass
@@ -470,7 +470,7 @@ class DecisionSupportSystem:
 
         return {
             "recommendation": best_coa,
-            "reasoning": f"Selected based on situation alignment and acceptable risk",
+            "reasoning": "Selected based on situation alignment and acceptable risk",
             "precedents_considered": len(precedents),
             "similar_precedent": precedents[0] if precedents else None,
             "urgency": situation_analysis["urgency"],

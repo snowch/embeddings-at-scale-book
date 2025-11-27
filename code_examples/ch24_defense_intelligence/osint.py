@@ -1,8 +1,9 @@
+from dataclasses import dataclass
+from typing import Optional
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass
@@ -305,7 +306,7 @@ class InfluenceOperationDetector(nn.Module):
         """
         Cluster accounts that appear coordinated.
         """
-        n = account_embeddings.shape[0]
+        _n = account_embeddings.shape[0]  # noqa: F841
         similarities = F.cosine_similarity(
             account_embeddings.unsqueeze(1),
             account_embeddings.unsqueeze(0),
@@ -316,8 +317,8 @@ class InfluenceOperationDetector(nn.Module):
         coordinated_pairs = (similarities > threshold).nonzero()
 
         # Build clusters
-        clusters = []
-        assigned = set()
+        clusters: list[set[int]] = []
+        _assigned: set[int] = set()  # noqa: F841
 
         for i, j in coordinated_pairs:
             i, j = i.item(), j.item()
