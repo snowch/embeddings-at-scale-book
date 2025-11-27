@@ -190,8 +190,16 @@ This shift from discrete to continuous representations is profound:
 
 The geometric distance between embeddings reflects semantic similarity:
 
-```python
-{{< include /code_examples/ch01_foundations/semantic_distance.py >}}
+```{python}
+from scipy.spatial.distance import cosine
+
+def semantic_distance(word1, word2, embeddings):
+    """Smaller distance = more similar concepts"""
+    return cosine(embeddings[word1], embeddings[word2])
+
+# Using our embeddings from earlier
+print(f"cat ↔ dog: {semantic_distance('cat', 'dog', embeddings):.3f}")
+print(f"cat ↔ car: {semantic_distance('cat', 'car', embeddings):.3f}")
 ```
 
 This property enables **similarity search**: given a query object, find all similar objects by finding nearby points in the embedding space.
@@ -200,8 +208,33 @@ This property enables **similarity search**: given a query object, find all simi
 
 Perhaps the most remarkable property of embeddings is that mathematical operations on vectors correspond to semantic operations on concepts:
 
-```python
-{{< include /code_examples/ch01_foundations/vector_analogy.py >}}
+```{python}
+import numpy as np
+
+def vector_analogy(a, b, c, embeddings):
+    """Solve: a is to b as c is to ?"""
+    result_vector = embeddings[a] - embeddings[b] + embeddings[c]
+
+    # Find closest word to result_vector
+    closest_word = None
+    closest_distance = float("inf")
+
+    for word, vec in embeddings.items():
+        if word in [a, b, c]:  # Skip input words
+            continue
+        dist = cosine(result_vector, vec)
+        if dist < closest_distance:
+            closest_distance = dist
+            closest_word = word
+
+    return closest_word
+
+# Convert to numpy arrays for vector arithmetic
+np_embeddings = {word: np.array(vec) for word, vec in embeddings.items()}
+
+# dog is to puppy as kitten is to ? (adult:young :: young:?)
+result = vector_analogy('dog', 'puppy', 'kitten', np_embeddings)
+print(f"dog is to puppy as kitten is to: {result}")
 ```
 
 This property emerges naturally from how embeddings are trained and enables powerful applications like translation, analogy completion, and relationship extraction.
