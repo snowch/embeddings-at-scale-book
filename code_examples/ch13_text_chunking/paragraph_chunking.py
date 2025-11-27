@@ -1,7 +1,7 @@
 """Paragraph-based text chunking implementation."""
 
-from typing import List
 import re
+from typing import List
 
 
 def chunk_by_paragraphs(
@@ -48,10 +48,8 @@ def chunk_by_paragraphs(
             continue
 
         # Combine short paragraphs if enabled
-        if combine_short and current_size + para_size < min_chunk_size:
-            current_chunk.append(para)
-            current_size += para_size
-        elif current_size + para_size <= max_chunk_size:
+        if (combine_short and current_size + para_size < min_chunk_size) or \
+           current_size + para_size <= max_chunk_size:
             current_chunk.append(para)
             current_size += para_size
         else:

@@ -1,7 +1,8 @@
 """Evaluate chunk quality for RAG systems."""
 
-from typing import List, Dict, Tuple, Optional
 from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple
+
 import numpy as np
 
 

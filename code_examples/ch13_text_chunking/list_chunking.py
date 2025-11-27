@@ -1,8 +1,8 @@
 """List-aware chunking that keeps related items together."""
 
-from typing import List, Tuple, Optional
-from dataclasses import dataclass
 import re
+from dataclasses import dataclass
+from typing import List
 
 
 @dataclass

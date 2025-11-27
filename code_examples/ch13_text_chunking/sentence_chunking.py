@@ -1,7 +1,7 @@
 """Sentence-based text chunking implementation."""
 
-from typing import List
 import re
+from typing import List
 
 
 def split_into_sentences(text: str) -> List[str]:
@@ -47,7 +47,7 @@ def chunk_by_sentences(
     current_chunk = []
     current_tokens = 0
 
-    for i, sentence in enumerate(sentences):
+    for sentence in sentences:
         sentence_tokens = len(encoding.encode(sentence))
 
         # If single sentence exceeds max, it becomes its own chunk

@@ -1,8 +1,8 @@
 """Markdown-aware text chunking with header hierarchy preservation."""
 
-from typing import List, Optional, Tuple
-from dataclasses import dataclass
 import re
+from dataclasses import dataclass
+from typing import List, Tuple
 
 
 @dataclass
@@ -123,7 +123,7 @@ class MarkdownChunker:
             else:
                 # Split large sections
                 sub_chunks = self._split_section(content, header_context)
-                for i, sub_text in enumerate(sub_chunks):
+                for sub_text in sub_chunks:
                     chunks.append(MarkdownChunk(
                         text=sub_text,
                         header_hierarchy=section['headers'],

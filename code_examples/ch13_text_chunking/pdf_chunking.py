@@ -1,8 +1,8 @@
 """PDF-aware text chunking with structure preservation."""
 
-from typing import List, Dict, Optional
-from dataclasses import dataclass, field
 import re
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional
 
 
 @dataclass

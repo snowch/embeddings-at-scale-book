@@ -1,7 +1,8 @@
 """Tiling strategies for large images."""
 
-from typing import List, Tuple, Optional, Iterator
 from dataclasses import dataclass
+from typing import List, Optional, Tuple
+
 import numpy as np
 
 
@@ -275,7 +276,6 @@ class TiledImageProcessor:
 
 # Example usage
 if __name__ == "__main__":
-    from PIL import Image
 
     # Create a large sample image
     large_image = np.random.randint(0, 255, (1000, 800, 3), dtype=np.uint8)

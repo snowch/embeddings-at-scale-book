@@ -1,8 +1,9 @@
 """Code-aware chunking that preserves syntactic units."""
 
-from typing import List, Optional
-from dataclasses import dataclass
+import ast
 import re
+from dataclasses import dataclass
+from typing import List, Optional
 
 
 @dataclass
@@ -68,7 +69,7 @@ class CodeChunker:
                 if chunk:
                     chunks.append(chunk)
 
-            elif isinstance(node, ast.FunctionDef) or isinstance(node, ast.AsyncFunctionDef):
+            elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 # Skip methods (they're included with classes)
                 if not self._is_method(node, tree):
                     chunk = self._extract_function(node, lines)

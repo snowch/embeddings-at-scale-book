@@ -1,11 +1,11 @@
 """Production-ready text chunking pipeline."""
 
-from typing import List, Dict, Any, Optional, Iterator
+import hashlib
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-import hashlib
-import logging
+from typing import Any, Dict, Iterator, List, Optional
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -148,8 +148,7 @@ class ChunkingPipeline:
         if generate_embeddings:
             all_chunks = self._generate_embeddings_batch(all_chunks)
 
-        for chunk in all_chunks:
-            yield chunk
+        yield from all_chunks
 
     def _detect_type(self, content: str) -> DocumentType:
         """Detect document type from content."""

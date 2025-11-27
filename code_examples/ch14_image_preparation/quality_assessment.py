@@ -1,7 +1,8 @@
 """Image quality assessment for filtering before embedding."""
 
-from typing import Dict, List, Tuple, Optional
 from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple
+
 import numpy as np
 
 
@@ -41,8 +42,8 @@ def assess_image_quality(
     Returns:
         QualityResult with pass/fail and metrics
     """
-    from PIL import Image
     import cv2
+    from PIL import Image
 
     if isinstance(image, Image.Image):
         image_array = np.array(image)
@@ -115,8 +116,8 @@ def detect_duplicate_images(
     Returns:
         List of (idx1, idx2) pairs that are duplicates
     """
-    from PIL import Image
     import imagehash
+    from PIL import Image
 
     # Compute perceptual hashes
     hashes = []
@@ -252,7 +253,7 @@ class ImageQualityFilter:
         # Duplicate removal
         if self.remove_duplicates and len(valid_images) > 1:
             duplicates = detect_duplicate_images(valid_images)
-            dup_indices = set(j for _, j in duplicates)  # Remove second of each pair
+            dup_indices = {j for _, j in duplicates}  # Remove second of each pair
 
             final_images = []
             final_indices = []

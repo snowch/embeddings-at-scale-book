@@ -1,6 +1,7 @@
 """Vision Transformer (ViT) based image embeddings."""
 
 from typing import List, Optional, Tuple
+
 import numpy as np
 
 
@@ -82,8 +83,8 @@ def visualize_vit_patches(
     Returns:
         Tuple of (image with patch grid, number of patches)
     """
-    from PIL import Image, ImageDraw
     import numpy as np
+    from PIL import Image, ImageDraw
 
     if isinstance(image, np.ndarray):
         image = Image.fromarray(image)
@@ -294,7 +295,7 @@ if __name__ == "__main__":
     print("\nExtracting patch-level embeddings...")
     patch_embeddings = extract_patch_embeddings(sample_image)
     print(f"All token embeddings shape: {patch_embeddings.shape}")
-    print(f"  - CLS token: 1")
+    print("  - CLS token: 1")
     print(f"  - Patch tokens: {patch_embeddings.shape[0] - 1}")
 
     # Using the embedder class

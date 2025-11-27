@@ -1,11 +1,12 @@
 """Production image embedding pipeline."""
 
-from typing import List, Dict, Optional, Iterator
+import hashlib
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-import hashlib
-import logging
+from typing import Dict, Iterator, List, Optional
+
 import numpy as np
 
 logging.basicConfig(level=logging.INFO)

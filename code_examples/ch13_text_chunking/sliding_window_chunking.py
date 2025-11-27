@@ -1,7 +1,7 @@
 """Sliding window chunking with configurable overlap."""
 
-from typing import List, Iterator, Tuple
 from dataclasses import dataclass
+from typing import List, Tuple
 
 
 @dataclass

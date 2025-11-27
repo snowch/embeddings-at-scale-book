@@ -1,8 +1,8 @@
 """Table-aware chunking that preserves tabular structure."""
 
-from typing import List, Optional, Tuple
-from dataclasses import dataclass
 import re
+from dataclasses import dataclass
+from typing import List, Optional, Tuple
 
 
 @dataclass

@@ -1,7 +1,8 @@
 """Standard image preprocessing pipeline for embeddings."""
 
-from typing import List, Tuple, Optional, Callable
 from dataclasses import dataclass
+from typing import List, Optional, Tuple
+
 import numpy as np
 
 

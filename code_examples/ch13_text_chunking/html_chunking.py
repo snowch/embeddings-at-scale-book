@@ -1,8 +1,8 @@
 """HTML-aware text chunking with structure preservation."""
 
-from typing import List, Dict, Optional
-from dataclasses import dataclass
 import re
+from dataclasses import dataclass
+from typing import List, Optional
 
 
 @dataclass
@@ -113,8 +113,7 @@ class HTMLChunker:
         sections = element.find_all(self.SECTION_TAGS)
 
         if sections:
-            for section in sections:
-                yield section
+            yield from sections
         else:
             # Fall back to paragraphs and divs
             for child in element.children:

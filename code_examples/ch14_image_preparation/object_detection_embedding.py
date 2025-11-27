@@ -1,7 +1,8 @@
 """Object detection followed by individual object embedding."""
 
-from typing import List, Dict, Tuple, Optional
 from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple
+
 import numpy as np
 
 
@@ -227,7 +228,6 @@ def create_object_index(
 
 # Example usage
 if __name__ == "__main__":
-    from PIL import Image
 
     # This example requires YOLOv5 and an image with objects
     print("Object Detection + Embedding Pipeline")

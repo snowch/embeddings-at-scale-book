@@ -1,8 +1,8 @@
 """Handle code blocks embedded in documentation."""
 
-from typing import List, Tuple, Optional
-from dataclasses import dataclass
 import re
+from dataclasses import dataclass
+from typing import List, Tuple
 
 
 @dataclass
@@ -106,13 +106,13 @@ def summarize_code(code: str, language: str) -> str:
 
     if language == 'python':
         # Extract function/class names
-        defs = [l for l in lines if l.strip().startswith(('def ', 'class '))]
+        defs = [line for line in lines if line.strip().startswith(('def ', 'class '))]
         if defs:
             return defs[0].split('(')[0].replace('def ', '').replace('class ', '')
 
     elif language in ('javascript', 'typescript'):
         # Extract function names
-        funcs = [l for l in lines if 'function' in l or '=>' in l]
+        funcs = [line for line in lines if 'function' in line or '=>' in line]
         if funcs:
             return funcs[0][:50]
 

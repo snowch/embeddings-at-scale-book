@@ -1,7 +1,8 @@
 """Evaluate different chunk sizes for retrieval quality."""
 
-from typing import List, Dict, Tuple
 from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple
+
 import numpy as np
 
 
@@ -21,7 +22,7 @@ def evaluate_chunk_sizes(
     documents: List[str],
     queries: List[str],
     ground_truth: List[List[int]],  # For each query, list of relevant doc indices
-    chunk_sizes: List[int] = [128, 256, 512, 1024],
+    chunk_sizes: Optional[List[int]] = None,
     overlap_ratio: float = 0.1,
     top_k: int = 5
 ) -> List[EvaluationResult]:
@@ -39,8 +40,11 @@ def evaluate_chunk_sizes(
     Returns:
         List of EvaluationResult for each chunk size
     """
-    from sentence_transformers import SentenceTransformer
     from fixed_size_chunking import chunk_by_tokens
+    from sentence_transformers import SentenceTransformer
+
+    if chunk_sizes is None:
+        chunk_sizes = [128, 256, 512, 1024]
 
     model = SentenceTransformer('all-MiniLM-L6-v2')
     results = []
@@ -74,7 +78,7 @@ def evaluate_chunk_sizes(
             top_indices = np.argsort(similarities)[-top_k:][::-1]
 
             # Get unique documents from top chunks
-            retrieved_docs = list(set(chunk_to_doc[i] for i in top_indices))
+            retrieved_docs = list({chunk_to_doc[i] for i in top_indices})
 
             # Calculate metrics
             relevant_retrieved = len(set(retrieved_docs) & set(relevant_docs))
@@ -138,7 +142,6 @@ def find_optimal_chunk_size(
 
         # Find best F1 score
         best_idx = np.argmax([r.retrieval_f1 for r in results])
-        best_size = sizes[best_idx]
 
         # Narrow search range
         if best_idx == 0:
@@ -166,11 +169,11 @@ def analyze_chunk_statistics(chunks: List[str]) -> Dict:
         'max_length': max(lengths),
         'median_length': np.median(lengths),
         'length_distribution': {
-            '0-100': sum(1 for l in lengths if l < 100),
-            '100-250': sum(1 for l in lengths if 100 <= l < 250),
-            '250-500': sum(1 for l in lengths if 250 <= l < 500),
-            '500-1000': sum(1 for l in lengths if 500 <= l < 1000),
-            '1000+': sum(1 for l in lengths if l >= 1000),
+            '0-100': sum(1 for length in lengths if length < 100),
+            '100-250': sum(1 for length in lengths if 100 <= length < 250),
+            '250-500': sum(1 for length in lengths if 250 <= length < 500),
+            '500-1000': sum(1 for length in lengths if 500 <= length < 1000),
+            '1000+': sum(1 for length in lengths if length >= 1000),
         }
     }
 

@@ -1,6 +1,7 @@
 """Image augmentation for training embedding models."""
 
-from typing import List, Tuple, Optional, Callable
+from typing import Callable, List, Tuple
+
 import numpy as np
 
 

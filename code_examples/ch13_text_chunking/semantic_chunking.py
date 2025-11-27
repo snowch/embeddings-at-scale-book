@@ -1,6 +1,7 @@
 """Semantic chunking based on embedding similarity."""
 
 from typing import List, Tuple
+
 import numpy as np
 
 
@@ -22,8 +23,8 @@ def semantic_chunk(
     Returns:
         List of semantically coherent text chunks
     """
-    from sentence_transformers import SentenceTransformer
     from sentence_chunking import split_into_sentences
+    from sentence_transformers import SentenceTransformer
 
     # Load embedding model
     model = SentenceTransformer('all-MiniLM-L6-v2')
@@ -48,7 +49,7 @@ def semantic_chunk(
     chunks = []
     current_chunk = [sentences[0]]
 
-    for i, (sentence, sim) in enumerate(zip(sentences[1:], similarities)):
+    for sentence, sim in zip(sentences[1:], similarities):
         should_split = (
             sim < similarity_threshold and
             len(current_chunk) >= min_chunk_sentences
@@ -77,8 +78,8 @@ def semantic_chunk_with_breakpoints(
 
     Returns chunks and the similarity scores for analysis.
     """
-    from sentence_transformers import SentenceTransformer
     from sentence_chunking import split_into_sentences
+    from sentence_transformers import SentenceTransformer
 
     model = SentenceTransformer('all-MiniLM-L6-v2')
     sentences = split_into_sentences(text)

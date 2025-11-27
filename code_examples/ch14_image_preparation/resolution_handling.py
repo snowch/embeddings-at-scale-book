@@ -1,8 +1,9 @@
 """Handle different image resolutions and aspect ratios."""
 
-from typing import List, Tuple, Optional
-import numpy as np
 from enum import Enum
+from typing import Tuple
+
+import numpy as np
 
 
 class ResizeStrategy(Enum):
@@ -54,7 +55,6 @@ def resize_for_embedding(
 
 def _center_crop(image, target_size: Tuple[int, int]) -> np.ndarray:
     """Resize and center crop."""
-    from PIL import Image
 
     w, h = image.size
     target_w, target_h = target_size

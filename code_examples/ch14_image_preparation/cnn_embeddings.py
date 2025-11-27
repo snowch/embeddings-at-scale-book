@@ -1,6 +1,7 @@
 """CNN-based image embedding extraction."""
 
 from typing import List, Optional
+
 import numpy as np
 
 
@@ -207,8 +208,6 @@ class CNNEmbedder:
 # Example usage
 if __name__ == "__main__":
     from PIL import Image
-    import requests
-    from io import BytesIO
 
     # Create a sample image (gradient)
     img_array = np.zeros((224, 224, 3), dtype=np.uint8)

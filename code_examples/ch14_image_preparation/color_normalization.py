@@ -1,8 +1,8 @@
 """Color space handling and normalization for image embeddings."""
 
-from typing import Tuple, Optional
-import numpy as np
+from typing import Tuple
 
+import numpy as np
 
 # Standard normalization values for common models
 IMAGENET_MEAN = (0.485, 0.456, 0.406)
