@@ -1086,7 +1086,7 @@ Organizations should prepare embedding systems for AGI transition:
 
 ## Looking Ahead
 
-Part VII begins with Chapter 27 on organizational transformation: building embedding-native teams with quantum computing, neuromorphic engineering, and AGI safety expertise, change management for adopting these emerging technologies, training programs bridging current skills to future requirements, vendor evaluation criteria for quantum hardware, neuromorphic chips, and decentralized platforms, and success metrics measuring readiness for AGI-era embedding systems while maintaining practical value delivery today.
+Part VII begins with Chapter 31 on organizational transformation: building embedding-native teams with quantum computing, neuromorphic engineering, and AGI safety expertise, change management for adopting these emerging technologies, training programs bridging current skills to future requirements, vendor evaluation criteria for quantum hardware, neuromorphic chips, and decentralized platforms, and success metrics measuring readiness for AGI-era embedding systems while maintaining practical value delivery today.
 
 ## Further Reading
 

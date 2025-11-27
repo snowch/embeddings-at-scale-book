@@ -415,7 +415,7 @@ Organizations struggle with embedding metrics because:
 
 ## Looking Ahead
 
-Chapter 28 provides a phased implementation roadmap: Phase 1 establishing foundation through technology selection, team building, and proof-of-concept validation, Phase 2 conducting pilot deployment with early adopters measuring success and iterating based on feedback, Phase 3 executing enterprise rollout scaling across organization with standardized platforms and processes, Phase 4 advancing capabilities through continuous innovation and optimization maintaining competitive advantage, and throughout emphasizing risk mitigation and contingency planning addressing technical failures, organizational resistance, vendor issues, and market changes—translating organizational transformation into systematic execution delivering embedding-powered competitive advantage.
+Chapter 32 provides a phased implementation roadmap: Phase 1 establishing foundation through technology selection, team building, and proof-of-concept validation, Phase 2 conducting pilot deployment with early adopters measuring success and iterating based on feedback, Phase 3 executing enterprise rollout scaling across organization with standardized platforms and processes, Phase 4 advancing capabilities through continuous innovation and optimization maintaining competitive advantage, and throughout emphasizing risk mitigation and contingency planning addressing technical failures, organizational resistance, vendor issues, and market changes—translating organizational transformation into systematic execution delivering embedding-powered competitive advantage.
 
 ## Further Reading
 

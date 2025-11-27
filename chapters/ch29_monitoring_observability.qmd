@@ -300,7 +300,7 @@ Technical metrics (precision, recall, latency) don't always correlate with user 
 
 ## Looking Ahead
 
-Chapter 26 explores future trends and emerging technologies: quantum computing for vector operations potentially providing exponential speedup for similarity search, neuromorphic computing applications enabling ultra-low-power embedding inference, edge computing for embeddings bringing inference closer to users for reduced latency, blockchain and decentralized embeddings enabling privacy-preserving collaborative learning, and AGI implications for embedding systems as artificial general intelligence emerges requiring fundamentally different architectures.
+Chapter 30 explores future trends and emerging technologies: quantum computing for vector operations potentially providing exponential speedup for similarity search, neuromorphic computing applications enabling ultra-low-power embedding inference, edge computing for embeddings bringing inference closer to users for reduced latency, blockchain and decentralized embeddings enabling privacy-preserving collaborative learning, and AGI implications for embedding systems as artificial general intelligence emerges requiring fundamentally different architectures.
 
 ## Further Reading
 
