@@ -144,7 +144,8 @@ But cosine similarity is often better for embeddings because:
 Traditional computer systems represent objects discretely. Consider how we might represent words:
 
 **One-hot encoding** (traditional approach):
-```python
+```{python}
+#| output: false
 # Each word is a unique, independent identifier
 vocabulary = ['cat', 'dog', 'kitten', 'puppy', 'car']
 
@@ -161,7 +162,8 @@ one_hot = {
 ```
 
 **Embedding representation** (modern approach):
-```python
+```{python}
+#| output: false
 embeddings = {
     'cat':    [0.8, 0.6, 0.1, 0.2],  # Close to 'kitten'
     'kitten': [0.8, 0.5, 0.2, 0.3],  # Close to 'cat'
