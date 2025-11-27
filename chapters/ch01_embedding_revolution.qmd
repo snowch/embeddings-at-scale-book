@@ -198,7 +198,6 @@ This shift from discrete to continuous representations is profound:
 The geometric distance between embeddings reflects semantic similarity:
 
 ```{python}
-#| output: false
 #| code-fold: false
 
 from scipy.spatial.distance import cosine
@@ -227,6 +226,8 @@ This property enables **similarity search**: given a query object, find all simi
 Perhaps the most remarkable property of embeddings is that mathematical operations on vectors correspond to semantic operations on concepts:
 
 ```{python}
+#| code-fold: false
+
 import numpy as np
 
 def vector_analogy(a, b, c, embeddings):
@@ -262,6 +263,8 @@ This property emerges naturally from how embeddings are trained and enables powe
 Embeddings compress information into dense vectors. A typical embedding uses 768-1024 dimensions to represent complex semantic content. Compare this to one-hot encoding, which requires vocabulary_size dimensions (often 50,000+).
 
 ```{python}
+#| code-fold: false
+
 # Information density comparison
 vocabulary_size = 50000
 
@@ -290,6 +293,8 @@ Early embedding systems like Word2Vec (2013) created one vector per word. Modern
 Unlike hand-crafted features, embeddings are **learned from data** using machine learning. The learning process discovers patterns that might not be obvious to humans:
 
 ```python
+#| code-fold: false
+
 # Simplified embedding learning process
 def learn_embeddings(training_data, dimensions=100):
     """
