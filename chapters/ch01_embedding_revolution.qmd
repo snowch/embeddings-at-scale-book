@@ -149,6 +149,8 @@ Traditional computer systems represent objects discretely. Consider how we might
 **One-hot encoding** (traditional approach):
 ```{python}
 #| output: false
+#| code-fold: false
+
 # Each word is a unique, independent identifier
 vocabulary = ['cat', 'dog', 'kitten', 'puppy', 'car']
 
@@ -167,6 +169,8 @@ one_hot = {
 **Embedding representation** (modern approach):
 ```{python}
 #| output: false
+#| code-fold: false
+
 embeddings = {
     'cat':    [0.8, 0.6, 0.1, 0.2],  # Close to 'kitten'
     'kitten': [0.8, 0.5, 0.2, 0.3],  # Close to 'cat'
@@ -194,6 +198,9 @@ This shift from discrete to continuous representations is profound:
 The geometric distance between embeddings reflects semantic similarity:
 
 ```{python}
+#| output: false
+#| code-fold: false
+
 from scipy.spatial.distance import cosine
 
 def semantic_distance(word1, word2, embeddings):
@@ -201,6 +208,14 @@ def semantic_distance(word1, word2, embeddings):
     return cosine(embeddings[word1], embeddings[word2])
 
 # Using our embeddings from earlier
+embeddings = {
+    'cat':    [0.8, 0.6, 0.1, 0.2],  # Close to 'kitten'
+    'kitten': [0.8, 0.5, 0.2, 0.3],  # Close to 'cat'
+    'dog':    [0.7, 0.6, 0.1, 0.8],  # Close to 'puppy', related to 'cat'
+    'puppy':  [0.7, 0.5, 0.2, 0.9],  # Close to 'dog'
+    'car':    [0.1, 0.2, 0.9, 0.1],  # Far from animals
+}
+
 print(f"cat ↔ dog: {semantic_distance('cat', 'dog', embeddings):.3f}")
 print(f"cat ↔ car: {semantic_distance('cat', 'car', embeddings):.3f}")
 ```
