@@ -107,23 +107,33 @@ $$\text{cosine\_similarity}(\mathbf{A}, \mathbf{B}) = \frac{\mathbf{A} \cdot \ma
   - `[1, 2, 3]` and `[2, 4, 6]` have similarity of 1.0 (same direction)
   - This means we don't need to normalize our embeddings beforehand
 
-**Concrete Example from our code:**
+**Concrete Example:**
 
-```python
-# king = [0.9, 0.8, 0.1], queen = [0.9, 0.8, 0.9]
-# Dot product: (0.9×0.9) + (0.8×0.8) + (0.1×0.9) = 0.81 + 0.64 + 0.09 = 1.54
-# ||king|| = √(0.9² + 0.8² + 0.1²) = √0.86 ≈ 0.93
-# ||queen|| = √(0.9² + 0.8² + 0.9²) = √1.66 ≈ 1.29
-# cosine_similarity = 1.54 / (0.93 × 1.29) ≈ 0.928 → Very similar!
-```
+Given $\text{king} = [0.9, 0.8, 0.1]$ and $\text{queen} = [0.9, 0.8, 0.9]$:
+
+$$
+\begin{aligned}
+\text{Dot product} &= (0.9 \times 0.9) + (0.8 \times 0.8) + (0.1 \times 0.9) \\
+&= 0.81 + 0.64 + 0.09 = 1.54 \\[1em]
+\|\text{king}\| &= \sqrt{0.9^2 + 0.8^2 + 0.1^2} = \sqrt{0.86} \approx 0.93 \\[0.5em]
+\|\text{queen}\| &= \sqrt{0.9^2 + 0.8^2 + 0.9^2} = \sqrt{1.66} \approx 1.29 \\[1em]
+\text{cosine\_similarity} &= \frac{1.54}{0.93 \times 1.29} \approx 0.928 \rightarrow \text{Very similar!}
+\end{aligned}
+$$
 
 **Why use cosine instead of Euclidean distance?**
 
 Euclidean distance measures absolute separation in space:
-```python
-# Euclidean distance: √[(x₁-x₂)² + (y₁-y₂)² + (z₁-z₂)²]
-distance_king_queen = √[(0.9-0.9)² + (0.8-0.8)² + (0.1-0.9)²] = 0.8
-```
+
+$$
+d(\mathbf{x}, \mathbf{y}) = \sqrt{(x_1-y_1)^2 + (x_2-y_2)^2 + (x_3-y_3)^2}
+$$
+
+For king and queen:
+
+$$
+d(\text{king}, \text{queen}) = \sqrt{(0.9-0.9)^2 + (0.8-0.8)^2 + (0.1-0.9)^2} = 0.8
+$$
 
 But cosine similarity is often better for embeddings because:
 
@@ -137,7 +147,8 @@ But cosine similarity is often better for embeddings because:
 Traditional computer systems represent objects discretely. Consider how we might represent words:
 
 **One-hot encoding** (traditional approach):
-```python
+```{python}
+#| output: false
 # Each word is a unique, independent identifier
 vocabulary = ['cat', 'dog', 'kitten', 'puppy', 'car']
 
@@ -154,7 +165,8 @@ one_hot = {
 ```
 
 **Embedding representation** (modern approach):
-```python
+```{python}
+#| output: false
 embeddings = {
     'cat':    [0.8, 0.6, 0.1, 0.2],  # Close to 'kitten'
     'kitten': [0.8, 0.5, 0.2, 0.3],  # Close to 'cat'
@@ -181,8 +193,16 @@ This shift from discrete to continuous representations is profound:
 
 The geometric distance between embeddings reflects semantic similarity:
 
-```python
-{{< include /code_examples/ch01_foundations/semantic_distance.py >}}
+```{python}
+from scipy.spatial.distance import cosine
+
+def semantic_distance(word1, word2, embeddings):
+    """Smaller distance = more similar concepts"""
+    return cosine(embeddings[word1], embeddings[word2])
+
+# Using our embeddings from earlier
+print(f"cat ↔ dog: {semantic_distance('cat', 'dog', embeddings):.3f}")
+print(f"cat ↔ car: {semantic_distance('cat', 'car', embeddings):.3f}")
 ```
 
 This property enables **similarity search**: given a query object, find all similar objects by finding nearby points in the embedding space.
@@ -191,8 +211,33 @@ This property enables **similarity search**: given a query object, find all simi
 
 Perhaps the most remarkable property of embeddings is that mathematical operations on vectors correspond to semantic operations on concepts:
 
-```python
-{{< include /code_examples/ch01_foundations/vector_analogy.py >}}
+```{python}
+import numpy as np
+
+def vector_analogy(a, b, c, embeddings):
+    """Solve: a is to b as c is to ?"""
+    result_vector = embeddings[a] - embeddings[b] + embeddings[c]
+
+    # Find closest word to result_vector
+    closest_word = None
+    closest_distance = float("inf")
+
+    for word, vec in embeddings.items():
+        if word in [a, b, c]:  # Skip input words
+            continue
+        dist = cosine(result_vector, vec)
+        if dist < closest_distance:
+            closest_distance = dist
+            closest_word = word
+
+    return closest_word
+
+# Convert to numpy arrays for vector arithmetic
+np_embeddings = {word: np.array(vec) for word, vec in embeddings.items()}
+
+# dog is to puppy as kitten is to ? (adult:young :: young:?)
+result = vector_analogy('dog', 'puppy', 'kitten', np_embeddings)
+print(f"dog is to puppy as kitten is to: {result}")
 ```
 
 This property emerges naturally from how embeddings are trained and enables powerful applications like translation, analogy completion, and relationship extraction.
@@ -201,7 +246,7 @@ This property emerges naturally from how embeddings are trained and enables powe
 
 Embeddings compress information into dense vectors. A typical embedding uses 768-1024 dimensions to represent complex semantic content. Compare this to one-hot encoding, which requires vocabulary_size dimensions (often 50,000+).
 
-```python
+```{python}
 # Information density comparison
 vocabulary_size = 50000
 
@@ -214,7 +259,8 @@ embedding_dimensions = 768  # 768 dimensions
 embedding_nonzero = 768  # All dimensions contain information
 
 # Compression ratio
-compression = vocabulary_size / embedding_dimensions  # ~65x compression
+compression = vocabulary_size / embedding_dimensions
+print(f"Compression ratio: {compression:.0f}x")
 ```
 
 This compression is possible because embeddings learn the **intrinsic dimensionality** of the data. Natural language, despite having 50,000+ words, can be represented in a much lower-dimensional space because words are not independent—they exhibit patterns and relationships.
