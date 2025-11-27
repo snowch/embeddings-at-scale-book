@@ -15,7 +15,7 @@ At their most basic, **embeddings are numerical vectors that represent objects i
 
 Here's the key insight: in an embedding space, **similarity in meaning corresponds to proximity in geometric space**. Objects that are conceptually related end up close to each other, while unrelated objects are far apart.
 
-```python
+```{python}
 #| echo: true
 """
 Word Embeddings Similarity Example
