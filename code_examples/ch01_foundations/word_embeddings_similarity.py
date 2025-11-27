@@ -7,22 +7,23 @@ Word Embeddings Similarity Example
 Demonstrates the core concept of embeddings: numerical vectors that represent
 objects in a continuous multi-dimensional space, where similarity in meaning
 corresponds to proximity in geometric space.
+
+Why 3 dimensions?
+    This is deliberately simplified for visualization and pedagogy. Real embeddings
+    typically use 300-1024 dimensions, but 3D allows us to:
+    - Visualize the concept geometrically (x, y, z axes)
+    - Understand the math without getting lost in high-dimensional space
+    - Demonstrate the core principle: semantic similarity = geometric proximity
+
+How were these values chosen?
+    They're hand-crafted to demonstrate key relationships:
+    - Dimension 0 (~0.9 or ~0.5): Represents "royalty" vs "common"
+    - Dimension 1 (~0.8 or ~0.2): Represents "human" vs "other"
+    - Dimension 2 (~0.1 or ~0.9): Represents "male" vs "female"
+    (In real embeddings, dimensions aren't this interpretable—they're learned automatically)
 """
 
 from scipy.spatial.distance import cosine
-
-# A simple 3-dimensional embedding space for illustration
-# Why 3 dimensions? This is deliberately simplified for visualization and pedagogy.
-# Real embeddings typically use 300-1024 dimensions, but 3D allows us to:
-# - Visualize the concept geometrically (x, y, z axes)
-# - Understand the math without getting lost in high-dimensional space
-# - Demonstrate the core principle: semantic similarity = geometric proximity
-
-# How were these values chosen? They're hand-crafted to demonstrate key relationships:
-# - Dimension 0 (~0.9 or ~0.5): Represents "royalty" vs "common"
-# - Dimension 1 (~0.8 or ~0.2): Represents "human" vs "other"
-# - Dimension 2 (~0.1 or ~0.9): Represents "male" vs "female"
-# (In real embeddings, dimensions aren't this interpretable—they're learned automatically)
 
 # fmt: off
 word_embeddings = {
