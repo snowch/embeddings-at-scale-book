@@ -51,20 +51,22 @@ book:
         - chapters/ch22_retail_ecommerce.qmd
         - chapters/ch23_manufacturing_industry40.qmd
         - chapters/ch24_media_entertainment.qmd
+        - chapters/ch25_scientific_computing.qmd
+        - chapters/ch26_defense_intelligence.qmd
 
     - part: "Part VI: Future-Proofing & Optimization"
       chapters:
-        - chapters/ch25_performance_optimization.qmd
-        - chapters/ch26_security_privacy.qmd
-        - chapters/ch27_monitoring_observability.qmd
-        - chapters/ch28_future_trends.qmd
+        - chapters/ch27_performance_optimization.qmd
+        - chapters/ch28_security_privacy.qmd
+        - chapters/ch29_monitoring_observability.qmd
+        - chapters/ch30_future_trends.qmd
 
     - part: "Part VII: Implementation Roadmap"
       chapters:
-        - chapters/ch29_organizational_transformation.qmd
-        - chapters/ch30_implementation_roadmap.qmd
-        - chapters/ch31_case_studies.qmd
-        - chapters/ch32_path_forward.qmd
+        - chapters/ch31_organizational_transformation.qmd
+        - chapters/ch32_implementation_roadmap.qmd
+        - chapters/ch33_case_studies.qmd
+        - chapters/ch34_path_forward.qmd
 
     - references.qmd
 

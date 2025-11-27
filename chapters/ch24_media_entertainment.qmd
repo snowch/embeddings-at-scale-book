@@ -385,7 +385,7 @@ The specific performance metrics, cost figures, and business impact percentages 
 
 ## Looking Ahead
 
-Part VI (Future-Proofing & Optimization) begins with Chapter 23, which focuses on performance optimization mastery: query optimization strategies for sub-50ms retrieval at trillion-row scale, index tuning for specific workload patterns, caching strategies for frequently accessed embeddings, compression techniques that reduce storage by 75% while maintaining quality, and network optimization for distributed queries across global data centers.
+Part V (Industry Applications) continues with Chapter 25, which applies embeddings to scientific computing and research: astrophysics applications using image and spectral embeddings for galaxy classification, gravitational wave detection, and exoplanet discovery, climate and earth science with spatio-temporal embeddings for weather prediction and satellite imagery analysis, materials science acceleration using atomic graph embeddings for property prediction and discovery, particle physics analysis with point cloud embeddings for collision reconstruction, and ecology and biodiversity monitoring through multi-modal embeddings for species identification.
 
 ## Further Reading
 

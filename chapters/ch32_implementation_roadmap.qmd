@@ -1749,7 +1749,7 @@ Risk mitigation and contingency planning—proactively addressing potential fail
 
 ## Looking Ahead
 
-Chapter 29 explores real-world case studies and lessons learned: successful trillion-row deployments demonstrating proven approaches at massive scale, common pitfalls and avoidance strategies preventing typical failure modes, performance optimization war stories revealing non-obvious bottlenecks and solutions, cost management strategies achieving 5-10× efficiency through architectural and operational improvements, and cultural transformation stories showing how organizations evolve to embedding-native thinking—providing concrete examples and practical guidance translating implementation roadmap into successful execution.
+Chapter 33 explores real-world case studies and lessons learned: successful trillion-row deployments demonstrating proven approaches at massive scale, common pitfalls and avoidance strategies preventing typical failure modes, performance optimization war stories revealing non-obvious bottlenecks and solutions, cost management strategies achieving 5-10× efficiency through architectural and operational improvements, and cultural transformation stories showing how organizations evolve to embedding-native thinking—providing concrete examples and practical guidance translating implementation roadmap into successful execution.
 
 ## Further Reading
 

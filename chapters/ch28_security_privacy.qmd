@@ -472,7 +472,7 @@ Embedding systems face regulatory requirements:
 
 ## Looking Ahead
 
-Chapter 25 establishes comprehensive monitoring and observability practices: embedding quality metrics that detect model degradation and concept drift, performance monitoring dashboards tracking latency and throughput across deployment, alerting on embedding drift when semantic space shifts require model retraining, cost tracking and optimization ensuring efficient resource utilization, and user experience analytics measuring how embedding quality impacts business metrics.
+Chapter 29 establishes comprehensive monitoring and observability practices: embedding quality metrics that detect model degradation and concept drift, performance monitoring dashboards tracking latency and throughput across deployment, alerting on embedding drift when semantic space shifts require model retraining, cost tracking and optimization ensuring efficient resource utilization, and user experience analytics measuring how embedding quality impacts business metrics.
 
 ## Further Reading
 
