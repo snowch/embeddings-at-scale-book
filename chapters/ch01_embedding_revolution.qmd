@@ -249,6 +249,15 @@ def vector_analogy(a, b, c, embeddings):
 
     return closest_word
 
+# Using our embeddings from earlier
+embeddings = {
+    'cat':    [0.8, 0.6, 0.1, 0.2],  # Close to 'kitten'
+    'kitten': [0.8, 0.5, 0.2, 0.3],  # Close to 'cat'
+    'dog':    [0.7, 0.6, 0.1, 0.8],  # Close to 'puppy', related to 'cat'
+    'puppy':  [0.7, 0.5, 0.2, 0.9],  # Close to 'dog'
+    'car':    [0.1, 0.2, 0.9, 0.1],  # Far from animals
+}
+
 # Convert to numpy arrays for vector arithmetic
 np_embeddings = {word: np.array(vec) for word, vec in embeddings.items()}
 
