@@ -12,9 +12,12 @@ similarity search across images.
 import torch
 from PIL import Image
 from torchvision import models, transforms
+from torchvision.models import ResNet50_Weights
 
-# Load pre-trained image model
-model = models.resnet50(pretrained=True)
+# Load pre-trained image model (suppress download progress bar)
+weights = ResNet50_Weights.IMAGENET1K_V1
+model = models.resnet50(weights=None)
+model.load_state_dict(weights.get_state_dict(progress=False))
 model.eval()
 
 # Remove final classification layer to get embeddings
