@@ -109,9 +109,9 @@ $$
 \begin{aligned}
 \text{Dot product} &= (0.9 \times 0.9) + (0.8 \times 0.8) + (0.1 \times 0.9) \\
 &= 0.81 + 0.64 + 0.09 = 1.54 \\[1em]
-\|\text{king}\| &= \sqrt{0.9^2 + 0.8^2 + 0.1^2} = \sqrt{0.86} \approx 0.93 \\[0.5em]
-\|\text{queen}\| &= \sqrt{0.9^2 + 0.8^2 + 0.9^2} = \sqrt{1.66} \approx 1.29 \\[1em]
-\text{cosine\_similarity} &= \frac{1.54}{0.93 \times 1.29} \approx 0.928 \rightarrow \text{Very similar!}
+\|\text{king}\| &= \sqrt{0.9^2 + 0.8^2 + 0.1^2} = \sqrt{1.46} \approx 1.21 \\[0.5em]
+\|\text{queen}\| &= \sqrt{0.9^2 + 0.8^2 + 0.9^2} = \sqrt{2.26} \approx 1.50 \\[1em]
+\text{cosine\_similarity} &= \frac{1.54}{1.21 \times 1.50} \approx 0.85 \rightarrow \text{Very similar!}
 \end{aligned}
 $$
 
@@ -134,6 +134,8 @@ But cosine similarity is often better for embeddings because:
 1.  **Scale-invariant**: "king" mentioned once vs. ten times shouldn't change its meaning
 2.  **Captures semantic direction**: Two documents about "cats" are similar even if one is 10× longer
 3.  **High-dimensional stability**: Works well even in 300+ dimensions where Euclidean distance suffers from the "curse of dimensionality"
+
+For a comprehensive comparison of similarity metrics—including dot product, Manhattan distance, Hamming distance, and when to use each—see @sec-similarity-distance-metrics.
 :::
 
 ### From Discrete to Continuous: Why Embeddings Matter

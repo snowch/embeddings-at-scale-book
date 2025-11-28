@@ -1,0 +1,444 @@
+# Media and Entertainment {#sec-media-entertainment}
+
+:::{.callout-note}
+## Chapter Overview
+Media and entertainment—from content discovery to audience engagement to creative production—operate on understanding viewer preferences, protecting intellectual property, and delivering personalized experiences at scale. This chapter applies embeddings to media transformation: content recommendation engines using multi-modal embeddings of video, audio, text, and user behavior that understand content similarity beyond genre tags and enable hyper-personalized discovery, automated content tagging through computer vision and NLP embeddings that generate metadata at scale and enable semantic search across massive media libraries, intellectual property protection via perceptual hashing and similarity detection that identifies copyright infringement and unauthorized derivatives in real-time, audience analysis and targeting with viewer embeddings that segment audiences by behavior rather than demographics and enable precision advertising, and creative content generation using latent space manipulation to assist creators with intelligent editing suggestions, automated clip generation, and personalized content variants. These techniques transform media from manual curation and demographic targeting to learned representations that capture content semantics, viewer intent, and creative patterns.
+:::
+
+After transforming manufacturing systems (@sec-manufacturing-industry40), embeddings enable **media and entertainment innovation** at unprecedented scale. Traditional media systems rely on genre categorization (action, comedy, drama), demographic targeting (age 18-34, male), manual metadata tagging (labor-intensive and inconsistent), and collaborative filtering (users who watched X also watched Y). **Embedding-based media systems** represent content, viewers, and contexts as vectors, enabling semantic content discovery that understands narrative themes and stylistic elements, micro-segmentation based on viewing patterns rather than demographics, automated content analysis at scale, and intellectual property protection through perceptual similarity—increasing viewer engagement by 30-60%, reducing content discovery friction by 40-70%, and detecting copyright infringement with 95%+ accuracy.
+
+## Content Recommendation Engines
+
+Media platforms host millions of hours of content with viewers spending minutes deciding what to watch, creating a discovery problem that determines engagement, retention, and revenue. **Embedding-based content recommendation** represents content and viewers as vectors learned from multi-modal signals, enabling personalized discovery that understands content similarity invisible to genre tags and demographic segments.
+
+### The Content Discovery Challenge
+
+Traditional recommendation systems face limitations:
+
+- **Cold start**: New content has no viewing history, new users have no preferences
+- **Genre brittleness**: "Action" encompasses superhero films, war movies, martial arts—vastly different
+- **Contextual dynamics**: Weekend evening preferences differ from weekday morning
+- **Multi-modal content**: Recommendations must consider plot, visuals, audio, pacing, themes
+- **Long-tail distribution**: Popular content dominates recommendations, niche content undiscovered
+- **Temporal effects**: Trending content, seasonal preferences, recency bias
+- **Multi-objective optimization**: Balance engagement, diversity, business goals
+
+**Embedding approach**: Learn content embeddings from multi-modal signals—video encodes visual style and pacing, audio captures mood and intensity, text (subtitles, metadata) encodes narrative and themes, user behavior reveals implicit preferences. Similar content clusters together regardless of genre labels. Viewer embeddings capture preference patterns across content dimensions. Recommendations become nearest neighbor search in joint embedding space. See @sec-custom-embedding-strategies for guidance on building these embeddings, and @sec-contrastive-learning for training techniques.
+
+```python
+{{< include /code_examples/ch28_media_entertainment/class.py >}}
+```
+
+:::{.callout-tip}
+## Content Recommendation Best Practices
+
+**Multi-modal fusion:**
+
+- **Video**: 3D CNN (C3D, I3D) or Video Transformer (ViViT, TimeSformer)
+- **Audio**: Wav2Vec, Audio Spectrogram Transformer for mood/intensity
+- **Text**: BERT for metadata, subtitles, closed captions
+- **Behavioral**: Implicit signals (watch time, completion) > explicit (ratings)
+- **Contextual**: Time-of-day, device, session state
+
+**Training strategies:**
+
+- **Contrastive learning**: InfoNCE loss with in-batch negatives (see @sec-contrastive-learning for details on loss functions and hard negative mining strategies)
+- **Hard negative mining**: Content same genre but not watched (see @sec-contrastive-learning)
+- **Multi-task learning**: Watch time + completion + engagement
+- **Temporal modeling**: Sequential viewing patterns (Transformer)
+- **Cold start**: Content-based embeddings for new items
+
+**Production deployment:**
+
+- **Two-tower architecture**: Separate content/user encoding for efficient retrieval
+- **ANN indexing**: HNSW, IVF for <50ms retrieval at 100M+ scale
+- **Online updates**: Continual learning from viewing sessions
+- **A/B testing**: Measure engagement, diversity, satisfaction
+- **Explainability**: Attention weights show which content features drive recommendations
+
+**Challenges:**
+
+- **Filter bubbles**: Explore-exploit trade-off, diversity injection
+- **Popularity bias**: New/niche content needs explicit boosting
+- **Multi-objective**: Balance engagement, diversity, business goals
+- **Temporal dynamics**: Trending content, seasonal preferences
+- **Cross-platform**: Consistent experience across TV, mobile, desktop
+:::
+## Automated Content Tagging
+
+Media libraries contain millions of hours of content requiring metadata for searchability, organization, and recommendation. Manual tagging is expensive, inconsistent, and doesn't scale. **Embedding-based automated content tagging** analyzes video, audio, and text to generate comprehensive, accurate, semantic tags at scale.
+
+### The Content Tagging Challenge
+
+Manual content tagging faces limitations:
+
+- **Labor intensity**: Manual tagging costs $50-500 per hour of content
+- **Inconsistency**: Different taggers use different terminology, granularity
+- **Incompleteness**: Time constraints limit tag coverage
+- **Subjectivity**: Genre, mood, themes are subjective judgments
+- **Scalability**: User-generated content uploads at massive scale (500+ hours/minute on YouTube)
+- **Multi-lingual**: Content in hundreds of languages
+- **Temporal granularity**: Scene-level tags vs content-level
+- **Multi-modal**: Visual, audio, dialogue, on-screen text all contain signals
+
+**Embedding approach**: Learn embeddings from labeled data, then apply to unlabeled content. Computer vision models extract visual concepts (objects, scenes, actions, styles), audio models capture soundscape elements (music genre, ambient sounds, speech characteristics), NLP models extract entities, topics, and sentiment from dialogue and metadata. Hierarchical embeddings capture tag relationships (action → car chase → high-speed chase). Zero-shot classification enables tagging with novel concepts. See @sec-custom-embedding-strategies for approaches to building these embeddings.
+
+```python
+{{< include /code_examples/ch28_media_entertainment/class_1.py >}}
+```
+
+:::{.callout-tip}
+## Automated Content Tagging Best Practices
+
+**Multi-modal analysis:**
+
+- **Visual**: Frame-level object detection, scene classification, action recognition
+- **Audio**: Sound events, music genre, speech characteristics, ambient sounds
+- **Text**: ASR transcripts, OCR, closed captions, metadata
+- **Temporal**: Scene segmentation, key frame extraction, temporal action detection
+- **Contextual**: Content type (movie, documentary, sports), target audience
+
+**Tag taxonomy design:**
+
+- **Hierarchical structure**: Genre → subgenre → specific themes
+- **Multiple dimensions**: Genre, mood, setting, theme, style, era, audience
+- **Granularity balance**: 500-5,000 tags (too few = imprecise, too many = sparse)
+- **Synonyms and aliases**: Map variations to canonical tags
+- **Versioning**: Taxonomy evolves with content trends
+
+**Model architectures:**
+
+- **Video**: 3D CNN (C3D, I3D), Video Transformer (TimeSformer, ViViT)
+- **Audio**: CNN on mel spectrograms, Audio Transformer (AST)
+- **Text**: BERT, RoBERTa for transcript/metadata analysis
+- **Fusion**: Concatenation, attention, or cross-modal transformers
+- **Zero-shot**: CLIP for arbitrary visual concepts without retraining
+
+**Production deployment:**
+
+- **Batch processing**: Offline analysis of content library
+- **Real-time tagging**: <1 minute for user uploads
+- **Quality control**: Human validation for low-confidence predictions
+- **Active learning**: Sample uncertain cases for human review
+- **Continuous improvement**: Retrain on validated corrections
+
+**Challenges:**
+
+- **Long-tail concepts**: Rare tags with few training examples
+- **Subjectivity**: Mood, theme, tone are subjective
+- **Context dependence**: Same scene means different things in different contexts
+- **Multi-lingual**: Tags in 50+ languages
+- **Version control**: Managing taxonomy changes and retagging
+:::
+## Intellectual Property Protection
+
+Media companies face billions in losses from piracy, unauthorized use, and content theft. Traditional copyright protection relies on watermarks (removable), manual monitoring (doesn't scale), and reactive takedowns (damage already done). **Embedding-based intellectual property protection** uses perceptual hashing and similarity detection to identify copyrighted content even after modifications, enabling proactive enforcement at scale.
+
+### The IP Protection Challenge
+
+Traditional IP protection faces limitations:
+
+- **Volume**: Hundreds of hours uploaded per minute across platforms
+- **Transformations**: Content modified (cropped, color-adjusted, sped up, mirrored)
+- **Derivatives**: Clips, edits, remixes, reaction videos
+- **Multi-platform**: Content spreads across YouTube, TikTok, Instagram, Twitter, piracy sites
+- **Real-time detection**: Need to block before viral spread
+- **False positives**: Fair use, parodies, legitimate references
+- **Global scale**: Monitoring millions of sources worldwide
+- **Format variations**: Different resolutions, codecs, frame rates
+
+**Embedding approach**: Learn perceptual embeddings robust to transformations but sensitive to content. Original content and modified versions have similar embeddings; unrelated content has distant embeddings. Create embedding database of protected content. For each upload, compute embedding and search for near-duplicates. Similarity above threshold triggers enforcement action (block, claim, flag). Temporal alignment enables detecting clips within longer uploads. See @sec-contrastive-learning for training techniques that learn transformation-invariant representations.
+
+```python
+{{< include /code_examples/ch28_media_entertainment/class_2.py >}}
+```
+
+:::{.callout-tip}
+## IP Protection Best Practices
+
+**Fingerprinting techniques:**
+
+- **Video**: Perceptual hashing robust to compression, cropping, color adjustment
+- **Audio**: Acoustic fingerprinting (constellation maps, like Shazam)
+- **Temporal**: Segment-level fingerprints for clip detection
+- **Multi-modal**: Combine video + audio for higher accuracy
+- **Hierarchical**: Coarse-to-fine matching for efficiency
+
+**Robustness requirements:**
+
+- **Compression**: H.264, H.265, VP9, AV1 codecs
+- **Resolution**: 240p to 4K, different aspect ratios
+- **Cropping**: Borders, letterboxing, cropping up to 30%
+- **Color**: Brightness, contrast, saturation, hue shifts
+- **Speed**: 0.5× to 2× playback speed changes
+- **Geometric**: Rotation, mirror, perspective distortion
+- **Overlay**: Logos, watermarks, text, stickers
+- **Audio**: Pitch shift, volume, background noise
+
+**System architecture:**
+
+- **Ingestion**: Fingerprint protected content on release
+- **Monitoring**: Scan uploads across platforms in real-time
+- **Matching**: ANN search across 100M+ fingerprints <100ms
+- **Verification**: Secondary checks to reduce false positives
+- **Enforcement**: Block, claim monetization, or flag for review
+- **Reporting**: Dashboard for rights holders to track infringement
+
+**Legal and policy:**
+
+- **Fair use**: Allow transformative works, commentary, parody
+- **Counter-notification**: Process for disputed takedowns
+- **Territorial rights**: Enforce only in relevant territories
+- **Content ID**: Industry-standard content identification
+- **Transparency**: Report accuracy metrics to rights holders
+- **Appeals**: Human review for disputed matches
+
+**Challenges:**
+
+- **Evasion**: Adversaries constantly try new transformations
+- **False positives**: Similar but non-infringing content
+- **Fair use**: Distinguishing infringement from legitimate use
+- **Scale**: Billions of hours uploaded across platforms
+- **Cost**: Computational cost of monitoring at scale
+- **International**: Different copyright laws across jurisdictions
+:::
+## Audience Analysis and Targeting
+
+Traditional audience segmentation relies on demographics (age 18-34, male, urban) that correlate weakly with viewing preferences and ad response. **Embedding-based audience analysis** segments viewers by behavioral patterns rather than demographics, enabling precision targeting that increases ad effectiveness by 3-5× while improving viewer experience.
+
+### The Audience Segmentation Challenge
+
+Demographic targeting faces limitations:
+
+- **Weak correlation**: Age/gender/location predict <20% of viewing variance
+- **Coarse granularity**: "Millennials" encompasses vastly different preferences
+- **Static segments**: Demographics don't change with context, mood, occasion
+- **Privacy concerns**: Demographic data collection increasingly restricted
+- **Cross-platform**: Users have different personas across devices
+- **Real-time adaptation**: Preferences change throughout day, week, season
+- **Long-tail preferences**: Niche interests invisible to broad segments
+- **Multi-dimensional**: Viewing driven by mood, intent, social context, time pressure
+
+**Embedding approach**: Learn viewer embeddings from behavioral signals—viewing history reveals preferences, session patterns show contexts, engagement signals indicate intensity, temporal patterns capture routines. Similar viewers cluster in embedding space regardless of demographics. Micro-segments emerge from clustering. Advertising targets based on behavioral similarity rather than demographic categories. Real-time context adapts targeting within session. See @sec-custom-embedding-strategies for guidance on building these embeddings, and @sec-contrastive-learning for training techniques.
+
+```python
+{{< include /code_examples/ch28_media_entertainment/class_3.py >}}
+```
+
+:::{.callout-tip}
+## Audience Analysis Best Practices
+
+**Behavioral signal collection:**
+
+- **Viewing history**: Content watched, completion rates, watch time
+- **Engagement signals**: Pause/rewind, likes, shares, saves
+- **Temporal patterns**: Time of day, day of week, seasonal trends
+- **Device context**: TV vs mobile vs desktop viewing
+- **Session dynamics**: Binge patterns, discovery vs lean-back
+- **Cross-platform**: Link behavior across devices
+
+**Embedding architectures:**
+
+- **Sequential models**: LSTM/Transformer for viewing sequences
+- **Attention mechanisms**: Weight recent behavior more heavily
+- **Multi-task learning**: Predict engagement, ad response, churn
+- **Contrastive learning**: Similar viewers cluster together
+- **Temporal dynamics**: Model how preferences evolve
+- **Context awareness**: Adapt embeddings by time, device, situation
+
+**Micro-segmentation:**
+
+- **Clustering**: K-means, hierarchical, DBSCAN on embeddings
+- **Segment size**: 1,000-50,000 viewers per micro-segment
+- **Interpretability**: Characterize segments by behavior patterns
+- **Stability**: Segments stable enough for campaign planning
+- **Coverage**: Every viewer assigned to at least one segment
+- **Hierarchy**: Nest micro-segments within macro-segments
+
+**Ad targeting:**
+
+- **Viewer-ad matching**: Predict response from embeddings
+- **Real-time selection**: <50ms ad selection during playback
+- **Multi-objective**: Balance relevance, diversity, revenue
+- **Frequency capping**: Limit repetition of same ads
+- **Context awareness**: Appropriate ads for content
+- **A/B testing**: Continuously optimize targeting
+
+**Privacy and compliance:**
+
+- **No PII**: Only behavioral signals, no names/emails/addresses
+- **Aggregation**: Segments ≥1,000 viewers minimum
+- **Consent**: Clear opt-in for behavioral targeting
+- **Transparency**: Explain why ads shown
+- **Control**: Let users adjust ad preferences
+- **Regulation**: GDPR, CCPA, COPPA compliance
+
+**Challenges:**
+
+- **Cold start**: New viewers with no history
+- **Multi-device**: Link behavior across devices
+- **Temporal dynamics**: Preferences change over time
+- **Interpretability**: Explain segment characteristics
+- **Bias**: Avoid reinforcing stereotypes
+- **Measurement**: Attribution across touchpoints
+:::
+## Creative Content Generation
+
+Content creation traditionally requires teams of editors, writers, and producers, with manual processes that don't scale. **Embedding-based creative content generation** uses latent space manipulation and learned content representations to assist creators with intelligent editing suggestions, automated clip generation, personalized content variants, and creative ideation—augmenting human creativity while maintaining quality.
+
+### The Creative Production Challenge
+
+Manual content creation faces limitations:
+
+- **Labor intensity**: Video editing costs $100-500 per finished minute
+- **Time constraints**: Turnaround measured in days or weeks
+- **Personalization cost**: Creating variants for different audiences prohibitively expensive
+- **Highlight detection**: Identifying best moments requires watching entire content
+- **Trailer creation**: Crafting compelling previews requires artistic judgment
+- **Localization**: Adapting content for different regions and cultures
+- **Format adaptation**: Repurposing long-form for TikTok, Instagram, YouTube Shorts
+- **Creative bottleneck**: Limited by human bandwidth
+
+**Embedding approach**: Learn embeddings capturing content structure, narrative patterns, visual aesthetics, emotional arcs, and audience response. Latent space manipulation enables controlled generation—moving along dimensions changes specific attributes (pacing, tone, complexity). Attention mechanisms identify salient segments. Sequence models predict engaging clip boundaries. Style transfer adapts content aesthetics. Generative models create variants while preserving semantic meaning. Human creators remain in control, with AI providing intelligent suggestions and automation. See @sec-custom-embedding-strategies for approaches to building these embeddings.
+
+```python
+{{< include /code_examples/ch28_media_entertainment/class_4.py >}}
+```
+
+:::{.callout-tip}
+## Creative Content Generation Best Practices
+
+**Content understanding:**
+
+- **Scene segmentation**: Shot boundaries, scene transitions, sequences
+- **Saliency detection**: Predict viewer engagement, key moments
+- **Emotional arc**: Track narrative emotional trajectory
+- **Character presence**: Identify which characters appear when
+- **Visual aesthetics**: Cinematography, lighting, color grading
+- **Audio analysis**: Music, dialogue, sound effects, pacing
+
+**Generation techniques:**
+
+- **Clip extraction**: Select high-saliency segments for target duration
+- **Trailer composition**: Build emotional arc (setup → tension → climax)
+- **Highlight reels**: Identify peak moments in sports, performances
+- **Social variants**: Optimize length, pacing for platform (TikTok, Instagram)
+- **Personalization**: Generate variants for different audiences
+- **Style transfer**: Adapt aesthetics while preserving content
+
+**Quality control:**
+
+- **Human-in-the-loop**: Editors review and refine AI suggestions
+- **Quality metrics**: Ensure technical quality (resolution, audio levels)
+- **Brand consistency**: Maintain creator/brand voice and standards
+- **Rights management**: Respect music, footage, trademark licensing
+- **A/B testing**: Measure audience response to variants
+- **Feedback loop**: Learn from editor acceptance/rejection
+
+**Production integration:**
+
+- **Non-destructive**: Suggestions don't modify source content
+- **Editor interface**: Present suggestions in familiar editing tools
+- **Rapid iteration**: Generate multiple variants quickly
+- **Collaboration**: Multiple editors can work on AI suggestions
+- **Version control**: Track edits and AI contributions
+- **Export options**: Render in multiple formats and resolutions
+
+**Use cases:**
+
+- **Trailers**: Teasers, theatrical, TV spots
+- **Social media**: TikTok, Instagram Reels, YouTube Shorts
+- **Highlights**: Sports, concerts, live events
+- **Recaps**: Episode previously, season recaps
+- **Localization**: Adapt pacing for different cultures
+- **Personalization**: Different edits for different demographics
+
+**Challenges:**
+
+- **Artistic judgment**: AI can't replace human creativity
+- **Context understanding**: Complex narratives, subtle themes
+- **Rights clearance**: Generated clips must respect licensing
+- **Quality bar**: Suggestions must meet broadcast standards
+- **Brand voice**: Maintain consistent tone across variants
+- **Efficiency vs quality**: Balance automation with manual refinement
+:::
+
+## Key Takeaways
+
+:::{.callout-note}
+The specific performance metrics, cost figures, and business impact percentages in the takeaways below are illustrative examples from the hypothetical scenarios and code demonstrations presented in this chapter. They are not verified real-world results from specific media organizations.
+:::
+
+- **Multi-modal content recommendation enables semantic discovery beyond genre tags**: Video, audio, and text encoders learn complementary representations of content, two-tower architectures enable efficient retrieval at 100M+ content scale, and sequential viewer modeling captures temporal preferences, potentially increasing engagement by 30-60% and diversity by 45% compared to collaborative filtering
+
+- **Automated content tagging scales metadata generation 10,000×**: Computer vision models extract visual concepts, audio models detect sound events, NLP models analyze dialogue and metadata, hierarchical classifiers respect taxonomy relationships, and zero-shot classification enables tagging with arbitrary concepts, reducing tagging cost from $200/hour to $0.02/hour while achieving 85-92% precision
+
+- **Perceptual hashing enables intellectual property protection at internet scale**: Robust video and audio fingerprints detect copyrighted content despite transformations (compression, cropping, speed changes), temporal alignment identifies clips within longer uploads, and ANN search enables <100ms matching across 100M+ protected assets, preventing $500M+ annual piracy losses with 95%+ detection accuracy
+
+- **Behavioral embeddings enable precision audience targeting**: Sequential models over viewing history learn individual preference patterns rather than demographic stereotypes, micro-segmentation discovers 100+ behavioral segments from clustering in embedding space, and real-time context adaptation tailors experiences to device, time, and session state, increasing ad effectiveness by 200%+ and advertiser ROI by 180%
+
+- **Creative content generation augments human creativity with intelligent automation**: Saliency detection identifies engaging moments, emotional arc modeling tracks narrative trajectories, clip generators create trailers and social variants 10× faster than manual editing, and style transfer adapts content for different platforms and audiences, reducing production costs by 85% while maintaining quality
+
+- **Media embeddings require multi-modal fusion and temporal modeling**: Content is inherently multi-modal (video, audio, text, metadata), viewing behavior is sequential and context-dependent, and content understanding requires modeling narrative structure, emotional arcs, and aesthetic elements across multiple time scales from frames to full content
+
+- **Production systems balance automation with creative control**: Human creators remain in the loop with AI providing suggestions not replacements, quality bars ensure generated content meets broadcast standards, A/B testing validates that automation improves business metrics, and feedback loops continuously improve models from editor and viewer responses
+
+## Looking Ahead
+
+Part V (Industry Applications) continues with Chapter 25, which applies embeddings to scientific computing and research: astrophysics applications using image and spectral embeddings for galaxy classification, gravitational wave detection, and exoplanet discovery, climate and earth science with spatio-temporal embeddings for weather prediction and satellite imagery analysis, materials science acceleration using atomic graph embeddings for property prediction and discovery, particle physics analysis with point cloud embeddings for collision reconstruction, and ecology and biodiversity monitoring through multi-modal embeddings for species identification.
+
+## Further Reading
+
+### Content Recommendation
+- Covington, Paul, Jay Adams, and Emre Sargin (2016). "Deep Neural Networks for YouTube Recommendations." RecSys.
+- Chen, Minmin, et al. (2019). "Top-K Off-Policy Correction for a REINFORCE Recommender System." WSDM.
+- Zhou, Guorui, et al. (2018). "Deep Interest Network for Click-Through Rate Prediction." KDD.
+- Yi, Xinyang, et al. (2019). "Sampling-Bias-Corrected Neural Modeling for Large Corpus Item Recommendations." RecSys.
+
+### Automated Content Analysis
+- Abu-El-Haija, Sami, et al. (2016). "YouTube-8M: A Large-Scale Video Classification Benchmark." arXiv:1609.08675.
+- Karpathy, Andrej, et al. (2014). "Large-Scale Video Classification with Convolutional Neural Networks." CVPR.
+- Gemmeke, Jort F., et al. (2017). "Audio Set: An Ontology and Human-Labeled Dataset for Audio Events." ICASSP.
+- Zhou, Bolei, et al. (2017). "Places: A 10 Million Image Database for Scene Recognition." IEEE TPAMI.
+
+### Content Identification
+- Wang, Avery Li-Chun (2003). "An Industrial Strength Audio Search Algorithm." ISMIR.
+- Baluja, Shumeet, and Michele Covell (2008). "Waveprint: Efficient Wavelet-Based Audio Fingerprinting." Pattern Recognition.
+- Douze, Matthijs, et al. (2009). "Evaluation of GIST Descriptors for Web-Scale Image Search." CIVR.
+- Jégou, Hervé, Matthijs Douze, and Cordelia Schmid (2008). "Hamming Embedding and Weak Geometric Consistency for Large Scale Image Search." ECCV.
+
+### Audience Analysis
+- Hidasi, Balázs, et al. (2016). "Session-based Recommendations with Recurrent Neural Networks." ICLR.
+- Chen, Xu, et al. (2019). "Sequential Recommendation with User Memory Networks." WSDM.
+- Quadrana, Massimo, et al. (2017). "Personalizing Session-based Recommendations with Hierarchical Recurrent Neural Networks." RecSys.
+- Chapelle, Olivier, et al. (2015). "Simple and Scalable Response Prediction for Display Advertising." ACM TIST.
+
+### Video Understanding
+- Carreira, Joao, and Andrew Zisserman (2017). "Quo Vadis, Action Recognition? A New Model and the Kinetics Dataset." CVPR.
+- Tran, Du, et al. (2018). "A Closer Look at Spatiotemporal Convolutions for Action Recognition." CVPR.
+- Bertasius, Gedas, Heng Wang, and Lorenzo Torresani (2021). "Is Space-Time Attention All You Need for Video Understanding?" ICML.
+- Arnab, Anurag, et al. (2021). "ViViT: A Video Vision Transformer." ICCV.
+
+### Creative AI and Generation
+- Ramesh, Aditya, et al. (2021). "Zero-Shot Text-to-Image Generation." ICML.
+- Radford, Alec, et al. (2021). "Learning Transferable Visual Models From Natural Language Supervision." ICML.
+- Jia, Chao, et al. (2021). "Scaling Up Visual and Vision-Language Representation Learning With Noisy Text Supervision." ICML.
+- Luo, Huaishao, et al. (2022). "CLIP4Clip: An Empirical Study of CLIP for End to End Video Clip Retrieval." Neurocomputing.
+
+### Multi-Modal Learning
+- Baltrusaitis, Tadas, Chaitanya Ahuja, and Louis-Philippe Morency (2019). "Multimodal Machine Learning: A Survey and Taxonomy." IEEE TPAMI.
+- Nagrani, Arsha, et al. (2021). "Attention Bottlenecks for Multimodal Fusion." NeurIPS.
+- Akbari, Hassan, et al. (2021). "VATT: Transformers for Multimodal Self-Supervised Learning from Raw Video, Audio and Text." NeurIPS.
+- Girdhar, Rohit, et al. (2022). "OmniVore: A Single Model for Many Visual Modalities." CVPR.
+
+### Media Industry Applications
+- Davidson, James, et al. (2010). "The YouTube Video Recommendation System." RecSys.
+- Gomez-Uribe, Carlos A., and Neil Hunt (2016). "The Netflix Recommender System: Algorithms, Business Value, and Innovation." ACM TMIS.
+- Amatriain, Xavier, and Justin Basilico (2015). "Recommender Systems in Industry: A Netflix Case Study." Recommender Systems Handbook.
+- Zhou, Ke, et al. (2020). "S3-Rec: Self-Supervised Learning for Sequential Recommendation with Mutual Information Maximization." CIKM.
+
+### Computational Creativity
+- Elgammal, Ahmed, et al. (2017). "CAN: Creative Adversarial Networks, Generating 'Art' by Learning About Styles and Deviating from Style Norms." ICCC.
+- Karras, Tero, et al. (2019). "A Style-Based Generator Architecture for Generative Adversarial Networks." CVPR.
+- Gatys, Leon A., Alexander S. Ecker, and Matthias Bethge (2016). "Image Style Transfer Using Convolutional Neural Networks." CVPR.
+- Huang, Xun, and Serge Belongie (2017). "Arbitrary Style Transfer in Real-time with Adaptive Instance Normalization." ICCV.
