@@ -207,6 +207,7 @@ Perhaps the most remarkable property of embeddings is that mathematical operatio
 #| code-fold: false
 
 import numpy as np
+from scipy.spatial.distance import cosine
 
 def vector_analogy(a, b, c, embeddings):
     """Solve: a is to b as c is to ?"""
@@ -219,6 +220,8 @@ def vector_analogy(a, b, c, embeddings):
     for word, vec in embeddings.items():
         if word in [a, b, c]:  # Skip input words
             continue
+
+        # Smaller distance = more similar concepts
         dist = cosine(result_vector, vec)
         if dist < closest_distance:
             closest_distance = dist
