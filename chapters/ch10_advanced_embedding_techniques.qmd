@@ -1,0 +1,344 @@
+# Advanced Embedding Techniques {#sec-advanced-embedding-techniques}
+
+:::{.callout-note}
+## Chapter Overview
+As embedding systems mature, organizations need techniques that go beyond standard vector representations. This chapter explores five advanced approaches that address complex real-world challenges: hierarchical embeddings that preserve taxonomic structure, dynamic embeddings that capture temporal evolution, compositional embeddings for complex entities, uncertainty quantification for trustworthy predictions, and federated learning for privacy-preserving embedding training. These techniques unlock new possibilities for organizations handling structured knowledge graphs, time-varying data, multi-faceted entities, high-stakes decisions, and distributed sensitive data.
+:::
+
+## Hierarchical Embeddings for Taxonomies
+
+Many enterprise domains have inherent hierarchical structure: product catalogs with categories and subcategories, organizational charts with departments and teams, medical ontologies with disease classifications, and scientific taxonomies. Standard embeddings treat all items as independent points in space, losing this valuable structural information. **Hierarchical embeddings preserve taxonomic relationships while maintaining the benefits of vector representations**.
+
+### The Hierarchical Challenge
+
+Consider an e-commerce product catalog:
+
+```
+Electronics
+├── Computers
+│   ├── Laptops
+│   │   ├── Gaming Laptops
+│   │   └── Business Laptops
+│   └── Desktops
+└── Mobile Devices
+    ├── Smartphones
+    └── Tablets
+```
+
+A standard embedding might place "Gaming Laptops" and "Tablets" closer than "Gaming Laptops" and "Business Laptops", even though the latter share more hierarchical structure. Hierarchical embeddings ensure that:
+
+1. **Distance reflects hierarchy**: Items in the same subtree are closer
+2. **Transitivity is preserved**: If A is parent of B and B is parent of C, embeddings reflect this chain
+3. **Level information is encoded**: Embeddings capture depth in the hierarchy
+
+### Hyperbolic Embeddings for Hierarchies
+
+Euclidean space has a fundamental limitation: the number of points at distance $d$ grows polynomially. Tree structures, however, grow exponentially—the number of nodes doubles at each level. **Hyperbolic space has negative curvature, allowing exponential volume growth that naturally matches tree structure**.
+
+The Poincaré ball model represents hyperbolic space as the unit ball in Euclidean space with a special distance metric:
+
+```python
+{{< include /code_examples/ch10_advanced_embedding_techniques/hyperbolicembedding.py >}}
+```
+
+### Enterprise Applications of Hierarchical Embeddings
+
+**1. Product Recommendation with Category Awareness**
+
+```python
+{{< include /code_examples/ch10_advanced_embedding_techniques/hierarchicalproductrecommender.py >}}
+```
+
+**2. Knowledge Graph Embeddings**
+
+Medical ontologies, scientific taxonomies, and corporate knowledge bases benefit enormously from hyperbolic embeddings:
+
+```python
+def embed_medical_ontology():
+    """
+    Medical ontology example: Disease hierarchies
+
+    ICD-10 codes have 14,000+ diseases organized hierarchically
+    Hyperbolic embeddings in 10-20 dimensions outperform
+    Euclidean embeddings in 300-500 dimensions
+    """
+    # Example: Simplified disease taxonomy
+    disease_taxonomy = {
+        # Cardiovascular diseases
+        'myocardial_infarction': 'ischemic_heart_disease',
+        'angina': 'ischemic_heart_disease',
+        'ischemic_heart_disease': 'cardiovascular_disease',
+
+        'atrial_fibrillation': 'arrhythmia',
+        'ventricular_tachycardia': 'arrhythmia',
+        'arrhythmia': 'cardiovascular_disease',
+
+        # Respiratory diseases
+        'pneumonia': 'lower_respiratory_infection',
+        'bronchitis': 'lower_respiratory_infection',
+        'lower_respiratory_infection': 'respiratory_disease',
+
+        'asthma': 'chronic_respiratory_disease',
+        'copd': 'chronic_respiratory_disease',
+        'chronic_respiratory_disease': 'respiratory_disease',
+    }
+
+    trainer = HierarchicalEmbeddingTrainer(
+        disease_taxonomy,
+        embedding_dim=10,
+        curvature=1.0
+    )
+
+    trainer.train(num_epochs=2000, verbose=True)
+
+    return trainer
+```
+
+:::{.callout-tip}
+## Dimensionality Advantage
+Hyperbolic embeddings typically achieve better hierarchical preservation in 5-20 dimensions than Euclidean embeddings in 100-500 dimensions. This reduces storage by 20-100x and speeds up similarity search by 10-50x.
+:::
+
+:::{.callout-warning}
+## Training Stability
+Hyperbolic optimization can be unstable near the boundary of the Poincaré ball. Always use projection after gradient steps and consider adaptive learning rates that decrease when approaching the boundary.
+:::
+
+## Dynamic Embeddings for Temporal Data
+
+Most embedding systems assume data is static: a document has one embedding, a product has one representation. But **real-world entities evolve**: user interests shift, document relevance decays, product popularity cycles, and word meanings drift. Dynamic embeddings capture this temporal dimension.
+
+### The Temporal Challenge
+
+Consider a news article about "AI":
+
+- **2015**: "AI" meant primarily machine learning and narrow applications
+- **2020**: "AI" included transformers, GPT models, and broader capabilities
+- **2025**: "AI" encompasses multimodal models, agents, and reasoning systems
+
+A static embedding averages these meanings, losing temporal context. A dynamic embedding maintains separate representations for each time period or evolves continuously.
+
+### Approaches to Dynamic Embeddings
+
+**1. Discrete Time Slices**: Separate embeddings per time window
+**2. Continuous Evolution**: Embeddings as functions of time
+**3. Recurrent Updates**: Update embeddings based on new observations
+
+```python
+{{< include /code_examples/ch10_advanced_embedding_techniques/dynamicembedding.py >}}
+```
+
+### Production Deployment of Dynamic Embeddings
+
+:::{.callout-tip}
+## Streaming Updates at Scale
+For systems with millions of users and billions of interactions:
+
+1. **Batch updates**: Accumulate interactions over 5-15 minute windows, update in batch
+2. **Incremental training**: Update only affected embeddings, not full model
+3. **Asynchronous updates**: Background process updates embeddings while serving layer uses stale (but recent) versions
+4. **Versioned embeddings**: Maintain multiple versions (current, 5min old, 1hr old) for consistency
+:::
+
+```python
+{{< include /code_examples/ch10_advanced_embedding_techniques/streamingembeddingservice.py >}}
+```
+
+:::{.callout-warning}
+## Temporal Leakage
+When training dynamic embeddings, **never use future information to create past embeddings**. This temporal leakage leads to unrealistically high accuracy in backtesting but fails in production. Always train with strict time-based splits.
+:::
+
+## Compositional Embeddings for Complex Entities
+
+Real-world entities are rarely atomic—they're compositions of multiple components:
+
+- **Documents**: Title + body + metadata + author + date
+- **Products**: Category + brand + attributes + reviews + images
+- **Users**: Demographics + behavior + preferences + context
+- **Transactions**: Buyer + seller + item + time + location + amount
+
+**Compositional embeddings** explicitly model these structures, learning how to combine component embeddings into coherent entity representations.
+
+### Why Composition Matters
+
+A naive approach: concatenate or average component embeddings. This fails because:
+
+1. **Components have different importance**: Product brand matters more than box color
+2. **Interactions exist**: Laptop + Gaming Category ≠ Laptop + Business Category
+3. **Context varies**: User embedding should weight differently for recommendations vs. fraud detection
+
+Compositional embeddings learn **how to combine** components, not just what the components are.
+
+### Approaches to Composition
+
+```python
+{{< include /code_examples/ch10_advanced_embedding_techniques/compositionalembedding.py >}}
+```
+
+### Task-Specific Composition Weights
+
+A powerful extension: **learn different composition weights for different tasks**.
+
+```python
+{{< include /code_examples/ch10_advanced_embedding_techniques/taskadaptivecomposition.py >}}
+```
+
+:::{.callout-tip}
+## Handling Missing Components
+Real-world data often has missing components (products without images, documents without abstracts). Use attention with component masks to handle missing data gracefully—the model automatically re-weights remaining components.
+:::
+
+## Uncertainty Quantification in Embeddings
+
+Embedding systems make high-stakes decisions: loan approvals, medical diagnoses, autonomous vehicle navigation. **A confidence score is as important as the prediction itself**. Uncertainty quantification tells us when to trust an embedding-based decision and when to defer to human judgment or request more information.
+
+### Sources of Uncertainty
+
+1. **Aleatoric uncertainty**: Inherent noise in data (e.g., blurry images, ambiguous text)
+2. **Epistemic uncertainty**: Model's lack of knowledge (e.g., never seen this type of input before)
+3. **Distribution shift**: Input differs from training distribution
+
+Standard embeddings provide point estimates with no uncertainty. We need probabilistic embeddings that capture confidence.
+
+### Approaches to Uncertainty Quantification
+
+```python
+{{< include /code_examples/ch10_advanced_embedding_techniques/probabilisticembedding.py >}}
+```
+
+:::{.callout-warning}
+## Calibration is Critical
+Uncertainty estimates must be **calibrated**: if the model says 80% confidence, it should be correct 80% of the time. Uncalibrated uncertainty is misleading and dangerous. Always validate on held-out test set and use temperature scaling or Platt scaling to calibrate.
+:::
+
+:::{.callout-tip}
+## When to Use Uncertainty Quantification
+
+Essential for:
+
+- **High-stakes decisions**: Healthcare, finance, autonomous systems, legal
+- **Out-of-distribution detection**: Detect when input differs from training data
+- **Active learning**: Select most informative examples to label next
+- **Trustworthy AI**: Provide confidence scores to users
+
+Not necessary for:
+
+- Low-stakes applications (music recommendations, article suggestions)
+- Internal R&D where errors are acceptable
+- Applications with human-in-the-loop review anyway
+:::
+
+## Federated Embedding Learning
+
+Many organizations have valuable data they cannot share: medical records, financial transactions, personal communications. **Federated learning** enables training embeddings across multiple data silos without centralizing the data. Each participant trains locally and shares only model updates, preserving privacy.
+
+### The Federated Learning Paradigm
+
+Traditional centralized training:
+1. Collect all data in one place
+2. Train embedding model
+3. Deploy to all clients
+
+**Problem**: Data cannot be centralized due to privacy, regulations (GDPR, HIPAA), competitive concerns, or data volume.
+
+Federated training:
+1. Each client trains on local data
+2. Clients share model updates (gradients, embeddings)
+3. Central server aggregates updates
+4. Repeat until convergence
+
+```python
+{{< include /code_examples/ch10_advanced_embedding_techniques/federatedembeddingserver.py >}}
+```
+
+### Privacy-Preserving Techniques
+
+**1. Differential Privacy**: Add calibrated noise to updates
+
+```python
+{{< include /code_examples/ch10_advanced_embedding_techniques/differentiallyprivateembedding.py >}}
+```
+
+**2. Secure Aggregation**: Encrypt updates before sharing
+
+```python
+{{< include /code_examples/ch10_advanced_embedding_techniques/secureaggregation.py >}}
+```
+
+:::{.callout-tip}
+## Federated Learning vs. Centralized
+
+**Use federated learning when:**
+
+- Data cannot be centralized (privacy, regulations, size)
+- Multiple organizations want to collaborate without sharing data
+- Data is naturally distributed (mobile devices, edge servers)
+
+**Use centralized learning when:**
+
+- Data can be legally and practically centralized
+- Single organization owns all data
+- Communication costs are prohibitive
+- Need fastest possible training
+:::
+
+:::{.callout-warning}
+## Communication Bottleneck
+Federated learning requires multiple rounds of communication between clients and server. For large models, this can be slower than centralized training even though computation is distributed. Optimize communication:
+
+1. **Model compression**: Send compressed updates (quantization, sparsification)
+2. **Fewer rounds**: More local epochs per round
+3. **Client sampling**: Not all clients participate each round
+4. **Asynchronous updates**: Don't wait for slowest client
+:::
+
+## Key Takeaways
+
+- **Hierarchical embeddings** in hyperbolic space preserve taxonomic structure with 20-100x lower dimensionality than Euclidean embeddings, essential for product catalogs, knowledge graphs, and organizational structures
+
+- **Dynamic embeddings** capture temporal evolution of entities, critical for user preferences, document relevance, and any domain where meanings shift over time
+
+- **Compositional embeddings** explicitly model multi-component entities (products with categories/brands/reviews, documents with title/body/metadata), learning task-specific combination strategies
+
+- **Uncertainty quantification** provides confidence scores for embedding-based decisions, essential for high-stakes applications in healthcare, finance, and autonomous systems where knowing when not to trust a prediction is as important as the prediction itself
+
+- **Federated learning** enables training embeddings across data silos without centralizing data, crucial for privacy-sensitive domains like healthcare, finance, and cross-organizational collaboration
+
+- Advanced techniques are not always necessary—use them when your application has specific requirements (hierarchy, temporal dynamics, privacy constraints) that standard embeddings cannot address
+
+- Production deployment requires careful engineering: streaming updates for dynamic embeddings, calibration for uncertainty, secure communication for federated learning
+
+## Looking Ahead
+
+This concludes Part II on Custom Embedding Development. We've progressed from basic custom embeddings (Chapter 4) through sophisticated training techniques (contrastive learning, Siamese networks, self-supervised learning) to advanced methods for specialized scenarios.
+
+**Part III begins with Chapter 9: Embedding Pipeline Engineering**, shifting focus from developing embeddings to deploying them in production. We'll explore MLOps practices, real-time vs. batch processing, versioning strategies, and monitoring embedding systems at scale.
+
+## Further Reading
+
+### Hierarchical Embeddings
+- Nickel & Kiela (2017). "Poincaré Embeddings for Learning Hierarchical Representations." NeurIPS.
+- Sala et al. (2018). "Representation Tradeoffs for Hyperbolic Embeddings." ICML.
+- Dhingra et al. (2018). "Embedding Text in Hyperbolic Spaces." Workshop on Structured Prediction for NLP.
+
+### Dynamic Embeddings
+- Rudolph & Blei (2018). "Dynamic Embeddings for Language Evolution." WWW.
+- Yao et al. (2018). "Dynamic Word Embeddings for Evolving Semantic Discovery." WSDM.
+- Trivedi et al. (2019). "DyRep: Learning Representations over Dynamic Graphs." ICLR.
+
+### Compositional Embeddings
+- Mitchell & Lapata (2010). "Composition in Distributional Models of Semantics." Cognitive Science.
+- Socher et al. (2013). "Recursive Deep Models for Semantic Compositionality." EMNLP.
+- Yu & Dredze (2015). "Learning Composition Models for Phrase Embeddings." TACL.
+
+### Uncertainty Quantification
+- Kendall & Gal (2017). "What Uncertainties Do We Need in Bayesian Deep Learning?" NeurIPS.
+- Lakshminarayanan et al. (2017). "Simple and Scalable Predictive Uncertainty Estimation." NeurIPS.
+- Malinin & Gales (2018). "Predictive Uncertainty Estimation via Prior Networks." NeurIPS.
+
+### Federated Learning
+- McMahan et al. (2017). "Communication-Efficient Learning of Deep Networks from Decentralized Data." AISTATS.
+- Li et al. (2020). "Federated Optimization in Heterogeneous Networks." MLSys.
+- Kairouz et al. (2021). "Advances and Open Problems in Federated Learning." Foundations and Trends in Machine Learning.
+- Abadi et al. (2016). "Deep Learning with Differential Privacy." CCS.
