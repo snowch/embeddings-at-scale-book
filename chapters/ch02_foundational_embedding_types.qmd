@@ -65,6 +65,7 @@ print(f"  dog ↔ red:      {cosine_similarity([embeddings[1]], [embeddings[8]])
 ```
 
 **Key characteristics:**
+
 - One vector per word (static, context-independent in classic models)
 - Typically 100-300 dimensions
 - Captures synonyms, analogies, and semantic relationships
@@ -108,6 +109,7 @@ print(f"  Sentence 1 ↔ 3: {cosine_similarity([embeddings[0]], [embeddings[2]])
 ```
 
 **When to use text embeddings:**
+
 - Semantic search (finding documents by meaning)
 - Question answering and RAG systems
 - Text classification and clustering
@@ -115,6 +117,7 @@ print(f"  Sentence 1 ↔ 3: {cosine_similarity([embeddings[0]], [embeddings[2]])
 - Sentiment analysis
 
 **Popular models:**
+
 | Model | Dimensions | Speed | Quality | Best For |
 |-------|-----------|-------|---------|----------|
 | all-MiniLM-L6-v2 | 384 | Fast | Good | General purpose |
@@ -211,6 +214,7 @@ print(f"  red ↔ blue:   {red_blue:.3f}")
 : Image embedding architectures {.striped}
 
 **When to use image embeddings:**
+
 - Visual similarity search (find similar products)
 - Duplicate/near-duplicate detection
 - Content-based image retrieval
@@ -274,12 +278,14 @@ print(f"  Speech ↔ Dog barking:     {cross_sim:.3f}")
 ```
 
 **Popular audio embedding models:**
+
 - **Wav2Vec2**: Self-supervised speech representations
 - **Whisper**: Multi-task speech model (transcription + embeddings)
 - **CLAP**: Audio-text alignment (like CLIP for audio)
 - **VGGish**: Audio event classification embeddings
 
 **When to use audio embeddings:**
+
 - Voice search and speaker identification
 - Music recommendation and similarity
 - Sound event detection and classification
@@ -351,6 +357,7 @@ print(f"  Running ↔ Cooking: {run_cook:.3f}")
 : Video embedding approaches {.striped}
 
 **When to use video embeddings:**
+
 - Action recognition and search
 - Video recommendation
 - Content moderation
