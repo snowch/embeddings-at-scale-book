@@ -394,6 +394,10 @@ from torchvision import models, transforms
 from sklearn.metrics.pairwise import cosine_similarity
 
 # Load pre-trained ResNet50, remove classification layer for embeddings
+# Suppress download messages
+import logging
+logging.getLogger('torch').setLevel(logging.ERROR)
+
 from torchvision.models import ResNet50_Weights
 weights = ResNet50_Weights.IMAGENET1K_V1
 model = models.resnet50(weights=None)
@@ -572,9 +576,19 @@ embeddings = {p.title: embedder.text_model.encode(f"{p.title} {p.description}") 
 
 # Show product similarities
 print("Product Similarities:")
-print(f"  Headphones ↔ Earbuds:  {cosine_similarity([embeddings['Wireless Bluetooth Headphones']], [embeddings['Premium Earbuds Pro']])[0][0]:.3f}")  # High - both audio
-print(f"  Running Shoes ↔ Boots: {cosine_similarity([embeddings['Running Shoes']], [embeddings['Trail Hiking Boots']])[0][0]:.3f}")  # High - both footwear
-print(f"  Headphones ↔ Coffee:   {cosine_similarity([embeddings['Wireless Bluetooth Headphones']], [embeddings['Coffee Maker']])[0][0]:.3f}")  # Low - unrelated
+headphones = embeddings['Wireless Bluetooth Headphones']
+earbuds = embeddings['Premium Earbuds Pro']
+shoes = embeddings['Running Shoes']
+boots = embeddings['Trail Hiking Boots']
+coffee = embeddings['Coffee Maker']
+
+sim1 = cosine_similarity([headphones], [earbuds])[0][0]
+sim2 = cosine_similarity([shoes], [boots])[0][0]
+sim3 = cosine_similarity([headphones], [coffee])[0][0]
+
+print(f"  Headphones ↔ Earbuds:  {sim1:.3f}")  # High - both audio
+print(f"  Running Shoes ↔ Boots: {sim2:.3f}")  # High - both footwear
+print(f"  Headphones ↔ Coffee:   {sim3:.3f}")  # Low - unrelated
 ```
 
 ### Your First Embedding System
