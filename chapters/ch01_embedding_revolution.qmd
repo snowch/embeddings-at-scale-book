@@ -292,37 +292,7 @@ Early embedding systems like Word2Vec (2013) created one vector per word. Modern
 
 **4. Learned Representations**
 
-Unlike hand-crafted features, embeddings are **learned from data** using machine learning. The learning process discovers patterns that might not be obvious to humans:
-
-```{python}
-#| code-fold: false
-
-# Simplified embedding learning process
-def learn_embeddings(training_data, dimensions=100):
-    """
-    Learn embeddings from data
-
-    Different methods:
-    - Word2Vec: Learn from word co-occurrence
-    - Image embeddings: Learn from visual features
-    - Product embeddings: Learn from purchase patterns
-    """
-    # Initialize random embeddings
-    embeddings = initialize_random(vocab_size, dimensions)
-
-    # Training loop
-    for context, target in training_data:
-        # Predict target from context
-        prediction = model(context, embeddings)
-
-        # Update embeddings to improve prediction
-        loss = compute_loss(prediction, target)
-        embeddings = update_embeddings(embeddings, loss)
-
-    return embeddings
-```
-
-The learning process ensures embeddings capture the patterns that matter for your specific application.
+Unlike hand-crafted features, embeddings are **learned from data** using machine learning. The learning process discovers patterns that might not be obvious to humans—Word2Vec learns from word co-occurrence, image embeddings learn from visual features, and product embeddings learn from purchase patterns. This data-driven approach means embeddings automatically capture the relationships that matter for your specific application. We cover the mechanics of how embedding models learn in @sec-embedding-model-fundamentals.
 
 ### Types of Embeddings
 
