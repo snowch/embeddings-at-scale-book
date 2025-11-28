@@ -328,7 +328,7 @@ The learning process ensures embeddings capture the patterns that matter for you
 
 **Word Embeddings**
 
-Word embeddings map words to vectors, capturing semantic and syntactic relationships. Here we use a pre-trained sentence transformer model—see @sec-contrastive-learning and @sec-self-supervised-learning for how these models are trained:
+Word embeddings map words to vectors, capturing semantic and syntactic relationships. Here we use a pre-trained sentence transformer model—we explain how these models learn in @sec-embedding-model-fundamentals:
 
 ```{python}
 #| code-fold: false
@@ -368,7 +368,7 @@ for i, word1 in enumerate(words):
 
 **Image Embeddings**
 
-Images can be embedded into vectors that capture visual content. We use a pre-trained ResNet model here—see @sec-image-preparation for how CNN-based image embedding models work:
+Images can be embedded into vectors that capture visual content. We use a pre-trained ResNet model here—we explain how image embedding models work in @sec-embedding-model-fundamentals:
 
 ```{python}
 #| code-fold: false
