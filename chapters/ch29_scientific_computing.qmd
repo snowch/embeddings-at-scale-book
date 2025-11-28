@@ -1,0 +1,360 @@
+# Scientific Computing and Research {#sec-scientific-computing}
+
+:::{.callout-note}
+## Chapter Overview
+Scientific computing—from astrophysics to climate science to materials discovery—faces challenges of extreme data scales, complex physical constraints, and multi-modal observations spanning instruments worldwide. This chapter applies embeddings to scientific frontiers: astrophysics applications using image and spectral embeddings to classify galaxies, detect gravitational waves, and discover exoplanets from telescope data at petabyte scale, climate and earth science with spatio-temporal embeddings for weather prediction, climate modeling, and satellite imagery analysis, materials science acceleration using atomic graph embeddings to predict material properties and discover novel compounds, particle physics analysis with point cloud embeddings for collision reconstruction and anomaly detection at the Large Hadron Collider, and ecology and biodiversity monitoring through audio, image, and DNA sequence embeddings for species identification and ecosystem health assessment. These techniques transform scientific discovery from manual analysis and limited sampling to automated pattern recognition across the full scale of observational data.
+:::
+
+After transforming media and entertainment (@sec-media-entertainment), embeddings enable **scientific computing breakthroughs** at unprecedented scale. Traditional scientific analysis relies on domain expert interpretation, physics-based simulations, and manual feature engineering. **Embedding-based scientific computing** learns representations directly from observational data—telescope images, sensor networks, particle detectors, genomic sequences—discovering patterns that complement and extend physics-based understanding while scaling to the petabyte datasets modern instruments generate.
+
+## Astrophysics and Astronomy
+
+Astronomy generates massive observational datasets—the Vera C. Rubin Observatory will produce 20 terabytes per night, while the Square Kilometre Array will generate more data than the global internet. **Embedding-based astrophysics** enables automated classification, anomaly detection, and discovery across these datasets.
+
+### The Astrophysics Challenge
+
+Traditional astronomical analysis faces limitations:
+
+- **Data volume**: Human experts cannot review billions of galaxy images
+- **Rare events**: Transient phenomena (supernovae, gravitational waves) require real-time detection
+- **Multi-wavelength**: Combining radio, optical, X-ray, and gamma-ray observations
+- **Spectral complexity**: High-dimensional spectra require sophisticated analysis
+- **Simulation gaps**: Physics simulations cannot cover full parameter space
+
+**Embedding approach**: Learn representations of celestial objects from images, spectra, and light curves. Similar objects cluster in embedding space; anomalies appear as outliers. Enable cross-survey matching and rapid classification of new observations.
+
+```python
+{{< include /code_examples/ch29_scientific_computing/astrophysics.py >}}
+```
+
+:::{.callout-tip}
+## Astrophysics Best Practices
+
+**Image processing:**
+
+- **Multi-band fusion**: Combine observations across wavelengths (u, g, r, i, z bands)
+- **Point spread function**: Account for atmospheric/instrumental effects
+- **Background subtraction**: Remove sky background and artifacts
+- **Augmentation**: Rotation invariance critical for galaxy morphology
+- **Transfer learning**: Pre-train on simulations, fine-tune on real data
+
+**Spectral analysis:**
+
+- **Wavelength normalization**: Standardize to rest frame (redshift correction)
+- **Continuum fitting**: Separate emission/absorption lines from continuum
+- **Resolution matching**: Handle varying spectral resolutions across instruments
+- **Missing data**: Interpolate gaps from atmospheric absorption
+
+**Time-series (light curves):**
+
+- **Irregular sampling**: Use attention or Gaussian processes for non-uniform cadence
+- **Period finding**: Encode periodic structure for variable stars
+- **Event detection**: Real-time classification of transients
+- **Multi-scale**: Capture both short-term variability and long-term trends
+
+**Production:**
+
+- **Real-time pipelines**: Sub-second classification for alert brokers
+- **Cross-matching**: Link observations across surveys (Gaia, SDSS, ZTF)
+- **Uncertainty quantification**: Calibrated confidence for scientific conclusions
+- **Explainability**: Highlight features driving classification
+:::
+
+## Climate and Earth Science
+
+Climate science requires understanding complex Earth systems across spatial scales (local to global) and temporal scales (hours to millennia). **Embedding-based climate science** learns representations of atmospheric patterns, ocean dynamics, and Earth observations to improve prediction and understanding.
+
+### The Climate Science Challenge
+
+Traditional climate modeling faces limitations:
+
+- **Computational cost**: High-resolution simulations require supercomputers for months
+- **Parameterization**: Sub-grid processes must be approximated
+- **Ensemble size**: Limited ensemble members for uncertainty quantification
+- **Observation integration**: Heterogeneous data sources difficult to combine
+- **Extreme events**: Rare events poorly sampled in historical record
+
+**Embedding approach**: Learn compressed representations of atmospheric and oceanic states. Use embeddings for efficient emulation of physics models, pattern recognition in observations, and downscaling coarse simulations to high resolution.
+
+```python
+{{< include /code_examples/ch29_scientific_computing/climate.py >}}
+```
+
+:::{.callout-tip}
+## Climate Science Best Practices
+
+**Spatial representations:**
+
+- **Spherical geometry**: Use appropriate coordinates for global data (not flat projections)
+- **Multi-resolution**: Hierarchical representations for local-to-global patterns
+- **Graph neural networks**: Model irregular grids and mesh-based simulations
+- **Physical constraints**: Embed conservation laws (mass, energy, momentum)
+
+**Temporal modeling:**
+
+- **Multi-scale**: Capture diurnal, seasonal, interannual, and decadal patterns
+- **Autoregressive**: Roll out predictions iteratively for long horizons
+- **Ensemble methods**: Generate probabilistic forecasts
+- **Memory**: Long-term dependencies (ocean heat content, ice dynamics)
+
+**Satellite imagery:**
+
+- **Multi-spectral fusion**: Combine visible, infrared, and microwave channels
+- **Cloud masking**: Handle missing data from cloud cover
+- **Temporal compositing**: Aggregate observations over time windows
+- **Super-resolution**: Downscale coarse observations to fine grid
+
+**Hybrid physics-ML:**
+
+- **Physics-informed loss**: Penalize violations of conservation laws
+- **Neural parameterization**: Replace sub-grid approximations with learned models
+- **Bias correction**: Learn systematic errors in physics models
+- **Emulation**: Fast surrogate models for expensive simulations
+:::
+
+:::{.callout-warning}
+## Climate Model Uncertainty
+
+Climate embeddings must handle multiple sources of uncertainty:
+
+- **Initial condition uncertainty**: Chaotic dynamics amplify small perturbations
+- **Model structural uncertainty**: Different models give different projections
+- **Scenario uncertainty**: Future emissions depend on human choices
+- **Internal variability**: Natural fluctuations mask forced trends
+
+**Best practices:**
+
+- **Ensemble training**: Train on multiple models and scenarios
+- **Uncertainty quantification**: Provide confidence intervals, not point predictions
+- **Out-of-distribution detection**: Flag predictions extrapolating beyond training
+- **Domain expert validation**: Verify physical plausibility of learned patterns
+:::
+
+## Materials Science and Chemistry
+
+Materials science seeks to discover new materials with desired properties—stronger alloys, better batteries, efficient catalysts. **Embedding-based materials science** learns representations of atomic structures to predict properties and accelerate discovery.
+
+### The Materials Discovery Challenge
+
+Traditional materials discovery faces limitations:
+
+- **Combinatorial space**: Billions of possible compositions and structures
+- **Expensive experiments**: Synthesis and characterization are slow and costly
+- **Simulation bottleneck**: Quantum mechanical calculations scale poorly
+- **Property prediction**: Structure-property relationships are complex
+- **Synthesizability**: Not all computationally stable materials can be made
+
+**Embedding approach**: Represent materials as graphs (atoms = nodes, bonds = edges) and learn embeddings that predict properties. Screen virtual libraries computationally before expensive synthesis.
+
+```python
+{{< include /code_examples/ch29_scientific_computing/materials.py >}}
+```
+
+:::{.callout-tip}
+## Materials Science Best Practices
+
+**Atomic representations:**
+
+- **Graph neural networks**: Encode local atomic environments
+- **Equivariance**: Respect rotational and translational symmetry
+- **Periodic boundaries**: Handle crystal structures appropriately
+- **Multi-fidelity**: Combine cheap (force fields) and expensive (DFT) data
+- **Pre-training**: Large-scale pre-training on crystal databases (Materials Project, OQMD)
+
+**Property prediction:**
+
+- **Multi-task learning**: Predict multiple properties jointly
+- **Uncertainty quantification**: Bayesian methods for confidence
+- **Active learning**: Iteratively select most informative experiments
+- **Transfer learning**: Fine-tune on small datasets for specific properties
+
+**Generative design:**
+
+- **Variational autoencoders**: Sample novel materials from latent space
+- **Diffusion models**: Generate crystal structures with desired properties
+- **Constraint satisfaction**: Enforce charge neutrality, stoichiometry
+- **Synthesizability scoring**: Predict whether generated materials can be made
+
+**Validation:**
+
+- **Hold-out testing**: Strict train/test splits by composition or structure type
+- **Experimental verification**: Close the loop with synthesis and characterization
+- **Domain knowledge**: Sanity check predictions against chemical intuition
+- **Uncertainty calibration**: Verify confidence intervals are well-calibrated
+:::
+
+## Particle Physics
+
+Particle physics experiments like the Large Hadron Collider generate petabytes of collision data, searching for rare events that reveal new physics. **Embedding-based particle physics** enables efficient event reconstruction, classification, and anomaly detection.
+
+### The Particle Physics Challenge
+
+Traditional particle physics analysis faces limitations:
+
+- **Data volume**: LHC generates 1 petabyte per second (before filtering)
+- **Trigger systems**: Must decide in microseconds which events to keep
+- **Reconstruction**: Converting detector hits to particle tracks is complex
+- **Background rejection**: Rare signals buried in overwhelming backgrounds
+- **New physics search**: Unknown signatures cannot be explicitly targeted
+
+**Embedding approach**: Learn representations of collision events from detector data. Similar physics processes cluster in embedding space; anomalies may indicate new particles or interactions.
+
+```python
+{{< include /code_examples/ch29_scientific_computing/particle_physics.py >}}
+```
+
+:::{.callout-tip}
+## Particle Physics Best Practices
+
+**Event representation:**
+
+- **Point clouds**: Variable-length sets of particles with features (momentum, charge, type)
+- **Graphs**: Connect particles with edges based on physics (jets, vertices)
+- **Images**: Project calorimeter data to images for CNN processing
+- **Sequences**: Order particles by energy or angular position
+- **Permutation invariance**: Events unchanged by particle ordering
+
+**Architecture choices:**
+
+- **Set transformers**: Handle variable-length particle collections
+- **Graph neural networks**: Model particle interactions
+- **Attention mechanisms**: Learn which particles are relevant
+- **Physics-informed**: Encode Lorentz invariance and conservation laws
+
+**Training strategies:**
+
+- **Simulation-based**: Train on Monte Carlo simulations
+- **Domain adaptation**: Transfer from simulation to real data
+- **Weakly supervised**: Use sideband regions and data-driven labels
+- **Anomaly detection**: Unsupervised methods for new physics search
+
+**Deployment:**
+
+- **Real-time inference**: Microsecond latency for trigger systems
+- **FPGA implementation**: Hardware acceleration for online selection
+- **Calibration**: Account for detector response and simulation mismodeling
+- **Systematic uncertainties**: Propagate detector and theory uncertainties
+:::
+
+## Ecology and Biodiversity
+
+Biodiversity monitoring requires tracking millions of species across global ecosystems. **Embedding-based ecology** enables automated species identification, population monitoring, and ecosystem health assessment from images, audio, and DNA.
+
+### The Biodiversity Challenge
+
+Traditional biodiversity monitoring faces limitations:
+
+- **Expert bottleneck**: Taxonomic expertise is rare and expensive
+- **Spatial coverage**: Cannot physically survey all habitats
+- **Temporal resolution**: Infrequent surveys miss dynamics
+- **Cryptic species**: Many species look similar (require molecular ID)
+- **Scale mismatch**: Local observations must inform global assessments
+
+**Embedding approach**: Learn embeddings from species images (camera traps, drones), audio recordings (bioacoustics), and DNA sequences (metabarcoding). Similar species cluster together; invasive species and ecosystem changes appear as distribution shifts.
+
+```python
+{{< include /code_examples/ch29_scientific_computing/ecology.py >}}
+```
+
+:::{.callout-tip}
+## Ecology Best Practices
+
+**Image-based monitoring:**
+
+- **Camera traps**: Automated wildlife detection and identification
+- **Drone imagery**: Vegetation mapping and animal counts
+- **Citizen science**: Leverage iNaturalist and eBird observations
+- **Few-shot learning**: Handle rare species with limited examples
+- **Hierarchical classification**: Genus/family when species uncertain
+
+**Bioacoustic analysis:**
+
+- **Spectrogram embeddings**: Convert audio to time-frequency representations
+- **Species detection**: Identify calls in continuous recordings
+- **Soundscape ecology**: Characterize ecosystem health from acoustic diversity
+- **Noise robustness**: Handle wind, rain, and anthropogenic sounds
+- **Multi-label**: Multiple species vocalizing simultaneously
+
+**DNA-based methods:**
+
+- **Metabarcoding**: Identify all species in environmental samples
+- **Sequence embeddings**: Learn representations of barcode genes
+- **Phylogenetic awareness**: Incorporate evolutionary relationships
+- **Novel species**: Detect sequences not matching reference databases
+- **Quantification**: Estimate relative abundance from read counts
+
+**Integration:**
+
+- **Multi-modal fusion**: Combine image, audio, and DNA evidence
+- **Spatial modeling**: Map species distributions from point observations
+- **Temporal dynamics**: Track population trends and phenology
+- **Uncertainty quantification**: Propagate identification uncertainty to assessments
+:::
+
+## Key Takeaways
+
+:::{.callout-note}
+The specific performance metrics in the takeaways below are illustrative examples based on published research and hypothetical scenarios. They represent the order of magnitude of improvements achievable but are not verified results from specific deployments.
+:::
+
+- **Astrophysics at petabyte scale requires automated classification**: Galaxy morphology classification achieves 95%+ accuracy with CNNs, gravitational wave detection enables multi-messenger astronomy, and anomaly detection discovers new transient phenomena—transforming surveys from targeted observations to comprehensive sky monitoring
+
+- **Climate and earth science benefit from embedding-based emulators**: Neural weather prediction (GraphCast, Pangu-Weather) matches or exceeds traditional models at 1000x lower computational cost, satellite imagery embeddings enable real-time monitoring of deforestation and ice extent, and hybrid physics-ML models improve sub-grid parameterizations
+
+- **Materials discovery accelerates through atomic graph embeddings**: Property prediction from structure enables virtual screening of millions of candidates, generative models propose novel materials with desired properties, and active learning guides experiments—reducing discovery timelines from decades to years
+
+- **Particle physics handles extreme data rates with learned representations**: Real-time trigger systems using neural networks achieve microsecond inference, anomaly detection provides model-independent searches for new physics, and graph neural networks improve jet reconstruction accuracy by 20-40%
+
+- **Biodiversity monitoring scales through multi-modal embeddings**: Camera trap analysis automates wildlife surveys across millions of images, bioacoustic monitoring enables continuous ecosystem assessment, and DNA metabarcoding with sequence embeddings identifies entire communities from environmental samples
+
+- **Scientific embeddings require domain-specific architectures**: Spherical geometry for climate data, equivariance for molecular structures, permutation invariance for particle sets, and hierarchical classification for taxonomic trees—off-the-shelf models fail without incorporating domain structure
+
+- **Uncertainty quantification is critical for scientific conclusions**: Calibrated confidence intervals enable proper statistical inference, out-of-distribution detection flags extrapolation beyond training data, and ensemble methods capture both aleatoric and epistemic uncertainty
+
+## Looking Ahead
+
+Part V (Industry Applications) continues with Chapter 26, which applies embeddings to defense and intelligence applications: geospatial intelligence using satellite and aerial imagery analysis for object detection and change monitoring, signals intelligence with embeddings for communication analysis and pattern recognition, open-source intelligence aggregating and analyzing public information at scale, autonomous systems leveraging embeddings for navigation, perception, and decision-making, and command and control decision support synthesizing multi-source intelligence into actionable insights.
+
+## Further Reading
+
+### Astrophysics and Astronomy
+- Huertas-Company, Marc, and François Lanusse (2023). "The Dawes Review 10: The Impact of Deep Learning for the Analysis of Galaxy Surveys." PASA.
+- Walmsley, Mike, et al. (2022). "Galaxy Zoo DECaLS: Detailed Visual Morphology Measurements from Volunteers and Deep Learning." MNRAS.
+- George, Daniel, and E.A. Huerta (2018). "Deep Learning for Real-time Gravitational Wave Detection and Parameter Estimation." Physics Letters B.
+- Shallue, Christopher J., and Andrew Vanderburg (2018). "Identifying Exoplanets with Deep Learning." The Astronomical Journal.
+- Villar, V. Ashley, et al. (2020). "A Deep-learning Approach for Live Anomaly Detection of Extragalactic Transients." ApJS.
+
+### Climate and Earth Science
+- Lam, Remi, et al. (2023). "Learning Skillful Medium-range Global Weather Forecasting." Science.
+- Bi, Kaifeng, et al. (2023). "Accurate Medium-range Global Weather Forecasting with 3D Neural Networks." Nature.
+- Reichstein, Markus, et al. (2019). "Deep Learning and Process Understanding for Data-Driven Earth System Science." Nature.
+- Beucler, Tom, et al. (2021). "Enforcing Analytic Constraints in Neural Networks Emulating Physical Systems." Physical Review Letters.
+- Nguyen, Tung, et al. (2023). "ClimaX: A Foundation Model for Weather and Climate." ICML.
+
+### Materials Science
+- Xie, Tian, and Jeffrey C. Grossman (2018). "Crystal Graph Convolutional Neural Networks for an Accurate and Interpretable Prediction of Material Properties." Physical Review Letters.
+- Chen, Chi, et al. (2019). "Graph Networks as a Universal Machine Learning Framework for Molecules and Crystals." Chemistry of Materials.
+- Merchant, Amil, et al. (2023). "Scaling Deep Learning for Materials Discovery." Nature.
+- Batzner, Simon, et al. (2022). "E(3)-Equivariant Graph Neural Networks for Data-Efficient and Accurate Interatomic Potentials." Nature Communications.
+- Jain, Anubhav, et al. (2013). "Commentary: The Materials Project: A Materials Genome Approach to Accelerating Materials Innovation." APL Materials.
+
+### Particle Physics
+- Qu, Huilin, and Loukas Gouskos (2020). "Jet Tagging via Particle Clouds." Physical Review D.
+- Mikuni, Vinicius, and Florencia Canelli (2021). "Point Cloud Transformers Applied to Collider Physics." Machine Learning: Science and Technology.
+- Kasieczka, Gregor, et al. (2021). "The Machine Learning Landscape of Top Taggers." SciPost Physics.
+- Baldi, Pierre, et al. (2014). "Searching for Exotic Particles in High-Energy Physics with Deep Learning." Nature Communications.
+- Butter, Anja, et al. (2022). "Machine Learning and LHC Event Generation." SciPost Physics.
+
+### Ecology and Biodiversity
+- Beery, Sara, et al. (2021). "Species Distribution Modeling for Machine Learning Practitioners: A Review." ACM SIGCAS Conference.
+- Kahl, Stefan, et al. (2021). "BirdNET: A Deep Learning Solution for Avian Diversity Monitoring." Ecological Informatics.
+- Christin, Sylvain, et al. (2019). "Applications for Deep Learning in Ecology." Methods in Ecology and Evolution.
+- Wäldchen, Jana, and Patrick Mäder (2018). "Machine Learning for Image Based Species Identification." Methods in Ecology and Evolution.
+- Tuia, Devis, et al. (2022). "Perspectives in Machine Learning for Wildlife Conservation." Nature Communications.
+
+### Scientific Machine Learning
+- Karniadakis, George Em, et al. (2021). "Physics-informed Machine Learning." Nature Reviews Physics.
+- Willard, Jared, et al. (2022). "Integrating Scientific Knowledge with Machine Learning for Engineering and Environmental Systems." ACM Computing Surveys.
+- Cranmer, Miles, et al. (2020). "Discovering Symbolic Models from Deep Learning with Inductive Biases." NeurIPS.
+- Jumper, John, et al. (2021). "Highly Accurate Protein Structure Prediction with AlphaFold." Nature.
+- Davies, Alex, et al. (2021). "Advancing Mathematics by Guiding Human Intuition with AI." Nature.

@@ -1,0 +1,479 @@
+# Similarity and Distance Metrics {#sec-similarity-distance-metrics}
+
+::: callout-note
+## Chapter Overview
+
+Choosing the right similarity or distance metric fundamentally affects embedding system performance. This chapter covers the major metrics—cosine similarity, Euclidean distance, dot product, and others—explaining when to use each, their mathematical properties, and practical implications for vector databases and retrieval quality.
+:::
+
+## Why Metric Choice Matters
+
+The metric you choose determines:
+
+- **What "similar" means** for your application
+- **Index performance** in your vector database
+- **Retrieval quality** for your use case
+- **Computational cost** at query time
+
+Different metrics capture different notions of similarity. Two embeddings might be "close" by one metric and "far" by another. Understanding these differences is essential for building effective embedding systems.
+
+## Cosine Similarity {#sec-cosine-similarity}
+
+Cosine similarity measures the angle between two vectors, ignoring their magnitudes:
+
+$$\text{cosine\_similarity}(\mathbf{A}, \mathbf{B}) = \frac{\mathbf{A} \cdot \mathbf{B}}{||\mathbf{A}|| \times ||\mathbf{B}||} = \frac{\sum_{i=1}^{n} A_i B_i}{\sqrt{\sum_{i=1}^{n} A_i^2} \times \sqrt{\sum_{i=1}^{n} B_i^2}}$$
+
+```{python}
+#| code-fold: false
+
+"""
+Cosine Similarity: Angle-Based Comparison
+
+Measures the cosine of the angle between vectors.
+Range: -1 (opposite) to 1 (identical direction)
+"""
+
+import numpy as np
+from scipy.spatial.distance import cosine
+
+def cosine_similarity(a, b):
+    """Calculate cosine similarity (1 = identical, -1 = opposite)."""
+    return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+
+# Example: Same direction, different magnitudes
+v1 = np.array([1.0, 2.0, 3.0])
+v2 = np.array([2.0, 4.0, 6.0])  # Same direction, 2x magnitude
+v3 = np.array([3.0, 2.0, 1.0])  # Different direction
+
+print("Cosine similarity examples:")
+print(f"  v1 ↔ v2 (same direction, different magnitude): {cosine_similarity(v1, v2):.4f}")
+print(f"  v1 ↔ v3 (different direction): {cosine_similarity(v1, v3):.4f}")
+```
+
+**When to use cosine similarity:**
+
+- **Text embeddings**: Sentence transformers produce vectors where direction encodes meaning
+- **High-dimensional spaces** (100+ dimensions): More stable than Euclidean distance
+- **When magnitude isn't meaningful**: Document length shouldn't affect similarity
+- **Normalized embeddings**: Most embedding models normalize output vectors
+
+**Cosine distance** is simply `1 - cosine_similarity`, converting similarity to distance where 0 = identical.
+
+## Euclidean Distance (L2) {#sec-euclidean-distance}
+
+Euclidean distance measures the straight-line distance between two points:
+
+$$\text{euclidean}(\mathbf{A}, \mathbf{B}) = \sqrt{\sum_{i=1}^{n} (A_i - B_i)^2} = ||\mathbf{A} - \mathbf{B}||_2$$
+
+```{python}
+#| code-fold: false
+
+"""
+Euclidean Distance: Straight-Line Distance
+
+Measures absolute separation in space.
+Range: 0 (identical) to infinity
+"""
+
+import numpy as np
+
+def euclidean_distance(a, b):
+    """Calculate Euclidean (L2) distance."""
+    return np.linalg.norm(a - b)
+
+# Same vectors as before
+v1 = np.array([1.0, 2.0, 3.0])
+v2 = np.array([2.0, 4.0, 6.0])  # Same direction, 2x magnitude
+v3 = np.array([3.0, 2.0, 1.0])  # Different direction
+
+print("Euclidean distance examples:")
+print(f"  v1 ↔ v2 (same direction, different magnitude): {euclidean_distance(v1, v2):.4f}")
+print(f"  v1 ↔ v3 (different direction): {euclidean_distance(v1, v3):.4f}")
+print("\nNote: v1 and v2 are FAR by Euclidean but IDENTICAL by cosine!")
+```
+
+**When to use Euclidean distance:**
+
+- **Image embeddings**: When pixel-level differences matter
+- **Low-dimensional spaces** (< 50 dimensions): Works well
+- **When magnitude matters**: Larger vectors should be "farther"
+- **Clustering applications**: K-means uses Euclidean distance
+
+**Warning**: Euclidean distance suffers from the **curse of dimensionality**. In high dimensions (768+), all points tend to become equidistant, reducing discriminative power.
+
+## Dot Product (Inner Product) {#sec-dot-product}
+
+The dot product is the unnormalized version of cosine similarity:
+
+$$\text{dot\_product}(\mathbf{A}, \mathbf{B}) = \mathbf{A} \cdot \mathbf{B} = \sum_{i=1}^{n} A_i B_i$$
+
+```{python}
+#| code-fold: false
+
+"""
+Dot Product: Direction + Magnitude
+
+Combines directional similarity with magnitude.
+Range: -infinity to +infinity
+"""
+
+import numpy as np
+
+def dot_product(a, b):
+    """Calculate dot product."""
+    return np.dot(a, b)
+
+# Vectors with different magnitudes
+v1 = np.array([1.0, 2.0, 3.0])
+v2 = np.array([2.0, 4.0, 6.0])    # Same direction, 2x magnitude
+v3 = np.array([0.5, 1.0, 1.5])    # Same direction, 0.5x magnitude
+
+print("Dot product examples:")
+print(f"  v1 · v1: {dot_product(v1, v1):.4f}")
+print(f"  v1 · v2 (2x magnitude): {dot_product(v1, v2):.4f}")
+print(f"  v1 · v3 (0.5x magnitude): {dot_product(v1, v3):.4f}")
+print("\nDot product rewards both alignment AND magnitude")
+```
+
+**When to use dot product:**
+
+- **Recommendation systems**: User-item relevance often uses dot product scoring
+- **When magnitude encodes importance**: Higher-magnitude vectors are "stronger" matches
+- **Maximum Inner Product Search (MIPS)**: Some vector DBs optimize for this
+- **Pre-normalized embeddings**: Equivalent to cosine similarity when vectors are unit length
+
+**Relationship to cosine similarity**: For unit-normalized vectors, dot product equals cosine similarity.
+
+## Manhattan Distance (L1) {#sec-manhattan-distance}
+
+Manhattan distance sums the absolute differences along each dimension:
+
+$$\text{manhattan}(\mathbf{A}, \mathbf{B}) = \sum_{i=1}^{n} |A_i - B_i| = ||\mathbf{A} - \mathbf{B}||_1$$
+
+```{python}
+#| code-fold: false
+
+"""
+Manhattan Distance: City-Block Distance
+
+Sum of absolute differences along each axis.
+Range: 0 (identical) to infinity
+"""
+
+import numpy as np
+
+def manhattan_distance(a, b):
+    """Calculate Manhattan (L1) distance."""
+    return np.sum(np.abs(a - b))
+
+v1 = np.array([1.0, 2.0, 3.0])
+v2 = np.array([4.0, 6.0, 3.0])
+
+euclidean = np.linalg.norm(v1 - v2)
+manhattan = manhattan_distance(v1, v2)
+
+print("Comparing L1 vs L2 distance:")
+print(f"  Euclidean (L2): {euclidean:.4f}")
+print(f"  Manhattan (L1): {manhattan:.4f}")
+```
+
+**When to use Manhattan distance:**
+
+- **Sparse data**: Less sensitive to outliers than Euclidean
+- **Grid-like domains**: When movement is constrained to axes
+- **Feature independence**: When dimensions represent independent attributes
+- **Robust similarity**: Less affected by a single large difference
+
+## Hamming Distance {#sec-hamming-distance}
+
+Hamming distance counts the number of positions where values differ. For binary embeddings:
+
+$$\text{hamming}(\mathbf{A}, \mathbf{B}) = \sum_{i=1}^{n} \mathbf{1}[A_i \neq B_i]$$
+
+```{python}
+#| code-fold: false
+
+"""
+Hamming Distance: Bit-Level Comparison
+
+Counts positions where values differ.
+Essential for binary/quantized embeddings.
+"""
+
+import numpy as np
+
+def hamming_distance(a, b):
+    """Calculate Hamming distance for binary vectors."""
+    return np.sum(a != b)
+
+def hamming_similarity(a, b):
+    """Normalized Hamming similarity (0 to 1)."""
+    return 1 - hamming_distance(a, b) / len(a)
+
+# Binary embeddings (e.g., from quantization)
+b1 = np.array([1, 0, 1, 1, 0, 1, 0, 0])
+b2 = np.array([1, 0, 1, 0, 0, 1, 0, 1])  # 2 bits different
+b3 = np.array([0, 1, 0, 0, 1, 0, 1, 1])  # 8 bits different
+
+print("Hamming distance (binary embeddings):")
+print(f"  b1 ↔ b2 (similar): {hamming_distance(b1, b2)} bits differ, similarity: {hamming_similarity(b1, b2):.3f}")
+print(f"  b1 ↔ b3 (opposite): {hamming_distance(b1, b3)} bits differ, similarity: {hamming_similarity(b1, b3):.3f}")
+```
+
+**When to use Hamming distance:**
+
+- **Binary embeddings**: From binarization or locality-sensitive hashing
+- **Quantized vectors**: After product quantization
+- **Extreme scale**: Binary comparison is very fast (XOR + popcount)
+- **Memory-constrained**: Binary vectors use 32x less storage than float32
+
+See @sec-quantized-embeddings for more on binary and quantized embeddings.
+
+## Jaccard Similarity {#sec-jaccard-similarity}
+
+Jaccard similarity measures overlap between sets:
+
+$$\text{jaccard}(\mathbf{A}, \mathbf{B}) = \frac{|A \cap B|}{|A \cup B|}$$
+
+```{python}
+#| code-fold: false
+
+"""
+Jaccard Similarity: Set Overlap
+
+Measures intersection over union.
+Range: 0 (no overlap) to 1 (identical sets)
+"""
+
+import numpy as np
+
+def jaccard_similarity(a, b):
+    """Calculate Jaccard similarity for binary/set vectors."""
+    intersection = np.sum(np.logical_and(a, b))
+    union = np.sum(np.logical_or(a, b))
+    return intersection / union if union > 0 else 0
+
+# Binary feature vectors (e.g., document has word or not)
+doc1 = np.array([1, 1, 1, 0, 0, 1, 0, 0])  # Has words: 0, 1, 2, 5
+doc2 = np.array([1, 1, 0, 0, 0, 1, 1, 0])  # Has words: 0, 1, 5, 6
+doc3 = np.array([0, 0, 0, 1, 1, 0, 0, 1])  # Has words: 3, 4, 7
+
+print("Jaccard similarity (set overlap):")
+print(f"  doc1 ↔ doc2 (3 shared, 5 total): {jaccard_similarity(doc1, doc2):.3f}")
+print(f"  doc1 ↔ doc3 (0 shared): {jaccard_similarity(doc1, doc3):.3f}")
+```
+
+**When to use Jaccard similarity:**
+
+- **Sparse binary features**: Bag-of-words, tag sets
+- **Set membership**: When presence/absence matters, not magnitude
+- **Near-duplicate detection**: MinHash approximates Jaccard efficiently
+- **Categorical data**: When features are one-hot encoded
+
+## Metric Comparison Summary
+
+| Metric | Range | Magnitude Sensitive | Best For | Vector DB Support |
+|--------|-------|---------------------|----------|-------------------|
+| **Cosine** | -1 to 1 | No | Text, normalized embeddings | Universal |
+| **Euclidean (L2)** | 0 to ∞ | Yes | Images, low-dimensional | Universal |
+| **Dot Product** | -∞ to ∞ | Yes | Recommendations, MIPS | Most |
+| **Manhattan (L1)** | 0 to ∞ | Yes | Sparse data, outlier-robust | Some |
+| **Hamming** | 0 to n | N/A (binary) | Binary embeddings | Some |
+| **Jaccard** | 0 to 1 | N/A (sets) | Sparse sets, tags | Limited |
+
+: Similarity and distance metrics comparison {.striped}
+
+## Choosing the Right Metric
+
+```{python}
+#| code-fold: false
+
+"""
+Decision Framework for Metric Selection
+"""
+
+def recommend_metric(
+    embedding_type: str,
+    is_normalized: bool,
+    dimensionality: int,
+    magnitude_meaningful: bool
+) -> str:
+    """Recommend a similarity metric based on characteristics."""
+
+    if embedding_type == "binary":
+        return "Hamming distance"
+
+    if embedding_type == "sparse_binary":
+        return "Jaccard similarity"
+
+    if is_normalized:
+        # For normalized vectors, cosine = dot product
+        return "Cosine similarity (or dot product)"
+
+    if magnitude_meaningful:
+        if dimensionality < 50:
+            return "Euclidean distance"
+        else:
+            return "Dot product (MIPS)"
+
+    # Default for dense, unnormalized, high-dimensional
+    return "Cosine similarity"
+
+# Examples
+print("Metric recommendations:\n")
+
+cases = [
+    ("Text (sentence transformers)", "dense", True, 384, False),
+    ("Image (raw CNN features)", "dense", False, 2048, True),
+    ("Recommendations (user-item)", "dense", False, 128, True),
+    ("Binary hash codes", "binary", False, 256, False),
+    ("Document tags", "sparse_binary", False, 10000, False),
+]
+
+for name, emb_type, normalized, dims, mag_matters in cases:
+    metric = recommend_metric(emb_type, normalized, dims, mag_matters)
+    print(f"  {name}: {metric}")
+```
+
+### Decision Tree
+
+```
+Is your embedding binary?
+├── Yes → Hamming distance
+└── No → Is it sparse binary (sets/tags)?
+    ├── Yes → Jaccard similarity
+    └── No → Are vectors normalized?
+        ├── Yes → Cosine similarity (fastest)
+        └── No → Does magnitude encode importance?
+            ├── Yes → Dot product or Euclidean
+            └── No → Cosine similarity
+```
+
+## Impact on Vector Database Performance
+
+Your metric choice affects index structure and query performance:
+
+```{python}
+#| code-fold: false
+
+"""
+Metric Impact on Vector Database Operations
+"""
+
+metric_characteristics = {
+    "Cosine": {
+        "index_type": "Normalize + L2 index (most DBs)",
+        "query_transform": "Normalize query vector",
+        "hnsw_friendly": True,
+        "ivf_friendly": True,
+    },
+    "Euclidean (L2)": {
+        "index_type": "Native L2 index",
+        "query_transform": "None required",
+        "hnsw_friendly": True,
+        "ivf_friendly": True,
+    },
+    "Dot Product": {
+        "index_type": "Transform to L2 (append dimension) or native MIPS",
+        "query_transform": "May require augmentation",
+        "hnsw_friendly": True,  # With transformation
+        "ivf_friendly": True,
+    },
+    "Hamming": {
+        "index_type": "Specialized binary index",
+        "query_transform": "None (bitwise operations)",
+        "hnsw_friendly": False,  # Needs specialized variant
+        "ivf_friendly": True,   # Binary IVF exists
+    },
+}
+
+print("Vector database index compatibility:\n")
+for metric, info in metric_characteristics.items():
+    print(f"{metric}:")
+    print(f"  Index: {info['index_type']}")
+    print(f"  HNSW compatible: {info['hnsw_friendly']}")
+    print()
+```
+
+::: callout-tip
+## Performance Tip
+
+Most vector databases internally convert cosine similarity to L2 distance by normalizing vectors. If you're using cosine similarity, **pre-normalize your embeddings** before insertion to avoid redundant computation at query time.
+:::
+
+## Practical Considerations
+
+### Normalization
+
+```{python}
+#| code-fold: false
+
+"""
+L2 Normalization: Making Cosine = Dot Product
+"""
+
+import numpy as np
+
+def l2_normalize(vectors):
+    """Normalize vectors to unit length."""
+    norms = np.linalg.norm(vectors, axis=1, keepdims=True)
+    return vectors / norms
+
+# Original vectors
+vectors = np.array([
+    [3.0, 4.0],      # Magnitude 5
+    [1.0, 1.0],      # Magnitude √2
+    [10.0, 0.0],     # Magnitude 10
+])
+
+normalized = l2_normalize(vectors)
+
+print("Before normalization:")
+print(f"  Magnitudes: {np.linalg.norm(vectors, axis=1)}")
+
+print("\nAfter L2 normalization:")
+print(f"  Magnitudes: {np.linalg.norm(normalized, axis=1)}")
+
+# Now dot product = cosine similarity
+v1, v2 = normalized[0], normalized[1]
+dot = np.dot(v1, v2)
+cos = np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
+print(f"\nFor normalized vectors: dot product = {dot:.4f}, cosine = {cos:.4f}")
+```
+
+### Metric Selection by Domain
+
+| Domain | Typical Metric | Reason |
+|--------|---------------|--------|
+| **Semantic search** | Cosine | Text embeddings are normalized |
+| **Image retrieval** | Cosine or L2 | Depends on model output |
+| **Recommendations** | Dot product | Magnitude = confidence |
+| **Face recognition** | Cosine | Normalized face embeddings |
+| **Document dedup** | Jaccard or Cosine | Depending on representation |
+| **Binary codes** | Hamming | Fast bitwise operations |
+
+: Metric selection by application domain {.striped}
+
+## Key Takeaways
+
+- **Cosine similarity** is the default for most embedding applications—it ignores magnitude and works well in high dimensions
+
+- **Euclidean distance** is magnitude-sensitive and works best in lower dimensions; suffers from curse of dimensionality at 768+ dims
+
+- **Dot product** rewards both alignment and magnitude—use when larger embeddings should match more strongly
+
+- **Hamming distance** enables ultra-fast search on binary embeddings with 32x storage savings
+
+- **Metric choice affects indexing**: Most vector databases optimize for L2/cosine; other metrics may require transformation
+
+- **Pre-normalize for cosine**: If using cosine similarity, normalize vectors before insertion to avoid redundant computation
+
+## Looking Ahead
+
+With similarity metrics understood, @sec-vector-database-fundamentals covers how vector databases use these metrics to build efficient indexes at scale. For binary and quantized embeddings that use Hamming distance, see @sec-quantized-embeddings in the advanced patterns chapter.
+
+## Further Reading
+
+- Aggarwal, C. C., Hinneburg, A., & Keim, D. A. (2001). "On the Surprising Behavior of Distance Metrics in High Dimensional Space." *ICDT*
+- Johnson, J., Douze, M., & Jégou, H. (2019). "Billion-scale similarity search with GPUs." *IEEE Transactions on Big Data*
+- Wang, J., et al. (2018). "A Survey on Learning to Hash." *IEEE TPAMI*
