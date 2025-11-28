@@ -279,7 +279,7 @@ This compression is possible because embeddings learn the **intrinsic dimensiona
 
 **4. Learned Representations**
 
-Unlike hand-crafted features, embeddings are **learned from data** using machine learning. The learning process discovers patterns that might not be obvious to humans—Word2Vec learns from word co-occurrence, image embeddings learn from visual features, and product embeddings learn from purchase patterns. This data-driven approach means embeddings automatically capture the relationships that matter for your specific application. We cover the mechanics of how embedding models learn in @sec-embedding-model-fundamentals.
+Unlike hand-crafted features, embeddings are **learned from data** using machine learning. The learning process discovers patterns that might not be obvious to humans, automatically capturing the relationships that matter for your specific application.
 
 ### How Embeddings Are Created
 
