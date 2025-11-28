@@ -335,7 +335,7 @@ The learning process ensures embeddings capture the patterns that matter for you
 
 ### Types of Embeddings
 
-Embeddings can represent virtually any type of data. Here's a landscape of the major embedding types you'll encounter:
+Embeddings can represent virtually any type of data. Here's a landscape of the foundational embedding types you'll encounter:
 
 | Type | What It Embeds | Example Use Cases | Typical Dimensions |
 |------|---------------|-------------------|-------------------|
@@ -348,7 +348,7 @@ Embeddings can represent virtually any type of data. Here's a landscape of the m
 | **Time-series** | Sensor data, sequences | Anomaly detection, forecasting | 64–512 |
 | **Code** | Programs, functions | Code search, duplicate detection | 768–1024 |
 
-: Common embedding types and their applications {.striped}
+: Foundational embedding types and their applications {.striped}
 
 Each type requires different model architectures and training approaches:
 
@@ -357,7 +357,7 @@ Each type requires different model architectures and training approaches:
 - **Multi-modal embeddings** (like CLIP) align text and images in a shared space
 - **Graph embeddings** use message-passing networks that aggregate neighborhood information
 
-We explore each type in depth in @sec-embedding-types-modalities, and cover how the underlying models work in @sec-embedding-model-fundamentals.
+We explore each foundational type in depth in @sec-foundational-embedding-types. Production systems often combine and extend these foundations using advanced patterns—hybrid vectors, multi-vector representations, learned sparse embeddings, and more—which we cover in @sec-advanced-embedding-patterns. The underlying model architectures are explained in @sec-embedding-model-fundamentals.
 
 ### Embeddings in Action: Concrete Examples
 
