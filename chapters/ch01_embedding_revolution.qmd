@@ -275,12 +275,6 @@ print(f"Dimension reduction: {one_hot_dimensions / embedding_dimensions:.0f}x fe
 
 This compression is possible because embeddings learn the **intrinsic dimensionality** of the data. Natural language, despite having 50,000+ words, can be represented in a much lower-dimensional space because words are not independent—they exhibit patterns and relationships.
 
-::: callout-note
-## Word Embeddings vs Chunk Embeddings
-
-Early embedding systems like Word2Vec (2013) created one vector per word. Modern RAG systems work differently: they embed **chunks of text**—sentences, paragraphs, or passages—where each chunk receives a single vector that captures its complete semantic meaning. A 512-token paragraph and a 5-word sentence both become 768-dimensional vectors, but the paragraph's vector encodes far richer context. This distinction matters for retrieval systems: you're not searching through word embeddings, you're searching through chunk embeddings. See @sec-text-chunking for detailed coverage of chunking strategies and their impact on retrieval quality.
-:::
-
 **4. Learned Representations**
 
 Unlike hand-crafted features, embeddings are **learned from data** using machine learning. The learning process discovers patterns that might not be obvious to humans—Word2Vec learns from word co-occurrence, image embeddings learn from visual features, and product embeddings learn from purchase patterns. This data-driven approach means embeddings automatically capture the relationships that matter for your specific application. We cover the mechanics of how embedding models learn in @sec-embedding-model-fundamentals.
@@ -320,6 +314,12 @@ We explore each foundational type in depth in @sec-foundational-embedding-types.
 **Word Embeddings**
 
 Word embeddings map words to vectors, capturing semantic and syntactic relationships. Here we use a pre-trained sentence transformer model—we explain how these models learn in @sec-embedding-model-fundamentals:
+
+::: callout-note
+## Word Embeddings vs Chunk Embeddings
+
+Early embedding systems like Word2Vec (2013) created one vector per word. Modern RAG systems work differently: they embed **chunks of text**—sentences, paragraphs, or passages—where each chunk receives a single vector that captures its complete semantic meaning. A 512-token paragraph and a 5-word sentence both become 768-dimensional vectors, but the paragraph's vector encodes far richer context. This distinction matters for retrieval systems: you're not searching through word embeddings, you're searching through chunk embeddings. See @sec-text-chunking for detailed coverage of chunking strategies and their impact on retrieval quality.
+:::
 
 ```{python}
 #| code-fold: false
