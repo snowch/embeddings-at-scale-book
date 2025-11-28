@@ -1,0 +1,916 @@
+# Advanced Embedding Patterns {#sec-advanced-embedding-patterns}
+
+::: callout-note
+## Chapter Overview
+
+Production embedding systems rarely use single, off-the-shelf embeddings. This chapter covers the advanced patterns that power real-world systems: hybrid vectors combining multiple feature types, multi-vector representations for fine-grained matching, learned sparse embeddings for interpretability, and domain-specific patterns for security, time-series, and structured data. These patterns build on the foundational types from @sec-foundational-embedding-types.
+:::
+
+## Beyond Single Embeddings
+
+The foundational embedding types—text, image, audio, and others—serve as building blocks. Production systems combine, extend, and specialize these foundations in sophisticated ways:
+
+- **Hybrid embeddings** combine semantic, categorical, numerical, and domain-specific features
+- **Multi-vector representations** use multiple embeddings per item for fine-grained matching
+- **Learned sparse embeddings** balance dense semantics with interpretable sparse features
+- **Specialized architectures** optimize for specific retrieval patterns
+
+Understanding these patterns is essential for building embedding systems that perform well on real-world data.
+
+## Hybrid and Composite Embeddings {#sec-hybrid-embeddings}
+
+Real-world entities have multiple facets that single embeddings can't capture. A security log has semantic content (message text), categorical features (event type, severity), numerical features (byte counts, durations), and domain-specific features (IP addresses). Hybrid embeddings combine all of these.
+
+### The Naive Approach Fails
+
+Simple concatenation doesn't work:
+
+```{python}
+#| code-fold: false
+
+"""
+Why Naive Concatenation Fails
+
+When combining embeddings of different dimensions, larger vectors
+dominate similarity calculations, drowning out smaller features.
+"""
+
+import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
+
+np.random.seed(42)
+
+# Simulate: 384-dim text embedding + 10-dim numerical features
+text_embedding = np.random.randn(384)
+numerical_features = np.array([0.5, 0.8, 0.2, 0.1, 0.9, 0.3, 0.7, 0.4, 0.6, 0.5])
+
+# Naive concatenation
+naive_hybrid = np.concatenate([text_embedding, numerical_features])
+
+# The problem: text embedding dominates
+text_magnitude = np.linalg.norm(text_embedding)
+num_magnitude = np.linalg.norm(numerical_features)
+
+print("Magnitude comparison:")
+print(f"  Text embedding (384 dims):     {text_magnitude:.2f}")
+print(f"  Numerical features (10 dims):  {num_magnitude:.2f}")
+print(f"  Ratio: {text_magnitude/num_magnitude:.1f}x")
+print("\nThe text embedding will dominate similarity calculations!")
+```
+
+### Weighted Normalized Concatenation
+
+The solution: normalize each component, then apply importance weights:
+
+```{python}
+#| code-fold: false
+
+"""
+Weighted Normalized Concatenation
+
+Properly combines multiple feature types by:
+1. L2-normalizing each component independently
+2. Applying learned or tuned weights
+3. Concatenating the weighted, normalized components
+"""
+
+import numpy as np
+from sklearn.preprocessing import normalize
+
+np.random.seed(42)
+
+def create_hybrid_embedding(
+    text_embedding: np.ndarray,
+    categorical_embedding: np.ndarray,
+    numerical_features: np.ndarray,
+    domain_features: np.ndarray,
+    weights: dict
+) -> np.ndarray:
+    """
+    Create a hybrid embedding from multiple feature types.
+
+    Args:
+        text_embedding: Semantic embedding from text encoder (e.g., 384 dims)
+        categorical_embedding: Learned embeddings for categorical features
+        numerical_features: Scaled numerical features
+        domain_features: Domain-specific features (e.g., IP encoding)
+        weights: Importance weights for each component (should sum to 1.0)
+
+    Returns:
+        Hybrid embedding vector
+    """
+    # L2-normalize each component
+    text_norm = normalize(text_embedding.reshape(1, -1))[0]
+    cat_norm = normalize(categorical_embedding.reshape(1, -1))[0]
+    num_norm = normalize(numerical_features.reshape(1, -1))[0]
+    domain_norm = normalize(domain_features.reshape(1, -1))[0]
+
+    # Apply weights and concatenate
+    hybrid = np.concatenate([
+        text_norm * weights['text'],
+        cat_norm * weights['categorical'],
+        num_norm * weights['numerical'],
+        domain_norm * weights['domain']
+    ])
+
+    return hybrid
+
+# Example: Security log embedding
+text_emb = np.random.randn(384)  # From sentence transformer
+cat_emb = np.random.randn(32)    # Learned embeddings for event_type, severity
+num_feat = np.random.randn(10)   # Scaled: bytes_in, bytes_out, duration
+domain_feat = np.array([0.75, 0.65, 0.003, 0.039, 1.0])  # IP octets + is_private
+
+# Weights are hyperparameters to tune
+weights = {
+    'text': 0.50,        # Semantic content is most important
+    'categorical': 0.20, # Event type matters
+    'numerical': 0.15,   # Metrics provide context
+    'domain': 0.15       # IP information for security
+}
+
+hybrid = create_hybrid_embedding(
+    text_emb, cat_emb, num_feat, domain_feat, weights
+)
+
+print(f"Hybrid embedding dimension: {len(hybrid)}")
+print(f"  Text component: 384 dims × {weights['text']} weight")
+print(f"  Categorical: 32 dims × {weights['categorical']} weight")
+print(f"  Numerical: 10 dims × {weights['numerical']} weight")
+print(f"  Domain: 5 dims × {weights['domain']} weight")
+```
+
+### Entity Embeddings for Categorical Features
+
+Don't one-hot encode categorical features—learn embeddings for them:
+
+```{python}
+#| code-fold: false
+
+"""
+Entity Embeddings for Categorical Features
+
+Learn dense representations for categorical values instead of sparse one-hot.
+This captures relationships between categories (e.g., similar event types).
+"""
+
+import numpy as np
+
+# Simulated learned embeddings for categorical features
+# In practice, use nn.Embedding in PyTorch/TensorFlow
+
+class CategoryEmbedder:
+    """Simple category embedder (production would use nn.Embedding)."""
+
+    def __init__(self, categories: list, embedding_dim: int = 8):
+        self.categories = {cat: i for i, cat in enumerate(categories)}
+        self.embedding_dim = embedding_dim
+        # Initialize random embeddings (would be learned in practice)
+        np.random.seed(42)
+        self.embeddings = np.random.randn(len(categories), embedding_dim) * 0.1
+
+    def embed(self, category: str) -> np.ndarray:
+        idx = self.categories.get(category, 0)
+        return self.embeddings[idx]
+
+# Example: Event type embeddings for security logs
+event_types = ['login', 'logout', 'file_access', 'network_connection',
+               'process_start', 'process_end', 'privilege_escalation']
+severity_levels = ['info', 'warning', 'error', 'critical']
+
+event_embedder = CategoryEmbedder(event_types, embedding_dim=8)
+severity_embedder = CategoryEmbedder(severity_levels, embedding_dim=4)
+
+# Embed categorical features
+event_emb = event_embedder.embed('login')
+severity_emb = severity_embedder.embed('warning')
+
+# Combine into categorical embedding
+categorical_embedding = np.concatenate([event_emb, severity_emb])
+
+print(f"Event embedding shape: {event_emb.shape}")
+print(f"Severity embedding shape: {severity_emb.shape}")
+print(f"Combined categorical embedding: {categorical_embedding.shape}")
+```
+
+### Numerical Feature Preprocessing
+
+Numerical features need careful preprocessing before embedding:
+
+```{python}
+#| code-fold: false
+
+"""
+Numerical Feature Preprocessing Pipeline
+
+Proper preprocessing for numerical features:
+1. Handle missing values
+2. Apply log transform for long-tail distributions
+3. Standardize to zero mean, unit variance
+4. L2-normalize the result
+"""
+
+import numpy as np
+from sklearn.preprocessing import StandardScaler
+
+class NumericalPreprocessor:
+    """Preprocess numerical features for embedding."""
+
+    def __init__(self, feature_names: list):
+        self.feature_names = feature_names
+        self.scaler = StandardScaler()
+        self.fitted = False
+
+    def fit(self, data: np.ndarray):
+        """Fit the scaler on training data."""
+        # Apply log1p for long-tail features (bytes, counts)
+        log_data = np.log1p(np.clip(data, 0, None))
+        self.scaler.fit(log_data)
+        self.fitted = True
+        return self
+
+    def transform(self, data: np.ndarray) -> np.ndarray:
+        """Transform and normalize numerical features."""
+        # Handle missing values
+        data = np.nan_to_num(data, nan=0.0)
+
+        # Log transform for long-tail distributions
+        log_data = np.log1p(np.clip(data, 0, None))
+
+        # Standardize
+        if self.fitted:
+            scaled = self.scaler.transform(log_data.reshape(1, -1))[0]
+        else:
+            scaled = log_data
+
+        return scaled
+
+# Example: Network metrics
+feature_names = ['bytes_in', 'bytes_out', 'duration_ms', 'packet_count']
+preprocessor = NumericalPreprocessor(feature_names)
+
+# Simulate training data for fitting
+train_data = np.array([
+    [1024, 2048, 150, 10],
+    [1000000, 500000, 5000, 1000],  # Long-tail values
+    [512, 1024, 50, 5],
+])
+preprocessor.fit(train_data)
+
+# Transform new data point
+new_data = np.array([50000, 25000, 200, 50])
+processed = preprocessor.transform(new_data)
+
+print("Original features:", new_data)
+print("Processed features:", np.round(processed, 3))
+```
+
+## Multi-Vector Representations {#sec-multi-vector-representations}
+
+Single vectors compress all information into one point. Multi-vector representations preserve more detail by using multiple vectors per item.
+
+### ColBERT-Style Late Interaction
+
+ColBERT represents documents with one vector per token, enabling fine-grained matching:
+
+```{python}
+#| code-fold: false
+
+"""
+ColBERT-Style Multi-Vector Representation
+
+Instead of one vector per document, use one vector per token.
+Matching happens at the token level (late interaction).
+"""
+
+import numpy as np
+
+def simulate_colbert_encoding(text: str, dim: int = 128) -> np.ndarray:
+    """
+    Simulate ColBERT token-level encoding.
+
+    Returns: Matrix of shape (num_tokens, dim)
+    """
+    tokens = text.lower().split()
+    np.random.seed(hash(text) % 2**32)
+    # Each token gets its own embedding
+    return np.random.randn(len(tokens), dim)
+
+def colbert_similarity(query_vecs: np.ndarray, doc_vecs: np.ndarray) -> float:
+    """
+    ColBERT MaxSim: For each query token, find max similarity to any doc token.
+    Sum these max similarities.
+    """
+    # Compute all pairwise similarities
+    similarities = query_vecs @ doc_vecs.T  # (q_tokens, d_tokens)
+
+    # MaxSim: max over document tokens for each query token
+    max_sims = similarities.max(axis=1)
+
+    return max_sims.sum()
+
+# Example
+query = "machine learning models"
+doc1 = "deep learning neural network models for prediction"
+doc2 = "cooking recipes and kitchen equipment"
+
+query_vecs = simulate_colbert_encoding(query)
+doc1_vecs = simulate_colbert_encoding(doc1)
+doc2_vecs = simulate_colbert_encoding(doc2)
+
+sim1 = colbert_similarity(query_vecs, doc1_vecs)
+sim2 = colbert_similarity(query_vecs, doc2_vecs)
+
+print(f"Query: '{query}'")
+print(f"Query vectors shape: {query_vecs.shape}")
+print(f"\nDoc 1: '{doc1}'")
+print(f"Doc 1 vectors shape: {doc1_vecs.shape}")
+print(f"Similarity: {sim1:.2f}")
+print(f"\nDoc 2: '{doc2}'")
+print(f"Similarity: {sim2:.2f}")
+```
+
+**When to use multi-vector:**
+- Fine-grained matching matters (exact phrase matching)
+- Documents are long and diverse
+- You can afford 10-100x storage overhead
+
+## Matryoshka Embeddings {#sec-matryoshka-embeddings}
+
+Matryoshka (nested doll) embeddings encode information hierarchically—the first N dimensions are a valid embedding on their own:
+
+```{python}
+#| code-fold: false
+
+"""
+Matryoshka Embeddings: Variable-Length Representations
+
+The first N dimensions form a valid embedding for any N.
+Trade off quality vs. efficiency at query time.
+"""
+
+import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
+
+# Simulate Matryoshka embeddings (trained to work at multiple dimensions)
+np.random.seed(42)
+
+def simulate_matryoshka_embedding(text: str, full_dim: int = 768) -> np.ndarray:
+    """
+    Simulate a Matryoshka embedding where prefixes are valid embeddings.
+    Real models are trained with a special loss to ensure this property.
+    """
+    np.random.seed(hash(text) % 2**32)
+    return np.random.randn(full_dim)
+
+texts = [
+    "machine learning for natural language processing",
+    "deep learning NLP models",
+    "cooking italian pasta recipes",
+]
+
+embeddings = [simulate_matryoshka_embedding(t) for t in texts]
+
+# Compare at different dimension prefixes
+print("Similarity at different dimensions:\n")
+for dim in [64, 128, 256, 768]:
+    truncated = [e[:dim] for e in embeddings]
+    sim_01 = cosine_similarity([truncated[0]], [truncated[1]])[0][0]
+    sim_02 = cosine_similarity([truncated[0]], [truncated[2]])[0][0]
+    print(f"  {dim} dims: ML↔DL={sim_01:.3f}, ML↔Cooking={sim_02:.3f}")
+```
+
+**Benefits of Matryoshka embeddings:**
+- Use short prefixes for fast initial retrieval
+- Use full dimensions for final reranking
+- Adapt to latency/quality requirements at runtime
+- Reduce storage by storing only needed dimensions
+
+## Learned Sparse Embeddings {#sec-learned-sparse-embeddings}
+
+SPLADE and similar models learn sparse representations that combine the best of dense and sparse retrieval:
+
+```{python}
+#| code-fold: false
+
+"""
+Learned Sparse Embeddings (SPLADE-style)
+
+Learn to predict which vocabulary terms are important for a document.
+Results in sparse vectors with interpretable dimensions (actual words).
+"""
+
+import numpy as np
+
+def simulate_splade_embedding(text: str, vocab_size: int = 30000) -> dict:
+    """
+    Simulate SPLADE-style sparse embedding.
+
+    Returns dict mapping vocabulary indices to importance weights.
+    Real SPLADE uses a transformer to predict term importance.
+    """
+    words = text.lower().split()
+    sparse = {}
+
+    np.random.seed(hash(text) % 2**32)
+
+    for word in words:
+        # Simulate vocabulary index
+        idx = hash(word) % vocab_size
+        # Simulate learned importance weight
+        weight = np.random.exponential(1.0)
+        sparse[idx] = max(sparse.get(idx, 0), weight)
+
+    # SPLADE also expands to related terms
+    for _ in range(len(words)):
+        expanded_idx = np.random.randint(vocab_size)
+        sparse[expanded_idx] = np.random.exponential(0.5)
+
+    return sparse
+
+def sparse_dot_product(sparse1: dict, sparse2: dict) -> float:
+    """Compute dot product of two sparse vectors."""
+    score = 0.0
+    for idx, weight1 in sparse1.items():
+        if idx in sparse2:
+            score += weight1 * sparse2[idx]
+    return score
+
+# Example
+query = "machine learning models"
+doc1 = "neural network deep learning"
+doc2 = "kitchen cooking recipes"
+
+q_sparse = simulate_splade_embedding(query)
+d1_sparse = simulate_splade_embedding(doc1)
+d2_sparse = simulate_splade_embedding(doc2)
+
+print(f"Query sparse embedding: {len(q_sparse)} non-zero terms")
+print(f"Doc 1 sparse embedding: {len(d1_sparse)} non-zero terms")
+print(f"Doc 2 sparse embedding: {len(d2_sparse)} non-zero terms")
+print(f"\nQuery ↔ Doc 1 (related): {sparse_dot_product(q_sparse, d1_sparse):.2f}")
+print(f"Query ↔ Doc 2 (unrelated): {sparse_dot_product(q_sparse, d2_sparse):.2f}")
+```
+
+**Benefits of learned sparse:**
+- Interpretable (dimensions correspond to vocabulary terms)
+- Works with inverted indices (fast exact matching)
+- Captures term expansion (related terms)
+- Combines well with dense embeddings (hybrid search)
+
+## Time-Series Pattern Embeddings {#sec-timeseries-pattern-embeddings}
+
+Beyond basic statistical features, production systems use learned representations for time-series patterns.
+
+### ROCKET: Random Convolutional Kernels
+
+ROCKET transforms time-series into features using random convolutional kernels:
+
+```{python}
+#| code-fold: false
+
+"""
+ROCKET-Style Time-Series Embeddings
+
+Uses random convolutional kernels to extract features from time-series.
+Fast to compute, works well for classification and similarity.
+"""
+
+import numpy as np
+
+def generate_random_kernels(n_kernels: int = 100, max_length: int = 9) -> list:
+    """Generate random convolutional kernels."""
+    np.random.seed(42)
+    kernels = []
+    for _ in range(n_kernels):
+        length = np.random.choice([3, 5, 7, 9])
+        weights = np.random.randn(length)
+        bias = np.random.randn()
+        dilation = np.random.choice([1, 2, 4])
+        kernels.append((weights, bias, dilation))
+    return kernels
+
+def apply_kernel(series: np.ndarray, kernel: tuple) -> tuple:
+    """Apply a single kernel and extract features (max, ppv)."""
+    weights, bias, dilation = kernel
+    length = len(weights)
+
+    # Dilated convolution
+    output = []
+    for i in range(len(series) - (length - 1) * dilation):
+        indices = [i + j * dilation for j in range(length)]
+        value = np.dot(series[indices], weights) + bias
+        output.append(value)
+
+    output = np.array(output)
+
+    # ROCKET features: max value and proportion of positive values (PPV)
+    max_val = np.max(output) if len(output) > 0 else 0
+    ppv = np.mean(output > 0) if len(output) > 0 else 0
+
+    return max_val, ppv
+
+def rocket_embedding(series: np.ndarray, kernels: list) -> np.ndarray:
+    """Create ROCKET embedding from time-series."""
+    features = []
+    for kernel in kernels:
+        max_val, ppv = apply_kernel(series, kernel)
+        features.extend([max_val, ppv])
+    return np.array(features)
+
+# Generate kernels (done once)
+kernels = generate_random_kernels(n_kernels=50)
+
+# Example time-series patterns
+t = np.linspace(0, 4*np.pi, 100)
+patterns = {
+    'sine': np.sin(t) + np.random.randn(100) * 0.1,
+    'cosine': np.cos(t) + np.random.randn(100) * 0.1,
+    'trend_up': t/10 + np.random.randn(100) * 0.2,
+    'random': np.random.randn(100),
+}
+
+# Create embeddings
+embeddings = {name: rocket_embedding(series, kernels)
+              for name, series in patterns.items()}
+
+print(f"ROCKET embedding dimension: {len(embeddings['sine'])}")
+print(f"  ({len(kernels)} kernels × 2 features each)")
+
+# Compare patterns
+from sklearn.metrics.pairwise import cosine_similarity
+print("\nPattern similarities:")
+print(f"  sine ↔ cosine: {cosine_similarity([embeddings['sine']], [embeddings['cosine']])[0][0]:.3f}")
+print(f"  sine ↔ trend:  {cosine_similarity([embeddings['sine']], [embeddings['trend_up']])[0][0]:.3f}")
+print(f"  sine ↔ random: {cosine_similarity([embeddings['sine']], [embeddings['random']])[0][0]:.3f}")
+```
+
+### Learned Temporal Embeddings
+
+For more complex patterns, use neural networks:
+
+```{python}
+#| code-fold: false
+
+"""
+Learned Temporal Embeddings
+
+Use LSTMs, Transformers, or Temporal CNNs to learn time-series representations.
+This example shows a simplified LSTM-style encoding.
+"""
+
+import numpy as np
+
+class SimpleTemporalEncoder:
+    """
+    Simplified temporal encoder for illustration.
+    Production systems use PyTorch/TensorFlow LSTM or Transformer.
+    """
+
+    def __init__(self, hidden_dim: int = 64):
+        self.hidden_dim = hidden_dim
+        np.random.seed(42)
+        # Simplified: project statistics to hidden space
+        self.projection = np.random.randn(10, hidden_dim) * 0.1
+
+    def encode(self, series: np.ndarray) -> np.ndarray:
+        """Encode time-series to fixed-length embedding."""
+        # Extract temporal features
+        features = np.array([
+            np.mean(series),
+            np.std(series),
+            np.min(series),
+            np.max(series),
+            np.mean(np.diff(series)),  # Trend
+            np.std(np.diff(series)),   # Volatility
+            np.corrcoef(series[:-1], series[1:])[0, 1],  # Autocorrelation
+            len(np.where(np.diff(np.sign(series)))[0]),  # Zero crossings
+            np.percentile(series, 25),
+            np.percentile(series, 75),
+        ])
+        features = np.nan_to_num(features)
+
+        # Project to embedding space
+        embedding = np.tanh(features @ self.projection)
+        return embedding
+
+encoder = SimpleTemporalEncoder(hidden_dim=64)
+
+# Encode different patterns
+t = np.linspace(0, 4*np.pi, 100)
+embeddings = {
+    'periodic': encoder.encode(np.sin(t)),
+    'trending': encoder.encode(t / 10),
+    'volatile': encoder.encode(np.random.randn(100)),
+}
+
+print(f"Temporal embedding dimension: {len(embeddings['periodic'])}")
+```
+
+## Binary and Quantized Embeddings {#sec-quantized-embeddings}
+
+For massive scale, compress embeddings to reduce storage and accelerate search:
+
+```{python}
+#| code-fold: false
+
+"""
+Binary and Quantized Embeddings
+
+Compress embeddings for efficiency:
+- Binary: Each dimension → 1 bit (32x compression)
+- Product Quantization: Learn codebooks for compression
+"""
+
+import numpy as np
+
+def binarize_embedding(embedding: np.ndarray) -> np.ndarray:
+    """Convert to binary embedding (sign of each dimension)."""
+    return (embedding > 0).astype(np.int8)
+
+def hamming_distance(bin1: np.ndarray, bin2: np.ndarray) -> int:
+    """Hamming distance between binary vectors."""
+    return np.sum(bin1 != bin2)
+
+def hamming_similarity(bin1: np.ndarray, bin2: np.ndarray) -> float:
+    """Normalized Hamming similarity (0 to 1)."""
+    return 1 - hamming_distance(bin1, bin2) / len(bin1)
+
+# Example: Compare binary vs float embeddings
+np.random.seed(42)
+emb1 = np.random.randn(768)
+emb2 = emb1 + np.random.randn(768) * 0.5  # Similar
+emb3 = np.random.randn(768)  # Different
+
+# Float similarity
+from sklearn.metrics.pairwise import cosine_similarity
+float_sim_12 = cosine_similarity([emb1], [emb2])[0][0]
+float_sim_13 = cosine_similarity([emb1], [emb3])[0][0]
+
+# Binary similarity
+bin1, bin2, bin3 = [binarize_embedding(e) for e in [emb1, emb2, emb3]]
+bin_sim_12 = hamming_similarity(bin1, bin2)
+bin_sim_13 = hamming_similarity(bin1, bin3)
+
+print("Float vs Binary similarity comparison:")
+print(f"\n  Similar pair:")
+print(f"    Float cosine: {float_sim_12:.3f}")
+print(f"    Binary Hamming: {bin_sim_12:.3f}")
+print(f"\n  Different pair:")
+print(f"    Float cosine: {float_sim_13:.3f}")
+print(f"    Binary Hamming: {bin_sim_13:.3f}")
+
+print(f"\nStorage comparison for 768-dim embedding:")
+print(f"  Float32: {768 * 4} bytes")
+print(f"  Binary:  {768 // 8} bytes ({768 * 4 / (768 // 8):.0f}x compression)")
+```
+
+**When to use quantized embeddings:**
+- Billions of vectors (storage constraints)
+- Latency-critical applications
+- First-stage retrieval (rerank with full precision)
+- Edge deployment
+
+## Session and Behavioral Embeddings {#sec-behavioral-embeddings}
+
+Embed user sessions and behaviors as sequences:
+
+```{python}
+#| code-fold: false
+
+"""
+Session and Behavioral Embeddings
+
+Embed sequences of user actions to capture behavioral patterns.
+Similar sessions (browsing patterns) get similar embeddings.
+"""
+
+import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
+
+class SessionEncoder:
+    """Encode user sessions as embeddings."""
+
+    def __init__(self, action_vocab: list, embedding_dim: int = 64):
+        self.action_vocab = {a: i for i, a in enumerate(action_vocab)}
+        self.embedding_dim = embedding_dim
+        np.random.seed(42)
+        # Action embeddings (would be learned)
+        self.action_embeddings = np.random.randn(len(action_vocab), embedding_dim) * 0.1
+
+    def encode_session(self, actions: list) -> np.ndarray:
+        """Encode a session (sequence of actions) to single embedding."""
+        if not actions:
+            return np.zeros(self.embedding_dim)
+
+        # Get embeddings for each action
+        action_embs = []
+        for action in actions:
+            if action in self.action_vocab:
+                idx = self.action_vocab[action]
+                action_embs.append(self.action_embeddings[idx])
+
+        if not action_embs:
+            return np.zeros(self.embedding_dim)
+
+        # Combine with weighted average (recent actions weighted more)
+        weights = np.exp(np.linspace(-1, 0, len(action_embs)))
+        weights /= weights.sum()
+
+        session_emb = np.average(action_embs, axis=0, weights=weights)
+        return session_emb
+
+# Define action vocabulary
+actions = ['view_product', 'add_to_cart', 'remove_from_cart',
+           'view_category', 'search', 'checkout', 'view_reviews']
+
+encoder = SessionEncoder(actions)
+
+# Example sessions
+shopping_session = ['view_category', 'view_product', 'view_reviews',
+                    'add_to_cart', 'view_product', 'add_to_cart', 'checkout']
+browsing_session = ['view_category', 'view_product', 'view_category',
+                    'search', 'view_product', 'view_category']
+cart_abandon = ['view_product', 'add_to_cart', 'view_product',
+                'add_to_cart', 'remove_from_cart']
+
+emb_shopping = encoder.encode_session(shopping_session)
+emb_browsing = encoder.encode_session(browsing_session)
+emb_abandon = encoder.encode_session(cart_abandon)
+
+print("Session similarities:")
+print(f"  Shopping ↔ Browsing: {cosine_similarity([emb_shopping], [emb_browsing])[0][0]:.3f}")
+print(f"  Shopping ↔ Cart abandon: {cosine_similarity([emb_shopping], [emb_abandon])[0][0]:.3f}")
+print(f"  Browsing ↔ Cart abandon: {cosine_similarity([emb_browsing], [emb_abandon])[0][0]:.3f}")
+```
+
+## Domain-Specific Embeddings {#sec-domain-specific-embeddings}
+
+Some domains require specialized embedding approaches.
+
+### Security Log Embeddings
+
+Combining semantic, categorical, numerical, and network features:
+
+```{python}
+#| code-fold: false
+
+"""
+Security Log Embedding (OCSF-style)
+
+Hybrid embedding for security events combining:
+- Semantic: Log message content
+- Categorical: Event type, severity, status
+- Numerical: Byte counts, durations
+- Network: IP address encoding
+"""
+
+import numpy as np
+from sklearn.preprocessing import normalize
+
+def encode_ip_address(ip: str) -> np.ndarray:
+    """
+    Encode IP address as 5-dim vector:
+    - 4 normalized octets
+    - 1 is_private indicator
+    """
+    try:
+        octets = [int(x) for x in ip.split('.')]
+        normalized = [o / 255.0 for o in octets]
+
+        # Check if private IP
+        is_private = (
+            octets[0] == 10 or
+            (octets[0] == 172 and 16 <= octets[1] <= 31) or
+            (octets[0] == 192 and octets[1] == 168)
+        )
+
+        return np.array(normalized + [float(is_private)])
+    except:
+        return np.zeros(5)
+
+class SecurityLogEmbedder:
+    """Create hybrid embeddings for security logs."""
+
+    def __init__(self):
+        np.random.seed(42)
+        # Simulated text encoder (would use sentence-transformers)
+        self.text_dim = 384
+        # Category embeddings
+        self.event_types = ['login', 'logout', 'file_access', 'network', 'process']
+        self.event_embeddings = np.random.randn(len(self.event_types), 8) * 0.1
+        self.severities = ['info', 'warning', 'error', 'critical']
+        self.severity_embeddings = np.random.randn(len(self.severities), 4) * 0.1
+
+        # Weights for combining
+        self.weights = {
+            'text': 0.50,
+            'categorical': 0.20,
+            'numerical': 0.15,
+            'network': 0.15
+        }
+
+    def embed(self, log: dict) -> np.ndarray:
+        """Create hybrid embedding for a security log."""
+        # Text embedding (simulated)
+        np.random.seed(hash(log.get('message', '')) % 2**32)
+        text_emb = np.random.randn(self.text_dim)
+
+        # Categorical embeddings
+        event_idx = self.event_types.index(log.get('event_type', 'network'))
+        severity_idx = self.severities.index(log.get('severity', 'info'))
+        cat_emb = np.concatenate([
+            self.event_embeddings[event_idx],
+            self.severity_embeddings[severity_idx]
+        ])
+
+        # Numerical features
+        num_features = np.array([
+            np.log1p(log.get('bytes_in', 0)),
+            np.log1p(log.get('bytes_out', 0)),
+            np.log1p(log.get('duration_ms', 0)),
+        ])
+
+        # Network features
+        ip_emb = encode_ip_address(log.get('src_ip', '0.0.0.0'))
+
+        # Normalize and weight
+        text_norm = normalize(text_emb.reshape(1, -1))[0] * self.weights['text']
+        cat_norm = normalize(cat_emb.reshape(1, -1))[0] * self.weights['categorical']
+        num_norm = normalize(num_features.reshape(1, -1))[0] * self.weights['numerical']
+        ip_norm = normalize(ip_emb.reshape(1, -1))[0] * self.weights['network']
+
+        return np.concatenate([text_norm, cat_norm, num_norm, ip_norm])
+
+# Example
+embedder = SecurityLogEmbedder()
+
+log1 = {
+    'message': 'Failed login attempt from external IP',
+    'event_type': 'login',
+    'severity': 'warning',
+    'bytes_in': 1024,
+    'bytes_out': 512,
+    'duration_ms': 150,
+    'src_ip': '203.0.113.50'
+}
+
+log2 = {
+    'message': 'Successful login from internal network',
+    'event_type': 'login',
+    'severity': 'info',
+    'bytes_in': 2048,
+    'bytes_out': 1024,
+    'duration_ms': 100,
+    'src_ip': '192.168.1.50'
+}
+
+emb1 = embedder.embed(log1)
+emb2 = embedder.embed(log2)
+
+print(f"Security log embedding dimension: {len(emb1)}")
+print(f"  Text: 384, Categorical: 12, Numerical: 3, Network: 5")
+print(f"\nLog similarity: {cosine_similarity([emb1], [emb2])[0][0]:.3f}")
+```
+
+## Choosing the Right Pattern
+
+| Pattern | Best For | Trade-offs |
+|---------|----------|------------|
+| **Hybrid vectors** | Multi-faceted entities (logs, products) | Requires weight tuning |
+| **Multi-vector (ColBERT)** | Fine-grained matching | 10-100x storage |
+| **Matryoshka** | Variable quality/latency needs | Requires special training |
+| **Learned sparse (SPLADE)** | Interpretability + performance | More complex indexing |
+| **ROCKET time-series** | Pattern similarity | Fixed representation |
+| **Binary/quantized** | Massive scale | Quality loss |
+| **Session embeddings** | Behavioral patterns | Requires sequence modeling |
+
+: Advanced embedding pattern selection guide {.striped}
+
+## Key Takeaways
+
+- **Naive concatenation fails** when combining embeddings of different sizes—use weighted, normalized concatenation
+
+- **Entity embeddings** for categorical features outperform one-hot encoding by learning relationships between categories
+
+- **Multi-vector representations** (ColBERT) provide fine-grained matching at the cost of storage
+
+- **Matryoshka embeddings** enable quality/latency trade-offs at query time
+
+- **Learned sparse embeddings** (SPLADE) combine interpretability with semantic matching
+
+- **Time-series patterns** can be captured with ROCKET (fast, simple) or learned encoders (more expressive)
+
+- **Domain-specific embeddings** like security logs require thoughtful combination of semantic, categorical, numerical, and specialized features
+
+## Looking Ahead
+
+With both foundational types and advanced patterns understood, @sec-strategic-architecture covers how to architect systems that deploy these embeddings at scale. For training custom embeddings with these patterns, @sec-custom-embedding-strategies provides guidance on when to build versus fine-tune.
+
+## Further Reading
+
+- Khattab, O. & Zaharia, M. (2020). "ColBERT: Efficient and Effective Passage Search via Contextualized Late Interaction over BERT." *SIGIR*
+- Kusupati, A., et al. (2022). "Matryoshka Representation Learning." *NeurIPS*
+- Formal, T., et al. (2021). "SPLADE: Sparse Lexical and Expansion Model for First Stage Ranking." *SIGIR*
+- Dempster, A., et al. (2020). "ROCKET: Exceptionally Fast and Accurate Time Series Classification Using Random Convolutional Kernels." *Data Mining and Knowledge Discovery*
+- Guo, C., et al. (2016). "Entity Embeddings of Categorical Variables." *arXiv:1604.06737*

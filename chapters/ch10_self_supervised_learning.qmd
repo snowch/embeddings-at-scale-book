@@ -1,0 +1,194 @@
+# Self-Supervised Learning Pipelines {#sec-self-supervised-learning}
+
+:::{.callout-note}
+## Chapter Overview
+While contrastive learning (Chapter 5) and Siamese networks (Chapter 6) require labeled pairs or triplets, self-supervised learning unlocks the ability to learn from unlabeled data at unprecedented scale. This chapter explores self-supervised techniques that leverage the inherent structure of data to create powerful embeddings without manual annotation. We cover masked language modeling for domain-specific text, vision transformers for industrial imagery, time-series forecasting approaches, and multi-modal self-supervision strategies. These techniques enable enterprises to train embeddings on trillions of unlabeled documents, images, and sensor readings—data that already exists but was previously unusable for training.
+:::
+
+## Self-Supervised Learning for Unlabeled Enterprise Data
+
+The fundamental challenge facing enterprise AI: **you have petabytes of data but almost no labels**. Traditional supervised learning requires expensive manual annotation. Self-supervised learning solves this by turning the data itself into both input and supervision.
+
+### The Self-Supervised Paradigm
+
+Self-supervised learning creates "pretext tasks" where the model must predict part of the input from other parts. The key insight: **by learning to solve these pretext tasks, the model develops representations that capture the underlying structure of the data**.
+
+Common pretext tasks:
+
+- **Masked prediction**: Predict hidden parts (BERT, MAE)
+- **Next token prediction**: Predict future content (GPT, autoregressive models)
+- **Contrastive prediction**: Distinguish augmented views (SimCLR, MoCo)
+- **Reconstruction**: Rebuild input from transformed version (autoencoders)
+
+```python
+{{< include /code_examples/ch10_self_supervised_learning/selfsupervisedembeddingframework.py >}}
+```
+
+:::{.callout-tip}
+## Choosing the Right Pretext Task
+
+**Masked prediction**: Best for structured data with natural ordering (text, sequences, time-series). Captures bidirectional context.
+
+**Contrastive learning**: Best when you can define meaningful augmentations. Works well for images, audio, multimodal data.
+
+**Reconstruction**: Best for high-dimensional data where reconstruction is meaningful. Good for images, sensor data.
+
+**Rule of thumb**: If your data has natural ordering, use masked prediction. If augmentations preserve semantics, use contrastive. If neither, try reconstruction.
+:::
+
+### Enterprise Self-Supervised Pipeline
+
+Production self-supervised learning requires careful data management and training infrastructure:
+
+```python
+{{< include /code_examples/ch10_self_supervised_learning/enterpriseselfsupervisedpipeline.py >}}
+```
+
+:::{.callout-warning}
+## Production Considerations
+
+**Data Quality**: Self-supervised learning amplifies data quality issues. Bad data → bad embeddings. Filter corrupted samples before training.
+
+**Compute Budget**: Training on billions of samples requires significant compute. For 100M parameters × 1B tokens, expect 100-1000 GPU-hours.
+
+**Checkpoint Frequency**: Save checkpoints every 1-2 hours of training (not epochs). Spot instance interruptions are common.
+
+**Monitoring**: Track loss trends, gradient norms, and embedding quality metrics. Diverging loss indicates instability.
+:::
+
+## Masked Language Modeling for Domain-Specific Text
+
+Masked Language Modeling (MLM), popularized by BERT, is the foundation of modern NLP. For enterprises, the key is adapting MLM to domain-specific vocabulary and writing styles.
+
+### MLM Fundamentals
+
+The MLM objective: **predict randomly masked tokens from surrounding context**. This forces the model to learn bidirectional representations that capture semantic and syntactic patterns.
+
+```python
+{{< include /code_examples/ch10_self_supervised_learning/domainspecificmlm.py >}}
+```
+
+### Advanced MLM Techniques
+
+For production deployments, basic MLM can be enhanced with several techniques:
+
+```python
+{{< include /code_examples/ch10_self_supervised_learning/advancedmlm.py >}}
+```
+
+:::{.callout-tip}
+## MLM Training Best Practices
+
+**Tokenizer First**: Always train a domain-specific tokenizer before MLM. Generic tokenizers fragment domain terms.
+
+**Masking Strategy**: Use whole-word masking for semantic learning, span masking for longer dependencies.
+
+**Adaptation vs. Scratch**: If you have < 100M tokens, adapt pre-trained model. If > 1B tokens and very specialized domain, train from scratch.
+
+**Hyperparameters**: Standard BERT hyperparameters (lr=5e-5, batch=32, warmup=10%) work well. For adaptation, use lr=2e-5.
+
+**Compute Budget**: 100M parameters × 1B tokens ≈ 500 GPU-hours. Use mixed precision (fp16) to reduce by 2x.
+:::
+
+## Vision Transformers for Industrial Imagery
+
+Vision Transformers (ViTs) combined with self-supervised learning enable training on unlabeled industrial imagery—manufacturing defects, medical scans, satellite images, security footage.
+
+### Self-Supervised Vision Transformers
+
+```python
+{{< include /code_examples/ch10_self_supervised_learning/maskedautoencodervit.py >}}
+```
+
+:::{.callout-tip}
+## ViT Self-Supervision Best Practices
+
+**Mask Ratio**: MAE uses 75% masking (aggressive!). This works because images have high redundancy. For specialized imagery (e.g., X-rays), try 50-60%.
+
+**Patch Size**: Standard is 16x16 for 224x224 images. For higher resolution (512x512+), use 32x32 patches.
+
+**Augmentation**: Strong augmentations (color jitter, blur) improve robustness. But avoid augmentations that change semantics (e.g., don't flip medical images if orientation matters).
+
+**Compute**: ViT-Base with MAE requires ~100 GPU-hours for 1M images. Use ViT-Small (5.7M params) for faster prototyping.
+:::
+
+### Industrial Vision Applications
+
+```python
+{{< include /code_examples/ch10_self_supervised_learning/industrialdefectdetection.py >}}
+```
+
+## Time-Series Self-Supervision
+
+Time-series data (sensor readings, financial data, user activity logs) presents unique self-supervision opportunities due to temporal structure.
+
+### Time-Series Pretext Tasks
+
+```python
+{{< include /code_examples/ch10_self_supervised_learning/timeseriesselfsupervised.py >}}
+```
+
+:::{.callout-tip}
+## Time-Series SSL Best Practices
+
+**Forecasting Horizon**: For high-frequency data (milliseconds), predict 5-10 steps ahead. For slow-varying data (daily), predict 1-2 steps.
+
+**Masking Strategy**: For bursty data (event logs), use random masking. For smooth data (temperature), use contiguous span masking.
+
+**Augmentations**: Test augmentations carefully. Ensure they preserve semantic meaning (e.g., don't shift phase of financial data).
+
+**Architecture**: Transformers work well for long sequences (> 100 steps). For shorter sequences or limited compute, use LSTM/GRU.
+:::
+
+## Multi-Modal Self-Supervised Approaches
+
+Multi-modal self-supervision learns from multiple data types simultaneously—text + images, audio + video, sensor + text logs.
+
+### CLIP-Style Multi-Modal Learning
+
+```python
+{{< include /code_examples/ch10_self_supervised_learning/multimodalselfsupervised.py >}}
+```
+
+:::{.callout-tip}
+## Multi-Modal SSL Best Practices
+
+**Pairing Quality**: The quality of modality pairs matters more than quantity. 10M high-quality pairs > 100M noisy pairs.
+
+**Batch Size**: Larger batches provide more negative samples. Use at least 256, ideally 1024+ with gradient accumulation.
+
+**Temperature**: Start with 0.07. Lower (0.01) for fine-grained matching, higher (0.2) for coarse similarity.
+
+**Modality Balance**: If one modality is much noisier, consider weighted loss or filtering poor pairs.
+
+**Compute**: CLIP-scale training (400M pairs) requires thousands of GPU-hours. For enterprise, 1M-10M pairs often sufficient.
+:::
+
+## Key Takeaways
+
+- **Self-supervised learning unlocks unlabeled data** at unprecedented scale. No manual annotation needed—data structure provides supervision through pretext tasks.
+
+- **Masked Language Modeling** is the foundation for domain-specific text embeddings. Always train a domain-specific tokenizer first, then adapt or train MLM on your corpus.
+
+- **Vision Transformers with Masked Autoencoding (MAE)** enable learning from unlabeled images with 75% masking. Ideal for manufacturing defects, medical imaging, and satellite imagery where labels are scarce.
+
+- **Time-series self-supervision** uses forecasting, masked reconstruction, or contrastive tasks. Choose based on data characteristics: forecasting for ordered data, contrastive for augmentable data.
+
+- **Multi-modal self-supervision** creates shared embedding spaces across text, images, audio, and sensors without paired labels. Contrastive learning between modalities is highly effective.
+
+- **Production deployment requires distributed training**, checkpointing, and careful data management. For 100M parameters × 1B samples, expect 500-1000 GPU-hours.
+
+## Looking Ahead
+
+In Chapter 8, we explore advanced embedding techniques that push beyond standard architectures—hierarchical embeddings for taxonomies, dynamic embeddings that evolve over time, compositional embeddings for combinatorial spaces, and quantum-inspired embeddings for ultra-high-dimensional data. These techniques unlock capabilities impossible with standard approaches.
+
+## Further Reading
+
+- Devlin, J., et al. (2018). "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding." NAACL.
+- He, K., et al. (2021). "Masked Autoencoders Are Scalable Vision Learners." CVPR.
+- Radford, A., et al. (2021). "Learning Transferable Visual Models From Natural Language Supervision." ICML.
+- Chen, T., et al. (2020). "A Simple Framework for Contrastive Learning of Visual Representations." ICML.
+- Oord, A., Li, Y., & Vinyals, O. (2018). "Representation Learning with Contrastive Predictive Coding." arXiv:1807.03748.
+- Liu, Y., et al. (2019). "RoBERTa: A Robustly Optimized BERT Pretraining Approach." arXiv:1907.11692.
+- Dosovitskiy, A., et al. (2020). "An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale." ICLR.
+- Franceschi, J.Y., et al. (2019). "Unsupervised Scalable Representation Learning for Multivariate Time Series." NeurIPS.
