@@ -285,55 +285,15 @@ print(f"  doc1 ↔ doc3 (0 shared): {jaccard_similarity(doc1, doc3):.3f}")
 
 ## Choosing the Right Metric
 
-```{python}
-#| code-fold: false
+| Use Case | Embedding Type | Normalized? | Recommended Metric |
+|----------|---------------|-------------|-------------------|
+| Text (sentence transformers) | Dense | Yes | Cosine / Dot product |
+| Image (CNN features) | Dense | No | Dot product |
+| Recommendations (user-item) | Dense | No | Dot product |
+| Binary hash codes | Binary | N/A | Hamming |
+| Document tags | Sparse binary | N/A | Jaccard |
 
-"""
-Decision Framework for Metric Selection
-"""
-
-def recommend_metric(
-    embedding_type: str,
-    is_normalized: bool,
-    dimensionality: int,
-    magnitude_meaningful: bool
-) -> str:
-    """Recommend a similarity metric based on characteristics."""
-
-    if embedding_type == "binary":
-        return "Hamming distance"
-
-    if embedding_type == "sparse_binary":
-        return "Jaccard similarity"
-
-    if is_normalized:
-        # For normalized vectors, cosine = dot product
-        return "Cosine similarity (or dot product)"
-
-    if magnitude_meaningful:
-        if dimensionality < 50:
-            return "Euclidean distance"
-        else:
-            return "Dot product (MIPS)"
-
-    # Default for dense, unnormalized, high-dimensional
-    return "Cosine similarity"
-
-# Examples
-print("Metric recommendations:\n")
-
-cases = [
-    ("Text (sentence transformers)", "dense", True, 384, False),
-    ("Image (raw CNN features)", "dense", False, 2048, True),
-    ("Recommendations (user-item)", "dense", False, 128, True),
-    ("Binary hash codes", "binary", False, 256, False),
-    ("Document tags", "sparse_binary", False, 10000, False),
-]
-
-for name, emb_type, normalized, dims, mag_matters in cases:
-    metric = recommend_metric(emb_type, normalized, dims, mag_matters)
-    print(f"  {name}: {metric}")
-```
+: Metric recommendations by use case {.striped}
 
 ### Decision Tree
 
