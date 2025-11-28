@@ -294,6 +294,10 @@ Early embedding systems like Word2Vec (2013) created one vector per word. Modern
 
 Unlike hand-crafted features, embeddings are **learned from data** using machine learning. The learning process discovers patterns that might not be obvious to humans—Word2Vec learns from word co-occurrence, image embeddings learn from visual features, and product embeddings learn from purchase patterns. This data-driven approach means embeddings automatically capture the relationships that matter for your specific application. We cover the mechanics of how embedding models learn in @sec-embedding-model-fundamentals.
 
+### How Embeddings Are Created
+
+In practice, you have three options for obtaining embeddings. **Pre-trained models** are available for common data types—text, images, audio—and work well out of the box for general purposes. **Fine-tuning** adapts a pre-trained model to your specific domain using your data, improving quality for specialized use cases. **Custom training** builds models from scratch when your data or requirements don't match existing approaches. Most teams start with pre-trained models and progress to fine-tuning as needs grow. We explore foundational embedding types in @sec-foundational-embedding-types, advanced production patterns in @sec-advanced-embedding-patterns, and the underlying model architectures in @sec-embedding-model-fundamentals.
+
 ### Types of Embeddings
 
 Embeddings can represent virtually any type of data. Here's a landscape of the foundational embedding types you'll encounter:
