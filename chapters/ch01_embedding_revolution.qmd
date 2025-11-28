@@ -324,6 +324,32 @@ def learn_embeddings(training_data, dimensions=100):
 
 The learning process ensures embeddings capture the patterns that matter for your specific application.
 
+### Types of Embeddings
+
+Embeddings can represent virtually any type of data. Here's a landscape of the major embedding types you'll encounter:
+
+| Type | What It Embeds | Example Use Cases | Typical Dimensions |
+|------|---------------|-------------------|-------------------|
+| **Text** | Words, sentences, documents | Semantic search, chatbots, classification | 384–1536 |
+| **Image** | Photos, diagrams, scans | Visual search, duplicate detection | 512–2048 |
+| **Audio** | Speech, music, sounds | Voice search, music recommendation | 128–512 |
+| **Video** | Clips, frames, actions | Content moderation, scene search | 512–2048 |
+| **Multi-modal** | Text + images together | Product search, image captioning | 512–768 |
+| **Graph** | Nodes, relationships | Knowledge graphs, social networks | 64–256 |
+| **Time-series** | Sensor data, sequences | Anomaly detection, forecasting | 64–512 |
+| **Code** | Programs, functions | Code search, duplicate detection | 768–1024 |
+
+: Common embedding types and their applications {.striped}
+
+Each type requires different model architectures and training approaches:
+
+- **Text embeddings** use transformer models (BERT, GPT) trained on language patterns
+- **Image embeddings** use CNNs (ResNet) or Vision Transformers (ViT) trained on visual features
+- **Multi-modal embeddings** (like CLIP) align text and images in a shared space
+- **Graph embeddings** use message-passing networks that aggregate neighborhood information
+
+We explore each type in depth in @sec-embedding-types-modalities, and cover how the underlying models work in @sec-embedding-model-fundamentals.
+
 ### Embeddings in Action: Concrete Examples
 
 **Word Embeddings**
