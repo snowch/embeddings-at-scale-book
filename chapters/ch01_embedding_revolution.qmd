@@ -258,7 +258,7 @@ embedding_density = embedding_nonzero / embedding_dimensions * 100
 
 print(f"One-hot encoding: {one_hot_dimensions:,} dimensions, {one_hot_density:.3f}% information density")
 print(f"Embedding: {embedding_dimensions} dimensions, {embedding_density:.0f}% information density")
-print(f"Dimension reduction: {vocabulary_size / embedding_dimensions:.0f}x fewer dimensions")
+print(f"Dimension reduction: {one_hot_dimensions / embedding_dimensions:.0f}x fewer dimensions")
 ```
 
 This compression is possible because embeddings learn the **intrinsic dimensionality** of the data. Natural language, despite having 50,000+ words, can be represented in a much lower-dimensional space because words are not independent—they exhibit patterns and relationships.
