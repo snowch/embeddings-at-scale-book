@@ -394,7 +394,10 @@ from torchvision import models, transforms
 from sklearn.metrics.pairwise import cosine_similarity
 
 # Load pre-trained ResNet50, remove classification layer for embeddings
-model = models.resnet50(weights='IMAGENET1K_V1')
+from torchvision.models import ResNet50_Weights
+weights = ResNet50_Weights.IMAGENET1K_V1
+model = models.resnet50(weights=None)
+model.load_state_dict(weights.get_state_dict(progress=False))
 model.eval()
 embedding_model = torch.nn.Sequential(*list(model.children())[:-1])
 
