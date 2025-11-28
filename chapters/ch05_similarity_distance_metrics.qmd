@@ -454,6 +454,188 @@ print(f"\nFor normalized vectors: dot product = {dot:.4f}, cosine = {cos:.4f}")
 
 : Metric selection by application domain {.striped}
 
+## Emerging and Future Metrics {#sec-emerging-metrics}
+
+The standard metrics above handle most use cases, but research continues to develop specialized approaches for challenging scenarios.
+
+### Hyperbolic Distance
+
+For hierarchical data (taxonomies, org charts, knowledge graphs), Euclidean space is inefficient—it can't naturally represent tree structures. **Hyperbolic space** has negative curvature that matches hierarchical growth patterns:
+
+```{python}
+#| code-fold: false
+
+"""
+Hyperbolic Distance (Poincaré Ball Model)
+
+Hyperbolic space naturally represents hierarchies.
+Points near the center are "general"; points near the edge are "specific".
+"""
+
+import numpy as np
+
+def poincare_distance(u, v):
+    """
+    Distance in the Poincaré ball model of hyperbolic space.
+
+    As points approach the boundary (norm → 1), distances grow rapidly,
+    creating "room" for exponentially many nodes at each level.
+    """
+    norm_u_sq = np.sum(u ** 2)
+    norm_v_sq = np.sum(v ** 2)
+    norm_diff_sq = np.sum((u - v) ** 2)
+
+    # Hyperbolic distance formula
+    return np.arccosh(
+        1 + 2 * norm_diff_sq / ((1 - norm_u_sq) * (1 - norm_v_sq))
+    )
+
+# Example: Points in 2D Poincaré ball
+center = np.array([0.0, 0.0])      # Root of hierarchy
+mid_level = np.array([0.5, 0.0])   # Middle of tree
+leaf = np.array([0.9, 0.0])        # Leaf node (near boundary)
+
+print("Hyperbolic distances (Poincaré ball):")
+print(f"  Center ↔ Mid-level: {poincare_distance(center, mid_level):.3f}")
+print(f"  Mid-level ↔ Leaf: {poincare_distance(mid_level, leaf):.3f}")
+print(f"  Center ↔ Leaf: {poincare_distance(center, leaf):.3f}")
+```
+
+**Use cases**: Product taxonomies, organizational hierarchies, knowledge graphs. Hyperbolic embeddings can represent hierarchies in 5-20 dimensions that would require 100-500 dimensions in Euclidean space.
+
+### Learned Similarity Functions
+
+Instead of choosing a fixed metric, **learn the similarity function** from your data:
+
+```{python}
+#| code-fold: false
+
+"""
+Learned Similarity: Let the model decide what "similar" means.
+
+Approaches:
+1. Mahalanobis distance (learns covariance structure)
+2. Siamese networks (learn embedding + comparison jointly)
+3. Cross-encoders (attend across both inputs)
+"""
+
+import numpy as np
+
+class LearnedMahalanobis:
+    """
+    Mahalanobis distance with learned transformation matrix.
+
+    Learns which dimensions matter and how they correlate.
+    Equivalent to: d(x,y) = sqrt((x-y)^T M (x-y)) where M is learned.
+    """
+
+    def __init__(self, dim):
+        # Initialize as identity (reduces to Euclidean)
+        self.L = np.eye(dim)  # M = L^T L ensures positive semi-definite
+
+    def distance(self, x, y):
+        """Compute Mahalanobis distance with learned metric."""
+        diff = x - y
+        transformed = self.L @ diff
+        return np.sqrt(np.sum(transformed ** 2))
+
+    def fit(self, similar_pairs, dissimilar_pairs, learning_rate=0.01):
+        """
+        Learn metric from supervision (simplified).
+        Real implementation uses gradient descent on triplet/contrastive loss.
+        """
+        # Pull similar pairs closer, push dissimilar pairs apart
+        pass  # Actual training loop omitted for brevity
+
+# Example usage
+metric = LearnedMahalanobis(dim=128)
+x = np.random.randn(128)
+y = np.random.randn(128)
+print(f"Learned Mahalanobis distance: {metric.distance(x, y):.3f}")
+```
+
+**When to use learned metrics:**
+- Domain-specific similarity (what's "similar" in your domain isn't captured by cosine)
+- Few-shot learning (learn from limited examples)
+- When you have supervision signal (click data, ratings, labels)
+
+### Approximate Metrics at Scale
+
+At billion-scale, even computing exact similarity becomes expensive. **Approximate metrics** trade accuracy for speed:
+
+```{python}
+#| code-fold: false
+
+"""
+Approximate Similarity for Extreme Scale
+
+Techniques:
+1. Locality-Sensitive Hashing (LSH): Hash similar items to same bucket
+2. Product Quantization (PQ): Compress vectors, approximate distance
+3. Random Projections: Preserve relative distances approximately
+"""
+
+import numpy as np
+
+def random_projection_similarity(a, b, n_projections=100, seed=42):
+    """
+    Approximate cosine similarity using random projections.
+
+    Project to random hyperplanes, count sign agreements.
+    More agreements = more similar (probabilistically).
+    """
+    np.random.seed(seed)
+    dim = len(a)
+
+    # Generate random projection vectors
+    projections = np.random.randn(n_projections, dim)
+
+    # Project both vectors
+    proj_a = np.sign(projections @ a)
+    proj_b = np.sign(projections @ b)
+
+    # Count agreements (same sign = similar direction)
+    agreement_rate = np.mean(proj_a == proj_b)
+
+    # Convert to approximate cosine similarity
+    # (1 - 2*theta/pi) where theta is angle
+    approx_cosine = np.cos(np.pi * (1 - agreement_rate))
+
+    return approx_cosine
+
+# Compare exact vs approximate
+a = np.random.randn(768)
+b = a + np.random.randn(768) * 0.5  # Similar vector
+
+exact_cosine = np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+approx_cosine = random_projection_similarity(a, b)
+
+print("Exact vs Approximate similarity:")
+print(f"  Exact cosine: {exact_cosine:.4f}")
+print(f"  Approx (100 projections): {approx_cosine:.4f}")
+print(f"  Error: {abs(exact_cosine - approx_cosine):.4f}")
+```
+
+**Trade-offs:**
+- LSH: O(1) lookup but requires tuning hash functions
+- PQ: 10-100x compression, ~5% recall loss typical
+- Random projections: Simple, parallelizable, theoretical guarantees
+
+### Task-Adaptive Metrics
+
+The best metric depends on your task. **Metric learning** optimizes the similarity function end-to-end:
+
+| Approach | How It Works | Best For |
+|----------|--------------|----------|
+| **Triplet loss** | Learn: d(anchor, positive) < d(anchor, negative) | Face recognition, retrieval |
+| **Contrastive loss** | Pull positives together, push negatives apart | Self-supervised learning |
+| **Cross-encoder** | Jointly encode both inputs, predict similarity | Reranking, high-precision |
+| **Late interaction** | Multiple vectors per item, aggregate similarities | Fine-grained matching |
+
+: Task-adaptive metric learning approaches {.striped}
+
+For detailed coverage of these training approaches, see @sec-contrastive-learning and @sec-siamese-networks.
+
 ## Key Takeaways
 
 - **Cosine similarity** is the default for most embedding applications—it ignores magnitude and works well in high dimensions
@@ -467,6 +649,8 @@ print(f"\nFor normalized vectors: dot product = {dot:.4f}, cosine = {cos:.4f}")
 - **Metric choice affects indexing**: Most vector databases optimize for L2/cosine; other metrics may require transformation
 
 - **Pre-normalize for cosine**: If using cosine similarity, normalize vectors before insertion to avoid redundant computation
+
+- **Emerging approaches** like hyperbolic distance, learned metrics, and approximate similarity address specialized needs—hierarchical data, domain-specific similarity, and extreme scale
 
 ## Looking Ahead
 
