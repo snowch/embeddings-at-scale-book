@@ -231,8 +231,8 @@ Audio embeddings capture acoustic features from speech, music, and environmental
 """
 Audio Embeddings: Real Audio to Vectors
 
-We'll use librosa to extract MFCC features from actual audio,
-creating embeddings that capture timbral characteristics.
+We synthesize different audio signals and extract MFCC features
+to create embeddings that capture timbral characteristics.
 """
 
 import numpy as np
@@ -245,42 +245,55 @@ def audio_to_embedding(audio, sr, n_mfcc=20):
     # Aggregate over time: mean and std of each coefficient
     return np.concatenate([mfccs.mean(axis=1), mfccs.std(axis=1)])
 
-# Load librosa's built-in trumpet sample
-audio, sr = librosa.load(librosa.ex('trumpet'))
-trumpet_embedding = audio_to_embedding(audio, sr)
+# Synthesize audio signals with different characteristics
+sr = 22050  # Sample rate
+duration = 1.0  # 1 second
+t = np.linspace(0, duration, int(sr * duration))
 
-# Create variations to demonstrate similarity
-trumpet_slow = librosa.effects.time_stretch(audio, rate=0.8)
-trumpet_pitch_up = librosa.effects.pitch_shift(audio, sr=sr, n_steps=4)
+# Pure tone (simple sine wave at 440 Hz - concert A)
+pure_tone = np.sin(2 * np.pi * 440 * t).astype(np.float32)
 
-# Generate embeddings for each variation
+# Same pitch, different octave (880 Hz)
+octave_up = np.sin(2 * np.pi * 880 * t).astype(np.float32)
+
+# Rich harmonic tone (fundamental + harmonics, like a musical instrument)
+rich_tone = (np.sin(2 * np.pi * 440 * t) +
+             0.5 * np.sin(2 * np.pi * 880 * t) +
+             0.25 * np.sin(2 * np.pi * 1320 * t)).astype(np.float32)
+
+# Noise burst (like percussion)
+np.random.seed(42)
+noise = np.random.randn(len(t)).astype(np.float32) * 0.5
+
+# Generate embeddings
 embeddings = {
-    'trumpet_original': trumpet_embedding,
-    'trumpet_slower': audio_to_embedding(trumpet_slow, sr),
-    'trumpet_higher_pitch': audio_to_embedding(trumpet_pitch_up, sr),
+    'pure_440hz': audio_to_embedding(pure_tone, sr),
+    'pure_880hz': audio_to_embedding(octave_up, sr),
+    'rich_tone': audio_to_embedding(rich_tone, sr),
+    'noise': audio_to_embedding(noise, sr),
 }
 
-print(f"Embedding dimension: {len(trumpet_embedding)} (20 MFCCs × 2 stats)\n")
+print(f"Embedding dimension: {len(embeddings['pure_440hz'])} (20 MFCCs × 2 stats)\n")
 
-# Compare similarities
+# Compare similarities - similar timbres should cluster
 print("Audio embedding similarities:")
-sim_slow = cosine_similarity(
-    [embeddings['trumpet_original']], [embeddings['trumpet_slower']]
+sim_pure = cosine_similarity(
+    [embeddings['pure_440hz']], [embeddings['pure_880hz']]
 )[0][0]
-print(f"  Original ↔ Slower tempo:   {sim_slow:.3f}")
+print(f"  Pure 440Hz ↔ Pure 880Hz:   {sim_pure:.3f}  (same timbre, different pitch)")
 
-sim_pitch = cosine_similarity(
-    [embeddings['trumpet_original']], [embeddings['trumpet_higher_pitch']]
+sim_rich = cosine_similarity(
+    [embeddings['pure_440hz']], [embeddings['rich_tone']]
 )[0][0]
-print(f"  Original ↔ Higher pitch:   {sim_pitch:.3f}")
+print(f"  Pure tone ↔ Rich tone:     {sim_rich:.3f}  (different timbre)")
 
-sim_variations = cosine_similarity(
-    [embeddings['trumpet_slower']], [embeddings['trumpet_higher_pitch']]
+sim_noise = cosine_similarity(
+    [embeddings['pure_440hz']], [embeddings['noise']]
 )[0][0]
-print(f"  Slower ↔ Higher pitch:     {sim_variations:.3f}")
+print(f"  Pure tone ↔ Noise:         {sim_noise:.3f}  (very different)")
 ```
 
-The tempo change preserves timbre (high similarity), while pitch shifting alters the spectral characteristics more significantly.
+Pure tones at different pitches remain similar (same timbre), while adding harmonics or noise creates distinct embeddings.
 
 **Popular audio embedding models:**
 
