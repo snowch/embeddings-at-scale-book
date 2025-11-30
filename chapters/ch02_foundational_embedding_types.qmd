@@ -223,59 +223,64 @@ print(f"  red ↔ blue:   {red_blue:.3f}")
 
 ## Audio Embeddings {#sec-audio-embedding-types}
 
-Audio embeddings capture acoustic features from speech, music, and environmental sounds:
+Audio embeddings capture acoustic features from speech, music, and environmental sounds. Let's create embeddings from real audio using MFCC (Mel-frequency cepstral coefficients) features:
 
 ```{python}
 #| code-fold: false
 
 """
-Audio Embeddings: Sound as Vectors
+Audio Embeddings: Real Audio to Vectors
 
-Audio embeddings represent acoustic content, enabling speech recognition,
-music recommendation, and sound event detection.
-
-Note: This is a conceptual example. Real audio processing requires
-libraries like librosa, torchaudio, or specialized models.
+We'll use librosa to extract MFCC features from actual audio,
+creating embeddings that capture timbral characteristics.
 """
 
 import numpy as np
-
-# Simulated audio embeddings (in practice, use models like Wav2Vec2, CLAP)
-# Real audio embeddings capture: pitch, rhythm, timbre, speaker characteristics
-
-np.random.seed(42)
-
-# Simulate embeddings for different audio types
-audio_embeddings = {
-    'speech_english': np.random.randn(256) + np.array([1, 0, 0] + [0]*253),
-    'speech_spanish': np.random.randn(256) + np.array([1, 0.2, 0] + [0]*253),
-    'music_classical': np.random.randn(256) + np.array([0, 1, 0] + [0]*253),
-    'music_rock': np.random.randn(256) + np.array([0, 1, 0.5] + [0]*253),
-    'dog_barking': np.random.randn(256) + np.array([0, 0, 1] + [0]*253),
-}
-
+import librosa
 from sklearn.metrics.pairwise import cosine_similarity
 
-print("Simulated audio embedding similarities:\n")
-print("Speech samples should cluster together:")
-speech_sim = cosine_similarity(
-    [audio_embeddings['speech_english']],
-    [audio_embeddings['speech_spanish']]
-)[0][0]
-print(f"  English ↔ Spanish speech: {speech_sim:.3f}")
+def audio_to_embedding(audio, sr, n_mfcc=20):
+    """Convert audio waveform to a fixed-size embedding using MFCCs."""
+    mfccs = librosa.feature.mfcc(y=audio, sr=sr, n_mfcc=n_mfcc)
+    # Aggregate over time: mean and std of each coefficient
+    return np.concatenate([mfccs.mean(axis=1), mfccs.std(axis=1)])
 
-music_sim = cosine_similarity(
-    [audio_embeddings['music_classical']],
-    [audio_embeddings['music_rock']]
-)[0][0]
-print(f"  Classical ↔ Rock music:   {music_sim:.3f}")
+# Load librosa's built-in trumpet sample
+audio, sr = librosa.load(librosa.ex('trumpet'))
+trumpet_embedding = audio_to_embedding(audio, sr)
 
-cross_sim = cosine_similarity(
-    [audio_embeddings['speech_english']],
-    [audio_embeddings['dog_barking']]
+# Create variations to demonstrate similarity
+trumpet_slow = librosa.effects.time_stretch(audio, rate=0.8)
+trumpet_pitch_up = librosa.effects.pitch_shift(audio, sr=sr, n_steps=4)
+
+# Generate embeddings for each variation
+embeddings = {
+    'trumpet_original': trumpet_embedding,
+    'trumpet_slower': audio_to_embedding(trumpet_slow, sr),
+    'trumpet_higher_pitch': audio_to_embedding(trumpet_pitch_up, sr),
+}
+
+print(f"Embedding dimension: {len(trumpet_embedding)} (20 MFCCs × 2 stats)\n")
+
+# Compare similarities
+print("Audio embedding similarities:")
+sim_slow = cosine_similarity(
+    [embeddings['trumpet_original']], [embeddings['trumpet_slower']]
 )[0][0]
-print(f"  Speech ↔ Dog barking:     {cross_sim:.3f}")
+print(f"  Original ↔ Slower tempo:   {sim_slow:.3f}")
+
+sim_pitch = cosine_similarity(
+    [embeddings['trumpet_original']], [embeddings['trumpet_higher_pitch']]
+)[0][0]
+print(f"  Original ↔ Higher pitch:   {sim_pitch:.3f}")
+
+sim_variations = cosine_similarity(
+    [embeddings['trumpet_slower']], [embeddings['trumpet_higher_pitch']]
+)[0][0]
+print(f"  Slower ↔ Higher pitch:     {sim_variations:.3f}")
 ```
+
+The tempo change preserves timbre (high similarity), while pitch shifting alters the spectral characteristics more significantly.
 
 **Popular audio embedding models:**
 
