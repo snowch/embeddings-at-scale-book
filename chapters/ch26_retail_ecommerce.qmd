@@ -24,9 +24,13 @@ Traditional product search faces limitations:
 
 **Embedding approach**: Learn product embeddings from multi-modal signals—images encode visual appearance, text encodes semantic meaning, behavioral signals encode utility. Products that solve similar needs cluster together even with different keywords or categories. Search becomes retrieval in embedding space: query → embedding → nearest neighbor products.
 
+::: {.callout-note collapse="true"}
+## Multi-Modal Product Encoder Implementation (click to expand)
+
 ```python
 {{< include /code_examples/ch26_retail_ecommerce/class.py >}}
 ```
+:::
 
 :::{.callout-tip}
 ## Product Discovery Best Practices
@@ -79,9 +83,13 @@ Visual product search faces unique challenges:
 
 **Embedding approach**: Learn visual embeddings that capture style attributes (color, pattern, silhouette, material) independently of photography conditions. Visual similarity becomes retrieval in embedding space where style-similar products cluster together regardless of exact appearance.
 
+::: {.callout-note collapse="true"}
+## Visual Search and Style Transfer Implementation (click to expand)
+
 ```python
 {{< include /code_examples/ch26_retail_ecommerce/styleattribute.py >}}
 ```
+:::
 
 :::{.callout-tip}
 ## Visual Search Best Practices
@@ -135,9 +143,13 @@ Traditional inventory management faces limitations:
 
 **Embedding approach**: Represent products as embeddings that encode attributes (category, brand, price, style), learn temporal embeddings of demand patterns, and model regional preferences. Similar products have similar demand curves; new products inherit forecast from similar items; promotion effects transfer across comparable SKUs.
 
+::: {.callout-note collapse="true"}
+## Demand Forecasting and Inventory Optimization Implementation (click to expand)
+
 ```python
 {{< include /code_examples/ch26_retail_ecommerce/demandregime.py >}}
 ```
+:::
 
 :::{.callout-tip}
 ## Inventory Optimization Best Practices
@@ -191,9 +203,13 @@ Traditional journey analytics face limitations:
 
 **Embedding approach**: Learn sequential embeddings where customer states evolve through session history, similar journey patterns cluster together, and distance to conversion embedding predicts purchase probability. Enables real-time journey stage detection and micro-moment personalization based on implicit signals.
 
+::: {.callout-note collapse="true"}
+## Customer Journey Analysis Implementation (click to expand)
+
 ```python
 {{< include /code_examples/ch26_retail_ecommerce/actiontype.py >}}
 ```
+:::
 
 :::{.callout-tip}
 ## Customer Journey & Hyperpersonalization Best Practices
@@ -255,9 +271,13 @@ Traditional catalog management faces limitations:
 
 **Embedding approach**: Products as vectors enable automatic discovery of relationships (complementary, substitute, seasonal), trend detection through embedding drift, and dynamic collection generation based on learned preferences. Catalog structure emerges from data rather than predetermined by merchandisers.
 
+::: {.callout-note collapse="true"}
+## Dynamic Catalog Management Implementation (click to expand)
+
 ```python
 {{< include /code_examples/ch26_retail_ecommerce/productrelationtype.py >}}
 ```
+:::
 
 :::{.callout-tip}
 ## Dynamic Catalog Management Best Practices
