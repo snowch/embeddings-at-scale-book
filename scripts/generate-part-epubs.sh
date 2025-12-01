@@ -23,7 +23,8 @@ generate_part_epub() {
     echo "  Generating Part $part_num: $part_name"
 
     # Build pandoc command with all chapter files
-    pandoc \
+    # Use 'quarto pandoc' to access pandoc bundled with Quarto
+    quarto pandoc \
         --from=markdown \
         --to=epub \
         --toc \
