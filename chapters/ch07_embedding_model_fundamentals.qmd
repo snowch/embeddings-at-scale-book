@@ -1,4 +1,4 @@
-# How Embedding Models Work {#sec-embedding-model-fundamentals}
+# How Embedding Models Learn {#sec-embedding-model-fundamentals}
 
 ::: callout-note
 ## Chapter Overview
