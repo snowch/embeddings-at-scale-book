@@ -110,15 +110,23 @@ format:
         \usepackage{fancyhdr}
         \pagestyle{fancy}
         \usepackage{float}
+        \usepackage{graphicx}
         \newcommand{\gitcommithash}{$git-commit$}
         \fancyfoot[L]{Built from commit: \gitcommithash}
         \fancyfoot[R]{\thepage}
+    include-before-body:
+      text: |
+        \thispagestyle{empty}
+        \begin{center}
+        \includegraphics[width=\textwidth,height=\textheight,keepaspectratio]{cover.jpg}
+        \end{center}
+        \clearpage
 
   epub:
     toc: true
     toc-depth: 3
     number-sections: true
     number-depth: 3
-    # epub-cover-image: cover.png  # TODO: Add actual cover image
+    epub-cover-image: cover.jpg
 
 editor: visual

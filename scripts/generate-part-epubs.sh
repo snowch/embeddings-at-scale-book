@@ -33,6 +33,7 @@ generate_part_epub() {
         --metadata title="$BOOK_TITLE - Part $part_num: $part_name" \
         --metadata author="$AUTHOR" \
         --metadata lang="en" \
+        --epub-cover-image=cover.jpg \
         -o "$output_file" \
         "${chapters[@]}"
 

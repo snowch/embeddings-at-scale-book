@@ -102,7 +102,10 @@ This book is organized into seven parts covering 30 chapters:
 
 ## Acknowledgments
 
-[Acknowledgments to be added]
+This book was created with assistance from AI tools:
+
+- **Cover image**: Generated using Grok 4.1
+- **Content development**: Assisted by Claude Code (Anthropic)
 
 ## Feedback and Errata
 
