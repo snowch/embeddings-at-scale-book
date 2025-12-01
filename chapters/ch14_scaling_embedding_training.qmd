@@ -510,35 +510,21 @@ def setup_multi_node():
 # torchrun --nproc_per_node=8 --nnodes=4 --node_rank=$NODE_RANK train.py
 # rank, world_size, local_rank = setup_multi_node()
 print("Multi-node setup: coordinate training across multiple machines")
+```
+
+For multi-node training, use SLURM or torchrun to launch across machines:
+
 ```bash
-    sbatch --nodes=4 --gres=gpu:8 train_multi_node.sh
-    ```
+# SLURM submission
+sbatch --nodes=4 --gres=gpu:8 train_multi_node.sh
 
-    Or with torchrun:
-    ```bash
-    # On each node, run:
-    torchrun --nproc_per_node=8 \
-             --nnodes=4 \
-             --node_rank=$NODE_RANK \
-             --master_addr=$MASTER_ADDR \
-             --master_port=1234 \
-             train_script.py
-    ```
-    """
-
-    # Get distributed parameters from environment
-    rank = int(os.environ['RANK'])
-    world_size = int(os.environ['WORLD_SIZE'])
-    master_addr = os.environ['MASTER_ADDR']
-    master_port = os.environ['MASTER_PORT']
-
-    # Setup multi-node training
-    setup_multi_node(rank, world_size, master_addr, master_port)
-
-    # Rest of training code (same as single-node)
-    # ...
-
-    dist.destroy_process_group()
+# Or with torchrun on each node:
+torchrun --nproc_per_node=8 \
+         --nnodes=4 \
+         --node_rank=$NODE_RANK \
+         --master_addr=$MASTER_ADDR \
+         --master_port=1234 \
+         train_script.py
 ```
 
 :::{.callout-tip}
