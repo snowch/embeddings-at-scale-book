@@ -626,6 +626,8 @@ class MultimodalSelfSupervised:
     def forward(self, text_inputs, image_inputs):
         """Compute embeddings for both modalities."""
         text_features = self.text_encoder(text_inputs)
+        if text_features.dim() == 3:  # (batch, seq, dim) -> mean pool to (batch, dim)
+            text_features = text_features.mean(dim=1)
         text_embeds = self.text_projection(text_features)
         text_embeds = F.normalize(text_embeds, dim=-1)
 
@@ -654,8 +656,10 @@ class MultimodalSelfSupervised:
         optimizer.step()
 
         with torch.no_grad():
-            similarities = torch.matmul(text_embeds, image_embeds.T).diagonal()
-            accuracy = (similarities.argmax(dim=-1) == torch.arange(len(text_embeds), device=similarities.device)).float().mean()
+            logits = torch.matmul(text_embeds, image_embeds.T)
+            predictions = logits.argmax(dim=-1)  # For each text, which image is most similar?
+            labels = torch.arange(len(text_embeds), device=logits.device)
+            accuracy = (predictions == labels).float().mean()
 
         return loss.item(), accuracy.item()
 
