@@ -84,6 +84,10 @@ jobs:
         run: |
           ./scripts/convert-to-notebooks.sh
 
+      - name: Generate per-part EPUBs
+        run: |
+          ./scripts/generate-part-epubs.sh
+
       - name: Copy additional formats to downloads folder
         run: |
           mkdir -p _book/downloads
