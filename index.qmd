@@ -12,6 +12,7 @@ This book is currently a **work in progress**. Content may be incomplete, subjec
 
 This comprehensive tutorial is designed for CTOs, Data Scientists, ML Engineers, and Technical Leaders who are ready to transform their organizations through embedding technologies at unprecedented scale.
 
+::: {.content-hidden when-format="epub"}
 ## Download This Book
 
 Available in multiple formats for your convenience:
@@ -23,6 +24,7 @@ Available in multiple formats for your convenience:
 - **[📱 Download EPUB](downloads/Embeddings-at-Scale.epub)** - For e-readers and mobile devices
 - **[📚 Download EPUB by Part](downloads/Embeddings-at-Scale-Parts.zip)** - Smaller EPUBs split by part (7 files)
 - **[📓 Download Jupyter Notebooks](downloads/Embeddings-at-Scale-Notebooks.zip)** - Interactive notebooks for all chapters
+:::
 :::
 
 ## Why This Book?
