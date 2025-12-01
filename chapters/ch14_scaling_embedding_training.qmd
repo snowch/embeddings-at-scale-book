@@ -64,70 +64,77 @@ class DistributedEmbeddingTable(nn.Module):
 # Usage example (conceptual - requires distributed setup)
 # model = DistributedEmbeddingTable(total_vocab_size=100000, embedding_dim=512, world_size=8, rank=0)
 print("Distributed embedding table for model-parallel training")
+```
+
+For multi-GPU training with PyTorch's distributed module, you typically launch with `torchrun`:
+
 ```bash
-    torchrun --nproc_per_node=8 train.py
-    ```
+# Single node, 8 GPUs
+torchrun --nproc_per_node=8 train.py
 
-    Or for multi-node:
-    ```bash
-    torchrun --nproc_per_node=8 --nnodes=4 --node_rank=0 \
-             --master_addr=node0 --master_port=1234 train.py
-    ```
+# Multi-node (4 nodes, 8 GPUs each)
+torchrun --nproc_per_node=8 --nnodes=4 --node_rank=0 \
+         --master_addr=node0 --master_port=1234 train.py
+```
 
-    Args:
-        rank: GPU rank (assigned by torchrun)
-        world_size: Total GPUs (assigned by torchrun)
-        epochs: Number of training epochs
-    """
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Distributed Training Example"
+import torch
+import torch.nn as nn
 
-    # Initialize distributed trainer
-    model = DistributedContrastiveEmbedding(
-        vocab_size=100000,
-        embedding_dim=512
-    )
 
-    trainer = DistributedTrainer(
-        model=model,
-        local_rank=rank,
-        world_size=world_size
-    )
+class DistributedContrastiveEmbedding(nn.Module):
+    """Embedding model for distributed contrastive training."""
+    def __init__(self, vocab_size, embedding_dim):
+        super().__init__()
+        self.embeddings = nn.Embedding(vocab_size, embedding_dim)
+        self.projection = nn.Linear(embedding_dim, embedding_dim)
 
-    # Optimizer (scale learning rate by world size)
-    base_lr = 0.001
-    scaled_lr = base_lr * world_size
-    optimizer = torch.optim.AdamW(
-        model.parameters(),
-        lr=scaled_lr
-    )
+    def forward(self, ids):
+        return self.projection(self.embeddings(ids))
 
-    # Training loop
-    for epoch in range(epochs):
-        # In practice: Use DistributedSampler for data loading
-        # to ensure each GPU sees different data
-        for step in range(100):  # Placeholder
-            # Create dummy batch
-            batch = {
-                'anchor_ids': torch.randint(0, 100000, (256,), device=trainer.device),
-                'positive_ids': torch.randint(0, 100000, (256,), device=trainer.device)
-            }
 
-            loss = trainer.train_step(batch, optimizer)
+class DistributedTrainer:
+    """Trainer for distributed embedding model."""
+    def __init__(self, model, local_rank, world_size):
+        self.model = model
+        self.device = f"cuda:{local_rank}" if torch.cuda.is_available() else "cpu"
+        self.model.to(self.device)
+        self.world_size = world_size
+        self.local_rank = local_rank
 
-            if rank == 0 and step % 10 == 0:
-                print(f"Epoch {epoch}, Step {step}: Loss = {loss:.4f}")
+    def train_step(self, batch, optimizer):
+        anchor = self.model(batch['anchor_ids'])
+        positive = self.model(batch['positive_ids'])
+        loss = nn.functional.mse_loss(anchor, positive)  # Simplified
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+        return loss.item()
 
-        # Save checkpoint
-        trainer.save_checkpoint(f"checkpoint_epoch_{epoch}.pt", epoch, optimizer)
+    def save_checkpoint(self, path, epoch, optimizer):
+        torch.save({'epoch': epoch, 'model': self.model.state_dict()}, path)
 
-    trainer.cleanup()
-    print(f"Rank {rank}: Training complete")
+    def cleanup(self):
+        pass  # In practice: dist.destroy_process_group()
 
-# Uncomment to run (requires torchrun):
-# if __name__ == '__main__':
-#     import os
-#     rank = int(os.environ['LOCAL_RANK'])
-#     world_size = int(os.environ['WORLD_SIZE'])
-#     train_distributed_embedding_model(rank, world_size)
+
+# Initialize distributed trainer
+model = DistributedContrastiveEmbedding(vocab_size=100000, embedding_dim=512)
+trainer = DistributedTrainer(model=model, local_rank=0, world_size=1)
+
+# Optimizer
+optimizer = torch.optim.AdamW(model.parameters(), lr=0.001)
+
+# Training step demo
+batch = {
+    'anchor_ids': torch.randint(0, 100000, (256,), device=trainer.device),
+    'positive_ids': torch.randint(0, 100000, (256,), device=trainer.device)
+}
+loss = trainer.train_step(batch, optimizer)
+print(f"Training step loss: {loss:.4f}")
 ```
 
 :::{.callout-tip}
