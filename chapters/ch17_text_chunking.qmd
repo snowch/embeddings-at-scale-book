@@ -164,16 +164,14 @@ def chunk_by_characters(text: str, chunk_size: int = 500, overlap: int = 50) -> 
     return chunks
 
 def chunk_by_tokens(text: str, chunk_size: int = 256, overlap: int = 25) -> List[str]:
-    """Split text into fixed-size token chunks using tiktoken."""
-    import tiktoken
-    encoding = tiktoken.get_encoding("cl100k_base")
-    tokens = encoding.encode(text)
+    """Split text into fixed-size token chunks using simple whitespace tokenization."""
+    tokens = text.split()  # Simple word-based tokenization
     chunks = []
     start = 0
     while start < len(tokens):
         end = min(start + chunk_size, len(tokens))
         chunk_tokens = tokens[start:end]
-        chunk_text = encoding.decode(chunk_tokens)
+        chunk_text = ' '.join(chunk_tokens)
         if chunk_text.strip():
             chunks.append(chunk_text)
         start = end - overlap if overlap < chunk_size else end
@@ -213,26 +211,23 @@ import re
 from typing import List
 
 def chunk_by_sentences(text: str, target_size: int = 256, max_size: int = 512) -> List[str]:
-    """Group sentences into chunks of approximately target_size tokens."""
-    import tiktoken
-    encoding = tiktoken.get_encoding("cl100k_base")
-
+    """Group sentences into chunks of approximately target_size words."""
     # Split into sentences
     sentences = re.split(r'(?<=[.!?])\s+(?=[A-Z])', text)
     sentences = [s.strip() for s in sentences if s.strip()]
 
     chunks = []
     current_chunk = []
-    current_tokens = 0
+    current_words = 0
 
     for sentence in sentences:
-        sentence_tokens = len(encoding.encode(sentence))
-        if current_tokens + sentence_tokens > target_size and current_chunk:
+        sentence_words = len(sentence.split())  # Simple word count
+        if current_words + sentence_words > target_size and current_chunk:
             chunks.append(" ".join(current_chunk))
             current_chunk = []
-            current_tokens = 0
+            current_words = 0
         current_chunk.append(sentence)
-        current_tokens += sentence_tokens
+        current_words += sentence_words
 
     if current_chunk:
         chunks.append(" ".join(current_chunk))
@@ -240,7 +235,7 @@ def chunk_by_sentences(text: str, target_size: int = 256, max_size: int = 512) -
 
 # Usage example
 text = "ML transforms data. Neural networks learn patterns. Deep learning uses layers. Transformers power NLP."
-chunks = chunk_by_sentences(text, target_size=100)
+chunks = chunk_by_sentences(text, target_size=10)
 print(f"Created {len(chunks)} sentence-based chunks")
 ```
 
