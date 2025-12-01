@@ -119,6 +119,6 @@ format:
     toc-depth: 3
     number-sections: true
     number-depth: 3
-    # epub-cover-image: cover.png  # TODO: Add actual cover image
+    epub-cover-image: cover.jpg
 
 editor: visual
