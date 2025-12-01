@@ -416,12 +416,14 @@ for name, emb in embeddings.items():
 ```
 
 **Multi-modal embedding models:**
+
 - **CLIP** (OpenAI): Text-image alignment, 400M image-text pairs
 - **BLIP/BLIP-2**: Image captioning + retrieval
 - **ImageBind** (Meta): Aligns 6 modalities (image, text, audio, depth, thermal, IMU)
 - **LLaVA**: Large language model with vision
 
 **When to use multi-modal embeddings:**
+
 - Cross-modal search (text→image, image→text)
 - Zero-shot image classification
 - Image captioning
@@ -489,6 +491,7 @@ print(f"  Alice ↔ Xavier: {ax:.3f}")
 : Graph embedding methods {.striped}
 
 **When to use graph embeddings:**
+
 - Social network analysis
 - Recommendation systems (user-item graphs)
 - Knowledge graph completion
@@ -561,12 +564,14 @@ print(f"  Sine wave ↔ Trend up:       {cross_sim:.3f}")
 ```
 
 **Time-series embedding approaches:**
+
 - **Learned features**: LSTMs, Transformers, TCNs trained on time-series
 - **Self-supervised**: Contrastive learning on augmented time-series
 - **Statistical**: Hand-crafted features (mean, variance, entropy, etc.)
 - **Frequency domain**: FFT-based representations
 
 **When to use time-series embeddings:**
+
 - Anomaly detection in sensor data
 - Predictive maintenance
 - Financial pattern recognition
@@ -635,12 +640,14 @@ print(f"  sum ↔ reverse:                   {cross_sim:.3f}")
 ```
 
 **Code embedding models:**
+
 - **CodeBERT**: BERT-style model trained on code
 - **GraphCodeBERT**: Incorporates data flow graphs
 - **StarCoder**: Large code model with embeddings
 - **Codex/GPT-4**: Can generate embeddings via API
 
 **When to use code embeddings:**
+
 - Semantic code search
 - Code clone detection
 - Vulnerability detection
