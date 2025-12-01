@@ -316,18 +316,31 @@ Split based on topic shifts detected by embedding similarity.
 #| code-fold: true
 #| code-summary: "Show Semantic Chunking"
 from typing import List
-import numpy as np
+import re
+
+# Check for optional dependencies
+try:
+    import numpy as np
+    from sentence_transformers import SentenceTransformer
+    HAS_SEMANTIC_DEPS = True
+except ImportError:
+    HAS_SEMANTIC_DEPS = False
 
 def semantic_chunk(text: str, similarity_threshold: float = 0.5) -> List[str]:
     """Split text at semantic boundaries using embedding similarity."""
-    from sentence_transformers import SentenceTransformer
-    import re
-
-    # Split into sentences
+    # Split into sentences first
     sentences = re.split(r'(?<=[.!?])\s+(?=[A-Z])', text)
     sentences = [s.strip() for s in sentences if s.strip()]
     if len(sentences) < 2:
         return [text]
+
+    if not HAS_SEMANTIC_DEPS:
+        # Fallback: simple sentence grouping without embeddings
+        chunks = []
+        for i in range(0, len(sentences), 2):
+            chunk = " ".join(sentences[i:i+2])
+            chunks.append(chunk)
+        return chunks
 
     # Embed sentences
     model = SentenceTransformer("all-MiniLM-L6-v2")
@@ -358,6 +371,8 @@ def semantic_chunk(text: str, similarity_threshold: float = 0.5) -> List[str]:
 text = "ML enables learning. AI powers systems. Dogs are animals. Cats like milk."
 chunks = semantic_chunk(text, similarity_threshold=0.6)
 print(f"Created {len(chunks)} semantic chunks")
+if not HAS_SEMANTIC_DEPS:
+    print("(Using fallback mode - install sentence-transformers for full functionality)")
 ```
 
 **Pros:**
@@ -574,6 +589,13 @@ import re
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
+# Check for optional PDF dependency
+try:
+    import fitz  # PyMuPDF
+    HAS_PYMUPDF = True
+except ImportError:
+    HAS_PYMUPDF = False
+
 @dataclass
 class PDFChunk:
     """A chunk extracted from a PDF with metadata."""
@@ -594,7 +616,9 @@ class PDFChunker:
 
     def chunk_pdf(self, pdf_path: str) -> List[PDFChunk]:
         """Extract and chunk a PDF document."""
-        import fitz  # PyMuPDF
+        if not HAS_PYMUPDF:
+            raise ImportError("PyMuPDF (fitz) is required for PDF processing. "
+                            "Install with: pip install PyMuPDF")
         doc = fitz.open(pdf_path)
         chunks = []
         current_section = None
@@ -696,7 +720,10 @@ class PDFChunker:
         return merged
 
 # Usage example
-print("PDFChunker ready for processing PDF documents with structure preservation")
+if HAS_PYMUPDF:
+    print("PDFChunker ready for processing PDF documents with structure preservation")
+else:
+    print("PDFChunker defined (install PyMuPDF for PDF processing: pip install PyMuPDF)")
 ```
 
 ### HTML Documents
@@ -710,6 +737,13 @@ HTML carries structural information that aids chunking:
 import re
 from dataclasses import dataclass
 from typing import List, Optional
+
+# Check for optional HTML parsing dependency
+try:
+    from bs4 import BeautifulSoup
+    HAS_BS4 = True
+except ImportError:
+    HAS_BS4 = False
 
 @dataclass
 class HTMLChunk:
@@ -733,7 +767,9 @@ class HTMLChunker:
 
     def chunk_html(self, html: str) -> List[HTMLChunk]:
         """Extract and chunk HTML content."""
-        from bs4 import BeautifulSoup
+        if not HAS_BS4:
+            raise ImportError("BeautifulSoup is required for HTML processing. "
+                            "Install with: pip install beautifulsoup4")
         soup = BeautifulSoup(html, "html.parser")
 
         # Remove script and style elements
@@ -835,7 +871,10 @@ class HTMLChunker:
         return chunks
 
 # Usage example
-print("HTMLChunker ready for processing HTML documents")
+if HAS_BS4:
+    print("HTMLChunker ready for processing HTML documents")
+else:
+    print("HTMLChunker defined (install beautifulsoup4 for HTML processing: pip install beautifulsoup4)")
 ```
 
 ### Markdown Documents
@@ -1137,7 +1176,13 @@ Based on production experience across different use cases:
 #| code-summary: "Show Chunk Size Evaluation"
 from dataclasses import dataclass
 from typing import Dict, List
-import numpy as np
+
+# Check for numpy
+try:
+    import numpy as np
+    HAS_NUMPY = True
+except ImportError:
+    HAS_NUMPY = False
 
 @dataclass
 class EvaluationResult:
@@ -1182,13 +1227,26 @@ def evaluate_chunk_sizes(documents: List[str], queries: List[str],
 def analyze_chunk_statistics(chunks: List[str]) -> Dict:
     """Analyze statistics of a chunking result."""
     lengths = [len(c) for c in chunks]
-    return {
-        "num_chunks": len(chunks),
-        "avg_length": np.mean(lengths),
-        "std_length": np.std(lengths),
-        "min_length": min(lengths) if lengths else 0,
-        "max_length": max(lengths) if lengths else 0,
-    }
+    if HAS_NUMPY:
+        return {
+            "num_chunks": len(chunks),
+            "avg_length": np.mean(lengths),
+            "std_length": np.std(lengths),
+            "min_length": min(lengths) if lengths else 0,
+            "max_length": max(lengths) if lengths else 0,
+        }
+    else:
+        # Fallback without numpy
+        avg = sum(lengths) / len(lengths) if lengths else 0
+        variance = sum((x - avg) ** 2 for x in lengths) / len(lengths) if lengths else 0
+        std = variance ** 0.5
+        return {
+            "num_chunks": len(chunks),
+            "avg_length": avg,
+            "std_length": std,
+            "min_length": min(lengths) if lengths else 0,
+            "max_length": max(lengths) if lengths else 0,
+        }
 
 # Usage example
 sample_docs = ["ML transforms data. " * 50] * 3
@@ -1658,7 +1716,25 @@ How do you know if your chunking strategy is working?
 #| code-summary: "Show Chunk Quality Evaluation"
 from dataclasses import dataclass
 from typing import Dict, List, Optional
-import numpy as np
+
+# Check for numpy
+try:
+    import numpy as np
+    HAS_NUMPY = True
+except ImportError:
+    HAS_NUMPY = False
+
+def _mean(values: List[float]) -> float:
+    """Calculate mean without numpy."""
+    return sum(values) / len(values) if values else 0.0
+
+def _std(values: List[float]) -> float:
+    """Calculate standard deviation without numpy."""
+    if not values:
+        return 0.0
+    avg = _mean(values)
+    variance = sum((x - avg) ** 2 for x in values) / len(values)
+    return variance ** 0.5
 
 @dataclass
 class ChunkQualityMetrics:
@@ -1687,12 +1763,21 @@ def evaluate_chunk_quality(chunks: List[str], queries: Optional[List[str]] = Non
         all_terms.extend(chunk.lower().split())
     unique_ratio = len(set(all_terms)) / len(all_terms) if all_terms else 0
 
+    if HAS_NUMPY:
+        avg_size = np.mean(sizes)
+        std_size = np.std(sizes)
+        avg_words = np.mean(word_counts)
+    else:
+        avg_size = _mean(sizes)
+        std_size = _std(sizes)
+        avg_words = _mean(word_counts)
+
     return ChunkQualityMetrics(
-        avg_chunk_size=np.mean(sizes),
-        std_chunk_size=np.std(sizes),
+        avg_chunk_size=avg_size,
+        std_chunk_size=std_size,
         min_chunk_size=min(sizes) if sizes else 0,
         max_chunk_size=max(sizes) if sizes else 0,
-        avg_word_count=np.mean(word_counts),
+        avg_word_count=avg_words,
         unique_terms_ratio=unique_ratio,
     )
 
