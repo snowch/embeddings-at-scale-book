@@ -379,6 +379,12 @@ Defense applications of embeddings raise significant ethical considerations:
 - Academic-government research partnerships
 :::
 
+::: {.callout-tip}
+## Video Surveillance Analytics
+
+For video-based security applications—including perimeter monitoring, crowd analytics, incident detection, person re-identification, and forensic video search—see the techniques covered in @sec-video-surveillance.
+:::
+
 ## Key Takeaways
 
 :::{.callout-note}

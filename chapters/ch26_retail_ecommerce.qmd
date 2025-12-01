@@ -295,6 +295,12 @@ Traditional catalog management faces limitations:
 - **Strategic fit**: Automated decisions must align with brand strategy
 :::
 
+::: {.callout-tip}
+## Video Analytics for Retail
+
+For in-store video surveillance and analytics applications—including loss prevention (shoplifting detection, checkout exception monitoring), customer analytics (traffic patterns, dwell time, queue management), and operations (staffing optimization, planogram compliance)—see the **Retail Loss Prevention** section in @sec-video-surveillance.
+:::
+
 ## Key Takeaways
 
 - **Multi-modal product embeddings enable semantic search beyond keyword matching**: Image encoders (CNN/ViT) learn visual features, text encoders (BERT) capture semantic meaning, and behavioral encoders extract implicit utility signals from co-purchase and co-view patterns, enabling discovery of products that solve similar needs even with different terminology or categories

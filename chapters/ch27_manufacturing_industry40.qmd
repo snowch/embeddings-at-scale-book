@@ -292,6 +292,12 @@ Traditional simulation and modeling faces limitations:
 - **Data requirements**: Need extensive operational data for training
 :::
 
+::: {.callout-tip}
+## Video Analytics for Manufacturing
+
+For video-based safety and quality applications—including PPE detection, zone monitoring, unsafe behavior detection, visual quality inspection, and equipment monitoring—see the **Manufacturing Safety Compliance** section in @sec-video-surveillance.
+:::
+
 ## Key Takeaways
 
 :::{.callout-note}

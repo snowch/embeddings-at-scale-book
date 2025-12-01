@@ -329,6 +329,12 @@ Traditional epidemic models face limitations:
 - **Ethical trade-offs**: Health vs liberty, individual vs collective good
 :::
 
+::: {.callout-tip}
+## Video Analytics for Healthcare
+
+For video-based patient safety applications—including fall detection, wandering prevention, bed exit monitoring, hand hygiene compliance, and PPE monitoring—see the **Healthcare Patient Safety** section in @sec-video-surveillance.
+:::
+
 ## Key Takeaways
 
 :::{.callout-note}
