@@ -80,6 +80,10 @@ jobs:
       - name: Ensure .nojekyll exists
         run: touch _book/.nojekyll
 
+      - name: Convert chapters to Jupyter notebooks
+        run: |
+          ./scripts/convert-to-notebooks.sh
+
       - name: Copy additional formats to downloads folder
         run: |
           mkdir -p _book/downloads
