@@ -242,6 +242,7 @@ Security or safety concerns
 4. **Scale Considerations**: Show how code scales
 5. **Security**: Don't introduce vulnerabilities
 6. **Format and Lint**: Always run formatting and linting (see below)
+7. **Trace Execution Paths**: Before committing, mentally execute all code paths in usage examples to catch errors like missing parameters, None values being passed to functions, or tensor shape mismatches
 
 ### Code Formatting and Linting (Required)
 
