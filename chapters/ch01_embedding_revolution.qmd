@@ -657,7 +657,22 @@ The evolution of embeddings mirrors the evolution of AI itself—from brittle pa
 **Stage 1: Keyword Matching (1990s-2000s)**
 
 ``` python
-{{< include /code_examples/ch01_foundations/keyword_search.py >}}
+# The original sin of information retrieval
+def keyword_search(query, documents):
+    query_terms = query.lower().split()
+    results = []
+    for doc in documents:
+        doc_terms = doc.lower().split()
+        score = len(set(query_terms) & set(doc_terms))
+        if score > 0:
+            results.append((doc, score))
+    return sorted(results, key=lambda x: x[1], reverse=True)
+
+
+# Problems:
+# - "laptop" doesn't match "notebook computer"
+# - "running shoes" doesn't match "athletic footwear"
+# - "cheap flights" doesn't match "affordable airfare"
 ```
 
 This approach dominated for decades. E-commerce sites required exact matches. Enterprise search systems couldn't connect related concepts. Users learned to game the system with precise keywords.
@@ -740,7 +755,19 @@ The progression from word embeddings (Word2Vec, GloVe) to sentence embeddings (S
 BERT [@devlin2018bert], GPT, and their descendants brought contextual embeddings—the same word gets different embeddings based on context:
 
 ``` python
-{{< include /code_examples/ch01_foundations/example_06.py >}}
+from sentence_transformers import SentenceTransformer
+
+model = SentenceTransformer("all-mpnet-base-v2")
+
+# Same word, different contexts, different embeddings
+sentence1 = "The bank approved my loan application."
+sentence2 = "I sat by the river bank watching the sunset."
+
+embedding1 = model.encode(sentence1)
+embedding2 = model.encode(sentence2)
+
+# "bank" has different representations based on context
+# cosine_similarity(embedding1, embedding2) captures semantic similarity
 ```
 
 This enables:
@@ -840,7 +867,28 @@ Sum: \~700 trillion potential embeddings for a complete representation of commer
 Modern vector databases can handle this scale:
 
 ``` python
-{{< include /code_examples/ch01_foundations/example_09.py >}}
+# Query performance at 256T scale with proper indexing
+index_type = "HNSW"  # Hierarchical Navigable Small World
+num_embeddings = 256 * 10**12
+embedding_dim = 768
+
+# Theoretical complexity
+# HNSW: O(log(N)) for insert and search
+import math
+
+avg_hops = math.log2(num_embeddings)  # ~48 hops
+
+# Practical performance with distributed architecture:
+num_shards = 1000  # Distribute across 1000 nodes
+embeddings_per_shard = num_embeddings / num_shards  # 256B per shard
+shards_to_search = 10  # Parallel search across 10 shards
+
+# Query latency budget (p50, warm cache):
+# - Shard selection: 5ms
+# - Parallel shard search (10 shards): 50ms
+# - Result aggregation: 5ms
+# Total: ~60ms p50 latency
+# Note: p99 latency typically 200-500ms due to network variability and cold cache
 ```
 
 With proper distributed architecture, searching 256 trillion embeddings takes milliseconds, not minutes.
@@ -856,13 +904,48 @@ Don't build for your current 10M embeddings. Build for 10B. The architecture is 
 Wrong: Single-node architecture
 
 ``` python
-{{< include /code_examples/ch01_foundations/scale_in_mind_wrong.py >}}
+import faiss
+import numpy as np
+
+embeddings = np.load("embeddings.npy")  # Doesn't scale
+dim = embeddings.shape[1]
+index = faiss.IndexFlatL2(dim)  # In-memory only
+index.add(embeddings)
 ```
 
 Right: Distributed-first architecture
 
 ``` python
-{{< include /code_examples/ch01_foundations/scale_in_mind_right.py >}}
+import pyarrow as pa
+import vastdb
+
+BUCKET_NAME = "my-bucket"
+SCHEMA_NAME = "my-schema"
+TABLE_NAME = "my-table"
+
+session = vastdb.connect(...)
+
+with session.transaction() as tx:
+    bucket = tx.bucket(BUCKET_NAME)
+    schema = bucket.schema(SCHEMA_NAME) or bucket.create_schema(SCHEMA_NAME)
+
+    # Create the table.
+    dimension = 5
+    columns = pa.schema(
+        [
+            ("id", pa.int64()),
+            ("vec", pa.list_(pa.field(name="item", type=pa.float32(), nullable=False), dimension)),
+            ("vec_timestamp", pa.timestamp("us")),
+        ]
+    )
+
+    table = schema.table(TABLE_NAME) or schema.create_table(TABLE_NAME, columns)
+
+    # Insert a few rows of data.
+    arrow_table = pa.table(schema=columns, data=[...])
+    table.insert(arrow_table)
+
+# Scales from millions to trillions with same API
 ```
 
 **2. Invest in Data Infrastructure**
