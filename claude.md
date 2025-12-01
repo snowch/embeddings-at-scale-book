@@ -242,6 +242,12 @@ Security or safety concerns
 4. **Scale Considerations**: Show how code scales
 5. **Security**: Don't introduce vulnerabilities
 6. **Format and Lint**: Always run formatting and linting (see below)
+7. **Trace Execution Paths**: Before committing, carefully trace through all code paths in usage examples:
+   - Check that all required function/method parameters are provided
+   - Verify no None values are passed where tensors are expected
+   - Track tensor shapes through each operation (e.g., Linear(100, 128) expects input dim 100)
+   - For classes: trace `__init__` → method calls → what gets passed to `self.model()`
+   - PyTorch is not installed locally; CI will catch errors, but careful review prevents failed builds
 
 ### Code Formatting and Linting (Required)
 

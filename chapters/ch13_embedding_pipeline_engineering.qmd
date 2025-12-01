@@ -155,7 +155,7 @@ class HybridEmbeddingSystem:
 # Usage example
 model = torch.nn.Sequential(torch.nn.Linear(100, 128))
 hybrid = HybridEmbeddingSystem(model)
-emb = hybrid.get_embedding("product_123", "product", max_staleness=timedelta(days=1))
+emb = hybrid.get_embedding("product_123", "product", features=torch.randn(1, 100), max_staleness=timedelta(days=1))
 print(f"Cache hit rate: {hybrid.cache_hits / (hybrid.cache_hits + hybrid.cache_misses) if hybrid.cache_misses > 0 else 0:.2%}")
 ```
 
