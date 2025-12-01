@@ -313,6 +313,7 @@ Split based on topic shifts detected by embedding similarity.
 
 ```{python}
 #| echo: true
+#| eval: false
 #| code-fold: true
 #| code-summary: "Show Semantic Chunking"
 from typing import List
@@ -583,6 +584,7 @@ PDFs present unique challenges: headers/footers on every page, multi-column layo
 
 ```{python}
 #| echo: true
+#| eval: false
 #| code-fold: true
 #| code-summary: "Show PDF Chunking"
 import re
@@ -732,6 +734,7 @@ HTML carries structural information that aids chunking:
 
 ```{python}
 #| echo: true
+#| eval: false
 #| code-fold: true
 #| code-summary: "Show HTML Chunking"
 import re
@@ -1172,6 +1175,7 @@ Based on production experience across different use cases:
 
 ```{python}
 #| echo: true
+#| eval: false
 #| code-fold: true
 #| code-summary: "Show Chunk Size Evaluation"
 from dataclasses import dataclass
@@ -1712,6 +1716,7 @@ How do you know if your chunking strategy is working?
 
 ```{python}
 #| echo: true
+#| eval: false
 #| code-fold: true
 #| code-summary: "Show Chunk Quality Evaluation"
 from dataclasses import dataclass
