@@ -1522,14 +1522,15 @@ def restore_code_blocks(chunks: List[str], code_blocks: List[CodeBlock],
     return restored
 
 # Usage example
-sample_doc = """
+backticks = '`' * 3  # Avoid literal ``` which breaks Quarto parsing
+sample_doc = f"""
 Here's how to create embeddings:
 
-```python
+{backticks}python
 from sentence_transformers import SentenceTransformer
 model = SentenceTransformer('all-MiniLM-L6-v2')
 embeddings = model.encode(['Hello', 'World'])
-```
+{backticks}
 
 This creates vector representations.
 """
