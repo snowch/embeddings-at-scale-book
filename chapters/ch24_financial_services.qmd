@@ -22,8 +22,78 @@ Traditional trading signals face limitations:
 
 **Embedding approach**: Learn security embeddings from price history, fundamentals, news, and alternative data. Similar securities cluster together; opportunities manifest as embedding movements that predict future returns before price movements. See @sec-custom-embedding-strategies for guidance on building these embeddings.
 
-```python
-{{< include /code_examples/ch24_financial_services/from.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show trading signal architecture"
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Tuple
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+@dataclass
+class Security:
+    """Security with multi-modal data for embedding."""
+    ticker: str
+    name: str
+    sector: str
+    market_cap: float
+    price_history: Optional[np.ndarray] = None
+    fundamentals: Optional[Dict[str, float]] = None
+    news: Optional[List[str]] = None
+
+@dataclass
+class TradingSignal:
+    """Trading signal output with confidence and risk."""
+    ticker: str
+    timestamp: float
+    predicted_return: float
+    confidence: float
+    factors: Dict[str, float]
+    risk_score: float
+    position_size: float
+    explanation: str
+
+class SecurityEncoder(nn.Module):
+    """Encode securities from price history and fundamentals."""
+    def __init__(self, embedding_dim: int = 256, price_lookback: int = 60,
+                 num_fundamental_features: int = 50):
+        super().__init__()
+        self.price_encoder = nn.LSTM(input_size=5, hidden_size=128,
+                                      num_layers=2, batch_first=True, dropout=0.2)
+        self.fundamental_encoder = nn.Sequential(
+            nn.Linear(num_fundamental_features, 128), nn.ReLU(),
+            nn.Dropout(0.2), nn.Linear(128, 128))
+        self.fusion = nn.Sequential(
+            nn.Linear(256, 256), nn.ReLU(),
+            nn.Dropout(0.2), nn.Linear(256, embedding_dim))
+
+    def forward(self, price_history: torch.Tensor,
+                fundamentals: torch.Tensor) -> torch.Tensor:
+        _, (price_hidden, _) = self.price_encoder(price_history)
+        price_emb = price_hidden[-1]
+        fundamental_emb = self.fundamental_encoder(fundamentals)
+        combined = torch.cat([price_emb, fundamental_emb], dim=1)
+        return F.normalize(self.fusion(combined), p=2, dim=1)
+
+class TradingSignalGenerator(nn.Module):
+    """Generate trading signals from security and market embeddings."""
+    def __init__(self, security_dim: int = 256, regime_dim: int = 64,
+                 hidden_dim: int = 256):
+        super().__init__()
+        self.signal_network = nn.Sequential(
+            nn.Linear(security_dim + regime_dim + 10, hidden_dim), nn.ReLU(),
+            nn.Dropout(0.3), nn.Linear(hidden_dim, hidden_dim), nn.ReLU(),
+            nn.Dropout(0.3), nn.Linear(hidden_dim, 3))  # return, confidence, risk
+
+    def forward(self, security_emb: torch.Tensor, regime_emb: torch.Tensor,
+                momentum_features: torch.Tensor) -> Tuple[torch.Tensor, ...]:
+        combined = torch.cat([security_emb, regime_emb, momentum_features], dim=1)
+        outputs = self.signal_network(combined)
+        return (outputs[:, 0], torch.sigmoid(outputs[:, 1]),
+                torch.sigmoid(outputs[:, 2]))
 ```
 
 :::{.callout-tip}
@@ -77,8 +147,73 @@ Traditional credit scoring faces limitations:
 
 **Embedding approach**: Learn borrower embeddings from traditional credit data (payment history, utilization) plus alternative data (rent payments, utility bills, employment history, transaction patterns). Similar borrowers cluster together; risk propagates through social and transaction networks. See @sec-custom-embedding-strategies for approaches to building these embeddings.
 
-```python
-{{< include /code_examples/ch24_financial_services/class.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show credit risk architecture"
+@dataclass
+class Borrower:
+    """Loan applicant with traditional and alternative data."""
+    borrower_id: str
+    credit_score: Optional[int] = None
+    income: Optional[float] = None
+    employment: Optional[Dict[str, Any]] = None
+    credit_history: Optional[Dict[str, Any]] = None
+    transaction_history: Optional[List[Dict[str, Any]]] = None
+    alternative_data: Optional[Dict[str, Any]] = None
+
+@dataclass
+class CreditDecision:
+    """Credit decision with explainability."""
+    borrower_id: str
+    decision: str  # approve, reject, review
+    interest_rate: Optional[float] = None
+    default_probability: float = 0.0
+    explanation: str = ""
+    adverse_action_reasons: Optional[List[str]] = None
+
+class BorrowerEncoder(nn.Module):
+    """Encode borrowers from credit, transaction, and alternative data."""
+    def __init__(self, embedding_dim: int = 128, num_credit_features: int = 30,
+                 num_alternative_features: int = 20):
+        super().__init__()
+        self.credit_encoder = nn.Sequential(
+            nn.Linear(num_credit_features, 64), nn.ReLU(),
+            nn.Dropout(0.2), nn.Linear(64, 64))
+        self.transaction_encoder = nn.LSTM(
+            input_size=10, hidden_size=64, num_layers=1, batch_first=True)
+        self.alternative_encoder = nn.Sequential(
+            nn.Linear(num_alternative_features, 64), nn.ReLU(),
+            nn.Dropout(0.2), nn.Linear(64, 64))
+        self.fusion = nn.Sequential(
+            nn.Linear(192, 128), nn.ReLU(),
+            nn.Dropout(0.2), nn.Linear(128, embedding_dim))
+
+    def forward(self, credit_features: torch.Tensor,
+                transaction_history: torch.Tensor,
+                alternative_features: torch.Tensor) -> torch.Tensor:
+        credit_emb = self.credit_encoder(credit_features)
+        _, (transaction_hidden, _) = self.transaction_encoder(transaction_history)
+        transaction_emb = transaction_hidden[-1]
+        alternative_emb = self.alternative_encoder(alternative_features)
+        combined = torch.cat([credit_emb, transaction_emb, alternative_emb], dim=1)
+        return F.normalize(self.fusion(combined), p=2, dim=1)
+
+class CreditRiskScorer(nn.Module):
+    """Score credit risk from borrower embeddings."""
+    def __init__(self, embedding_dim: int = 128):
+        super().__init__()
+        self.scorer = nn.Sequential(
+            nn.Linear(embedding_dim + 10, 128), nn.ReLU(), nn.Dropout(0.3),
+            nn.Linear(128, 64), nn.ReLU(), nn.Dropout(0.3),
+            nn.Linear(64, 3))  # default_prob, expected_loss, confidence
+
+    def forward(self, borrower_emb: torch.Tensor,
+                loan_features: torch.Tensor) -> Tuple[torch.Tensor, ...]:
+        combined = torch.cat([borrower_emb, loan_features], dim=1)
+        outputs = self.scorer(combined)
+        return (torch.sigmoid(outputs[:, 0]), torch.sigmoid(outputs[:, 1]),
+                torch.sigmoid(outputs[:, 2]))
 ```
 
 :::{.callout-tip}
@@ -132,8 +267,54 @@ Traditional compliance systems face limitations:
 
 **Embedding approach**: Learn embeddings of regulations, internal policies, transactions, and communications. Violations manifest as semantic similarity between actions and prohibited patterns, enabling proactive detection across structured and unstructured data. See @sec-custom-embedding-strategies for the decision framework on building domain-specific embeddings.
 
-```python
-{{< include /code_examples/ch24_financial_services/class_1.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show compliance architecture"
+@dataclass
+class ComplianceRule:
+    """Regulatory or internal compliance rule."""
+    rule_id: str
+    rule_type: str
+    description: str
+    examples: List[str]
+    severity: str
+    actions: List[str]
+    embedding: Optional[np.ndarray] = None
+
+@dataclass
+class ComplianceEvent:
+    """Event requiring compliance review."""
+    event_id: str
+    event_type: str
+    timestamp: float
+    entities: List[str]
+    content: Dict[str, Any]
+    matched_rules: List[str]
+    risk_score: float
+    requires_review: bool
+
+class ComplianceEncoder(nn.Module):
+    """Encode compliance rules and events in same space."""
+    def __init__(self, embedding_dim: int = 256):
+        super().__init__()
+        self.text_encoder = nn.LSTM(
+            input_size=768, hidden_size=256,
+            num_layers=2, batch_first=True, dropout=0.2)
+        self.structured_encoder = nn.Sequential(
+            nn.Linear(50, 128), nn.ReLU(),
+            nn.Dropout(0.2), nn.Linear(128, 256))
+        self.fusion = nn.Sequential(
+            nn.Linear(512, 256), nn.ReLU(),
+            nn.Dropout(0.2), nn.Linear(256, embedding_dim))
+
+    def forward(self, text_embeddings: torch.Tensor,
+                structured_features: torch.Tensor) -> torch.Tensor:
+        _, (text_hidden, _) = self.text_encoder(text_embeddings)
+        text_emb = text_hidden[-1]
+        structured_emb = self.structured_encoder(structured_features)
+        combined = torch.cat([text_emb, structured_emb], dim=1)
+        return F.normalize(self.fusion(combined), p=2, dim=1)
 ```
 
 :::{.callout-tip}
@@ -195,8 +376,46 @@ Traditional customer analytics faces limitations:
 
 **Embedding approach**: Learn customer embeddings from transaction history, product usage, service interactions, and life events. Similar customers cluster together; segment membership emerges naturally; behavior prediction transfers across products. See @sec-custom-embedding-strategies for approaches to building these embeddings, and @sec-contrastive-learning for training techniques.
 
-```python
-{{< include /code_examples/ch24_financial_services/class_2.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show customer analytics architecture"
+@dataclass
+class Customer:
+    """Customer profile with behavioral data."""
+    customer_id: str
+    demographics: Dict[str, Any]
+    products: List[str]
+    transaction_history: List[Dict[str, Any]]
+    interactions: List[Dict[str, Any]]
+    lifecycle_stage: Optional[str] = None
+    embedding: Optional[np.ndarray] = None
+
+class CustomerEncoder(nn.Module):
+    """Encode customers from transaction and interaction data."""
+    def __init__(self, embedding_dim: int = 128, num_products: int = 50):
+        super().__init__()
+        self.transaction_encoder = nn.LSTM(
+            input_size=20, hidden_size=64,
+            num_layers=2, batch_first=True, dropout=0.2)
+        self.product_embedding = nn.Embedding(num_products, 32)
+        self.interaction_encoder = nn.Sequential(
+            nn.Linear(30, 64), nn.ReLU(),
+            nn.Dropout(0.2), nn.Linear(64, 64))
+        self.fusion = nn.Sequential(
+            nn.Linear(160, 128), nn.ReLU(),
+            nn.Dropout(0.2), nn.Linear(128, embedding_dim))
+
+    def forward(self, transaction_history: torch.Tensor,
+                product_ids: torch.Tensor,
+                interaction_features: torch.Tensor) -> torch.Tensor:
+        _, (transaction_hidden, _) = self.transaction_encoder(transaction_history)
+        transaction_emb = transaction_hidden[-1]
+        product_embs = self.product_embedding(product_ids)
+        product_emb = product_embs.mean(dim=1)
+        interaction_emb = self.interaction_encoder(interaction_features)
+        combined = torch.cat([transaction_emb, product_emb, interaction_emb], dim=1)
+        return F.normalize(self.fusion(combined), p=2, dim=1)
 ```
 
 :::{.callout-tip}
@@ -250,8 +469,51 @@ Traditional sentiment analysis faces limitations:
 
 **Embedding approach**: Learn embeddings of financial text fine-tuned on market outcomes. Sentiment manifests as position in embedding space (positive sentiment cluster, negative sentiment cluster). Multi-grained: overall sentiment + aspect-specific (sentiment toward specific stocks, sectors, topics). See @sec-custom-embedding-strategies for guidance on fine-tuning approaches.
 
-```python
-{{< include /code_examples/ch24_financial_services/class_3.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show sentiment analysis architecture"
+@dataclass
+class SentimentSignal:
+    """Sentiment-derived trading signal."""
+    ticker: str
+    timestamp: float
+    sentiment_score: float  # -1 to +1
+    confidence: float
+    source_breakdown: Dict[str, float]  # news, social, analyst
+    aspects: Dict[str, float]  # management, products, financials
+    volume: int
+    predicted_impact: float
+
+class FinancialTextEncoder(nn.Module):
+    """Encode financial text fine-tuned on market outcomes."""
+    def __init__(self, embedding_dim: int = 256):
+        super().__init__()
+        self.bert_dim = 768
+        self.projection = nn.Sequential(
+            nn.Linear(self.bert_dim, 512), nn.ReLU(),
+            nn.Dropout(0.2), nn.Linear(512, embedding_dim))
+
+    def forward(self, text_embeddings: torch.Tensor) -> torch.Tensor:
+        return F.normalize(self.projection(text_embeddings), p=2, dim=1)
+
+class SentimentClassifier(nn.Module):
+    """Classify sentiment with aspect-level granularity."""
+    def __init__(self, embedding_dim: int = 256, num_aspects: int = 5):
+        super().__init__()
+        self.sentiment_head = nn.Sequential(
+            nn.Linear(embedding_dim, 128), nn.ReLU(),
+            nn.Dropout(0.3), nn.Linear(128, 2))  # sentiment, confidence
+        self.aspect_head = nn.Sequential(
+            nn.Linear(embedding_dim, 128), nn.ReLU(),
+            nn.Dropout(0.3), nn.Linear(128, num_aspects))
+
+    def forward(self, text_emb: torch.Tensor) -> Tuple[torch.Tensor, ...]:
+        overall = self.sentiment_head(text_emb)
+        sentiment_score = torch.tanh(overall[:, 0])  # -1 to +1
+        confidence = torch.sigmoid(overall[:, 1])
+        aspect_sentiment = torch.tanh(self.aspect_head(text_emb))
+        return sentiment_score, confidence, aspect_sentiment
 ```
 
 :::{.callout-tip}
