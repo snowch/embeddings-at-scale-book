@@ -53,8 +53,46 @@ Foundation phase establishes technology baseline—embedding models, vector data
 - **Data pipeline**: Source → ETL → embedding generation → vector DB → application
 - **Monitoring**: Embedding quality metrics, query latency, system health, cost tracking
 
-```python
-{{< include /code_examples/ch37_implementation_roadmap/technologycategory.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show implementation phase tracker"
+from dataclasses import dataclass, field
+from typing import List, Dict
+from enum import Enum
+
+class TechnologyCategory(Enum):
+    EMBEDDING_MODEL = "embedding_model"
+    VECTOR_DATABASE = "vector_database"
+    SERVING_INFRA = "serving_infrastructure"
+    DATA_PIPELINE = "data_pipeline"
+
+class ImplementationPhase(Enum):
+    FOUNDATION = "foundation"  # 0-3 months
+    SCALE = "scale"  # 3-9 months
+    OPTIMIZE = "optimize"  # 9-18 months
+    ADVANCED = "advanced"  # 18+ months
+
+@dataclass
+class PhaseChecklist:
+    phase: ImplementationPhase
+    items: Dict[TechnologyCategory, List[str]] = field(default_factory=dict)
+    completion: Dict[TechnologyCategory, float] = field(default_factory=dict)
+
+def create_foundation_checklist() -> PhaseChecklist:
+    items = {
+        TechnologyCategory.EMBEDDING_MODEL: ["Select base model", "Fine-tune on domain data"],
+        TechnologyCategory.VECTOR_DATABASE: ["Deploy vector DB", "Set up indexing"],
+        TechnologyCategory.SERVING_INFRA: ["Deploy API gateway", "Set up caching"],
+        TechnologyCategory.DATA_PIPELINE: ["Build ETL pipeline", "Implement monitoring"]
+    }
+    return PhaseChecklist(phase=ImplementationPhase.FOUNDATION, items=items)
+
+# Usage example
+checklist = create_foundation_checklist()
+print(f"Phase: {checklist.phase.value}")
+for cat, tasks in checklist.items.items():
+    print(f"  {cat.value}: {len(tasks)} tasks")
 ```
 
 ### Business Value Validation

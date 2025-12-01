@@ -644,7 +644,8 @@ class RetailBehaviorEncoder(nn.Module):
     def forward(self, pose: torch.Tensor, trajectory: torch.Tensor, scene: torch.Tensor) -> tuple:
         pose_emb = self.pose_encoder(pose.flatten(1))
         _, (traj_hidden, _) = self.trajectory_encoder(trajectory)
-        traj_emb = traj_hidden.flatten(1)
+        # Transpose bidirectional LSTM hidden: (num_directions, batch, hidden) -> (batch, directions*hidden)
+        traj_emb = traj_hidden.transpose(0, 1).flatten(1)
         scene_emb = self.scene_encoder(scene).flatten(1)
         fused = self.fusion(torch.cat([pose_emb, traj_emb, scene_emb], dim=-1))
         emb = F.normalize(fused, dim=-1)

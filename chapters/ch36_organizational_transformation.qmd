@@ -33,8 +33,51 @@ Production embedding systems require diverse expertise rarely found in single in
 - **Domain experts** (10%): Application design, metric definition, success validation
 - **Product managers** (5%): Prioritization, stakeholder management, adoption strategy
 
-```python
-{{< include /code_examples/ch36_organizational_transformation/capability.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show team capability assessment"
+from dataclasses import dataclass
+from typing import Dict, List
+from enum import Enum
+
+class Capability(Enum):
+    ML_ENGINEERING = "ml_engineering"
+    INFRASTRUCTURE = "infrastructure"
+    DATA_ENGINEERING = "data_engineering"
+    DOMAIN_EXPERTISE = "domain_expertise"
+    PRODUCT_MANAGEMENT = "product_management"
+
+@dataclass
+class TeamMember:
+    name: str
+    capabilities: Dict[Capability, float]  # 0-1 proficiency
+
+@dataclass
+class TeamAssessment:
+    total_capacity: Dict[Capability, float]
+    gaps: List[Capability]
+    recommendations: List[str]
+
+def assess_team(members: List[TeamMember]) -> TeamAssessment:
+    capacity = {cap: 0.0 for cap in Capability}
+    for member in members:
+        for cap, level in member.capabilities.items():
+            capacity[cap] += level
+    gaps = [cap for cap, level in capacity.items() if level < 1.0]
+    return TeamAssessment(
+        total_capacity=capacity,
+        gaps=gaps,
+        recommendations=[f"Hire for {g.value}" for g in gaps]
+    )
+
+# Usage example
+team = [
+    TeamMember("Alice", {Capability.ML_ENGINEERING: 0.9, Capability.INFRASTRUCTURE: 0.3}),
+    TeamMember("Bob", {Capability.INFRASTRUCTURE: 0.8, Capability.DATA_ENGINEERING: 0.7})
+]
+assessment = assess_team(team)
+print(f"Team gaps: {[g.value for g in assessment.gaps]}")
 ```
 
 ### Team Structure Patterns by Organization Size
@@ -102,8 +145,54 @@ Organizations face predictable resistance patterns when adopting embedding syste
 
 **Change management approach**: Systematic progression through awareness (stakeholders understand embedding value and limitations), desire (want embedding systems despite disruption), knowledge (understand how to use effectively), ability (have skills and resources to adopt), and reinforcement (sustained usage becomes normal practice)—addressing each transition point through targeted interventions rather than assuming technical superiority drives adoption.
 
-```python
-{{< include /code_examples/ch36_organizational_transformation/stakeholderrole.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show change management tracking"
+from dataclasses import dataclass, field
+from typing import Dict, List
+from enum import Enum
+
+class StakeholderRole(Enum):
+    EXECUTIVE_SPONSOR = "executive_sponsor"
+    BUSINESS_OWNER = "business_owner"
+    TECHNICAL_LEAD = "technical_lead"
+    END_USER = "end_user"
+
+class AdoptionStage(Enum):
+    AWARENESS = "awareness"
+    INTEREST = "interest"
+    EVALUATION = "evaluation"
+    TRIAL = "trial"
+    ADOPTION = "adoption"
+
+@dataclass
+class StakeholderTracker:
+    stakeholder_id: str
+    role: StakeholderRole
+    current_stage: AdoptionStage
+    concerns: List[str] = field(default_factory=list)
+    actions_taken: List[str] = field(default_factory=list)
+
+def get_next_actions(tracker: StakeholderTracker) -> List[str]:
+    actions = {
+        AdoptionStage.AWARENESS: ["Schedule demo", "Share success stories"],
+        AdoptionStage.INTEREST: ["Provide ROI analysis", "Address specific concerns"],
+        AdoptionStage.EVALUATION: ["Set up pilot", "Define success metrics"],
+        AdoptionStage.TRIAL: ["Provide training", "Gather feedback"],
+        AdoptionStage.ADOPTION: ["Celebrate success", "Plan expansion"]
+    }
+    return actions.get(tracker.current_stage, [])
+
+# Usage example
+stakeholder = StakeholderTracker(
+    stakeholder_id="cto_001",
+    role=StakeholderRole.EXECUTIVE_SPONSOR,
+    current_stage=AdoptionStage.EVALUATION,
+    concerns=["ROI uncertainty", "Resource requirements"]
+)
+next_steps = get_next_actions(stakeholder)
+print(f"Stage: {stakeholder.current_stage.value}, Next: {next_steps}")
 ```
 
 ### Overcoming Specific Resistance Patterns
@@ -162,8 +251,49 @@ Organizations face multiple training challenges when adopting embeddings:
 
 **Training approach**: Multi-track programs tailored to different roles (ML engineers, infrastructure, product, business) with hands-on projects on real company data, expert mentorship accelerating learning beyond self-study, modular structure allowing flexible pacing and just-in-time learning, continuous updates maintaining relevance as technology evolves, and clear career pathways from novice to expert maintaining long-term engagement.
 
-```python
-{{< include /code_examples/ch36_organizational_transformation/learningtrack.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show training program structure"
+from dataclasses import dataclass, field
+from typing import List
+from enum import Enum
+
+class LearningTrack(Enum):
+    TECHNICAL_FOUNDATIONS = "technical_foundations"
+    ML_ENGINEERING = "ml_engineering"
+    INFRASTRUCTURE = "infrastructure"
+    LEADERSHIP = "leadership"
+
+@dataclass
+class TrainingModule:
+    name: str
+    track: LearningTrack
+    duration_hours: int
+    prerequisites: List[str] = field(default_factory=list)
+
+@dataclass
+class LearningPath:
+    role: str
+    modules: List[TrainingModule]
+    total_hours: int = 0
+
+    def __post_init__(self):
+        self.total_hours = sum(m.duration_hours for m in self.modules)
+
+def create_ml_engineer_path() -> LearningPath:
+    modules = [
+        TrainingModule("Embedding Fundamentals", LearningTrack.TECHNICAL_FOUNDATIONS, 8),
+        TrainingModule("Contrastive Learning", LearningTrack.ML_ENGINEERING, 16),
+        TrainingModule("Model Training at Scale", LearningTrack.ML_ENGINEERING, 24),
+        TrainingModule("Production Deployment", LearningTrack.INFRASTRUCTURE, 16)
+    ]
+    return LearningPath(role="ML Engineer", modules=modules)
+
+# Usage example
+path = create_ml_engineer_path()
+print(f"Role: {path.role}, Total hours: {path.total_hours}")
+print(f"Modules: {[m.name for m in path.modules]}")
 ```
 
 ### Curriculum Design by Role
@@ -279,8 +409,52 @@ Organizations must evaluate build-vs-buy systematically across embedding system 
 
 **Hybrid approaches**: Most successful deployments combine build and buy—use vendor vector database but build custom indexing strategy, use pre-trained embeddings but fine-tune on proprietary data, use vendor serving infrastructure but build custom caching layer—optimizing for speed (buy) where possible while maintaining differentiation (build) where necessary.
 
-```python
-{{< include /code_examples/ch36_organizational_transformation/vendorcategory.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show vendor evaluation framework"
+from dataclasses import dataclass, field
+from typing import Dict, List
+from enum import Enum
+
+class VendorCategory(Enum):
+    EMBEDDING_MODELS = "embedding_models"
+    VECTOR_DATABASE = "vector_database"
+    ML_PLATFORM = "ml_platform"
+    CLOUD_PROVIDER = "cloud_provider"
+
+@dataclass
+class VendorCriteria:
+    technical_fit: float  # 0-1
+    pricing_model: str
+    support_quality: float  # 0-1
+    roadmap_alignment: float  # 0-1
+    lock_in_risk: float  # 0-1 (higher = more risk)
+
+@dataclass
+class VendorEvaluation:
+    vendor_name: str
+    category: VendorCategory
+    criteria: VendorCriteria
+    overall_score: float = 0.0
+
+    def __post_init__(self):
+        c = self.criteria
+        self.overall_score = (c.technical_fit * 0.4 + c.support_quality * 0.2 +
+                              c.roadmap_alignment * 0.2 + (1 - c.lock_in_risk) * 0.2)
+
+def evaluate_vendors(vendors: List[VendorEvaluation]) -> VendorEvaluation:
+    return max(vendors, key=lambda v: v.overall_score)
+
+# Usage example
+vendors = [
+    VendorEvaluation("VendorA", VendorCategory.VECTOR_DATABASE,
+                     VendorCriteria(0.9, "usage-based", 0.8, 0.7, 0.3)),
+    VendorEvaluation("VendorB", VendorCategory.VECTOR_DATABASE,
+                     VendorCriteria(0.8, "flat-rate", 0.9, 0.8, 0.5))
+]
+best = evaluate_vendors(vendors)
+print(f"Best vendor: {best.vendor_name}, Score: {best.overall_score:.2f}")
 ```
 
 ### Partnership Structures and Negotiation
@@ -355,8 +529,55 @@ Organizations struggle with embedding metrics because:
 
 **Metrics framework approach**: Multi-layered metrics (technical → operational → user → business) with clear causality (technical performance enables user satisfaction enables business impact), leading and lagging indicators (early warnings plus outcome validation), context-dependent targets (different SLAs for different applications), regular review cadence (weekly technical, monthly product, quarterly business), and experimentation culture (A/B testing validates causal claims).
 
-```python
-{{< include /code_examples/ch36_organizational_transformation/metriccategory.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show success metrics framework"
+from dataclasses import dataclass
+from typing import Dict, List
+from enum import Enum
+
+class MetricCategory(Enum):
+    TECHNICAL = "technical"
+    BUSINESS = "business"
+    OPERATIONAL = "operational"
+    USER_EXPERIENCE = "user_experience"
+
+@dataclass
+class KPI:
+    name: str
+    category: MetricCategory
+    target: float
+    current: float
+    unit: str
+
+    @property
+    def achievement_rate(self) -> float:
+        if self.target == 0:
+            return 0.0
+        return min(self.current / self.target, 1.0)
+
+def create_embedding_kpis() -> List[KPI]:
+    return [
+        KPI("Query Latency p99", MetricCategory.TECHNICAL, 50.0, 45.0, "ms"),
+        KPI("Search Accuracy", MetricCategory.TECHNICAL, 0.90, 0.87, "ratio"),
+        KPI("User Engagement", MetricCategory.BUSINESS, 0.15, 0.12, "ratio"),
+        KPI("System Uptime", MetricCategory.OPERATIONAL, 0.999, 0.9995, "ratio")
+    ]
+
+def summarize_kpis(kpis: List[KPI]) -> Dict[MetricCategory, float]:
+    by_category = {}
+    for kpi in kpis:
+        if kpi.category not in by_category:
+            by_category[kpi.category] = []
+        by_category[kpi.category].append(kpi.achievement_rate)
+    return {cat: sum(rates)/len(rates) for cat, rates in by_category.items()}
+
+# Usage example
+kpis = create_embedding_kpis()
+summary = summarize_kpis(kpis)
+for cat, rate in summary.items():
+    print(f"{cat.value}: {rate:.1%} achieved")
 ```
 
 ### Measuring Business Impact

@@ -72,8 +72,46 @@ Lasting advantages derive from compounding assets that strengthen over time:
 Sustainable advantages require intentional investment in assets that compound:
 
 **Data moat building**:
-```python
-{{< include /code_examples/ch39_path_forward/dataassettype.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show data moat assessment"
+from dataclasses import dataclass
+from typing import Dict, List
+from enum import Enum
+
+class DataAssetType(Enum):
+    PROPRIETARY = "proprietary"
+    BEHAVIORAL = "behavioral"
+    EXPERT_ANNOTATED = "expert_annotated"
+    SYNTHETIC = "synthetic"
+
+@dataclass
+class DataMoatAsset:
+    asset_type: DataAssetType
+    volume_gb: float
+    uniqueness_score: float  # 0-1, how differentiated
+    defensibility_years: float
+
+def assess_data_moat(assets: List[DataMoatAsset]) -> Dict[str, float]:
+    total_volume = sum(a.volume_gb for a in assets)
+    avg_uniqueness = sum(a.uniqueness_score for a in assets) / len(assets)
+    max_defensibility = max(a.defensibility_years for a in assets)
+    return {
+        "total_volume_gb": total_volume,
+        "uniqueness_score": avg_uniqueness,
+        "defensibility_years": max_defensibility,
+        "moat_strength": avg_uniqueness * (1 + max_defensibility / 10)
+    }
+
+# Usage example
+assets = [
+    DataMoatAsset(DataAssetType.PROPRIETARY, 500.0, 0.9, 5.0),
+    DataMoatAsset(DataAssetType.BEHAVIORAL, 2000.0, 0.7, 3.0),
+    DataMoatAsset(DataAssetType.EXPERT_ANNOTATED, 50.0, 0.95, 4.0)
+]
+moat = assess_data_moat(assets)
+print(f"Moat strength: {moat['moat_strength']:.2f}")
 ```
 
 **Strategic investment priorities for moat building**:
@@ -168,8 +206,49 @@ Most organizations struggle with innovation because they lack systematic framewo
 
 Translating research advances into production value requires systematic processes:
 
-```python
-{{< include /code_examples/ch39_path_forward/innovationstage.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show innovation pipeline tracker"
+from dataclasses import dataclass, field
+from typing import List
+from enum import Enum
+
+class InnovationStage(Enum):
+    RESEARCH = "research"
+    PROTOTYPE = "prototype"
+    PILOT = "pilot"
+    PRODUCTION = "production"
+
+@dataclass
+class InnovationProject:
+    name: str
+    stage: InnovationStage
+    impact_potential: float  # 0-1
+    resource_investment: float  # FTEs
+
+@dataclass
+class InnovationPipeline:
+    projects: List[InnovationProject] = field(default_factory=list)
+
+    def by_stage(self) -> dict:
+        result = {stage: [] for stage in InnovationStage}
+        for p in self.projects:
+            result[p.stage].append(p)
+        return result
+
+    def total_investment(self) -> float:
+        return sum(p.resource_investment for p in self.projects)
+
+# Usage example
+pipeline = InnovationPipeline(projects=[
+    InnovationProject("Multi-modal search", InnovationStage.RESEARCH, 0.9, 2.0),
+    InnovationProject("Real-time embeddings", InnovationStage.PROTOTYPE, 0.7, 1.5),
+    InnovationProject("Cross-domain recs", InnovationStage.PILOT, 0.8, 3.0)
+])
+for stage, projects in pipeline.by_stage().items():
+    if projects:
+        print(f"{stage.value}: {len(projects)} projects")
 ```
 
 **Innovation program best practices**:
@@ -238,8 +317,47 @@ Strategic partnerships require clear thinking about what to share versus protect
 
 **Strategic partnership framework**:
 
-```python
-{{< include /code_examples/ch39_path_forward/partnershiptype.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show ecosystem partnership framework"
+from dataclasses import dataclass
+from typing import List
+from enum import Enum
+
+class PartnershipType(Enum):
+    TECHNOLOGY = "technology"
+    DATA = "data"
+    RESEARCH = "research"
+    CHANNEL = "channel"
+
+@dataclass
+class Partner:
+    name: str
+    partnership_type: PartnershipType
+    strategic_value: float  # 0-1
+    integration_depth: float  # 0-1
+
+def evaluate_ecosystem(partners: List[Partner]) -> dict:
+    by_type = {}
+    for p in partners:
+        if p.partnership_type not in by_type:
+            by_type[p.partnership_type] = []
+        by_type[p.partnership_type].append(p)
+    return {
+        "total_partners": len(partners),
+        "by_type": {t.value: len(ps) for t, ps in by_type.items()},
+        "avg_strategic_value": sum(p.strategic_value for p in partners) / len(partners)
+    }
+
+# Usage example
+partners = [
+    Partner("VectorDB Inc", PartnershipType.TECHNOLOGY, 0.9, 0.8),
+    Partner("DataCo", PartnershipType.DATA, 0.7, 0.5),
+    Partner("University Lab", PartnershipType.RESEARCH, 0.8, 0.6)
+]
+ecosystem = evaluate_ecosystem(partners)
+print(f"Partners: {ecosystem['total_partners']}, Avg value: {ecosystem['avg_strategic_value']:.2f}")
 ```
 
 ### Vendor Partnership Best Practices
@@ -393,8 +511,46 @@ Embedding technology disruptions follow predictable patterns:
 
 Systematic scenario planning prepares organizations for multiple futures:
 
-```python
-{{< include /code_examples/ch39_path_forward/disruptioncategory.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show disruption risk assessment"
+from dataclasses import dataclass
+from typing import List
+from enum import Enum
+
+class DisruptionCategory(Enum):
+    TECHNOLOGICAL = "technological"
+    COMPETITIVE = "competitive"
+    REGULATORY = "regulatory"
+    MARKET = "market"
+
+@dataclass
+class DisruptionRisk:
+    category: DisruptionCategory
+    description: str
+    probability: float  # 0-1
+    impact: float  # 0-1
+    mitigation: str
+
+    @property
+    def risk_score(self) -> float:
+        return self.probability * self.impact
+
+def prioritize_risks(risks: List[DisruptionRisk]) -> List[DisruptionRisk]:
+    return sorted(risks, key=lambda r: r.risk_score, reverse=True)
+
+# Usage example
+risks = [
+    DisruptionRisk(DisruptionCategory.TECHNOLOGICAL, "New embedding architecture",
+                   0.7, 0.8, "Active research monitoring"),
+    DisruptionRisk(DisruptionCategory.COMPETITIVE, "Hyperscaler entry",
+                   0.6, 0.9, "Differentiation strategy"),
+    DisruptionRisk(DisruptionCategory.REGULATORY, "AI compliance requirements",
+                   0.8, 0.5, "Proactive compliance team")
+]
+for risk in prioritize_risks(risks)[:2]:
+    print(f"{risk.category.value}: score={risk.risk_score:.2f}")
 ```
 
 ### Building Organizational Agility
@@ -482,8 +638,50 @@ Becoming embedding-native transforms organizations across dimensions:
 
 Your organization's embedding-powered future depends on industry, scale, and strategic position:
 
-```python
-{{< include /code_examples/ch39_path_forward/transformationstage.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show transformation journey tracker"
+from dataclasses import dataclass
+from typing import List, Dict
+from enum import Enum
+
+class TransformationStage(Enum):
+    EXPLORATION = "exploration"
+    FOUNDATION = "foundation"
+    EXPANSION = "expansion"
+    OPTIMIZATION = "optimization"
+    LEADERSHIP = "leadership"
+
+@dataclass
+class TransformationMilestone:
+    stage: TransformationStage
+    capability: str
+    achieved: bool
+
+def assess_transformation_progress(milestones: List[TransformationMilestone]) -> Dict[str, float]:
+    by_stage = {}
+    for m in milestones:
+        if m.stage not in by_stage:
+            by_stage[m.stage] = {"total": 0, "achieved": 0}
+        by_stage[m.stage]["total"] += 1
+        if m.achieved:
+            by_stage[m.stage]["achieved"] += 1
+    return {
+        stage.value: data["achieved"] / data["total"] if data["total"] > 0 else 0
+        for stage, data in by_stage.items()
+    }
+
+# Usage example
+milestones = [
+    TransformationMilestone(TransformationStage.FOUNDATION, "Vector DB deployed", True),
+    TransformationMilestone(TransformationStage.FOUNDATION, "First use case live", True),
+    TransformationMilestone(TransformationStage.EXPANSION, "3+ use cases", False),
+    TransformationMilestone(TransformationStage.OPTIMIZATION, "Cost optimized", False)
+]
+progress = assess_transformation_progress(milestones)
+for stage, completion in progress.items():
+    print(f"{stage}: {completion:.0%} complete")
 ```
 
 ### The Journey Ahead

@@ -25,8 +25,56 @@ Production vector queries face limitations:
 
 **Optimization approach**: Multi-stage retrieval that progressively narrows candidates, uses approximate methods for initial filtering, exact methods for final ranking, leverages index structures (HNSW, IVF, product quantization), applies query-specific optimizations (early termination, result reranking, batch processing), and adapts strategies based on query characteristics (k value, filtering constraints, quality requirements).
 
-```python
-{{< include /code_examples/ch32_performance_optimization/class.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show multi-stage vector retrieval architecture"
+from dataclasses import dataclass, field
+from typing import Optional, List
+from enum import Enum
+import torch
+import torch.nn as nn
+
+class RetrievalStage(Enum):
+    COARSE = "coarse"
+    FINE = "fine"
+    RERANK = "rerank"
+
+@dataclass
+class QueryConfig:
+    k: int = 10
+    ef_search: int = 50
+    n_probe: int = 10
+    use_cache: bool = True
+    max_latency_ms: float = 50.0
+
+class MultiStageRetriever(nn.Module):
+    """Multi-stage vector retrieval with progressive refinement."""
+    def __init__(self, config: QueryConfig, embedding_dim: int = 768):
+        super().__init__()
+        self.config = config
+        self.coarse_projector = nn.Linear(embedding_dim, 128)
+        self.reranker = nn.Linear(embedding_dim * 2, 1)
+
+    def coarse_search(self, query: torch.Tensor, candidates: torch.Tensor) -> torch.Tensor:
+        q_proj = self.coarse_projector(query)
+        c_proj = self.coarse_projector(candidates)
+        scores = torch.matmul(q_proj, c_proj.T)
+        return scores.topk(self.config.k * 10, dim=-1).indices
+
+    def rerank(self, query: torch.Tensor, candidates: torch.Tensor) -> torch.Tensor:
+        query_exp = query.unsqueeze(1).expand(-1, candidates.size(1), -1)
+        combined = torch.cat([query_exp, candidates], dim=-1)
+        scores = self.reranker(combined).squeeze(-1)
+        return scores.topk(self.config.k, dim=-1)
+
+# Usage example
+config = QueryConfig(k=10, ef_search=100)
+retriever = MultiStageRetriever(config)
+query = torch.randn(1, 768)
+candidates = torch.randn(1000, 768)
+coarse_idx = retriever.coarse_search(query, candidates.unsqueeze(0))
+print(f"Coarse candidates: {coarse_idx.shape}")
 ```
 
 ### Query Planning and Optimization
@@ -110,8 +158,59 @@ Vector indexes face diverse workload characteristics:
 
 **Tuning approach**: Measure actual workload characteristics (query distribution, access patterns, quality requirements), benchmark index variants on representative data, optimize index parameters through systematic search or learned tuning, validate on production-like traffic, and continuously monitor and adapt as workload evolves.
 
-```python
-{{< include /code_examples/ch32_performance_optimization/class_1.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show index tuning configuration"
+from dataclasses import dataclass
+from typing import Optional, Dict
+from enum import Enum
+import torch
+import torch.nn as nn
+
+class IndexType(Enum):
+    HNSW = "hnsw"
+    IVF = "ivf"
+    IVF_PQ = "ivf_pq"
+    FLAT = "flat"
+
+@dataclass
+class HNSWConfig:
+    M: int = 32
+    ef_construction: int = 200
+    ef_search: int = 100
+
+@dataclass
+class IVFConfig:
+    n_clusters: int = 1024
+    n_probe: int = 32
+    use_pq: bool = True
+    n_subvectors: int = 8
+
+class AdaptiveIndexTuner(nn.Module):
+    """Learns optimal index parameters for workload patterns."""
+    def __init__(self, feature_dim: int = 16, hidden_dim: int = 64):
+        super().__init__()
+        self.workload_encoder = nn.Sequential(
+            nn.Linear(feature_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim)
+        )
+        self.hnsw_head = nn.Linear(hidden_dim, 3)  # M, ef_construction, ef_search
+        self.ivf_head = nn.Linear(hidden_dim, 3)   # n_clusters, n_probe, n_subvectors
+
+    def forward(self, workload_features: torch.Tensor) -> Dict[str, torch.Tensor]:
+        encoded = self.workload_encoder(workload_features)
+        return {
+            "hnsw_params": torch.sigmoid(self.hnsw_head(encoded)),
+            "ivf_params": torch.sigmoid(self.ivf_head(encoded))
+        }
+
+# Usage example
+tuner = AdaptiveIndexTuner()
+workload = torch.randn(1, 16)  # Query rate, k distribution, filter selectivity, etc.
+params = tuner(workload)
+print(f"HNSW params: {params['hnsw_params'].shape}, IVF params: {params['ivf_params'].shape}")
 ```
 
 ### Index-Specific Tuning Guidelines
@@ -207,8 +306,50 @@ Production vector workloads exhibit skewed access patterns:
 
 **Caching approach**: Multi-tier cache hierarchy (L1: CPU cache, L2: RAM, L3: SSD, L4: network), adaptive replacement policies (LRU, LFU, ARC), query-aware prefetching (predict likely next queries), result caching (cache full query results, not just embeddings), and intelligent invalidation (lazy vs eager, version-based, TTL).
 
-```python
-{{< include /code_examples/ch32_performance_optimization/class_2.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show multi-tier caching architecture"
+from dataclasses import dataclass, field
+from typing import Optional, Dict, List
+from enum import Enum
+import torch
+import torch.nn as nn
+
+class CacheTier(Enum):
+    L1_HOT = "l1_hot"      # <0.1ms, 1-10GB
+    L2_WARM = "l2_warm"    # <1ms, 10-100GB
+    L3_COLD = "l3_cold"    # <5ms, 100GB-1TB
+    STORAGE = "storage"    # 10-100ms, PB scale
+
+@dataclass
+class CacheConfig:
+    l1_size_gb: float = 5.0
+    l2_size_gb: float = 50.0
+    l3_size_gb: float = 500.0
+    ttl_seconds: int = 3600
+    promotion_threshold: int = 3
+
+class AdaptiveCacheManager(nn.Module):
+    """Learns optimal cache placement based on access patterns."""
+    def __init__(self, embedding_dim: int = 768, hidden_dim: int = 128):
+        super().__init__()
+        self.access_encoder = nn.LSTM(embedding_dim + 8, hidden_dim, batch_first=True)
+        self.tier_predictor = nn.Linear(hidden_dim, len(CacheTier))
+
+    def predict_tier(self, embedding: torch.Tensor, access_features: torch.Tensor) -> torch.Tensor:
+        combined = torch.cat([embedding, access_features], dim=-1)
+        _, (hidden, _) = self.access_encoder(combined.unsqueeze(1))
+        tier_logits = self.tier_predictor(hidden.squeeze(0))
+        return torch.softmax(tier_logits, dim=-1)
+
+# Usage example
+config = CacheConfig(l1_size_gb=10.0)
+cache_manager = AdaptiveCacheManager()
+embedding = torch.randn(1, 768)
+access_features = torch.randn(1, 8)  # frequency, recency, size, etc.
+tier_probs = cache_manager.predict_tier(embedding, access_features)
+print(f"Cache tier probabilities: {tier_probs.shape}")
 ```
 
 ### Caching Best Practices
@@ -262,8 +403,59 @@ Storage costs dominate at scale:
 
 **Compression approach**: Product quantization (4-32× compression, <5% accuracy loss), dimensionality reduction via PCA/random projection (2-4× compression), scalar quantization (2-4× compression, minimal accuracy loss), learned compression (neural network encoders), and sparse embeddings (exploit natural sparsity in high-dimensional spaces).
 
-```python
-{{< include /code_examples/ch32_performance_optimization/class_3.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show compression techniques architecture"
+from dataclasses import dataclass
+from typing import Optional, Tuple
+from enum import Enum
+import torch
+import torch.nn as nn
+
+class CompressionMethod(Enum):
+    SCALAR_QUANT = "scalar_quantization"
+    PRODUCT_QUANT = "product_quantization"
+    BINARY_QUANT = "binary_quantization"
+    PCA = "pca_reduction"
+
+@dataclass
+class CompressionConfig:
+    method: CompressionMethod = CompressionMethod.SCALAR_QUANT
+    target_bits: int = 8
+    n_subvectors: int = 8
+    target_dim: Optional[int] = None
+
+class ProductQuantizer(nn.Module):
+    """Product quantization for high compression with searchable codes."""
+    def __init__(self, dim: int = 768, n_subvectors: int = 8, n_centroids: int = 256):
+        super().__init__()
+        self.n_subvectors = n_subvectors
+        self.subvector_dim = dim // n_subvectors
+        self.codebooks = nn.Parameter(torch.randn(n_subvectors, n_centroids, self.subvector_dim))
+
+    def encode(self, vectors: torch.Tensor) -> torch.Tensor:
+        batch_size = vectors.size(0)
+        codes = []
+        for i in range(self.n_subvectors):
+            subvector = vectors[:, i*self.subvector_dim:(i+1)*self.subvector_dim]
+            distances = torch.cdist(subvector, self.codebooks[i])
+            codes.append(distances.argmin(dim=-1))
+        return torch.stack(codes, dim=-1)
+
+    def decode(self, codes: torch.Tensor) -> torch.Tensor:
+        reconstructed = []
+        for i in range(self.n_subvectors):
+            reconstructed.append(self.codebooks[i, codes[:, i]])
+        return torch.cat(reconstructed, dim=-1)
+
+# Usage example
+pq = ProductQuantizer(dim=768, n_subvectors=8, n_centroids=256)
+vectors = torch.randn(100, 768)
+codes = pq.encode(vectors)
+reconstructed = pq.decode(codes)
+print(f"Original: {vectors.shape}, Codes: {codes.shape} (uint8), Reconstructed: {reconstructed.shape}")
+print(f"Compression ratio: {768 * 4 / 8:.1f}x")
 ```
 
 ### Compression Method Selection
@@ -323,8 +515,53 @@ Global embedding systems face network constraints:
 
 **Optimization approach**: Geo-distributed query routing (send queries to nearest datacenter with relevant data), intelligent sharding (co-locate frequently accessed embeddings), selective replication (hot data everywhere, cold data sharded), query aggregation (combine multiple queries to amortize latency), and compression (reduce bandwidth for cross-region transfers).
 
-```python
-{{< include /code_examples/ch32_performance_optimization/class_4.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show distributed query routing architecture"
+from dataclasses import dataclass, field
+from typing import Optional, Dict, List
+from enum import Enum
+import torch
+import torch.nn as nn
+
+class ShardingStrategy(Enum):
+    HASH = "hash"
+    GEOGRAPHIC = "geographic"
+    SEMANTIC = "semantic"
+    HYBRID = "hybrid"
+
+@dataclass
+class DatacenterConfig:
+    name: str
+    region: str
+    latency_matrix: Dict[str, float] = field(default_factory=dict)
+    capacity_gb: float = 1000.0
+
+class GeoDistributedRouter(nn.Module):
+    """Routes queries to optimal datacenter based on latency and data locality."""
+    def __init__(self, n_datacenters: int = 8, embedding_dim: int = 768):
+        super().__init__()
+        self.query_encoder = nn.Linear(embedding_dim, 128)
+        self.datacenter_embeddings = nn.Parameter(torch.randn(n_datacenters, 128))
+        self.latency_predictor = nn.Linear(128 + 128, 1)
+
+    def route_query(self, query: torch.Tensor, user_location: torch.Tensor) -> torch.Tensor:
+        q_encoded = self.query_encoder(query)
+        scores = torch.matmul(q_encoded, self.datacenter_embeddings.T)
+        combined = torch.cat([q_encoded.expand(-1, self.datacenter_embeddings.size(0), -1),
+                             self.datacenter_embeddings.unsqueeze(0).expand(query.size(0), -1, -1)], dim=-1)
+        latencies = self.latency_predictor(combined).squeeze(-1)
+        routing_scores = scores - 0.1 * latencies
+        return torch.softmax(routing_scores, dim=-1)
+
+# Usage example
+router = GeoDistributedRouter(n_datacenters=5)
+query = torch.randn(1, 768)
+user_loc = torch.randn(1, 3)  # lat, lon, region_id
+routing_probs = router.route_query(query, user_loc)
+print(f"Routing probabilities across 5 datacenters: {routing_probs.shape}")
+print(f"Selected datacenter: {routing_probs.argmax().item()}")
 ```
 
 ### Network Optimization Best Practices

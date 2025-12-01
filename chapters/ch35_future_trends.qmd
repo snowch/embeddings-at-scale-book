@@ -32,24 +32,154 @@ Quantum computing provides theoretical advantages for embedding operations:
 - **2031-2035**: Full quantum embedding systems with error correction
 - **2036+**: Quantum-native embedding architectures
 
-```python
-{{< include /code_examples/ch35_future_trends/quantumbackend.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show quantum backend architecture"
+from dataclasses import dataclass
+from typing import Optional, List
+from enum import Enum
+import torch
+import torch.nn as nn
+import numpy as np
+
+class QuantumBackend(Enum):
+    SIMULATOR = "simulator"
+    IBM_QISKIT = "ibm_qiskit"
+    GOOGLE_CIRQ = "google_cirq"
+    AMAZON_BRAKET = "amazon_braket"
+
+@dataclass
+class QuantumConfig:
+    n_qubits: int = 10
+    backend: QuantumBackend = QuantumBackend.SIMULATOR
+    shots: int = 1000
+
+class QuantumSimilaritySearch(nn.Module):
+    """Quantum-enhanced similarity search using amplitude encoding."""
+    def __init__(self, config: QuantumConfig, embedding_dim: int = 768):
+        super().__init__()
+        self.config = config
+        self.classical_encoder = nn.Linear(embedding_dim, 2 ** config.n_qubits)
+
+    def encode_to_amplitudes(self, embedding: torch.Tensor) -> torch.Tensor:
+        amplitudes = self.classical_encoder(embedding)
+        amplitudes = amplitudes / amplitudes.norm(dim=-1, keepdim=True)
+        return amplitudes
+
+    def quantum_inner_product(self, query: torch.Tensor, database: torch.Tensor) -> torch.Tensor:
+        # Simulated quantum inner product (SWAP test result)
+        q_amp = self.encode_to_amplitudes(query)
+        d_amp = self.encode_to_amplitudes(database)
+        return torch.matmul(q_amp, d_amp.T)
+
+# Usage example
+config = QuantumConfig(n_qubits=8)
+search = QuantumSimilaritySearch(config)
+query = torch.randn(1, 768)
+database = torch.randn(100, 768)
+similarities = search.quantum_inner_product(query, database)
+print(f"Quantum backend: {config.backend.value}, Similarities: {similarities.shape}")
 ```
 
 ### Quantum Annealing for Embedding Optimization
 
 Quantum annealing—using quantum tunneling to find global minima of optimization problems—enables embedding space optimization, clustering, and graph problems that are intractable classically. D-Wave quantum annealers solve QUBO (Quadratic Unconstrained Binary Optimization) problems with 5000+ qubits, applicable to embedding tasks through problem reformulation.
 
-```python
-{{< include /code_examples/ch35_future_trends/class.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show quantum annealing for clustering"
+from dataclasses import dataclass
+from typing import Optional, Dict
+import torch
+import torch.nn as nn
+import numpy as np
+
+@dataclass
+class AnnealingConfig:
+    n_clusters: int = 10
+    coupling_strength: float = 1.0
+    annealing_time_us: int = 20
+
+class QuantumClusteringOptimizer(nn.Module):
+    """Quantum annealing for embedding clustering optimization."""
+    def __init__(self, config: AnnealingConfig, embedding_dim: int = 768):
+        super().__init__()
+        self.config = config
+        self.centroid_encoder = nn.Linear(embedding_dim, config.n_clusters)
+
+    def compute_qubo_matrix(self, embeddings: torch.Tensor) -> torch.Tensor:
+        # Simplified QUBO formulation for clustering
+        n = embeddings.size(0)
+        similarity = torch.matmul(embeddings, embeddings.T)
+        qubo = -similarity * self.config.coupling_strength
+        return qubo
+
+    def optimize_clusters(self, embeddings: torch.Tensor) -> torch.Tensor:
+        # Simulated annealing result (actual would use D-Wave)
+        logits = self.centroid_encoder(embeddings)
+        assignments = torch.softmax(logits, dim=-1).argmax(dim=-1)
+        return assignments
+
+# Usage example
+config = AnnealingConfig(n_clusters=5)
+optimizer = QuantumClusteringOptimizer(config)
+embeddings = torch.randn(100, 768)
+clusters = optimizer.optimize_clusters(embeddings)
+print(f"Cluster assignments: {clusters.shape}, unique clusters: {clusters.unique().size(0)}")
 ```
 
 ### Variational Quantum Algorithms for Embedding Training
 
 Variational quantum algorithms (VQA)—combining parameterized quantum circuits with classical optimization—enable quantum-classical hybrid training of embedding models through quantum kernel methods, quantum neural networks, and quantum-enhanced optimization.
 
-```python
-{{< include /code_examples/ch35_future_trends/quantumembeddingtrainer.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show variational quantum training"
+from dataclasses import dataclass
+from typing import Optional
+import torch
+import torch.nn as nn
+import numpy as np
+
+@dataclass
+class VQAConfig:
+    n_qubits: int = 8
+    n_layers: int = 4
+    learning_rate: float = 0.01
+
+class QuantumEmbeddingTrainer(nn.Module):
+    """Variational quantum algorithm for embedding training."""
+    def __init__(self, config: VQAConfig, embedding_dim: int = 768):
+        super().__init__()
+        self.config = config
+        self.classical_encoder = nn.Linear(embedding_dim, config.n_qubits)
+        self.quantum_params = nn.Parameter(torch.randn(config.n_layers, config.n_qubits, 3))
+        self.classical_decoder = nn.Linear(config.n_qubits, embedding_dim)
+
+    def variational_circuit(self, encoded: torch.Tensor) -> torch.Tensor:
+        # Simulated variational quantum circuit
+        state = encoded
+        for layer in range(self.config.n_layers):
+            # Rotation gates (Rx, Ry, Rz) - simulated
+            angles = self.quantum_params[layer]
+            state = state * torch.cos(angles[:, 0]) + torch.sin(angles[:, 1])
+        return state
+
+    def forward(self, embeddings: torch.Tensor) -> torch.Tensor:
+        encoded = self.classical_encoder(embeddings)
+        quantum_state = self.variational_circuit(encoded)
+        output = self.classical_decoder(quantum_state)
+        return output
+
+# Usage example
+config = VQAConfig(n_qubits=8, n_layers=4)
+trainer = QuantumEmbeddingTrainer(config)
+embeddings = torch.randn(32, 768)
+output = trainer(embeddings)
+print(f"VQA layers: {config.n_layers}, Output: {output.shape}")
 ```
 
 :::{.callout-important}
@@ -123,8 +253,60 @@ Neuromorphic systems provide unique benefits for embedding applications:
 - Autonomous vehicle perception with minimal power consumption
 - Edge video analytics with continuous semantic extraction
 
-```python
-{{< include /code_examples/ch35_future_trends/neuronmodel.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show spiking neural network architecture"
+from dataclasses import dataclass
+from typing import Optional, List
+from enum import Enum
+import torch
+import torch.nn as nn
+
+class NeuronModel(Enum):
+    LIF = "leaky_integrate_fire"
+    IZHIKEVICH = "izhikevich"
+    HODGKIN_HUXLEY = "hodgkin_huxley"
+
+@dataclass
+class SNNConfig:
+    neuron_model: NeuronModel = NeuronModel.LIF
+    threshold: float = 1.0
+    decay: float = 0.9
+    timesteps: int = 100
+
+class SpikingEmbeddingEncoder(nn.Module):
+    """Spiking neural network for ultra-low-power embedding generation."""
+    def __init__(self, config: SNNConfig, input_dim: int = 768, hidden_dim: int = 256):
+        super().__init__()
+        self.config = config
+        self.fc1 = nn.Linear(input_dim, hidden_dim)
+        self.fc2 = nn.Linear(hidden_dim, hidden_dim)
+        self.membrane = None
+
+    def lif_step(self, current: torch.Tensor, membrane: torch.Tensor) -> tuple:
+        membrane = self.config.decay * membrane + current
+        spikes = (membrane >= self.config.threshold).float()
+        membrane = membrane * (1 - spikes)  # Reset after spike
+        return spikes, membrane
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        batch_size = x.size(0)
+        hidden_dim = self.fc1.out_features
+        membrane = torch.zeros(batch_size, hidden_dim, device=x.device)
+        spike_counts = torch.zeros(batch_size, hidden_dim, device=x.device)
+        current = self.fc1(x)
+        for t in range(self.config.timesteps):
+            spikes, membrane = self.lif_step(current, membrane)
+            spike_counts += spikes
+        return spike_counts / self.config.timesteps
+
+# Usage example
+config = SNNConfig(timesteps=50)
+encoder = SpikingEmbeddingEncoder(config)
+input_data = torch.randn(8, 768)
+spike_embedding = encoder(input_data)
+print(f"Neuron model: {config.neuron_model.value}, Spike embedding: {spike_embedding.shape}")
 ```
 
 
@@ -132,8 +314,55 @@ Neuromorphic systems provide unique benefits for embedding applications:
 
 Neuromorphic systems support online learning through spike-timing-dependent plasticity (STDP)—biological learning rule where synaptic strength changes based on spike timing—enabling embedding models that adapt continuously without retraining.
 
-```python
-{{< include /code_examples/ch35_future_trends/stdplearning.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show STDP online learning"
+from dataclasses import dataclass
+from typing import Optional
+import torch
+import torch.nn as nn
+
+@dataclass
+class STDPConfig:
+    tau_plus: float = 20.0
+    tau_minus: float = 20.0
+    a_plus: float = 0.01
+    a_minus: float = 0.01
+
+class STDPLearning(nn.Module):
+    """Spike-timing-dependent plasticity for online embedding adaptation."""
+    def __init__(self, config: STDPConfig, n_neurons: int = 256):
+        super().__init__()
+        self.config = config
+        self.weights = nn.Parameter(torch.randn(n_neurons, n_neurons) * 0.1)
+        self.traces_pre = None
+        self.traces_post = None
+
+    def update_traces(self, pre_spikes: torch.Tensor, post_spikes: torch.Tensor,
+                     dt: float = 1.0) -> tuple:
+        if self.traces_pre is None:
+            self.traces_pre = torch.zeros_like(pre_spikes)
+            self.traces_post = torch.zeros_like(post_spikes)
+        self.traces_pre = self.traces_pre * (1 - dt / self.config.tau_plus) + pre_spikes
+        self.traces_post = self.traces_post * (1 - dt / self.config.tau_minus) + post_spikes
+        return self.traces_pre, self.traces_post
+
+    def update_weights(self, pre_spikes: torch.Tensor, post_spikes: torch.Tensor):
+        traces_pre, traces_post = self.update_traces(pre_spikes, post_spikes)
+        # LTP: post fires after pre
+        delta_w = self.config.a_plus * torch.outer(post_spikes, traces_pre)
+        # LTD: pre fires after post
+        delta_w -= self.config.a_minus * torch.outer(traces_post, pre_spikes)
+        self.weights.data += delta_w
+
+# Usage example
+config = STDPConfig()
+stdp = STDPLearning(config, n_neurons=128)
+pre_spikes = (torch.rand(128) > 0.9).float()
+post_spikes = (torch.rand(128) > 0.9).float()
+stdp.update_weights(pre_spikes, post_spikes)
+print(f"STDP learning: τ+={config.tau_plus}ms, weights updated")
 ```
 
 :::{.callout-tip}
@@ -205,33 +434,56 @@ Modern edge embedding systems use hierarchical deployment:
   - Long-term storage and analytics
   - Model distribution and updates
 
-```python
-{{< include /code_examples/ch35_future_trends/devicetype.py >}}
-```python
-"""
-Federated Learning for Edge Embedding Models
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show edge deployment hierarchy"
+from dataclasses import dataclass
+from typing import Optional
+from enum import Enum
+import torch
+import torch.nn as nn
 
-Architecture:
-1. Edge devices: Local model training on private data
-2. Gradient aggregation: Combine updates without sharing data
-3. Central server: Aggregate and distribute updated model
-4. Privacy guarantees: Differential privacy on gradients
+class DeviceType(Enum):
+    SMARTPHONE = "smartphone"
+    IOT_SENSOR = "iot_sensor"
+    EDGE_GATEWAY = "edge_gateway"
+    REGIONAL_SERVER = "regional_server"
 
-Protocols:
+@dataclass
+class EdgeConfig:
+    device_type: DeviceType = DeviceType.SMARTPHONE
+    model_size_mb: float = 10.0
+    latency_budget_ms: float = 10.0
+    power_budget_mw: float = 100.0
 
-- FedAvg: Average model weights across devices
-- FedProx: Proximal term for heterogeneous data
-- FedOpt: Adaptive optimization (Adam, Yogi)
-- Secure aggregation: Encrypted gradient aggregation
+class EdgeEmbeddingModel(nn.Module):
+    """Lightweight embedding model for edge deployment."""
+    def __init__(self, config: EdgeConfig, input_dim: int = 768, output_dim: int = 128):
+        super().__init__()
+        self.config = config
+        self.encoder = nn.Sequential(
+            nn.Linear(input_dim, 256),
+            nn.ReLU(),
+            nn.Linear(256, output_dim)
+        )
 
-Privacy techniques:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.encoder(x)
 
-- Differential privacy: Add noise to gradients (ε-DP)
-- Secure multi-party computation: Aggregate without revealing
-- Homomorphic encryption: Compute on encrypted gradients
-"""
+# Usage example
+config = EdgeConfig(device_type=DeviceType.SMARTPHONE, model_size_mb=5.0)
+model = EdgeEmbeddingModel(config)
+input_data = torch.randn(1, 768)
+embedding = model(input_data)
+print(f"Device: {config.device_type.value}, Embedding: {embedding.shape}")
+```
 
-from typing import List, Dict, Optional, Tuple
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show federated learning for edge models"
+from typing import List, Dict, Optional, Tuple, Any
 from dataclasses import dataclass
 from datetime import datetime
 import numpy as np
@@ -558,29 +810,61 @@ Decentralized embedding systems combine multiple technologies:
 - **Privacy layer**: Zero-knowledge proofs (zk-SNARKs) for private verification
 - **Incentive layer**: Token economics for contribution rewards and quality assurance
 
-```python
-{{< include /code_examples/ch35_future_trends/blockchainnetwork.py >}}
-```python
-"""
-Zero-Knowledge Proofs for Embedding Verification
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show decentralized embedding registry"
+from dataclasses import dataclass, field
+from typing import Optional, Dict, List
+from enum import Enum
+import numpy as np
+import hashlib
 
-Use cases:
+class BlockchainNetwork(Enum):
+    ETHEREUM = "ethereum"
+    POLYGON = "polygon"
+    SOLANA = "solana"
 
-- Prove embedding quality without revealing embeddings
-- Verify training data provenance without exposing data
-- Demonstrate model performance without leaking model weights
-- Audit compliance without accessing sensitive data
+@dataclass
+class EmbeddingRecord:
+    embedding_id: str
+    ipfs_hash: str
+    provider: str
+    quality_score: float
 
-ZK techniques:
+class DecentralizedEmbeddingRegistry:
+    """Blockchain-based registry for embedding discovery and access."""
+    def __init__(self, network: BlockchainNetwork):
+        self.network = network
+        self.registry: Dict[str, EmbeddingRecord] = {}
 
-- zk-SNARKs: Succinct proofs, small size (few KB)
-- zk-STARKs: Transparent, no trusted setup
-- Bulletproofs: Range proofs, efficient for numerical claims
-- Sigma protocols: Interactive proofs for specific relations
+    def register_embedding(self, embeddings: np.ndarray, metadata: dict, provider: str) -> str:
+        content_hash = hashlib.sha256(embeddings.tobytes()).hexdigest()[:16]
+        embedding_id = f"emb_{content_hash}"
+        self.registry[embedding_id] = EmbeddingRecord(
+            embedding_id=embedding_id,
+            ipfs_hash=f"Qm{content_hash}",
+            provider=provider,
+            quality_score=metadata.get('quality_score', 0.0)
+        )
+        return embedding_id
 
-Example: Prove "these embeddings have >0.9 quality score on held-out test set"
-without revealing embeddings or test set
-"""
+# Usage example
+registry = DecentralizedEmbeddingRegistry(BlockchainNetwork.POLYGON)
+embeddings = np.random.randn(100, 768)
+emb_id = registry.register_embedding(embeddings, {'quality_score': 0.92}, "0x1234")
+print(f"Registered on {registry.network.value}: {emb_id}")
+```
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show zero-knowledge proof system"
+from dataclasses import dataclass
+from typing import Dict, Tuple
+import numpy as np
+import hashlib
+from datetime import datetime
 
 @dataclass
 class QualityProof:
@@ -844,8 +1128,62 @@ Current embedding systems use static representations—vectors frozen at trainin
 - Unified representation: All modalities in shared semantic space
 - Self-supervised: Learn from interaction and observation
 
-```python
-{{< include /code_examples/ch35_future_trends/from.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show AGI-era dynamic embedding architecture"
+from dataclasses import dataclass, field
+from typing import Optional, Dict, List, Tuple, Any
+from datetime import datetime
+import torch
+import torch.nn as nn
+import numpy as np
+
+@dataclass
+class DynamicEmbeddingContext:
+    conversation_history: List[str] = field(default_factory=list)
+    task_description: str = ""
+    user_preferences: Dict[str, Any] = field(default_factory=dict)
+    environmental_state: Dict[str, Any] = field(default_factory=dict)
+    timestamp: datetime = field(default_factory=datetime.now)
+
+@dataclass
+class ContextualEmbedding:
+    embedding: np.ndarray
+    confidence: float
+    explanation: str
+    alternatives: List[Tuple[np.ndarray, float]] = field(default_factory=list)
+
+class AGIEmbeddingSystem(nn.Module):
+    """AGI-era embedding system with dynamic, context-aware representations."""
+    def __init__(self, base_dim: int = 768, context_dim: int = 256):
+        super().__init__()
+        self.base_encoder = nn.Linear(base_dim, base_dim)
+        self.context_encoder = nn.LSTM(base_dim, context_dim, batch_first=True)
+        self.fusion = nn.Linear(base_dim + context_dim, base_dim)
+        self.memory = {}
+
+    def embed_with_context(self, inputs: Dict[str, torch.Tensor],
+                          context: DynamicEmbeddingContext) -> ContextualEmbedding:
+        # Multi-modal encoding
+        if 'text' in inputs:
+            base_emb = self.base_encoder(inputs['text'])
+        else:
+            base_emb = torch.zeros(1, 768)
+        # Context integration would use memory and history
+        return ContextualEmbedding(
+            embedding=base_emb.detach().numpy(),
+            confidence=0.85,
+            explanation="Context-aware embedding generated",
+            alternatives=[]
+        )
+
+# Usage example
+agi_system = AGIEmbeddingSystem()
+context = DynamicEmbeddingContext(task_description="Semantic search")
+inputs = {'text': torch.randn(1, 768)}
+result = agi_system.embed_with_context(inputs, context)
+print(f"AGI embedding: shape={result.embedding.shape}, confidence={result.confidence}")
 ```
 
 :::{.callout-tip}
