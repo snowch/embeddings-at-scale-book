@@ -2,6 +2,8 @@ project:
   type: book
   output-dir: _book
 
+lang: en
+
 book:
   title: "Embeddings at Scale"
   subtitle: "A Comprehensive Tutorial for Disruptive Organizations"
@@ -117,6 +119,6 @@ format:
     toc-depth: 3
     number-sections: true
     number-depth: 3
-    epub-cover-image: cover.png
+    # epub-cover-image: cover.png  # TODO: Add actual cover image
 
 editor: visual
