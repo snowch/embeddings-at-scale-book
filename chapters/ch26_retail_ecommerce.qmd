@@ -28,7 +28,202 @@ Traditional product search faces limitations:
 ## Multi-Modal Product Encoder Implementation (click to expand)
 
 ```python
-{{< include /code_examples/ch26_retail_ecommerce/class.py >}}
+"""
+Product Discovery with Multi-Modal Embeddings
+
+Architecture:
+1. Image encoder: CNN/Vision Transformer for product photos
+2. Text encoder: BERT for titles, descriptions, specifications
+3. Behavioral encoder: Co-purchase, co-view patterns
+4. Multi-modal fusion: Combine image, text, behavioral signals
+5. Query encoder: Map search queries to product embedding space
+
+Techniques:
+- Contrastive learning: Products co-purchased/co-viewed closer in space
+- Hard negative mining: Similar-looking but functionally different products
+- Multi-task learning: Search relevance, click-through, purchase prediction
+- Cross-modal retrieval: Text query → image results, image query → text results
+- Hierarchical embeddings: Category, brand, product levels
+
+Production considerations:
+- Index size: 10M-1B products, <100ms retrieval
+- Freshness: New products immediately searchable
+- Personalization: Adapt embeddings to user preferences
+- Explainability: Why these results for this query?
+- A/B testing: Measure impact on conversion, revenue
+"""
+
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+
+@dataclass
+class Product:
+    """Product representation for e-commerce"""
+    product_id: str
+    title: str
+    description: str
+    category: List[str]  # Hierarchical: ["Electronics", "Computers", "Laptops"]
+    brand: str
+    price: float
+    attributes: Dict[str, Any] = field(default_factory=dict)
+    images: List[str] = field(default_factory=list)
+    reviews: List[str] = field(default_factory=list)
+    rating: float = 0.0
+    review_count: int = 0
+    inventory: int = 0
+    created_at: Optional[datetime] = None
+    embedding: Optional[np.ndarray] = None
+
+
+@dataclass
+class SearchQuery:
+    """User search query"""
+    query_id: str
+    user_id: str
+    query_text: Optional[str] = None
+    query_image: Optional[str] = None
+    filters: Dict[str, Any] = field(default_factory=dict)
+    timestamp: Optional[datetime] = None
+    session_id: Optional[str] = None
+    embedding: Optional[np.ndarray] = None
+
+
+class ImageEncoder(nn.Module):
+    """Encode product images to embeddings using CNN backbone"""
+
+    def __init__(self, backbone="resnet50", embedding_dim=512):
+        super().__init__()
+        self.embedding_dim = embedding_dim
+        # Simplified CNN backbone (in production: use torchvision.models)
+        self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3)
+        self.pool = nn.MaxPool2d(2, 2)
+        self.conv2 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
+        self.conv3 = nn.Conv2d(128, 256, kernel_size=3, padding=1)
+        self.global_pool = nn.AdaptiveAvgPool2d((1, 1))
+        self.fc = nn.Linear(256, embedding_dim)
+
+    def forward(self, images: torch.Tensor) -> torch.Tensor:
+        x = F.relu(self.conv1(images))
+        x = self.pool(x)
+        x = F.relu(self.conv2(x))
+        x = self.pool(x)
+        x = F.relu(self.conv3(x))
+        x = self.global_pool(x)
+        x = x.view(x.size(0), -1)
+        x = self.fc(x)
+        return F.normalize(x, p=2, dim=1)
+
+
+class TextEncoder(nn.Module):
+    """Encode product text to embeddings using Transformer"""
+
+    def __init__(self, vocab_size=30000, embedding_dim=512, hidden_dim=768):
+        super().__init__()
+        self.embedding_dim = embedding_dim
+        self.token_embedding = nn.Embedding(vocab_size, hidden_dim)
+        self.position_embedding = nn.Embedding(512, hidden_dim)
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=hidden_dim, nhead=8, dim_feedforward=2048, batch_first=True
+        )
+        self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=6)
+        self.fc = nn.Linear(hidden_dim, embedding_dim)
+
+    def forward(self, token_ids: torch.Tensor) -> torch.Tensor:
+        batch_size, seq_len = token_ids.shape
+        positions = torch.arange(seq_len, device=token_ids.device).unsqueeze(0)
+        x = self.token_embedding(token_ids) + self.position_embedding(positions)
+        x = self.transformer(x)
+        x = x[:, 0, :]  # [CLS] token
+        x = self.fc(x)
+        return F.normalize(x, p=2, dim=1)
+
+
+class BehavioralEncoder(nn.Module):
+    """Encode behavioral signals (co-purchase, co-view) to embeddings"""
+
+    def __init__(self, num_products=1000000, embedding_dim=512):
+        super().__init__()
+        self.embedding_dim = embedding_dim
+        self.product_embeddings = nn.Embedding(num_products, embedding_dim)
+
+    def forward(self, product_ids: torch.Tensor) -> torch.Tensor:
+        embeddings = self.product_embeddings(product_ids)
+        return F.normalize(embeddings, p=2, dim=1)
+
+
+class MultiModalProductEncoder(nn.Module):
+    """Fuse image, text, and behavioral embeddings with attention"""
+
+    def __init__(self, embedding_dim=512):
+        super().__init__()
+        self.embedding_dim = embedding_dim
+        self.image_encoder = ImageEncoder(embedding_dim=embedding_dim)
+        self.text_encoder = TextEncoder(embedding_dim=embedding_dim)
+        self.behavioral_encoder = BehavioralEncoder(embedding_dim=embedding_dim)
+
+        # Fusion network: combine modalities
+        self.fusion = nn.Sequential(
+            nn.Linear(embedding_dim * 3, embedding_dim * 2),
+            nn.ReLU(),
+            nn.Dropout(0.1),
+            nn.Linear(embedding_dim * 2, embedding_dim),
+        )
+        # Modality attention: learn importance of each modality
+        self.modality_attention = nn.Sequential(
+            nn.Linear(embedding_dim * 3, 3), nn.Softmax(dim=1)
+        )
+
+    def forward(
+        self,
+        images: Optional[torch.Tensor] = None,
+        text: Optional[torch.Tensor] = None,
+        product_ids: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
+        batch_size = (
+            images.size(0) if images is not None
+            else text.size(0) if text is not None
+            else product_ids.size(0)
+        )
+
+        # Encode each available modality
+        modality_embeddings = []
+        if images is not None:
+            img_emb = self.image_encoder(images)
+        else:
+            img_emb = torch.zeros(batch_size, self.embedding_dim, device=text.device)
+        modality_embeddings.append(img_emb)
+
+        if text is not None:
+            txt_emb = self.text_encoder(text)
+        else:
+            txt_emb = torch.zeros(batch_size, self.embedding_dim, device=images.device)
+        modality_embeddings.append(txt_emb)
+
+        if product_ids is not None:
+            beh_emb = self.behavioral_encoder(product_ids)
+        else:
+            beh_emb = torch.zeros(batch_size, self.embedding_dim)
+        modality_embeddings.append(beh_emb)
+
+        # Attention-weighted fusion
+        concat = torch.cat(modality_embeddings, dim=1)
+        attention_weights = self.modality_attention(concat)
+        weighted_sum = (
+            attention_weights[:, 0:1] * modality_embeddings[0]
+            + attention_weights[:, 1:2] * modality_embeddings[1]
+            + attention_weights[:, 2:3] * modality_embeddings[2]
+        )
+
+        fused = self.fusion(concat)
+        final_embedding = (weighted_sum + fused) / 2
+        return F.normalize(final_embedding, p=2, dim=1)
 ```
 :::
 
@@ -87,7 +282,128 @@ Visual product search faces unique challenges:
 ## Visual Search and Style Transfer Implementation (click to expand)
 
 ```python
-{{< include /code_examples/ch26_retail_ecommerce/styleattribute.py >}}
+"""
+Visual Search and Style Transfer
+
+Architecture:
+1. Image encoder: CNN/ViT trained on product images
+2. Style extractor: Disentangle content vs style (color, texture, shape)
+3. Cross-domain alignment: Map user photos to catalog photo space
+4. Style transfer: Generate embeddings for "product A with style of B"
+"""
+
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
+
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+
+class StyleAttribute(Enum):
+    """Visual style attributes"""
+    COLOR = "color"
+    PATTERN = "pattern"
+    TEXTURE = "texture"
+    SILHOUETTE = "silhouette"
+    MATERIAL = "material"
+
+
+class StyleAttributeExtractor(nn.Module):
+    """
+    Extract disentangled style attributes from images.
+    Enables fine-grained style transfer: "Find dress with this color
+    but different pattern" or "Same silhouette but different material"
+    """
+
+    def __init__(self, attribute_dim=128):
+        super().__init__()
+        self.attribute_dim = attribute_dim
+
+        self.feature_extractor = nn.Sequential(
+            nn.Conv2d(3, 64, 3, padding=1), nn.ReLU(), nn.MaxPool2d(2),
+            nn.Conv2d(64, 128, 3, padding=1), nn.ReLU(), nn.MaxPool2d(2),
+            nn.Conv2d(128, 256, 3, padding=1), nn.ReLU(),
+            nn.AdaptiveAvgPool2d((7, 7)),
+        )
+
+        # Attribute-specific heads
+        self.color_head = nn.Sequential(
+            nn.Linear(256 * 7 * 7, 512), nn.ReLU(), nn.Linear(512, attribute_dim)
+        )
+        self.pattern_head = nn.Sequential(
+            nn.Linear(256 * 7 * 7, 512), nn.ReLU(), nn.Linear(512, attribute_dim)
+        )
+        self.silhouette_head = nn.Sequential(
+            nn.Linear(256 * 7 * 7, 512), nn.ReLU(), nn.Linear(512, attribute_dim)
+        )
+        self.material_head = nn.Sequential(
+            nn.Linear(256 * 7 * 7, 512), nn.ReLU(), nn.Linear(512, attribute_dim)
+        )
+
+    def forward(self, images: torch.Tensor) -> Dict[str, torch.Tensor]:
+        features = self.feature_extractor(images)
+        features_flat = features.view(features.size(0), -1)
+        return {
+            "color": F.normalize(self.color_head(features_flat), p=2, dim=1),
+            "pattern": F.normalize(self.pattern_head(features_flat), p=2, dim=1),
+            "silhouette": F.normalize(self.silhouette_head(features_flat), p=2, dim=1),
+            "material": F.normalize(self.material_head(features_flat), p=2, dim=1),
+        }
+
+
+class CrossDomainAdapter(nn.Module):
+    """
+    Adapt user-uploaded photos to catalog photo space.
+    Bridges differences in lighting, background, angle, quality.
+    """
+
+    def __init__(self, embedding_dim=512):
+        super().__init__()
+        self.adapter = nn.Sequential(
+            nn.Linear(embedding_dim, 512), nn.ReLU(),
+            nn.Dropout(0.2), nn.Linear(512, embedding_dim)
+        )
+
+    def forward(self, user_embeddings: torch.Tensor) -> torch.Tensor:
+        adapted = self.adapter(user_embeddings)
+        adapted = user_embeddings + adapted  # Residual connection
+        return F.normalize(adapted, p=2, dim=1)
+
+
+class StyleTransferEngine(nn.Module):
+    """
+    Generate embedding for product A with style of B.
+    Use cases: "Find jeans that match this shirt" (color coordination)
+    """
+
+    def __init__(self, embedding_dim=512, attribute_dim=128):
+        super().__init__()
+        self.style_extractor = StyleAttributeExtractor(attribute_dim)
+        self.fusion = nn.Sequential(
+            nn.Linear(embedding_dim + attribute_dim * 4, 1024),
+            nn.ReLU(), nn.Dropout(0.2),
+            nn.Linear(1024, embedding_dim),
+        )
+
+    def transfer_style(
+        self,
+        content_emb: torch.Tensor,
+        style_image: torch.Tensor,
+        intensity: float = 0.5,
+    ) -> torch.Tensor:
+        style_attrs = self.style_extractor(style_image)
+        style_vector = torch.cat([
+            style_attrs["color"], style_attrs["pattern"],
+            style_attrs["silhouette"], style_attrs["material"]
+        ], dim=1)
+
+        combined = torch.cat([content_emb, style_vector], dim=1)
+        transferred = self.fusion(combined)
+        transferred = intensity * transferred + (1 - intensity) * content_emb
+        return F.normalize(transferred, p=2, dim=1)
 ```
 :::
 
@@ -147,7 +463,125 @@ Traditional inventory management faces limitations:
 ## Demand Forecasting and Inventory Optimization Implementation (click to expand)
 
 ```python
-{{< include /code_examples/ch26_retail_ecommerce/demandregime.py >}}
+"""
+Inventory Optimization with Demand Embeddings
+
+Architecture:
+1. Product encoder: SKU → embedding (attributes, historical demand)
+2. Temporal encoder: Time series embedding (seasonality, trends)
+3. Regional encoder: Location-specific demand patterns
+4. Demand forecaster: Product + time + region → demand prediction
+"""
+
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
+from typing import Any, Dict, Optional, Tuple
+
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+
+class DemandRegime(Enum):
+    """Demand pattern categories"""
+    STEADY = "steady"
+    SEASONAL = "seasonal"
+    TRENDING_UP = "trending_up"
+    TRENDING_DOWN = "trending_down"
+    VOLATILE = "volatile"
+
+
+class ProductEncoder(nn.Module):
+    """Encode products for demand forecasting"""
+
+    def __init__(self, num_categories=1000, num_brands=5000, embedding_dim=256):
+        super().__init__()
+        self.category_emb = nn.Embedding(num_categories, 64)
+        self.brand_emb = nn.Embedding(num_brands, 64)
+        self.numerical_proj = nn.Linear(10, 64)
+        self.demand_lstm = nn.LSTM(
+            input_size=1, hidden_size=128, num_layers=2,
+            batch_first=True, dropout=0.2
+        )
+        self.fusion = nn.Sequential(
+            nn.Linear(64 + 64 + 64 + 128, 512), nn.ReLU(),
+            nn.Dropout(0.2), nn.Linear(512, embedding_dim),
+        )
+
+    def forward(self, category_ids, brand_ids, numerical_features, demand_history):
+        cat_emb = self.category_emb(category_ids)
+        brand_emb = self.brand_emb(brand_ids)
+        num_emb = self.numerical_proj(numerical_features)
+        demand_history = demand_history.unsqueeze(-1)
+        _, (h_n, _) = self.demand_lstm(demand_history)
+        demand_emb = h_n[-1]
+        combined = torch.cat([cat_emb, brand_emb, num_emb, demand_emb], dim=1)
+        return F.normalize(self.fusion(combined), p=2, dim=1)
+
+
+class TemporalEncoder(nn.Module):
+    """Encode time-dependent patterns (seasonality, trends, events)"""
+
+    def __init__(self, embedding_dim=128):
+        super().__init__()
+        self.cyclical_proj = nn.Linear(8, 64)
+        self.trend_proj = nn.Linear(3, 32)
+        self.event_emb = nn.Embedding(100, 32)
+        self.fusion = nn.Sequential(
+            nn.Linear(64 + 32 + 32, embedding_dim), nn.ReLU()
+        )
+
+    def forward(self, timestamps, trends, event_ids):
+        # Encode periodic patterns with sin/cos
+        day = (timestamps % (7 * 24 * 3600)) / (7 * 24 * 3600)
+        week = (timestamps % (52 * 7 * 24 * 3600)) / (52 * 7 * 24 * 3600)
+        cyclical = torch.stack([
+            torch.sin(2 * np.pi * day), torch.cos(2 * np.pi * day),
+            torch.sin(2 * np.pi * week), torch.cos(2 * np.pi * week),
+        ] + [torch.zeros_like(day)] * 4, dim=1)
+
+        cyclical_emb = self.cyclical_proj(cyclical)
+        trend_emb = self.trend_proj(trends)
+        event_emb = self.event_emb(event_ids)
+        return self.fusion(torch.cat([cyclical_emb, trend_emb, event_emb], dim=1))
+
+
+class DemandForecaster(nn.Module):
+    """Forecast demand with uncertainty quantification"""
+
+    def __init__(self, embedding_dim=256):
+        super().__init__()
+        self.product_encoder = ProductEncoder(embedding_dim=embedding_dim)
+        self.temporal_encoder = TemporalEncoder(embedding_dim=128)
+
+        total_dim = embedding_dim + 128
+        self.demand_head = nn.Sequential(
+            nn.Linear(total_dim, 512), nn.ReLU(), nn.Dropout(0.2),
+            nn.Linear(512, 256), nn.ReLU(), nn.Linear(256, 1),
+        )
+        self.uncertainty_head = nn.Sequential(
+            nn.Linear(total_dim, 256), nn.ReLU(), nn.Linear(256, 1)
+        )
+        self.regime_head = nn.Sequential(
+            nn.Linear(total_dim, 256), nn.ReLU(), nn.Linear(256, len(DemandRegime))
+        )
+
+    def forward(self, category_ids, brand_ids, numerical_features,
+                demand_history, timestamps, trends, event_ids):
+        product_emb = self.product_encoder(
+            category_ids, brand_ids, numerical_features, demand_history
+        )
+        temporal_emb = self.temporal_encoder(timestamps, trends, event_ids)
+        combined = torch.cat([product_emb, temporal_emb], dim=1)
+
+        demand = F.relu(self.demand_head(combined))
+        log_variance = self.uncertainty_head(combined)
+        uncertainty = torch.exp(0.5 * log_variance)
+        regime_logits = self.regime_head(combined)
+
+        return demand, uncertainty, regime_logits
 ```
 :::
 
@@ -207,7 +641,117 @@ Traditional journey analytics face limitations:
 ## Customer Journey Analysis Implementation (click to expand)
 
 ```python
-{{< include /code_examples/ch26_retail_ecommerce/actiontype.py >}}
+"""
+Customer Journey Analysis with Sequential Embeddings
+
+Architecture:
+1. Session encoder: LSTM/Transformer over user actions
+2. Journey stage classifier: Browse, consider, decide, convert
+3. Friction detector: Identify abandonment risk signals
+4. Next action predictor: Recommend optimal intervention
+"""
+
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
+from typing import Any, Dict, List, Optional, Set
+
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+
+class ActionType(Enum):
+    """User action types"""
+    PAGE_VIEW = "page_view"
+    PRODUCT_VIEW = "product_view"
+    SEARCH = "search"
+    ADD_TO_CART = "add_to_cart"
+    CHECKOUT_START = "checkout_start"
+    PURCHASE = "purchase"
+
+
+class JourneyStage(Enum):
+    """Customer journey stages"""
+    AWARENESS = "awareness"
+    CONSIDERATION = "consideration"
+    INTENT = "intent"
+    PURCHASE = "purchase"
+    LOYALTY = "loyalty"
+
+
+class ActionEncoder(nn.Module):
+    """Encode user actions to embeddings"""
+
+    def __init__(self, num_action_types=20, num_products=1000000, embedding_dim=128):
+        super().__init__()
+        self.action_type_emb = nn.Embedding(num_action_types, 64)
+        self.product_emb = nn.Embedding(num_products, 64)
+        self.temporal_proj = nn.Linear(5, 32)
+        self.context_proj = nn.Linear(10, 32)
+        self.fusion = nn.Sequential(
+            nn.Linear(64 + 64 + 32 + 32, embedding_dim), nn.ReLU()
+        )
+
+    def forward(self, action_types, product_ids, temporal_features, context_features):
+        action_emb = self.action_type_emb(action_types)
+        product_emb = self.product_emb(product_ids)
+        temporal_emb = self.temporal_proj(temporal_features)
+        context_emb = self.context_proj(context_features)
+        combined = torch.cat([action_emb, product_emb, temporal_emb, context_emb], dim=1)
+        return self.fusion(combined)
+
+
+class SessionEncoder(nn.Module):
+    """Encode session history to embedding using LSTM + attention"""
+
+    def __init__(self, action_dim=128, embedding_dim=256):
+        super().__init__()
+        self.lstm = nn.LSTM(
+            input_size=action_dim, hidden_size=embedding_dim,
+            num_layers=2, batch_first=True, dropout=0.2,
+        )
+        self.attention = nn.MultiheadAttention(
+            embed_dim=embedding_dim, num_heads=8, batch_first=True
+        )
+
+    def forward(self, action_embeddings, sequence_lengths=None):
+        lstm_out, (h_n, _) = self.lstm(action_embeddings)
+        attended, _ = self.attention(lstm_out, lstm_out, lstm_out)
+        session_emb = (h_n[-1] + attended.mean(dim=1)) / 2
+        return F.normalize(session_emb, p=2, dim=1)
+
+
+class JourneyAnalyzer(nn.Module):
+    """Analyze customer journey and predict outcomes"""
+
+    def __init__(self, embedding_dim=256):
+        super().__init__()
+        self.action_encoder = ActionEncoder(embedding_dim=128)
+        self.session_encoder = SessionEncoder(action_dim=128, embedding_dim=embedding_dim)
+
+        self.stage_classifier = nn.Sequential(
+            nn.Linear(embedding_dim, 128), nn.ReLU(),
+            nn.Dropout(0.3), nn.Linear(128, len(JourneyStage)),
+        )
+        self.conversion_predictor = nn.Sequential(
+            nn.Linear(embedding_dim, 128), nn.ReLU(),
+            nn.Dropout(0.3), nn.Linear(128, 1), nn.Sigmoid(),
+        )
+        self.friction_detector = nn.Sequential(
+            nn.Linear(embedding_dim, 128), nn.ReLU(),
+            nn.Dropout(0.3), nn.Linear(128, 1), nn.Sigmoid(),
+        )
+
+    def forward(self, action_embeddings, sequence_lengths=None):
+        session_emb = self.session_encoder(action_embeddings, sequence_lengths)
+        return {
+            "stage_logits": self.stage_classifier(session_emb),
+            "conversion_prob": self.conversion_predictor(session_emb),
+            "friction_score": self.friction_detector(session_emb),
+            "embedding": session_emb,
+        }
 ```
 :::
 
@@ -275,7 +819,133 @@ Traditional catalog management faces limitations:
 ## Dynamic Catalog Management Implementation (click to expand)
 
 ```python
-{{< include /code_examples/ch26_retail_ecommerce/productrelationtype.py >}}
+"""
+Dynamic Catalog Management with Product Embeddings
+
+Architecture:
+1. Product relationship graph: Learned from co-purchase, co-view, substitution
+2. Trend detector: Identify emerging product clusters, seasonal shifts
+3. Collection generator: Auto-create curated sets based on coherence
+4. Merchandising optimizer: Feature products maximizing engagement + margin
+"""
+
+from collections import defaultdict
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
+
+import numpy as np
+import torch
+import torch.nn as nn
+
+
+class ProductRelationType(Enum):
+    """Types of product relationships"""
+    COMPLEMENT = "complement"  # Bought together (camera + lens)
+    SUBSTITUTE = "substitute"  # Alternatives (two similar dresses)
+    UPGRADE = "upgrade"  # Premium alternative
+    ACCESSORY = "accessory"
+
+
+class TrendStatus(Enum):
+    """Product trend status"""
+    EMERGING = "emerging"
+    TRENDING = "trending"
+    STABLE = "stable"
+    DECLINING = "declining"
+
+
+class ProductRelationshipLearner(nn.Module):
+    """Learn product relationships from behavioral data"""
+
+    def __init__(self, num_products=1000000, embedding_dim=256):
+        super().__init__()
+        self.product_embeddings = nn.Embedding(num_products, embedding_dim)
+        self.relation_embeddings = nn.Embedding(len(ProductRelationType), embedding_dim)
+        self.relation_scorer = nn.Sequential(
+            nn.Linear(embedding_dim * 3, 512), nn.ReLU(), nn.Dropout(0.2),
+            nn.Linear(512, 256), nn.ReLU(),
+            nn.Linear(256, 1), nn.Sigmoid(),
+        )
+
+    def forward(self, product_a_ids, relation_types, product_b_ids):
+        prod_a_emb = self.product_embeddings(product_a_ids)
+        relation_emb = self.relation_embeddings(relation_types)
+        prod_b_emb = self.product_embeddings(product_b_ids)
+        combined = torch.cat([prod_a_emb, relation_emb, prod_b_emb], dim=1)
+        return self.relation_scorer(combined)
+
+
+class TrendDetector:
+    """Detect emerging trends and product lifecycle stages"""
+
+    def __init__(self):
+        self.historical_sales: Dict[str, List[Tuple[datetime, float]]] = defaultdict(list)
+
+    def track_product(self, product_id: str, sales: float, timestamp: datetime):
+        self.historical_sales[product_id].append((timestamp, sales))
+
+    def detect_trend(self, product_id: str) -> Tuple[TrendStatus, float]:
+        if product_id not in self.historical_sales:
+            return TrendStatus.STABLE, 0.0
+
+        sales_history = self.historical_sales[product_id]
+        if len(sales_history) < 4:
+            return TrendStatus.STABLE, 0.0
+
+        recent_sales = [s for _, s in sales_history[-8:]]
+        first_half = np.mean(recent_sales[: len(recent_sales) // 2])
+        second_half = np.mean(recent_sales[len(recent_sales) // 2 :])
+
+        if first_half > 0:
+            momentum = (second_half - first_half) / first_half
+        else:
+            momentum = 0.0
+
+        if momentum > 0.3:
+            return TrendStatus.EMERGING, momentum
+        elif momentum > 0.1:
+            return TrendStatus.TRENDING, momentum
+        elif momentum < -0.2:
+            return TrendStatus.DECLINING, momentum
+        return TrendStatus.STABLE, momentum
+
+
+@dataclass
+class MerchandisingDecision:
+    """Merchandising decision for product"""
+    product_id: str
+    action: str  # "feature", "promote", "clearance", "discontinue"
+    rationale: str
+    urgency: float
+    expected_impact: float
+
+
+class MerchandisingOptimizer:
+    """Optimize merchandising decisions based on trends and inventory"""
+
+    def __init__(self, trend_detector: TrendDetector):
+        self.trend_detector = trend_detector
+
+    def optimize(self, product_id: str, performance: Dict, inventory: Dict) -> MerchandisingDecision:
+        trend_status, momentum = self.trend_detector.detect_trend(product_id)
+        stock_level = inventory.get("stock_level", 1.0)
+
+        if trend_status == TrendStatus.EMERGING and stock_level < 0.8:
+            return MerchandisingDecision(
+                product_id, "feature", "Emerging trend - maximize opportunity",
+                0.9, performance.get("sales_velocity", 0.5) * 2.5
+            )
+        elif trend_status == TrendStatus.DECLINING and stock_level > 1.2:
+            return MerchandisingDecision(
+                product_id, "clearance", "Declining trend with overstock",
+                0.8, -performance.get("margin", 0.3) * 0.3
+            )
+        return MerchandisingDecision(
+            product_id, "maintain", "Stable performance",
+            0.2, performance.get("sales_velocity", 0.5)
+        )
 ```
 :::
 
