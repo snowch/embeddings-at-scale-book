@@ -22,8 +22,63 @@ Each modality has unique characteristics:
 
 **Challenge**: Map these heterogeneous modalities into a unified space where "cat" (text) is near cat images (vision) and "meow" sounds (audio).
 
-```python
-{{< include /code_examples/ch20_semantic_search/from.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Multi-Modal Encoder"
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+
+class MultiModalEncoder:
+    """Encode text, images, and audio into shared embedding space."""
+    def __init__(self, text_encoder, image_encoder, audio_encoder, embedding_dim=512):
+        self.text_encoder = text_encoder
+        self.image_encoder = image_encoder
+        self.audio_encoder = audio_encoder
+        self.embedding_dim = embedding_dim
+
+    def encode_text(self, text):
+        """Encode text to shared embedding space."""
+        text_features = self.text_encoder(text)
+        return F.normalize(text_features, p=2, dim=-1)
+
+    def encode_image(self, image):
+        """Encode image to shared embedding space."""
+        image_features = self.image_encoder(image)
+        return F.normalize(image_features, p=2, dim=-1)
+
+    def encode_audio(self, audio):
+        """Encode audio to shared embedding space."""
+        audio_features = self.audio_encoder(audio)
+        return F.normalize(audio_features, p=2, dim=-1)
+
+    def cross_modal_search(self, query, query_modality, candidates, candidate_modality):
+        """Search across modalities (e.g., text query finds images)."""
+        # Encode query
+        if query_modality == 'text':
+            query_emb = self.encode_text(query)
+        elif query_modality == 'image':
+            query_emb = self.encode_image(query)
+        else:
+            query_emb = self.encode_audio(query)
+
+        # Encode candidates
+        if candidate_modality == 'text':
+            candidate_embs = torch.stack([self.encode_text(c) for c in candidates])
+        elif candidate_modality == 'image':
+            candidate_embs = torch.stack([self.encode_image(c) for c in candidates])
+        else:
+            candidate_embs = torch.stack([self.encode_audio(c) for c in candidates])
+
+        # Compute similarities
+        similarities = torch.matmul(candidate_embs, query_emb.T)
+        return similarities
+
+# Usage example
+encoder = MultiModalEncoder(text_encoder=None, image_encoder=None, audio_encoder=None)
+print(f"Multi-modal encoder with {encoder.embedding_dim}-dim shared space")
 ```
 
 :::{.callout-tip}
@@ -83,8 +138,70 @@ Code has unique properties:
 
 **Challenge**: Find code that **does X** (semantic intent), not code that **contains X** (keyword match).
 
-```python
-{{< include /code_examples/ch20_semantic_search/import.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Code Search System"
+import ast
+from typing import List, Tuple
+
+
+class CodeSearchEngine:
+    """Semantic code search using embeddings."""
+    def __init__(self, code_encoder, embedding_dim=768):
+        self.code_encoder = code_encoder
+        self.embedding_dim = embedding_dim
+        self.code_snippets = []
+        self.embeddings = []
+
+    def add_code(self, code: str, metadata: dict = None):
+        """Index code snippet."""
+        # Parse AST to extract functions/classes
+        try:
+            tree = ast.parse(code)
+            for node in ast.walk(tree):
+                if isinstance(node, (ast.FunctionDef, ast.ClassDef)):
+                    snippet = ast.get_source_segment(code, node)
+                    self.code_snippets.append({'code': snippet, 'metadata': metadata})
+        except:
+            # If parsing fails, index as-is
+            self.code_snippets.append({'code': code, 'metadata': metadata})
+
+    def search(self, natural_language_query: str, k: int = 5) -> List[dict]:
+        """Search code using natural language query."""
+        # Encode query
+        query_emb = self.encode_query(natural_language_query)
+
+        # Encode all code snippets
+        code_embs = [self.encode_code(s['code']) for s in self.code_snippets]
+
+        # Compute similarities
+        similarities = [self.cosine_similarity(query_emb, code_emb)
+                        for code_emb in code_embs]
+
+        # Return top-k
+        top_indices = sorted(range(len(similarities)),
+                             key=lambda i: similarities[i], reverse=True)[:k]
+        return [self.code_snippets[i] for i in top_indices]
+
+    def encode_query(self, query: str):
+        """Encode natural language query."""
+        return [0.0] * self.embedding_dim  # Placeholder
+
+    def encode_code(self, code: str):
+        """Encode code snippet."""
+        return [0.0] * self.embedding_dim  # Placeholder
+
+    def cosine_similarity(self, a, b):
+        """Compute cosine similarity."""
+        import numpy as np
+        return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+
+# Usage example
+engine = CodeSearchEngine(code_encoder=None)
+engine.add_code("def sort_list(items): return sorted(items)")
+results = engine.search("sort a list", k=3)
+print(f"Found {len(results)} code snippets")
 ```
 
 :::{.callout-tip}
@@ -128,8 +245,77 @@ Scientific literature has unique characteristics:
 
 **Challenge**: Find **relevant research** (concept match), not **keyword match** (term frequency).
 
-```python
-{{< include /code_examples/ch20_semantic_search/from_1.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Scientific Literature Search"
+from typing import List, Dict, Optional
+import numpy as np
+
+
+class ScientificPaperSearch:
+    """Search scientific papers using embeddings and citation networks."""
+    def __init__(self, paper_encoder, embedding_dim=768):
+        self.paper_encoder = paper_encoder
+        self.embedding_dim = embedding_dim
+        self.papers = []
+        self.citation_graph = {}  # paper_id -> [cited_paper_ids]
+
+    def add_paper(self, paper_id: str, title: str, abstract: str,
+                  citations: List[str] = None):
+        """Index scientific paper."""
+        # Encode paper
+        text = f"{title} {abstract}"
+        embedding = self.encode_paper(text)
+
+        self.papers.append({
+            'paper_id': paper_id,
+            'title': title,
+            'abstract': abstract,
+            'embedding': embedding
+        })
+
+        # Update citation graph
+        if citations:
+            self.citation_graph[paper_id] = citations
+
+    def search(self, query: str, k: int = 10, use_citations: bool = True) -> List[dict]:
+        """Search papers using semantic similarity and citation network."""
+        # Encode query
+        query_emb = self.encode_paper(query)
+
+        # Compute semantic similarities
+        scores = []
+        for paper in self.papers:
+            semantic_score = self.cosine_similarity(query_emb, paper['embedding'])
+
+            # Boost score using citation network
+            if use_citations and paper['paper_id'] in self.citation_graph:
+                citation_boost = len(self.citation_graph[paper['paper_id']]) * 0.01
+                final_score = semantic_score + citation_boost
+            else:
+                final_score = semantic_score
+
+            scores.append(final_score)
+
+        # Return top-k
+        top_indices = sorted(range(len(scores)),
+                             key=lambda i: scores[i], reverse=True)[:k]
+        return [self.papers[i] for i in top_indices]
+
+    def encode_paper(self, text: str):
+        """Encode paper text to embedding."""
+        return np.random.rand(self.embedding_dim)  # Placeholder
+
+    def cosine_similarity(self, a, b):
+        """Compute cosine similarity."""
+        return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+
+# Usage example
+search_engine = ScientificPaperSearch(paper_encoder=None)
+search_engine.add_paper("paper1", "Deep Learning", "Neural networks...", citations=["paper2"])
+results = search_engine.search("machine learning", k=5)
+print(f"Found {len(results)} relevant papers")
 ```
 
 :::{.callout-tip}
@@ -173,8 +359,75 @@ Media has unique properties:
 
 **Challenge**: Find **visually similar** or **stylistically related** media, not **keyword matches** on filenames.
 
-```python
-{{< include /code_examples/ch20_semantic_search/from_2.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Media Discovery System"
+from typing import List, Tuple
+import numpy as np
+from dataclasses import dataclass
+
+
+@dataclass
+class MediaAsset:
+    """Media asset with content and style embeddings."""
+    asset_id: str
+    file_path: str
+    content_embedding: np.ndarray
+    style_embedding: np.ndarray
+    metadata: dict = None
+
+
+class MediaDiscoveryEngine:
+    """Search media by visual similarity and style."""
+    def __init__(self, content_encoder, style_encoder):
+        self.content_encoder = content_encoder
+        self.style_encoder = style_encoder
+        self.assets = []
+
+    def add_asset(self, asset_id: str, file_path: str, image):
+        """Index media asset."""
+        # Extract content and style embeddings
+        content_emb = self.encode_content(image)
+        style_emb = self.encode_style(image)
+
+        asset = MediaAsset(
+            asset_id=asset_id,
+            file_path=file_path,
+            content_embedding=content_emb,
+            style_embedding=style_emb
+        )
+        self.assets.append(asset)
+
+    def search_by_content(self, query_image, k: int = 10) -> List[MediaAsset]:
+        """Find visually similar content."""
+        query_emb = self.encode_content(query_image)
+
+        similarities = [np.dot(query_emb, asset.content_embedding)
+                        for asset in self.assets]
+        top_indices = np.argsort(similarities)[-k:][::-1]
+        return [self.assets[i] for i in top_indices]
+
+    def search_by_style(self, query_image, k: int = 10) -> List[MediaAsset]:
+        """Find assets with similar visual style."""
+        query_emb = self.encode_style(query_image)
+
+        similarities = [np.dot(query_emb, asset.style_embedding)
+                        for asset in self.assets]
+        top_indices = np.argsort(similarities)[-k:][::-1]
+        return [self.assets[i] for i in top_indices]
+
+    def encode_content(self, image):
+        """Encode semantic content."""
+        return np.random.rand(512)  # Placeholder
+
+    def encode_style(self, image):
+        """Encode visual style."""
+        return np.random.rand(256)  # Placeholder
+
+# Usage example
+engine = MediaDiscoveryEngine(content_encoder=None, style_encoder=None)
+print("Media discovery engine initialized with content and style encoders")
 ```
 
 :::{.callout-tip}
@@ -217,8 +470,62 @@ Traditional knowledge graphs use discrete representations (triples: subject-pred
 
 **Challenge**: Learn embeddings that preserve graph structure and semantics.
 
-```python
-{{< include /code_examples/ch20_semantic_search/import_1.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Knowledge Graph Embeddings"
+import torch
+import torch.nn as nn
+import numpy as np
+from typing import List, Tuple, Dict
+
+
+class KnowledgeGraphEmbedding:
+    """TransE-based knowledge graph embedding."""
+    def __init__(self, num_entities: int, num_relations: int, embedding_dim: int = 128):
+        self.embedding_dim = embedding_dim
+
+        # Entity and relation embeddings
+        self.entity_embeddings = nn.Embedding(num_entities, embedding_dim)
+        self.relation_embeddings = nn.Embedding(num_relations, embedding_dim)
+
+        # Initialize
+        nn.init.xavier_uniform_(self.entity_embeddings.weight)
+        nn.init.xavier_uniform_(self.relation_embeddings.weight)
+
+    def score_triple(self, head: torch.Tensor, relation: torch.Tensor,
+                     tail: torch.Tensor) -> torch.Tensor:
+        """Score a triple (head, relation, tail) using TransE."""
+        head_emb = self.entity_embeddings(head)
+        rel_emb = self.relation_embeddings(relation)
+        tail_emb = self.entity_embeddings(tail)
+
+        # TransE: h + r ≈ t
+        score = torch.norm(head_emb + rel_emb - tail_emb, p=2, dim=-1)
+        return -score  # Negate so higher is better
+
+    def predict_tail(self, head: int, relation: int, k: int = 10) -> List[Tuple[int, float]]:
+        """Predict most likely tail entities for (head, relation, ?)."""
+        head_tensor = torch.tensor([head])
+        rel_tensor = torch.tensor([relation])
+
+        # Score all possible tails
+        all_tails = torch.arange(self.entity_embeddings.num_embeddings)
+        scores = []
+
+        for tail in all_tails:
+            tail_tensor = torch.tensor([tail])
+            score = self.score_triple(head_tensor, rel_tensor, tail_tensor)
+            scores.append((tail.item(), score.item()))
+
+        # Return top-k
+        scores.sort(key=lambda x: x[1], reverse=True)
+        return scores[:k]
+
+# Usage example
+kg = KnowledgeGraphEmbedding(num_entities=1000, num_relations=50, embedding_dim=128)
+predictions = kg.predict_tail(head=0, relation=5, k=5)
+print(f"Top 5 predicted tail entities: {[p[0] for p in predictions]}")
 ```
 
 :::{.callout-tip}

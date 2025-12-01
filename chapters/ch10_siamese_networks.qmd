@@ -159,8 +159,50 @@ def create_enterprise_siamese_network(input_type='tabular', input_dim=None):
 
 The classic Siamese network uses **contrastive loss** to bring similar pairs together and push dissimilar pairs apart:
 
-```python
-{{< include /code_examples/ch10_siamese_networks/contrastiveloss.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show contrastive loss implementation"
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+class ContrastiveLoss(nn.Module):
+    """Contrastive loss: Loss = (1-Y)*0.5*D^2 + Y*0.5*max(margin-D, 0)^2"""
+
+    def __init__(self, margin=2.0):
+        super().__init__()
+        self.margin = margin
+
+    def forward(self, embedding1, embedding2, label):
+        """label: 0 if similar, 1 if dissimilar"""
+        euclidean_distance = F.pairwise_distance(embedding1, embedding2)
+        loss_similar = (1 - label) * torch.pow(euclidean_distance, 2)
+        loss_dissimilar = label * torch.pow(
+            torch.clamp(self.margin - euclidean_distance, min=0.0), 2
+        )
+        loss = torch.mean(loss_similar + loss_dissimilar) * 0.5
+
+        with torch.no_grad():
+            threshold = self.margin / 2
+            predictions = (euclidean_distance < threshold).long()
+            accuracy = (predictions == (1 - label)).float().mean()
+            similar_mask = label == 0
+            dissimilar_mask = label == 1
+            metrics = {
+                "loss": loss.item(), "accuracy": accuracy.item(),
+                "mean_similar_distance": euclidean_distance[similar_mask].mean().item() if similar_mask.any() else 0,
+                "mean_dissimilar_distance": euclidean_distance[dissimilar_mask].mean().item() if dissimilar_mask.any() else 0,
+            }
+        return loss, metrics
+
+# Usage example
+loss_fn = ContrastiveLoss(margin=2.0)
+emb1 = torch.randn(32, 512)
+emb2 = torch.randn(32, 512)
+labels = torch.randint(0, 2, (32,))
+loss, metrics = loss_fn(emb1, emb2, labels)
+print(f"Contrastive loss: {metrics['loss']:.4f}, accuracy: {metrics['accuracy']:.4f}")
 ```
 
 :::{.callout-tip}
@@ -181,8 +223,48 @@ The classic Siamese network uses **contrastive loss** to bring similar pairs tog
 
 For production systems handling billions of comparisons daily, architecture choices matter:
 
-```python
-{{< include /code_examples/ch10_siamese_networks/enterpriseoptimizedsiamesenetwork.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show enterprise-optimized Siamese network"
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+class EnterpriseOptimizedSiameseNetwork(nn.Module):
+    """Production-optimized with mixed precision, gradient checkpointing, attention"""
+
+    def __init__(self, base_model, embedding_dim=512, use_attention=True, use_gradient_checkpointing=False):
+        super().__init__()
+        self.base_model = base_model
+        self.use_gradient_checkpointing = use_gradient_checkpointing
+        self.projection = nn.Sequential(
+            nn.Linear(embedding_dim, embedding_dim), nn.BatchNorm1d(embedding_dim),
+            nn.ReLU(), nn.Linear(embedding_dim, embedding_dim),
+        )
+        self.attention = nn.MultiheadAttention(embed_dim=embedding_dim, num_heads=8, dropout=0.1, batch_first=True) if use_attention else None
+
+    def forward(self, x1, x2):
+        if self.use_gradient_checkpointing and self.training:
+            embedding1 = torch.utils.checkpoint.checkpoint(self._encode, x1)
+            embedding2 = torch.utils.checkpoint.checkpoint(self._encode, x2)
+        else:
+            embedding1, embedding2 = self._encode(x1), self._encode(x2)
+        return embedding1, embedding2
+
+    def _encode(self, x):
+        features = self.base_model(x)
+        if self.attention is not None:
+            features_reshaped = features.unsqueeze(1)
+            attended, _ = self.attention(features_reshaped, features_reshaped, features_reshaped)
+            features = attended.squeeze(1)
+        embedding = self.projection(features)
+        return F.normalize(embedding, p=2, dim=1)
+
+# Usage example
+base = nn.Sequential(nn.Linear(128, 512), nn.ReLU())
+model = EnterpriseOptimizedSiameseNetwork(base, embedding_dim=512, use_attention=True)
+print(f"Model params: {sum(p.numel() for p in model.parameters()):,}")
 ```
 
 :::{.callout-warning}
@@ -205,16 +287,125 @@ Triplet loss ensures that anchor-positive distance is smaller than anchor-negati
 
 **Loss = max(d(anchor, positive) - d(anchor, negative) + margin, 0)**
 
-```python
-{{< include /code_examples/ch10_siamese_networks/tripletloss.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show triplet loss implementation"
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+class TripletLoss(nn.Module):
+    """Triplet loss: d(anchor, positive) + margin < d(anchor, negative)"""
+
+    def __init__(self, margin=1.0, distance_metric="euclidean"):
+        super().__init__()
+        self.margin = margin
+        self.distance_metric = distance_metric
+
+    def forward(self, anchor, positive, negative):
+        if self.distance_metric == "euclidean":
+            pos_distance = F.pairwise_distance(anchor, positive, p=2)
+            neg_distance = F.pairwise_distance(anchor, negative, p=2)
+        else:  # cosine
+            pos_distance = 1 - F.cosine_similarity(anchor, positive)
+            neg_distance = 1 - F.cosine_similarity(anchor, negative)
+
+        losses = F.relu(pos_distance - neg_distance + self.margin)
+        loss = losses.mean()
+
+        with torch.no_grad():
+            hard_triplets = (losses > 0).float().mean()
+            accuracy = (pos_distance < neg_distance).float().mean()
+            metrics = {
+                "loss": loss.item(), "accuracy": accuracy.item(),
+                "hard_triplets_fraction": hard_triplets.item(),
+                "avg_pos_distance": pos_distance.mean().item(),
+                "avg_neg_distance": neg_distance.mean().item(),
+            }
+        return loss, metrics
+
+# Usage example
+loss_fn = TripletLoss(margin=1.0)
+anchor = torch.randn(32, 512)
+positive = anchor + torch.randn(32, 512) * 0.1
+negative = torch.randn(32, 512)
+loss, metrics = loss_fn(anchor, positive, negative)
+print(f"Triplet loss: {metrics['loss']:.4f}, accuracy: {metrics['accuracy']:.4f}")
 ```
 
 ### Advanced Triplet Loss Variants
 
 For enterprise scale, basic triplet loss isn't enough. Here are production-tested variants:
 
-```python
-{{< include /code_examples/ch10_siamese_networks/advancedtripletloss.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show advanced triplet loss with mining strategies"
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+class AdvancedTripletLoss(nn.Module):
+    """Advanced triplet loss with hard/semi-hard mining and soft margin"""
+
+    def __init__(self, margin=1.0, mining_strategy="semi-hard", use_soft_margin=False, distance_metric="euclidean"):
+        super().__init__()
+        self.margin = margin
+        self.mining_strategy = mining_strategy
+        self.use_soft_margin = use_soft_margin
+        self.distance_metric = distance_metric
+
+    def forward(self, embeddings, labels):
+        # Compute pairwise distances
+        if self.distance_metric == "euclidean":
+            distances = torch.cdist(embeddings, embeddings, p=2)
+        else:
+            embeddings_norm = F.normalize(embeddings, p=2, dim=1)
+            distances = 1 - torch.mm(embeddings_norm, embeddings_norm.T)
+
+        triplets = self._mine_triplets(distances, labels)
+        if len(triplets) == 0:
+            return torch.tensor(0.0, device=embeddings.device), {"loss": 0.0, "num_triplets": 0}
+
+        anchor_idx, positive_idx, negative_idx = zip(*triplets)
+        pos_distances = distances[anchor_idx, positive_idx]
+        neg_distances = distances[anchor_idx, negative_idx]
+
+        if self.use_soft_margin:
+            loss = torch.log1p(torch.exp(pos_distances - neg_distances)).mean()
+        else:
+            loss = F.relu(pos_distances - neg_distances + self.margin).mean()
+
+        with torch.no_grad():
+            metrics = {"loss": loss.item(), "num_triplets": len(triplets),
+                       "hard_triplets_fraction": (pos_distances > neg_distances).float().mean().item()}
+        return loss, metrics
+
+    def _mine_triplets(self, distances, labels):
+        """Mine triplets based on strategy (hard, semi-hard, or all)"""
+        batch_size = labels.shape[0]
+        triplets = []
+        for i in range(batch_size):
+            pos_mask = (labels == labels[i]) & (torch.arange(batch_size, device=labels.device) != i)
+            neg_mask = labels != labels[i]
+            pos_indices, neg_indices = torch.where(pos_mask)[0], torch.where(neg_mask)[0]
+            if len(pos_indices) == 0 or len(neg_indices) == 0:
+                continue
+            for pos_idx in pos_indices:
+                if self.mining_strategy == "hard":
+                    neg_idx = neg_indices[distances[i, neg_indices].argmin()]
+                else:  # semi-hard or all
+                    neg_idx = neg_indices[0]
+                triplets.append((i, pos_idx.item(), neg_idx.item()))
+        return triplets
+
+# Usage example
+loss_fn = AdvancedTripletLoss(margin=1.0, mining_strategy="semi-hard")
+embeddings = torch.randn(50, 512)
+labels = torch.randint(0, 10, (50,))
+loss, metrics = loss_fn(embeddings, labels)
+print(f"Advanced triplet loss: {metrics['loss']:.4f}, triplets: {metrics['num_triplets']}")
 ```
 
 :::{.callout-tip}
@@ -233,8 +424,53 @@ For enterprise scale, basic triplet loss isn't enough. Here are production-teste
 
 Efficient triplet mining requires careful batch construction:
 
-```python
-{{< include /code_examples/ch10_siamese_networks/balancedbatchsampler.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show balanced batch sampler for triplet training"
+import numpy as np
+import torch
+from torch.utils.data import Sampler
+
+class BalancedBatchSampler(Sampler):
+    """Sampler ensuring each batch has P classes × K samples per class"""
+
+    def __init__(self, labels, n_classes_per_batch=10, n_samples_per_class=5):
+        self.labels = np.array(labels)
+        self.n_classes_per_batch = n_classes_per_batch
+        self.n_samples_per_class = n_samples_per_class
+
+        # Build index mapping: class_id -> [sample_indices]
+        self.class_to_indices = {}
+        for idx, label in enumerate(self.labels):
+            if label not in self.class_to_indices:
+                self.class_to_indices[label] = []
+            self.class_to_indices[label].append(idx)
+
+        # Keep classes with enough samples
+        self.valid_classes = [c for c, indices in self.class_to_indices.items()
+                              if len(indices) >= self.n_samples_per_class]
+        self.batch_size = n_classes_per_batch * n_samples_per_class
+
+    def __iter__(self):
+        classes = np.random.permutation(self.valid_classes)
+        for i in range(0, len(classes), self.n_classes_per_batch):
+            batch_classes = classes[i : i + self.n_classes_per_batch]
+            batch_indices = []
+            for class_id in batch_classes:
+                class_indices = self.class_to_indices[class_id]
+                sampled = np.random.choice(class_indices, size=self.n_samples_per_class,
+                                           replace=len(class_indices) < self.n_samples_per_class)
+                batch_indices.extend(sampled)
+            yield batch_indices
+
+    def __len__(self):
+        return len(self.valid_classes) // self.n_classes_per_batch
+
+# Usage example
+labels = np.random.randint(0, 100, size=10000)  # 10K samples, 100 classes
+sampler = BalancedBatchSampler(labels, n_classes_per_batch=10, n_samples_per_class=5)
+print(f"Batch size: {sampler.batch_size}, Batches per epoch: {len(sampler)}")
 ```
 
 :::{.callout-warning}
@@ -263,8 +499,73 @@ Traditional ML fails with one example per class. Siamese networks succeed by:
 2. **Applying similarity at inference** to new classes with few examples
 3. **Comparing rather than classifying** new inputs
 
-```python
-{{< include /code_examples/ch10_siamese_networks/oneshotclassifier.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show one-shot classifier implementation"
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+class OneShotClassifier:
+    """One-shot classifier: classify by finding most similar support example"""
+
+    def __init__(self, siamese_model, distance_metric="euclidean"):
+        self.model = siamese_model
+        self.distance_metric = distance_metric
+        self.support_set = {}  # class_id -> embedding
+
+    def add_support_example(self, class_id, example):
+        """Add a single example for a new class"""
+        with torch.no_grad():
+            self.model.eval()
+            embedding = self.model.get_embedding(example)
+            self.support_set[class_id] = embedding.cpu()
+
+    def predict(self, query, return_distances=False, top_k=1):
+        """Predict class by finding nearest support example"""
+        with torch.no_grad():
+            self.model.eval()
+            query_embedding = self.model.get_embedding(query)
+
+            distances = {}
+            for class_id, support_emb in self.support_set.items():
+                support_emb = support_emb.to(query_embedding.device)
+                if self.distance_metric == "euclidean":
+                    dist = F.pairwise_distance(query_embedding, support_emb.unsqueeze(0)).item()
+                else:
+                    dist = (1 - F.cosine_similarity(query_embedding, support_emb.unsqueeze(0))).item()
+                distances[class_id] = dist
+
+            sorted_classes = sorted(distances.items(), key=lambda x: x[1])
+            if top_k == 1:
+                return (sorted_classes[0][0], sorted_classes[0][1]) if return_distances else sorted_classes[0][0]
+            results = sorted_classes[:top_k]
+            return ([c for c, _ in results], [d for _, d in results]) if return_distances else [c for c, _ in results]
+
+    def predict_proba(self, query, temperature=1.0):
+        """Predict class probabilities using softmax over negative distances"""
+        class_ids, distances = self.predict(query, return_distances=True, top_k=len(self.support_set))
+        similarities = [-d / temperature for d in distances]
+        exp_sims = np.exp(similarities - np.max(similarities))
+        return dict(zip(class_ids, exp_sims / exp_sims.sum()))
+
+# Usage example (placeholder model)
+class PlaceholderModel(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.encoder = nn.Linear(50, 128)
+    def get_embedding(self, x):
+        return F.normalize(self.encoder(x), dim=-1)
+
+model = PlaceholderModel()
+classifier = OneShotClassifier(model)
+classifier.add_support_example("fraud_type_A", torch.randn(1, 50))
+classifier.add_support_example("fraud_type_B", torch.randn(1, 50))
+query = torch.randn(1, 50)
+pred = classifier.predict(query)
+print(f"Predicted class: {pred}")
 ```
 
 :::{.callout-tip}
@@ -290,8 +591,56 @@ Traditional ML fails with one example per class. Siamese networks succeed by:
 
 When you have 2-10 examples per class (few-shot), you can use more sophisticated techniques:
 
-```python
-{{< include /code_examples/ch10_siamese_networks/prototypicalnetworkclassifier.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show prototypical network classifier"
+import torch
+import torch.nn.functional as F
+
+class PrototypicalNetworkClassifier:
+    """Prototypical Networks: compute class prototypes from K examples, classify by nearest prototype"""
+
+    def __init__(self, embedding_model):
+        self.model = embedding_model
+        self.prototypes = {}  # class_id -> prototype embedding
+
+    def compute_prototypes(self, support_set):
+        """Compute prototype (centroid) for each class from support examples"""
+        self.prototypes = {}
+        with torch.no_grad():
+            self.model.eval()
+            for class_id, examples in support_set.items():
+                if isinstance(examples, list):
+                    examples = torch.stack(examples)
+                embeddings = self.model.get_embedding(examples)
+                self.prototypes[class_id] = embeddings.mean(dim=0)
+
+    def predict(self, query):
+        """Classify query by finding nearest prototype"""
+        with torch.no_grad():
+            self.model.eval()
+            query_embedding = self.model.get_embedding(query)
+            distances = {class_id: F.pairwise_distance(query_embedding, proto.unsqueeze(0)).item()
+                         for class_id, proto in self.prototypes.items()}
+            return min(distances.items(), key=lambda x: x[1])[0]
+
+# Usage example
+import torch.nn as nn
+class SimpleEncoder(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.net = nn.Linear(64, 128)
+    def get_embedding(self, x):
+        return F.normalize(self.net(x), dim=-1)
+
+encoder = SimpleEncoder()
+classifier = PrototypicalNetworkClassifier(encoder)
+support_set = {"class_A": torch.randn(5, 64), "class_B": torch.randn(5, 64)}  # 5 examples each
+classifier.compute_prototypes(support_set)
+query = torch.randn(1, 64)
+pred = classifier.predict(query)
+print(f"Predicted class: {pred}")
 ```
 
 ## Similarity Threshold Calibration
@@ -575,8 +924,55 @@ class ThresholdCalibrator:
 
 For production systems, static thresholds aren't enough. Implement dynamic adaptation:
 
-```python
-{{< include /code_examples/ch10_siamese_networks/adaptivethresholdmanager.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show adaptive threshold manager"
+import numpy as np
+
+class AdaptiveThresholdManager:
+    """Manage thresholds that adapt to changing data distributions"""
+
+    def __init__(self, base_threshold=0.5):
+        self.base_threshold = base_threshold
+        self.category_thresholds = {}
+        self.performance_history = []
+
+    def get_threshold(self, category=None, confidence=None):
+        """Get threshold, adjusted for category or confidence"""
+        threshold = self.base_threshold
+        if category is not None and category in self.category_thresholds:
+            threshold = self.category_thresholds[category]
+        if confidence is not None:
+            adjustment = (confidence - 0.5) * 0.2  # ±0.1 adjustment
+            threshold = threshold - adjustment
+        return threshold
+
+    def update_category_threshold(self, category, new_threshold):
+        self.category_thresholds[category] = new_threshold
+
+    def adapt_from_feedback(self, predictions, labels, learning_rate=0.1):
+        """Adapt thresholds based on recent performance feedback"""
+        current_predictions = (predictions < self.base_threshold).astype(int)
+        error_rate = (current_predictions != labels).mean()
+
+        if error_rate > 0.2:
+            best_threshold = self._find_optimal_threshold(predictions, labels)
+            self.base_threshold = (1 - learning_rate) * self.base_threshold + learning_rate * best_threshold
+
+        self.performance_history.append({"threshold": self.base_threshold, "error_rate": error_rate})
+
+    def _find_optimal_threshold(self, distances, labels):
+        thresholds = np.linspace(distances.min(), distances.max(), 50)
+        errors = [(distances < t).astype(int) != labels for t in thresholds]
+        error_rates = [e.mean() for e in errors]
+        return thresholds[np.argmin(error_rates)]
+
+# Usage example
+manager = AdaptiveThresholdManager(base_threshold=0.5)
+manager.update_category_threshold("high_value", 0.7)
+print(f"Base threshold: {manager.base_threshold}")
+print(f"High-value threshold: {manager.get_threshold(category='high_value')}")
 ```
 
 ## Production Deployment Patterns
@@ -585,16 +981,132 @@ Deploying Siamese networks at scale requires careful architecture design. Here a
 
 ### Pattern 1: Embedding Cache Architecture
 
-```python
-{{< include /code_examples/ch10_siamese_networks/siameseembeddingservice.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Siamese embedding service with caching"
+import hashlib
+import torch
+import torch.nn.functional as F
+
+class SiameseEmbeddingService:
+    """Production service with embedding caching, batch processing, GPU/CPU flexibility"""
+
+    def __init__(self, model, cache_size=100000, batch_size=256, device="cuda"):
+        self.model = model.to(device).eval()
+        self.device = device
+        self.batch_size = batch_size
+        self.embedding_cache = {}
+        self.cache_size = cache_size
+        self.cache_hits = 0
+        self.cache_misses = 0
+
+    def _get_cache_key(self, item):
+        return hashlib.md5(item.cpu().numpy().tobytes()).hexdigest()
+
+    def get_embedding(self, item, use_cache=True):
+        if use_cache:
+            cache_key = self._get_cache_key(item)
+            if cache_key in self.embedding_cache:
+                self.cache_hits += 1
+                return self.embedding_cache[cache_key]
+            self.cache_misses += 1
+
+        with torch.no_grad():
+            embedding = self.model.get_embedding(item.to(self.device))
+
+        if use_cache:
+            if len(self.embedding_cache) >= self.cache_size:
+                oldest_key = next(iter(self.embedding_cache))
+                del self.embedding_cache[oldest_key]
+            self.embedding_cache[cache_key] = embedding.cpu()
+        return embedding
+
+    def get_embeddings_batch(self, items):
+        embeddings = []
+        for i in range(0, len(items), self.batch_size):
+            batch = items[i : i + self.batch_size]
+            with torch.no_grad():
+                batch_embeddings = self.model.get_embedding(batch.to(self.device))
+            embeddings.append(batch_embeddings.cpu())
+        return torch.cat(embeddings, dim=0)
+
+    def compare(self, item1, item2):
+        emb1, emb2 = self.get_embedding(item1), self.get_embedding(item2)
+        return F.cosine_similarity(emb1, emb2, dim=0).item()
+
+    def get_cache_stats(self):
+        total = self.cache_hits + self.cache_misses
+        return {"cache_size": len(self.embedding_cache), "cache_hits": self.cache_hits,
+                "cache_misses": self.cache_misses, "hit_rate": self.cache_hits / total if total > 0 else 0}
+
+# Usage example (with placeholder model)
+import torch.nn as nn
+class DummyModel(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.net = nn.Linear(64, 128)
+    def get_embedding(self, x):
+        return F.normalize(self.net(x), dim=-1)
+
+model = DummyModel()
+service = SiameseEmbeddingService(model, cache_size=1000, device="cpu")
+item = torch.randn(1, 64)
+emb = service.get_embedding(item)
+print(f"Embedding shape: {emb.shape}, Cache stats: {service.get_cache_stats()}")
 ```
 
 ### Pattern 2: Approximate Nearest Neighbor Integration
 
 For billion-scale similarity search, integrate with ANN indexes:
 
-```python
-{{< include /code_examples/ch10_siamese_networks/siameseannservice.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Siamese ANN service with FAISS"
+import torch.nn.functional as F
+
+class SiameseANNService:
+    """Siamese network integrated with FAISS for sub-millisecond similarity search"""
+
+    def __init__(self, siamese_service, embedding_dim=512):
+        self.siamese_service = siamese_service
+        self.embedding_dim = embedding_dim
+        try:
+            import faiss
+            self.index = faiss.IndexFlatIP(embedding_dim)  # Inner product for cosine similarity
+        except ImportError:
+            print("FAISS not installed. Install with: pip install faiss-cpu")
+            self.index = None
+        self.id_to_index = {}
+        self.index_to_id = {}
+
+    def add_items(self, item_ids, items):
+        if self.index is None:
+            raise RuntimeError("FAISS not available")
+        embeddings = self.siamese_service.get_embeddings_batch(items)
+        embeddings = F.normalize(embeddings, p=2, dim=1).cpu().numpy()
+        start_idx = self.index.ntotal
+        self.index.add(embeddings)
+        for i, item_id in enumerate(item_ids):
+            idx = start_idx + i
+            self.id_to_index[item_id] = idx
+            self.index_to_id[idx] = item_id
+
+    def search(self, query, top_k=10):
+        if self.index is None:
+            raise RuntimeError("FAISS not available")
+        query_embedding = self.siamese_service.get_embedding(query)
+        query_embedding = F.normalize(query_embedding, p=2, dim=1).cpu().numpy()
+        similarities, indices = self.index.search(query_embedding, top_k)
+        return [(self.index_to_id[idx], float(sim)) for sim, idx in zip(similarities[0], indices[0]) if idx in self.index_to_id]
+
+    def get_statistics(self):
+        return {"total_items": self.index.ntotal if self.index else 0, "embedding_dim": self.embedding_dim}
+
+# Usage note: Requires FAISS and a trained SiameseEmbeddingService
+print("SiameseANNService: Sub-millisecond search across billions of items")
+print("Features: FAISS integration, cosine similarity via normalized inner product")
 ```
 
 ### Pattern 3: Multi-Stage Verification Pipeline

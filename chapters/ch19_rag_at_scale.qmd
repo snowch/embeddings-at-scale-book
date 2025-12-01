@@ -22,8 +22,60 @@ A complete RAG system comprises six stages:
 5. **Generation**: LLM generates response given query + context
 6. **Validation**: Verify response accuracy, check for hallucinations
 
-```python
-{{< include /code_examples/ch19_rag_at_scale/from.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Vector Store Setup"
+from dataclasses import dataclass
+from typing import List, Optional
+
+import faiss
+import numpy as np
+
+
+@dataclass
+class Document:
+    """Document with embedding."""
+    doc_id: str
+    text: str
+    embedding: Optional[np.ndarray] = None
+    metadata: dict = None
+
+    def __post_init__(self):
+        if self.metadata is None:
+            self.metadata = {}
+
+
+class VectorStore:
+    """FAISS-based vector store for document retrieval."""
+    def __init__(self, embedding_dim: int = 768):
+        self.embedding_dim = embedding_dim
+        self.index = faiss.IndexFlatIP(embedding_dim)
+        self.documents: List[Document] = []
+
+    def add_documents(self, documents: List[Document]):
+        """Add documents to the vector store."""
+        embeddings = np.array([doc.embedding for doc in documents]).astype('float32')
+        faiss.normalize_L2(embeddings)
+        self.index.add(embeddings)
+        self.documents.extend(documents)
+
+    def search(self, query_embedding: np.ndarray, k: int = 5) -> List[Document]:
+        """Search for top-k most similar documents."""
+        query_embedding = query_embedding.astype('float32').reshape(1, -1)
+        faiss.normalize_L2(query_embedding)
+        distances, indices = self.index.search(query_embedding, k)
+        return [self.documents[i] for i in indices[0]]
+
+# Usage example
+store = VectorStore(embedding_dim=768)
+docs = [
+    Document(doc_id="1", text="Machine learning basics", embedding=np.random.rand(768)),
+    Document(doc_id="2", text="Deep learning with PyTorch", embedding=np.random.rand(768))
+]
+store.add_documents(docs)
+results = store.search(np.random.rand(768), k=2)
+print(f"Found {len(results)} documents")
 ```
 
 :::{.callout-tip}
@@ -74,8 +126,61 @@ LLMs have fixed context windows (4K-128K tokens), but enterprise knowledge bases
 
 **Better approach**: Extract relevant passages, deduplicate, compress
 
-```python
-{{< include /code_examples/ch19_rag_at_scale/passageextractor.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Passage Extractor"
+from typing import List, Tuple
+import re
+
+
+class PassageExtractor:
+    """Extract relevant passages from long documents."""
+    def __init__(self, max_passage_length: int = 512, overlap: int = 50):
+        self.max_passage_length = max_passage_length
+        self.overlap = overlap
+
+    def extract_passages(self, text: str) -> List[Tuple[str, int, int]]:
+        """Split text into overlapping passages.
+
+        Returns: List of (passage_text, start_idx, end_idx)
+        """
+        sentences = re.split(r'(?<=[.!?])\s+', text)
+        passages = []
+        current_passage = []
+        current_length = 0
+        start_idx = 0
+
+        for sentence in sentences:
+            sentence_length = len(sentence.split())
+
+            if current_length + sentence_length > self.max_passage_length:
+                if current_passage:
+                    passage_text = ' '.join(current_passage)
+                    end_idx = start_idx + len(passage_text)
+                    passages.append((passage_text, start_idx, end_idx))
+
+                    # Keep overlap
+                    overlap_text = current_passage[-self.overlap:]
+                    current_passage = overlap_text + [sentence]
+                    start_idx = end_idx - len(' '.join(overlap_text))
+                    current_length = sum(len(s.split()) for s in current_passage)
+            else:
+                current_passage.append(sentence)
+                current_length += sentence_length
+
+        if current_passage:
+            passage_text = ' '.join(current_passage)
+            passages.append((passage_text, start_idx, start_idx + len(passage_text)))
+
+        return passages
+
+# Usage example
+extractor = PassageExtractor(max_passage_length=100, overlap=20)
+text = "This is a long document. " * 50
+passages = extractor.extract_passages(text)
+print(f"Extracted {len(passages)} passages from document")
+print(f"First passage: {passages[0][0][:100]}...")
 ```
 
 :::{.callout-tip}
@@ -151,8 +256,52 @@ Single-stage retrieval (retrieve top-k, done) sacrifices either recall or latenc
 - Output: Optimized context
 - Latency: 10-50ms
 
-```python
-{{< include /code_examples/ch19_rag_at_scale/multistageretriever.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Multi-Stage Retriever"
+from typing import List
+import numpy as np
+
+
+class MultiStageRetriever:
+    """Two-stage retrieval: fast first-stage, accurate second-stage."""
+    def __init__(self, vector_store, reranker_model=None):
+        self.vector_store = vector_store
+        self.reranker_model = reranker_model
+
+    def retrieve(self, query: str, query_embedding: np.ndarray,
+                 k: int = 5, first_stage_k: int = 20) -> List[Document]:
+        """Retrieve documents using two-stage approach.
+
+        Stage 1: Fast vector search retrieves top-N candidates
+        Stage 2: Reranker scores candidates and returns top-K
+        """
+        # Stage 1: Fast vector search
+        candidates = self.vector_store.search(query_embedding, k=first_stage_k)
+
+        # Stage 2: Rerank with more expensive model
+        if self.reranker_model:
+            scores = []
+            for doc in candidates:
+                score = np.random.rand()  # Placeholder for reranking
+                scores.append(score)
+
+            # Sort by reranker score
+            ranked_indices = np.argsort(scores)[::-1]
+            candidates = [candidates[i] for i in ranked_indices[:k]]
+
+        return candidates[:k]
+
+# Usage example
+store = VectorStore(embedding_dim=768)
+docs = [Document(doc_id=str(i), text=f"Doc {i}",
+                 embedding=np.random.rand(768)) for i in range(100)]
+store.add_documents(docs)
+
+retriever = MultiStageRetriever(vector_store=store)
+results = retriever.retrieve("sample query", np.random.rand(768), k=5, first_stage_k=20)
+print(f"Retrieved {len(results)} documents after two-stage retrieval")
 ```
 
 :::{.callout-tip}
@@ -204,8 +353,61 @@ RAG systems combine retrieval and generation, requiring evaluation beyond standa
 
 **RAG needs both + more**: Did system retrieve relevant docs AND generate accurate answer grounded in those docs?
 
-```python
-{{< include /code_examples/ch19_rag_at_scale/from_1.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Hybrid Search"
+from typing import Dict
+import numpy as np
+
+
+class HybridSearch:
+    """Combine dense (vector) and sparse (BM25) retrieval."""
+    def __init__(self, vector_store, bm25_index=None, alpha: float = 0.5):
+        self.vector_store = vector_store
+        self.bm25_index = bm25_index
+        self.alpha = alpha
+
+    def search(self, query: str, query_embedding: np.ndarray, k: int = 5) -> List[Document]:
+        """Hybrid search combining dense and sparse retrieval.
+
+        Score = alpha * dense_score + (1 - alpha) * sparse_score
+        """
+        # Dense retrieval
+        dense_results = self.vector_store.search(query_embedding, k=k*2)
+        dense_scores = {doc.doc_id: 1.0 / (i + 1) for i, doc in enumerate(dense_results)}
+
+        # Sparse retrieval (BM25)
+        if self.bm25_index:
+            sparse_scores = {doc.doc_id: np.random.rand() for doc in dense_results}
+        else:
+            sparse_scores = {doc.doc_id: 0.0 for doc in dense_results}
+
+        # Combine scores
+        combined_scores = {}
+        all_doc_ids = set(dense_scores.keys()) | set(sparse_scores.keys())
+
+        for doc_id in all_doc_ids:
+            dense_score = dense_scores.get(doc_id, 0.0)
+            sparse_score = sparse_scores.get(doc_id, 0.0)
+            combined_scores[doc_id] = self.alpha * dense_score + (1 - self.alpha) * sparse_score
+
+        # Sort by combined score
+        sorted_ids = sorted(combined_scores.keys(), key=lambda x: combined_scores[x], reverse=True)
+
+        # Return top-k documents
+        id_to_doc = {doc.doc_id: doc for doc in dense_results}
+        return [id_to_doc[doc_id] for doc_id in sorted_ids[:k] if doc_id in id_to_doc]
+
+# Usage example
+store = VectorStore(embedding_dim=768)
+docs = [Document(doc_id=str(i), text=f"Doc {i}",
+                 embedding=np.random.rand(768)) for i in range(50)]
+store.add_documents(docs)
+
+hybrid = HybridSearch(vector_store=store, alpha=0.7)
+results = hybrid.search("sample query", np.random.rand(768), k=5)
+print(f"Hybrid search returned {len(results)} documents")
 ```
 
 :::{.callout-tip}
@@ -263,8 +465,60 @@ Real-world knowledge bases contain contradictions: different sources disagree, i
    - Doc 1: "Supports Python" vs Doc 2: "Supports Python, Java, Go"
    - Solution: Prefer more complete information
 
-```python
-{{< include /code_examples/ch19_rag_at_scale/from_2.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Query Routing"
+from typing import Optional
+import numpy as np
+
+
+class QueryRouter:
+    """Route queries to appropriate retrieval strategy."""
+    def __init__(self, strategies: Dict[str, any]):
+        self.strategies = strategies
+
+    def route_query(self, query: str, query_embedding: np.ndarray) -> str:
+        """Determine which retrieval strategy to use.
+
+        Routes based on query type:
+        - Factual queries -> Dense retrieval
+        - Keyword queries -> Sparse retrieval (BM25)
+        - Complex queries -> Hybrid retrieval
+        """
+        query_lower = query.lower()
+
+        if any(word in query_lower for word in ['what', 'when', 'where', 'who']):
+            return 'dense'
+        elif len(query.split()) <= 3:
+            return 'sparse'
+        else:
+            return 'hybrid'
+
+    def retrieve(self, query: str, query_embedding: np.ndarray, k: int = 5) -> List[Document]:
+        """Route and retrieve documents."""
+        strategy_name = self.route_query(query, query_embedding)
+        strategy = self.strategies.get(strategy_name)
+
+        if strategy:
+            return strategy.search(query, query_embedding, k=k)
+        else:
+            return list(self.strategies.values())[0].search(query, query_embedding, k=k)
+
+# Usage example
+store = VectorStore(embedding_dim=768)
+docs = [Document(doc_id=str(i), text=f"Doc {i}",
+                 embedding=np.random.rand(768)) for i in range(50)]
+store.add_documents(docs)
+
+strategies = {
+    'dense': store,
+    'hybrid': HybridSearch(vector_store=store, alpha=0.7)
+}
+
+router = QueryRouter(strategies=strategies)
+results = router.retrieve("What is machine learning?", np.random.rand(768), k=5)
+print(f"Query routed and retrieved {len(results)} documents")
 ```
 
 :::{.callout-tip}

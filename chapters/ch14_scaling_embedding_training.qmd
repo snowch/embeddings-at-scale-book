@@ -15,8 +15,55 @@ Distributed training parallelizes model training across multiple devices, reduci
 
 Modern distributed training employs multiple parallelism strategies simultaneously:
 
-```python
-{{< include /code_examples/ch14_scaling_embedding_training/distributedembeddingtable.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Distributed Embedding Table"
+import torch
+import torch.distributed as dist
+import torch.nn as nn
+
+
+class DistributedEmbeddingTable(nn.Module):
+    """Model-parallel embedding table for large vocabularies split across GPUs."""
+
+    def __init__(self, total_vocab_size, embedding_dim, world_size, rank):
+        super().__init__()
+        self.total_vocab_size = total_vocab_size
+        self.embedding_dim = embedding_dim
+        self.world_size = world_size
+        self.rank = rank
+
+        # Each GPU holds a slice of vocabulary
+        self.vocab_per_gpu = total_vocab_size // world_size
+        self.vocab_start = rank * self.vocab_per_gpu
+        self.vocab_end = (rank + 1) * self.vocab_per_gpu
+
+        # Local embedding table (subset of vocabulary)
+        self.embeddings = nn.Embedding(self.vocab_per_gpu, embedding_dim)
+        print(f"Rank {rank}: Vocabulary [{self.vocab_start}, {self.vocab_end})")
+
+    def forward(self, input_ids):
+        """Lookup embeddings across distributed vocabulary."""
+        batch_size, seq_len = input_ids.shape
+        output = torch.zeros(batch_size, seq_len, self.embedding_dim, device=input_ids.device)
+
+        # Mask for tokens this GPU is responsible for
+        local_mask = (input_ids >= self.vocab_start) & (input_ids < self.vocab_end)
+
+        if local_mask.any():
+            local_ids = input_ids[local_mask] - self.vocab_start
+            local_embeddings = self.embeddings(local_ids)
+            output[local_mask] = local_embeddings
+
+        # All-reduce: Sum embeddings from all GPUs
+        dist.all_reduce(output, op=dist.ReduceOp.SUM)
+        return output
+
+
+# Usage example (conceptual - requires distributed setup)
+# model = DistributedEmbeddingTable(total_vocab_size=100000, embedding_dim=512, world_size=8, rank=0)
+print("Distributed embedding table for model-parallel training")
 ```bash
     torchrun --nproc_per_node=8 train.py
     ```
@@ -134,16 +181,98 @@ Memory is the primary constraint in deep learning training. A single NVIDIA A100
 
 Contrastive learning benefits from large batch sizes—more negatives improve representation quality. But memory limits batch size. Gradient accumulation solves this:
 
-```python
-{{< include /code_examples/ch14_scaling_embedding_training/gradientaccumulationtrainer.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Gradient Accumulation Trainer"
+import torch
+import torch.nn as nn
+
+
+class GradientAccumulationTrainer:
+    """Enable large effective batch sizes through gradient accumulation."""
+
+    def __init__(self, model, accumulation_steps=4):
+        self.model = model
+        self.accumulation_steps = accumulation_steps
+
+    def train_step(self, dataloader, optimizer, device="cuda"):
+        """Training step with gradient accumulation."""
+        self.model.train()
+        optimizer.zero_grad()
+        total_loss = 0.0
+
+        for i, batch in enumerate(dataloader):
+            if i >= self.accumulation_steps:
+                break
+
+            anchor_ids = batch["anchor_ids"].to(device)
+            positive_ids = batch["positive_ids"].to(device)
+
+            loss = self.model(anchor_ids, positive_ids)
+            loss = loss / self.accumulation_steps  # Scale loss
+            loss.backward()  # Accumulate gradients
+            total_loss += loss.item()
+
+        torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+        optimizer.step()
+        optimizer.zero_grad()
+
+        return total_loss
+
+
+# Usage example
+# model = EmbeddingModel()
+# trainer = GradientAccumulationTrainer(model, accumulation_steps=32)
+print("Gradient accumulation enables 32K+ effective batch sizes")
 ```
 
 ### Mixed Precision Training
 
 Modern GPUs (Volta, Turing, Ampere architectures) have specialized Tensor Cores that accelerate FP16 matrix multiplications by 2-8×. **Mixed precision** uses FP16 for computation while maintaining FP32 for numerical stability:
 
-```python
-{{< include /code_examples/ch14_scaling_embedding_training/mixedprecisiontrainer.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Mixed Precision Trainer"
+import torch
+import torch.nn as nn
+from torch.cuda.amp import GradScaler, autocast
+
+
+class MixedPrecisionTrainer:
+    """Automatic mixed precision (AMP) training for 2-3x speedup."""
+
+    def __init__(self, model, device="cuda"):
+        self.model = model.to(device)
+        self.device = device
+        self.scaler = GradScaler()
+
+    def train_step(self, batch, optimizer):
+        """Training step with automatic mixed precision."""
+        self.model.train()
+        anchor_ids = batch["anchor_ids"].to(self.device)
+        positive_ids = batch["positive_ids"].to(self.device)
+
+        optimizer.zero_grad()
+
+        # Forward pass in FP16
+        with autocast():
+            loss = self.model(anchor_ids, positive_ids)
+
+        # Backward with gradient scaling
+        self.scaler.scale(loss).backward()
+        self.scaler.unscale_(optimizer)
+        torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+        self.scaler.step(optimizer)
+        self.scaler.update()
+
+        return loss.item()
+
+
+# Usage example
+# trainer = MixedPrecisionTrainer(model)
+print("Mixed precision training: 2-3x speedup on modern GPUs")
 ```
 
 :::{.callout-tip}
@@ -195,16 +324,80 @@ Beyond mixed precision and gradient accumulation, several techniques reduce memo
 
 Trade computation for memory by recomputing activations during backward pass instead of storing them:
 
-```python
-{{< include /code_examples/ch14_scaling_embedding_training/checkpointedtransformerlayer.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Gradient Checkpointing"
+import torch
+import torch.nn as nn
+from torch.utils.checkpoint import checkpoint
+
+
+class CheckpointedTransformerLayer(nn.Module):
+    """Transformer layer with gradient checkpointing for memory efficiency."""
+
+    def __init__(self, hidden_dim, num_heads):
+        super().__init__()
+        self.attention = nn.MultiheadAttention(hidden_dim, num_heads)
+        self.ffn = nn.Sequential(nn.Linear(hidden_dim, hidden_dim * 4), nn.ReLU(), nn.Linear(hidden_dim * 4, hidden_dim))
+        self.norm1 = nn.LayerNorm(hidden_dim)
+        self.norm2 = nn.LayerNorm(hidden_dim)
+
+    def forward(self, x):
+        """Forward with gradient checkpointing to save memory."""
+        def attention_forward(x):
+            attn_out, _ = self.attention(x, x, x)
+            return self.norm1(x + attn_out)
+
+        x = checkpoint(attention_forward, x)
+
+        def ffn_forward(x):
+            return self.norm2(x + self.ffn(x))
+
+        x = checkpoint(ffn_forward, x)
+        return x
+
+
+# Usage example
+# layer = CheckpointedTransformerLayer(hidden_dim=512, num_heads=8)
+print("Gradient checkpointing: 10-50x memory reduction")
 ```
 
 ### Optimizer State Optimization
 
 Adam optimizer stores momentum and variance for each parameter, tripling memory usage. Optimizations:
 
-```python
-{{< include /code_examples/ch14_scaling_embedding_training/memoryefficientoptimizer.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Memory-Efficient Optimizer"
+import torch
+import torch.optim as optim
+
+
+class MemoryEfficientOptimizer:
+    """Optimize memory usage for large models using efficient optimizers."""
+
+    @staticmethod
+    def get_optimizer(parameters, optimizer_type="adamw", lr=0.001):
+        """Get memory-efficient optimizer."""
+        if optimizer_type == "adamw":
+            return optim.AdamW(parameters, lr=lr, fused=True)
+        elif optimizer_type == "sgd":
+            return optim.SGD(parameters, lr=lr, momentum=0.9, nesterov=True)
+        elif optimizer_type == "8bit_adam":
+            try:
+                import bitsandbytes as bnb
+                return bnb.optim.Adam8bit(parameters, lr=lr)
+            except ImportError:
+                print("bitsandbytes not installed, using AdamW")
+                return optim.AdamW(parameters, lr=lr)
+
+
+# Usage example
+# params = model.parameters()
+# optimizer = MemoryEfficientOptimizer.get_optimizer(params, "8bit_adam")
+print("8-bit optimizers: 4x memory reduction vs standard Adam")
 ```
 
 :::{.callout-tip}
@@ -235,16 +428,81 @@ Scaling beyond single GPU requires coordination across devices. This section cov
 
 Single-node multi-GPU is the most common setup (8× A100 or V100 GPUs on one machine):
 
-```python
-{{< include /code_examples/ch14_scaling_embedding_training/embeddingdataset.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Distributed Data Loading"
+import torch
+from torch.utils.data import Dataset, DataLoader, DistributedSampler
+
+
+class EmbeddingDataset(Dataset):
+    """Dataset for efficient distributed embedding training."""
+
+    def __init__(self, data_path, sequence_length=512):
+        self.data_path = data_path
+        self.sequence_length = sequence_length
+        self.data = []  # Load from data_path in practice
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        return {"anchor_ids": torch.randint(0, 50000, (self.sequence_length,)),
+                "positive_ids": torch.randint(0, 50000, (self.sequence_length,))}
+
+
+def setup_distributed_dataloaders(dataset, batch_size, world_size, rank):
+    """Create distributed dataloaders with proper sharding."""
+    sampler = DistributedSampler(dataset, num_replicas=world_size, rank=rank, shuffle=True)
+
+    dataloader = DataLoader(dataset, batch_size=batch_size, sampler=sampler,
+                            num_workers=4, pin_memory=True, prefetch_factor=2)
+    return dataloader
+
+
+# Usage example
+# dataset = EmbeddingDataset("data.parquet")
+# loader = setup_distributed_dataloaders(dataset, batch_size=256, world_size=8, rank=0)
+print("Distributed dataloaders ensure each GPU sees unique data")
 ```
 
 ### Multi-Node Training
 
 Multi-node training scales to hundreds of GPUs across dozens of machines:
 
-```python
-{{< include /code_examples/ch14_scaling_embedding_training/setup_multi_node.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Multi-Node Training Setup"
+import os
+import torch
+import torch.distributed as dist
+
+
+def setup_multi_node():
+    """Initialize multi-node distributed training environment."""
+    rank = int(os.environ.get('RANK', 0))
+    world_size = int(os.environ.get('WORLD_SIZE', 1))
+    local_rank = int(os.environ.get('LOCAL_RANK', 0))
+    master_addr = os.environ.get('MASTER_ADDR', 'localhost')
+    master_port = os.environ.get('MASTER_PORT', '12355')
+
+    os.environ['MASTER_ADDR'] = master_addr
+    os.environ['MASTER_PORT'] = master_port
+
+    print(f"Initializing process group: rank={rank}, world_size={world_size}, local_rank={local_rank}")
+
+    dist.init_process_group(backend='nccl', init_method='env://', world_size=world_size, rank=rank)
+
+    torch.cuda.set_device(local_rank)
+    return rank, world_size, local_rank
+
+
+# Usage example - run with torchrun:
+# torchrun --nproc_per_node=8 --nnodes=4 --node_rank=$NODE_RANK train.py
+# rank, world_size, local_rank = setup_multi_node()
+print("Multi-node setup: coordinate training across multiple machines")
 ```bash
     sbatch --nodes=4 --gres=gpu:8 train_multi_node.sh
     ```
@@ -332,16 +590,112 @@ Large-scale training is expensive. A 100-GPU training run can cost $10K-$100K. T
 
 ### Cloud Cost Optimization
 
-```python
-{{< include /code_examples/ch14_scaling_embedding_training/from.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Cloud Cost Optimization"
+import time
+from datetime import datetime
+
+
+class CloudCostOptimizer:
+    """Optimize training costs through instance selection and resource management."""
+
+    def __init__(self, budget_per_hour=100.0):
+        self.budget_per_hour = budget_per_hour
+        self.instance_costs = {
+            "p3.2xlarge": 3.06,    # V100
+            "p4d.24xlarge": 32.77,  # A100
+            "g5.xlarge": 1.006      # T4
+        }
+
+    def select_instance_config(self, target_gpus, prefer_cost=True):
+        """Select optimal instance configuration based on budget and requirements."""
+        configs = []
+
+        for instance_type, hourly_cost in self.instance_costs.items():
+            gpus_per_instance = {"p3.2xlarge": 1, "p4d.24xlarge": 8, "g5.xlarge": 1}[instance_type]
+
+            num_instances = (target_gpus + gpus_per_instance - 1) // gpus_per_instance
+            total_cost = num_instances * hourly_cost
+
+            if total_cost <= self.budget_per_hour:
+                configs.append({"instance_type": instance_type, "num_instances": num_instances,
+                                "total_gpus": num_instances * gpus_per_instance, "hourly_cost": total_cost})
+
+        if prefer_cost:
+            configs.sort(key=lambda x: x["hourly_cost"])
+        else:
+            configs.sort(key=lambda x: -x["total_gpus"])
+
+        return configs[0] if configs else None
+
+
+# Usage example
+optimizer = CloudCostOptimizer(budget_per_hour=50.0)
+config = optimizer.select_instance_config(target_gpus=8, prefer_cost=True)
+print(f"Optimal config: {config}")
 ```
 
 ### Spot Instance Training
 
 Spot instances offer 50-90% discounts but can be preempted. Strategies for resilient training:
 
-```python
-{{< include /code_examples/ch14_scaling_embedding_training/spotinstancetrainer.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Spot Instance Training"
+import time
+import torch
+
+
+class SpotInstanceTrainer:
+    """Training with spot instance resilience via frequent checkpointing."""
+
+    def __init__(self, model, checkpoint_interval=300):
+        self.model = model
+        self.checkpoint_interval = checkpoint_interval
+        self.last_checkpoint = time.time()
+
+    def train(self, dataloader, optimizer, epochs=10):
+        """Train with automatic checkpointing for spot instance resilience."""
+        for epoch in range(epochs):
+            for batch_idx, batch in enumerate(dataloader):
+                try:
+                    loss = self.model(batch)
+                    loss.backward()
+                    optimizer.step()
+                    optimizer.zero_grad()
+
+                    # Checkpoint every N seconds
+                    if time.time() - self.last_checkpoint > self.checkpoint_interval:
+                        self.save_checkpoint(epoch, batch_idx)
+                        self.last_checkpoint = time.time()
+
+                except RuntimeError as e:
+                    if "preempted" in str(e).lower():
+                        print("Spot instance preempted! Checkpoint saved.")
+                        self.save_checkpoint(epoch, batch_idx)
+                        raise
+                    else:
+                        raise
+
+    def save_checkpoint(self, epoch, batch_idx):
+        """Save checkpoint for recovery."""
+        checkpoint = {"epoch": epoch, "batch_idx": batch_idx, "model_state": self.model.state_dict()}
+        torch.save(checkpoint, f"checkpoint_epoch{epoch}_batch{batch_idx}.pt")
+        print(f"Checkpoint saved: epoch {epoch}, batch {batch_idx}")
+
+    def load_checkpoint(self, checkpoint_path):
+        """Resume from checkpoint."""
+        checkpoint = torch.load(checkpoint_path)
+        self.model.load_state_dict(checkpoint["model_state"])
+        return checkpoint["epoch"], checkpoint["batch_idx"]
+
+
+# Usage example
+# trainer = SpotInstanceTrainer(model, checkpoint_interval=300)
+print("Spot instance training: 50-90% cost savings with checkpointing")
 ```
 
 :::{.callout-tip}

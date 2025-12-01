@@ -73,7 +73,7 @@ config = QueryConfig(k=10, ef_search=100)
 retriever = MultiStageRetriever(config)
 query = torch.randn(1, 768)
 candidates = torch.randn(1000, 768)
-coarse_idx = retriever.coarse_search(query, candidates.unsqueeze(0))
+coarse_idx = retriever.coarse_search(query, candidates)
 print(f"Coarse candidates: {coarse_idx.shape}")
 ```
 

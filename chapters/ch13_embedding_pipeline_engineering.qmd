@@ -15,8 +15,56 @@ Embedding systems have unique MLOps requirements that distinguish them from trad
 
 A production embedding system comprises multiple interconnected components:
 
-```python
-{{< include /code_examples/ch13_embedding_pipeline_engineering/from.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Model Registry Implementation"
+import json
+from datetime import datetime
+from pathlib import Path
+import torch
+
+
+class EmbeddingModelRegistry:
+    """Registry for versioned embedding models with metadata tracking."""
+
+    def __init__(self, registry_path="./models"):
+        self.registry_path = Path(registry_path)
+        self.registry_path.mkdir(exist_ok=True)
+        self.models = {}
+
+    def register_model(self, model_id, model, metadata):
+        """Register a new embedding model version."""
+        model_path = self.registry_path / f"{model_id}.pt"
+        metadata_path = self.registry_path / f"{model_id}.json"
+
+        torch.save(model.state_dict(), model_path)
+
+        metadata["registered_at"] = datetime.now().isoformat()
+        metadata["model_path"] = str(model_path)
+        with open(metadata_path, 'w') as f:
+            json.dump(metadata, f, indent=2)
+
+        self.models[model_id] = metadata
+        print(f"Registered model: {model_id}")
+
+    def load_model(self, model_id, device="cpu"):
+        """Load model from registry."""
+        model_path = self.registry_path / f"{model_id}.pt"
+        metadata_path = self.registry_path / f"{model_id}.json"
+
+        with open(metadata_path, 'r') as f:
+            metadata = json.load(f)
+
+        return torch.load(model_path, map_location=device), metadata
+
+
+# Usage example
+registry = EmbeddingModelRegistry()
+model = torch.nn.Embedding(1000, 128)
+metadata = {"version": "1.0.0", "embedding_dim": 128, "description": "Production model"}
+registry.register_model("product-embeddings-v1.0.0", model, metadata)
+print("Model registry initialized")
 ```
 
 :::{.callout-tip}
@@ -46,8 +94,69 @@ One of the most critical architectural decisions for embedding systems is **when
 - **Disadvantages**: High latency (10-100ms), expensive (online GPU inference), variable load patterns, harder to monitor quality
 - **Best for**: User queries, personalized feeds, dynamic content, real-time sessions
 
-```python
-{{< include /code_examples/ch13_embedding_pipeline_engineering/hybridembeddingsystem.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Hybrid Embedding System"
+import torch
+from datetime import datetime, timedelta
+
+
+class HybridEmbeddingSystem:
+    """Hybrid system combining batch and real-time embedding generation."""
+
+    def __init__(self, model, cache_size=100000):
+        self.model = model
+        self.model.eval()
+        self.batch_embeddings = {}
+        self.batch_timestamps = {}
+        self.cache = {}
+        self.cache_hits = 0
+        self.cache_misses = 0
+
+    def get_embedding(self, entity_id, entity_type, features=None, max_staleness=None):
+        """Get embedding using appropriate strategy (batch or real-time)."""
+        if entity_type in ["query", "session"]:
+            return self._generate_realtime(entity_id, features)
+        elif entity_type in ["product", "document"]:
+            batch_emb = self._lookup_batch(entity_id, max_staleness)
+            return batch_emb if batch_emb is not None else self._generate_realtime(entity_id, features)
+        else:
+            raise ValueError(f"Unknown entity type: {entity_type}")
+
+    def _lookup_batch(self, entity_id, max_staleness):
+        """Lookup pre-computed batch embedding."""
+        if entity_id not in self.batch_embeddings:
+            return None
+        if max_staleness and (datetime.now() - self.batch_timestamps[entity_id]) > max_staleness:
+            return None
+        return self.batch_embeddings[entity_id]
+
+    def _generate_realtime(self, entity_id, features):
+        """Generate embedding in real-time with caching."""
+        if entity_id in self.cache:
+            self.cache_hits += 1
+            return self.cache[entity_id]
+
+        self.cache_misses += 1
+        with torch.no_grad():
+            embedding = self.model(features).cpu().numpy()
+        self.cache[entity_id] = embedding
+        return embedding
+
+    def batch_update(self, entity_ids, embeddings):
+        """Update batch embeddings from offline processing."""
+        timestamp = datetime.now()
+        for eid, emb in zip(entity_ids, embeddings):
+            self.batch_embeddings[eid] = emb
+            self.batch_timestamps[eid] = timestamp
+
+
+# Usage example
+model = torch.nn.Sequential(torch.nn.Linear(100, 128))
+hybrid = HybridEmbeddingSystem(model)
+emb = hybrid.get_embedding("product_123", "product", max_staleness=timedelta(days=1))
+print(f"Cache hit rate: {hybrid.cache_hits / (hybrid.cache_hits + hybrid.cache_misses) if hybrid.cache_misses > 0 else 0:.2%}")
 ```
 
 :::{.callout-tip}
@@ -96,8 +205,65 @@ When you deploy a new embedding model:
 
 The core challenge: **How do you deploy a new embedding model without downtime or inconsistency?**
 
-```python
-{{< include /code_examples/ch13_embedding_pipeline_engineering/deploymentstrategy.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Deployment Strategy Implementation"
+from enum import Enum
+import torch
+
+
+class DeploymentStrategy(Enum):
+    """Deployment strategies for new embedding models."""
+    BLUE_GREEN = "blue_green"
+    INCREMENTAL = "incremental"
+    SHADOW = "shadow"
+    CANARY = "canary"
+
+
+class EmbeddingVersionCoordinator:
+    """Coordinate embedding model versions across pipeline stages."""
+
+    def __init__(self, model_registry):
+        self.model_registry = model_registry
+        self.active_versions = {}
+        self.version_to_index = {}
+        self.traffic_routing = {}
+
+    def deploy_new_version(self, new_model_id, strategy, corpus_iterator=None):
+        """Deploy new embedding model version using specified strategy."""
+        print(f"Deploying {new_model_id} using {strategy.value} strategy...")
+
+        if strategy == DeploymentStrategy.BLUE_GREEN:
+            self._deploy_blue_green(new_model_id, corpus_iterator)
+        elif strategy == DeploymentStrategy.CANARY:
+            self._deploy_canary(new_model_id)
+
+    def _deploy_blue_green(self, new_model_id, corpus_iterator):
+        """Blue-green deployment: build complete new index, then switch."""
+        print("Building GREEN index (new version)...")
+        green_index = f"embeddings_{new_model_id.replace('.', '_')}"
+        # Re-embed entire corpus into GREEN...
+        print("Switching traffic from BLUE → GREEN...")
+        self.version_to_index[new_model_id] = green_index
+        self.traffic_routing[new_model_id] = 1.0
+
+    def _deploy_canary(self, new_model_id):
+        """Canary deployment: route small % of traffic to new model."""
+        self.traffic_routing[new_model_id] = 0.01  # 1% traffic
+        print(f"Canary deployment: {new_model_id} receiving 1% traffic")
+
+    def rollback(self, target_model_id):
+        """Rollback to previous model version."""
+        print(f"Rolling back to {target_model_id}...")
+        self.traffic_routing = {target_model_id: 1.0}
+
+
+# Usage example
+registry = EmbeddingModelRegistry()
+coordinator = EmbeddingVersionCoordinator(registry)
+coordinator.deploy_new_version("v2.0.0", DeploymentStrategy.CANARY)
+print("Version coordinator manages safe deployments")
 ```
 
 :::{.callout-tip}
@@ -131,8 +297,84 @@ Unlike testing UI changes or ranking algorithms, embedding A/B tests require:
 3. **Longer ramp-up**: New embeddings need time to "stabilize" in caches
 4. **Interaction effects**: Embeddings affect multiple surfaces (search, recommendations, related items)
 
-```python
-{{< include /code_examples/ch13_embedding_pipeline_engineering/from_1.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show A/B Testing Framework"
+import hashlib
+from datetime import datetime
+import numpy as np
+
+
+class EmbeddingExperimentFramework:
+    """Framework for A/B testing embedding models."""
+
+    def __init__(self):
+        self.active_experiments = {}
+        self.user_assignments = {}
+        self.metrics = {}
+
+    def create_experiment(self, experiment_id, control_model, treatment_model, traffic_allocation=0.05):
+        """Create new A/B test experiment."""
+        self.active_experiments[experiment_id] = {
+            "control": control_model,
+            "treatment": treatment_model,
+            "allocation": traffic_allocation,
+            "start_time": datetime.now()
+        }
+        self.metrics[experiment_id] = []
+        print(f"Created experiment: {experiment_id} with {traffic_allocation:.1%} treatment traffic")
+
+    def assign_user(self, user_id, experiment_id):
+        """Assign user to control or treatment (deterministic hash-based)."""
+        if user_id in self.user_assignments and experiment_id in self.user_assignments[user_id]:
+            return self.user_assignments[user_id][experiment_id]
+
+        hash_input = f"{user_id}:{experiment_id}".encode()
+        hash_value = int(hashlib.md5(hash_input).hexdigest()[:8], 16) / (2**32)
+
+        exp = self.active_experiments[experiment_id]
+        variant = "treatment" if hash_value < exp["allocation"] else "control"
+
+        if user_id not in self.user_assignments:
+            self.user_assignments[user_id] = {}
+        self.user_assignments[user_id][experiment_id] = variant
+        return variant
+
+    def log_metric(self, experiment_id, user_id, metric_name, metric_value):
+        """Log metric event for analysis."""
+        variant = self.user_assignments.get(user_id, {}).get(experiment_id)
+        if not variant:
+            variant = self.assign_user(user_id, experiment_id)
+
+        self.metrics[experiment_id].append({
+            "user_id": user_id,
+            "variant": variant,
+            "metric": metric_name,
+            "value": metric_value,
+            "timestamp": datetime.now()
+        })
+
+    def analyze_experiment(self, experiment_id):
+        """Analyze experiment results."""
+        events = self.metrics[experiment_id]
+        control = [e for e in events if e["variant"] == "control"]
+        treatment = [e for e in events if e["variant"] == "treatment"]
+
+        control_mean = np.mean([e["value"] for e in control]) if control else 0
+        treatment_mean = np.mean([e["value"] for e in treatment]) if treatment else 0
+        lift = (treatment_mean - control_mean) / control_mean if control_mean > 0 else 0
+
+        return {"control_mean": control_mean, "treatment_mean": treatment_mean, "lift": lift}
+
+
+# Usage example
+framework = EmbeddingExperimentFramework()
+framework.create_experiment("emb_v2_test", "v1.0.0", "v2.0.0", traffic_allocation=0.05)
+variant = framework.assign_user("user_123", "emb_v2_test")
+framework.log_metric("emb_v2_test", "user_123", "click_through_rate", 0.15)
+results = framework.analyze_experiment("emb_v2_test")
+print(f"Experiment results: {results}")
 ```
 
 :::{.callout-tip}
@@ -163,8 +405,93 @@ Embedding quality degrades over time even without model changes. Data distributi
 4. **Model staleness**: Fixed model doesn't adapt to new patterns
 5. **Infrastructure changes**: Index configuration, hardware, network latency
 
-```python
-{{< include /code_examples/ch13_embedding_pipeline_engineering/import.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Embedding Monitoring System"
+from datetime import datetime
+import numpy as np
+import torch
+
+
+class EmbeddingMonitoringSystem:
+    """Continuous monitoring system for embedding quality and drift detection."""
+
+    def __init__(self, model, test_dataset, alert_thresholds=None):
+        self.model = model
+        self.test_dataset = test_dataset
+        self.alert_thresholds = alert_thresholds or {
+            "recall_drop": 0.05,
+            "latency_increase": 0.20,
+            "norm_change": 0.15
+        }
+        self.baseline_metrics = None
+        self.historical_metrics = []
+
+    def evaluate_current_quality(self, sample_size=10000):
+        """Evaluate current embedding quality."""
+        self.model.eval()
+
+        # Intrinsic metrics
+        with torch.no_grad():
+            sample_embeddings = self.model(torch.randn(sample_size, 100))
+        norms = torch.norm(sample_embeddings, dim=1)
+        avg_norm = norms.mean().item()
+
+        # Extrinsic metrics (simplified)
+        recall_at_10 = 0.89  # Placeholder for real evaluation
+
+        metrics = {
+            "timestamp": datetime.now(),
+            "avg_norm": avg_norm,
+            "recall_at_10": recall_at_10
+        }
+
+        return metrics
+
+    def detect_drift(self, current_metrics):
+        """Detect drift in embedding quality."""
+        if self.baseline_metrics is None:
+            self.baseline_metrics = current_metrics
+            print("Baseline metrics established")
+            return {}
+
+        alerts = {}
+
+        # Check recall drift
+        recall_drop = (self.baseline_metrics["recall_at_10"] - current_metrics["recall_at_10"]) / self.baseline_metrics["recall_at_10"]
+        if recall_drop > self.alert_thresholds["recall_drop"]:
+            alerts["recall_degradation"] = True
+            print(f"ALERT: Recall dropped {recall_drop:.1%} from baseline")
+
+        # Check norm drift
+        norm_change = abs(current_metrics["avg_norm"] - self.baseline_metrics["avg_norm"]) / self.baseline_metrics["avg_norm"]
+        if norm_change > self.alert_thresholds["norm_change"]:
+            alerts["distribution_shift"] = True
+            print(f"ALERT: Embedding norm changed {norm_change:.1%}")
+
+        if not alerts:
+            print("No drift detected - quality stable")
+
+        return alerts
+
+    def should_retrain(self, alerts, days_since_training):
+        """Decide whether to trigger model retraining."""
+        critical_alerts = ["recall_degradation", "distribution_shift"]
+        if any(alerts.get(alert) for alert in critical_alerts):
+            return True, "quality_degradation"
+        if days_since_training > 30:
+            return True, "model_staleness"
+        return False, ""
+
+
+# Usage example
+model = torch.nn.Sequential(torch.nn.Linear(100, 128))
+monitor = EmbeddingMonitoringSystem(model, test_dataset=None)
+metrics = monitor.evaluate_current_quality(sample_size=1000)
+alerts = monitor.detect_drift(metrics)
+should_retrain, reason = monitor.should_retrain(alerts, days_since_training=15)
+print(f"Monitoring: {len(alerts)} alerts, Retrain needed: {should_retrain}")
 ```
 
 :::{.callout-tip}
