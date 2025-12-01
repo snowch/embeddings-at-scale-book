@@ -21,8 +21,53 @@ Traditional collaborative filtering approaches have limitations:
 
 **Embedding-based approach**: Learn user embeddings **u** ∈ ℝᵈ and item embeddings **i** ∈ ℝᵈ such that relevance score = **u** · **i** (dot product). High score = likely interaction.
 
-```python
-{{< include /code_examples/ch21_recommendation_systems/from.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Collaborative Filtering Model"
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+
+class TwoTowerRecommender(nn.Module):
+    """Two-tower collaborative filtering with user and item embeddings."""
+    def __init__(self, num_users: int, num_items: int, embedding_dim: int = 128):
+        super().__init__()
+        self.user_encoder = nn.Embedding(num_users, embedding_dim)
+        self.item_encoder = nn.Embedding(num_items, embedding_dim)
+
+        # Initialize
+        nn.init.xavier_uniform_(self.user_encoder.weight)
+        nn.init.xavier_uniform_(self.item_encoder.weight)
+
+    def forward(self, user_ids, item_ids):
+        """Predict relevance scores for user-item pairs."""
+        user_emb = F.normalize(self.user_encoder(user_ids), p=2, dim=1)
+        item_emb = F.normalize(self.item_encoder(item_ids), p=2, dim=1)
+
+        # Dot product scoring
+        scores = (user_emb * item_emb).sum(dim=1)
+        return scores
+
+    def recommend(self, user_id, all_item_ids, k=10):
+        """Recommend top-k items for user."""
+        user_emb = F.normalize(self.user_encoder(user_id.unsqueeze(0)), p=2, dim=1)
+        item_embs = F.normalize(self.item_encoder(all_item_ids), p=2, dim=1)
+
+        # Compute all scores
+        scores = torch.matmul(item_embs, user_emb.T).squeeze()
+
+        # Return top-k
+        top_scores, top_indices = torch.topk(scores, k)
+        return all_item_ids[top_indices], top_scores
+
+# Usage example
+model = TwoTowerRecommender(num_users=10000, num_items=5000, embedding_dim=128)
+user_id = torch.tensor(42)
+all_items = torch.arange(5000)
+recommended_items, scores = model.recommend(user_id, all_items, k=10)
+print(f"Recommended {len(recommended_items)} items for user {user_id.item()}")
 ```
 
 :::{.callout-tip}
@@ -87,8 +132,58 @@ Three cold start scenarios:
 - Content-based: Ignores collaborative signal
 - Popularity-based: Ignores user preferences
 
-```python
-{{< include /code_examples/ch21_recommendation_systems/class.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Cold Start Solution"
+import torch.nn as nn
+
+
+class ColdStartRecommender(nn.Module):
+    """Hybrid recommender for cold start using content and collaborative signals."""
+    def __init__(self, num_users: int, num_items: int, content_dim: int = 256,
+                 embedding_dim: int = 128):
+        super().__init__()
+
+        # Collaborative embeddings
+        self.user_embedding = nn.Embedding(num_users, embedding_dim)
+        self.item_embedding = nn.Embedding(num_items, embedding_dim)
+
+        # Content encoder for cold start
+        self.content_encoder = nn.Sequential(
+            nn.Linear(content_dim, 256),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(256, embedding_dim)
+        )
+
+    def forward(self, user_ids, item_ids, item_features=None, use_content=False):
+        """Score user-item pairs with optional content fallback."""
+        user_emb = self.user_embedding(user_ids)
+
+        # Use content encoder for cold start items
+        if use_content and item_features is not None:
+            item_emb = self.content_encoder(item_features)
+        else:
+            item_emb = self.item_embedding(item_ids)
+
+        # Normalize and score
+        user_emb = F.normalize(user_emb, p=2, dim=1)
+        item_emb = F.normalize(item_emb, p=2, dim=1)
+
+        scores = (user_emb * item_emb).sum(dim=1)
+        return scores
+
+# Usage example
+model = ColdStartRecommender(num_users=10000, num_items=5000, content_dim=256)
+
+# For new items without interactions, use content features
+import torch
+new_item_features = torch.randn(1, 256)
+user_id = torch.tensor([42])
+item_id = torch.tensor([0])
+score = model(user_id, item_id, new_item_features, use_content=True)
+print(f"Cold start score: {score.item():.3f}")
 ```
 
 :::{.callout-tip}
@@ -131,8 +226,66 @@ User preferences change:
 
 **Challenge**: Update user embeddings in real-time without expensive model retraining.
 
-```python
-{{< include /code_examples/ch21_recommendation_systems/from_1.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Real-Time Session Encoder"
+from typing import List
+import torch
+import torch.nn as nn
+
+
+class SessionRecommender(nn.Module):
+    """Real-time personalization using session history."""
+    def __init__(self, num_items: int, embedding_dim: int = 128, hidden_dim: int = 256):
+        super().__init__()
+        self.item_embedding = nn.Embedding(num_items, embedding_dim)
+
+        # Session encoder (LSTM)
+        self.session_encoder = nn.LSTM(
+            input_size=embedding_dim,
+            hidden_size=hidden_dim,
+            num_layers=2,
+            batch_first=True,
+            dropout=0.2
+        )
+
+        # Output projection
+        self.projection = nn.Linear(hidden_dim, embedding_dim)
+
+    def encode_session(self, session_item_ids: torch.Tensor):
+        """Encode user session to embedding."""
+        # Embed session items
+        item_embs = self.item_embedding(session_item_ids)
+
+        # LSTM encoding
+        _, (hidden, _) = self.session_encoder(item_embs)
+
+        # Project to item space
+        session_emb = self.projection(hidden[-1])
+        return F.normalize(session_emb, p=2, dim=1)
+
+    def recommend_next(self, session_item_ids: torch.Tensor, k: int = 10):
+        """Recommend next items based on session history."""
+        # Encode session
+        session_emb = self.encode_session(session_item_ids)
+
+        # Get all item embeddings
+        all_items = torch.arange(self.item_embedding.num_embeddings).to(session_item_ids.device)
+        item_embs = F.normalize(self.item_embedding(all_items), p=2, dim=1)
+
+        # Compute scores
+        scores = torch.matmul(item_embs, session_emb.T).squeeze()
+
+        # Return top-k
+        top_scores, top_indices = torch.topk(scores, k)
+        return all_items[top_indices], top_scores
+
+# Usage example
+model = SessionRecommender(num_items=5000, embedding_dim=128)
+session = torch.tensor([[10, 25, 42, 100]])  # User browsing history
+recommended_items, scores = model.recommend_next(session, k=5)
+print(f"Next item recommendations: {recommended_items.tolist()}")
 ```
 
 :::{.callout-tip}
@@ -175,8 +328,62 @@ Accuracy-optimized systems suffer from:
 
 **Goal**: Balance accuracy, diversity, and fairness.
 
-```python
-{{< include /code_examples/ch21_recommendation_systems/from_2.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Diversity-Aware Ranking"
+import torch
+import numpy as np
+
+
+class DiversityReranker:
+    """MMR-based reranking for diversity."""
+    def __init__(self, lambda_param: float = 0.3):
+        self.lambda_param = lambda_param  # Balance relevance vs diversity
+
+    def rerank(self, query_emb, candidate_embs, candidate_scores, k: int = 10):
+        """Rerank candidates using Maximal Marginal Relevance (MMR).
+
+        MMR selects items that are relevant to query but diverse from each other.
+        """
+        selected = []
+        selected_embs = []
+        remaining_indices = list(range(len(candidate_embs)))
+
+        for _ in range(min(k, len(candidate_embs))):
+            mmr_scores = []
+
+            for idx in remaining_indices:
+                # Relevance score
+                relevance = candidate_scores[idx]
+
+                # Diversity penalty (max similarity to selected items)
+                if selected_embs:
+                    similarities = [torch.dot(candidate_embs[idx], s)
+                                    for s in selected_embs]
+                    diversity_penalty = max(similarities)
+                else:
+                    diversity_penalty = 0.0
+
+                # MMR score
+                mmr = self.lambda_param * relevance - (1 - self.lambda_param) * diversity_penalty
+                mmr_scores.append((idx, mmr))
+
+            # Select item with highest MMR score
+            best_idx, best_score = max(mmr_scores, key=lambda x: x[1])
+            selected.append(best_idx)
+            selected_embs.append(candidate_embs[best_idx])
+            remaining_indices.remove(best_idx)
+
+        return selected
+
+# Usage example
+reranker = DiversityReranker(lambda_param=0.3)
+query = torch.randn(128)
+candidates = torch.randn(50, 128)
+scores = torch.rand(50)
+diverse_ranking = reranker.rerank(query, candidates, scores, k=10)
+print(f"Diverse top-10 ranking: {diverse_ranking}")
 ```
 
 :::{.callout-tip}
@@ -236,8 +443,72 @@ Challenges of multi-domain systems:
 
 **Opportunity**: Transfer learning from data-rich to data-sparse domains.
 
-```python
-{{< include /code_examples/ch21_recommendation_systems/crossdomainrecommender.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Cross-Domain Recommender"
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from typing import Dict
+
+
+class CrossDomainRecommender(nn.Module):
+    """Multi-domain recommender with shared user embeddings."""
+    def __init__(self, embedding_dim: int = 128, num_users: int = 1000000,
+                 num_items_per_domain: Dict[str, int] = None):
+        super().__init__()
+        self.embedding_dim = embedding_dim
+
+        # Shared user encoder across domains
+        self.user_encoder = nn.Embedding(num_users, embedding_dim)
+
+        # Domain-specific item encoders
+        self.item_encoders = nn.ModuleDict()
+        for domain, num_items in num_items_per_domain.items():
+            self.item_encoders[domain] = nn.Embedding(num_items, embedding_dim)
+
+        self.domains = list(num_items_per_domain.keys())
+
+    def forward(self, user_ids: torch.Tensor, item_ids: torch.Tensor, domain: str):
+        """Predict scores for user-item pairs in given domain."""
+        # Encode users (shared across domains)
+        user_emb = F.normalize(self.user_encoder(user_ids), p=2, dim=1)
+
+        # Encode items (domain-specific)
+        item_emb = F.normalize(self.item_encoders[domain](item_ids), p=2, dim=1)
+
+        # Dot product scoring
+        scores = (user_emb * item_emb).sum(dim=1)
+        return scores
+
+    def recommend_cross_domain(self, user_id: int, domain: str, k: int = 10):
+        """Recommend items from specific domain."""
+        user_tensor = torch.tensor([user_id])
+        user_emb = F.normalize(self.user_encoder(user_tensor), p=2, dim=1)
+
+        # Get all items in domain
+        num_items = self.item_encoders[domain].num_embeddings
+        all_items = torch.arange(num_items)
+        item_embs = F.normalize(self.item_encoders[domain](all_items), p=2, dim=1)
+
+        # Compute scores
+        scores = torch.matmul(item_embs, user_emb.T).squeeze()
+
+        # Top-k
+        top_scores, top_indices = torch.topk(scores, k)
+        return all_items[top_indices], top_scores
+
+# Usage example
+model = CrossDomainRecommender(
+    embedding_dim=64,
+    num_users=1000,
+    num_items_per_domain={'movies': 10000, 'books': 5000}
+)
+
+# Recommend books based on movie preferences (shared user embedding)
+recommended_books, scores = model.recommend_cross_domain(user_id=42, domain='books', k=5)
+print(f"Cross-domain recommendations (movies → books): {recommended_books.tolist()}")
 ```
 
 :::{.callout-tip}

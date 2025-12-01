@@ -148,8 +148,55 @@ Consider an e-commerce platform with 100M products that might need multi-modal (
 
 When fine-tuning is the right choice, follow this battle-tested recipe:
 
-```python
-{{< include /code_examples/ch08_custom_embedding_strategies/embeddingfinetuner.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show embedding fine-tuner implementation"
+from sentence_transformers import InputExample, SentenceTransformer, losses
+from torch.utils.data import DataLoader
+
+class EmbeddingFineTuner:
+    """Production-ready fine-tuning for sentence embeddings"""
+
+    def __init__(self, base_model_name="all-mpnet-base-v2"):
+        self.model = SentenceTransformer(base_model_name)
+        self.base_model_name = base_model_name
+
+    def prepare_training_data(self, examples):
+        """Prepare training data (query, positive, optional negative)"""
+        train_examples = []
+        for ex in examples:
+            if "negative" in ex:
+                train_examples.append(InputExample(texts=[ex["query"], ex["positive"], ex["negative"]]))
+            else:
+                train_examples.append(InputExample(texts=[ex["query"], ex["positive"]], label=1.0))
+        return DataLoader(train_examples, shuffle=True, batch_size=16)
+
+    def fine_tune(self, train_dataloader, num_epochs=3, loss_function="cosine", warmup_steps=100):
+        """Fine-tune with cosine, triplet, or contrastive loss"""
+        if loss_function == "cosine":
+            train_loss = losses.CosineSimilarityLoss(self.model)
+        elif loss_function == "triplet":
+            train_loss = losses.TripletLoss(model=self.model, triplet_margin=0.5)
+        elif loss_function == "contrastive":
+            train_loss = losses.ContrastiveLoss(self.model)
+
+        self.model.fit(
+            train_objectives=[(train_dataloader, train_loss)],
+            epochs=num_epochs, warmup_steps=warmup_steps,
+            optimizer_params={"lr": 2e-5}, show_progress_bar=True
+        )
+
+    def save_model(self, output_path):
+        self.model.save(output_path)
+
+# Usage example
+training_data = [
+    {"query": "comfortable running shoes", "positive": "Nike Air Zoom - cushioning for running",
+     "negative": "Nike Basketball Shoes - high-top for court"},
+]
+finetuner = EmbeddingFineTuner(base_model_name="all-mpnet-base-v2")
+print(f"Fine-tuner initialized with model: {finetuner.base_model_name}")
 ```
 
 :::{.callout-important}
@@ -477,8 +524,45 @@ class HierarchicalEmbeddings:
 
 Different domains require different training objectives:
 
-```python
-{{< include /code_examples/ch08_custom_embedding_strategies/domainspecificobjectives.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show domain-specific training objectives"
+import torch
+import torch.nn.functional as F
+
+class DomainSpecificObjectives:
+    """Domain-specific training objectives beyond standard contrastive learning"""
+
+    def ranking_loss(self, query_emb, doc_embs, relevance_labels):
+        """Ranking loss: Learn to order documents by relevance"""
+        scores = torch.matmul(query_emb, doc_embs.T)
+        loss = 0
+        for i in range(len(doc_embs)):
+            for j in range(i + 1, len(doc_embs)):
+                if relevance_labels[i] > relevance_labels[j]:
+                    loss += torch.clamp(1.0 - (scores[i] - scores[j]), min=0.0)
+        return loss / (len(doc_embs) * (len(doc_embs) - 1) / 2)
+
+    def attribute_preservation_loss(self, embedding, attributes):
+        """Ensure embeddings preserve important attributes (category, brand, price)"""
+        losses = []
+        for attr_name, attr_value in attributes.items():
+            attr_classifier = self.attribute_classifiers[attr_name]
+            pred = attr_classifier(embedding)
+            loss = F.cross_entropy(pred, attr_value)
+            losses.append(loss)
+        return sum(losses)
+
+    def diversity_loss(self, embeddings):
+        """Encourage embedding diversity (avoid collapse)"""
+        pairwise_sim = torch.matmul(embeddings, embeddings.T)
+        mask = ~torch.eye(len(embeddings), dtype=torch.bool)
+        return pairwise_sim[mask].mean()
+
+# Usage example
+objectives = DomainSpecificObjectives()
+print("Domain objectives: ranking, attribute preservation, diversity, cross-domain alignment")
 ```
 
 ## Multi-Objective Embedding Design
@@ -697,16 +781,117 @@ class MultiVectorEmbedding:
 
 Optimize primary objective subject to constraints:
 
-```python
-{{< include /code_examples/ch08_custom_embedding_strategies/constrainedembeddingobjective.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show constrained embedding objective"
+class ConstrainedEmbeddingObjective:
+    """Optimize embeddings with hard constraints"""
+
+    def __init__(self):
+        self.primary_objective = "relevance"
+        self.constraints = [
+            {"type": "diversity", "threshold": 0.3},   # Min 30% diversity
+            {"type": "freshness", "threshold": 0.5},   # Min 50% from last 30 days
+            {"type": "price_range", "threshold": 0.2}, # Min 20% price range coverage
+        ]
+
+    def search_with_constraints(self, query, k=20):
+        """Retrieve results satisfying constraints"""
+        candidates = self.retrieve_candidates(query, k=k * 10)  # 10x oversampling
+        return self.constrained_reranking(candidates, self.constraints, k)
+
+    def constrained_reranking(self, candidates, constraints, k):
+        """Rerank candidates to satisfy constraints while maximizing relevance"""
+        selected, remaining = [], candidates.copy()
+        while len(selected) < k and remaining:
+            best_candidate, best_score = None, -float("inf")
+            for candidate in remaining:
+                temp_selected = selected + [candidate]
+                if self.satisfies_constraints(temp_selected, constraints):
+                    if candidate["relevance_score"] > best_score:
+                        best_candidate, best_score = candidate, candidate["relevance_score"]
+            if best_candidate:
+                selected.append(best_candidate)
+                remaining.remove(best_candidate)
+            else:
+                break
+        return selected
+
+    def satisfies_constraints(self, selected, constraints):
+        """Check if selected results satisfy all constraints"""
+        for c in constraints:
+            if c["type"] == "diversity" and self.compute_diversity(selected) < c["threshold"]:
+                return False
+        return True
+
+# Usage example
+constrained = ConstrainedEmbeddingObjective()
+print(f"Constraints: {[c['type'] for c in constrained.constraints]}")
 ```
 
 ### Balancing Trade-offs: The Pareto Frontier
 
 Multi-objective optimization involves trade-offs. Visualize and navigate the Pareto frontier:
 
-```python
-{{< include /code_examples/ch08_custom_embedding_strategies/multiobjectiveoptimization.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show multi-objective optimization"
+class MultiObjectiveOptimization:
+    """Navigate trade-offs between multiple objectives"""
+
+    def compute_pareto_frontier(self, models, test_data):
+        """Compute Pareto frontier across objectives"""
+        evaluations = []
+        for model in models:
+            metrics = {
+                "model": model,
+                "relevance": self.evaluate_relevance(model, test_data),
+                "diversity": self.evaluate_diversity(model, test_data),
+                "personalization": self.evaluate_personalization(model, test_data),
+                "business_metrics": self.evaluate_business(model, test_data),
+            }
+            evaluations.append(metrics)
+
+        # Find Pareto-optimal models (not dominated by any other)
+        pareto_optimal = []
+        for eval_i in evaluations:
+            dominated = False
+            for eval_j in evaluations:
+                if eval_i != eval_j and self.dominates(eval_j, eval_i):
+                    dominated = True
+                    break
+            if not dominated:
+                pareto_optimal.append(eval_i)
+        return pareto_optimal
+
+    def dominates(self, eval_a, eval_b):
+        """Check if eval_a dominates eval_b (better on all objectives)"""
+        objectives = ["relevance", "diversity", "personalization", "business_metrics"]
+        better_on_at_least_one = False
+        for obj in objectives:
+            if eval_a[obj] < eval_b[obj]:
+                return False
+            if eval_a[obj] > eval_b[obj]:
+                better_on_at_least_one = True
+        return better_on_at_least_one
+
+    def select_operating_point(self, pareto_frontier, business_priorities):
+        """Select model from Pareto frontier based on business priorities"""
+        best_model, best_score = None, -float("inf")
+        for eval_point in pareto_frontier:
+            weighted_score = sum(
+                business_priorities.get(obj, 0) * eval_point[obj]
+                for obj in ["relevance", "diversity", "personalization", "business_metrics"]
+            )
+            if weighted_score > best_score:
+                best_score, best_model = weighted_score, eval_point["model"]
+        return best_model
+
+# Usage example
+optimizer = MultiObjectiveOptimization()
+print("Multi-objective: relevance, diversity, personalization, business metrics")
 ```
 
 ## Embedding Dimensionality Optimization
@@ -727,24 +912,151 @@ Embedding dimensionality has profound impacts on performance, cost, and latency.
 
 **Method 1: Empirical Evaluation**
 
-```python
-{{< include /code_examples/ch08_custom_embedding_strategies/dimensionalityexperiment.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show dimensionality experiment"
+import pandas as pd
+
+class DimensionalityExperiment:
+    """Systematically evaluate different embedding dimensions"""
+
+    def run_dimensionality_sweep(self, train_data, test_data, dimensions=None):
+        """Train models at different dimensions and evaluate"""
+        if dimensions is None:
+            dimensions = [128, 256, 384, 512, 768]
+        results = []
+
+        for dim in dimensions:
+            model = self.train_model(train_data, embedding_dim=dim)
+            metrics = self.evaluate_model(model, test_data)
+            storage_gb = self.estimate_storage(dim, num_embeddings=100_000_000)
+            latency_ms = self.measure_latency(model)
+
+            results.append({
+                "dimension": dim, "recall@10": metrics["recall@10"], "mrr": metrics["mrr"],
+                "storage_gb": storage_gb, "p99_latency_ms": latency_ms,
+            })
+        return pd.DataFrame(results)
+
+    def find_optimal_dimension(self, results, quality_threshold=0.95):
+        """Find smallest dimension meeting quality threshold"""
+        max_recall = results["recall@10"].max()
+        results["normalized_quality"] = results["recall@10"] / max_recall
+        acceptable = results[results["normalized_quality"] >= quality_threshold]
+        if acceptable.empty:
+            return results.loc[results["recall@10"].idxmax(), "dimension"]
+        return acceptable.loc[acceptable["dimension"].idxmin(), "dimension"]
+
+# Example results:
+# | Dim  | Recall@10 | Storage | Quality |
+# |------|-----------|---------|---------|
+# | 128  | 0.834     | 48 GB   | 0.909   |
+# | 256  | 0.891     | 96 GB   | 0.972   |
+# | 384  | 0.908     | 144 GB  | 0.991   | ← Optimal (99.1% quality, 50% cheaper than 768)
+# | 512  | 0.915     | 192 GB  | 0.998   |
+# | 768  | 0.917     | 288 GB  | 1.000   |
+experiment = DimensionalityExperiment()
+print("Dimensions to test: [128, 256, 384, 512, 768]")
 ```
 
 **Method 2: Intrinsic Dimensionality Estimation**
 
 Estimate the intrinsic dimensionality of your data:
 
-```python
-{{< include /code_examples/ch08_custom_embedding_strategies/intrinsicdimensionality.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show intrinsic dimensionality estimation"
+import numpy as np
+from sklearn.decomposition import PCA
+from sklearn.neighbors import NearestNeighbors
+
+class IntrinsicDimensionality:
+    """Estimate intrinsic dimensionality of embedding space"""
+
+    def estimate_via_pca(self, embeddings, variance_threshold=0.95):
+        """Use PCA to find dimensions capturing X% of variance"""
+        pca = PCA()
+        pca.fit(embeddings)
+        cumsum_variance = np.cumsum(pca.explained_variance_ratio_)
+        n_components = np.argmax(cumsum_variance >= variance_threshold) + 1
+        return {"intrinsic_dimension": n_components, "variance_captured": cumsum_variance[n_components - 1]}
+
+    def estimate_via_mle(self, embeddings, k=10):
+        """MLE estimation (Levina & Bickel 2004)"""
+        nbrs = NearestNeighbors(n_neighbors=k + 1).fit(embeddings)
+        distances, _ = nbrs.kneighbors(embeddings)
+        distances = distances[:, 1:]  # Remove self
+        dimensions = []
+        for dist_vec in distances:
+            r_k = dist_vec[-1]
+            if r_k > 0:
+                log_ratios = np.log(r_k / dist_vec[:-1])
+                if log_ratios.sum() > 0:
+                    dimensions.append((k - 1) / log_ratios.sum())
+        return {"intrinsic_dimension": int(np.median(dimensions))}
+
+# Usage example
+embeddings = np.random.randn(1000, 768).astype(np.float32)
+estimator = IntrinsicDimensionality()
+pca_result = estimator.estimate_via_pca(embeddings, variance_threshold=0.95)
+print(f"PCA estimate: {pca_result['intrinsic_dimension']} dims capture 95% variance")
 ```
 
 **Method 3: Progressive Dimensionality Reduction**
 
 Train high-dimensional model, then compress:
 
-```python
-{{< include /code_examples/ch08_custom_embedding_strategies/progressivedimensionreduction.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show progressive dimension reduction"
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+class ProgressiveDimensionReduction:
+    """Start with high dimensions, progressively reduce while monitoring quality"""
+
+    def __init__(self, base_model, original_dim=768):
+        self.base_model = base_model
+        self.original_dim = original_dim
+
+    def train_projection(self, embeddings, target_dim):
+        """Learn projection from high-dim to low-dim"""
+        projection_net = nn.Linear(self.original_dim, target_dim)
+        optimizer = torch.optim.Adam(projection_net.parameters(), lr=1e-3)
+
+        for _epoch in range(10):
+            idx1 = torch.randint(0, len(embeddings), (1000,))
+            idx2 = torch.randint(0, len(embeddings), (1000,))
+            orig_sim = F.cosine_similarity(embeddings[idx1], embeddings[idx2])
+            proj_sim = F.cosine_similarity(projection_net(embeddings[idx1]), projection_net(embeddings[idx2]))
+            loss = F.mse_loss(proj_sim, orig_sim)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+        return projection_net
+
+    def find_minimal_dimension(self, embeddings, test_data, quality_threshold=0.95):
+        """Binary search for minimal dimension meeting quality threshold"""
+        original_quality = self.evaluate(self.base_model, test_data)
+        target_quality = original_quality * quality_threshold
+        low, high, best_dim = 64, self.original_dim, self.original_dim
+
+        while low <= high:
+            mid = (low + high) // 2
+            projection = self.train_projection(embeddings, target_dim=mid)
+            quality = self.evaluate_with_projection(self.base_model, projection, test_data)
+            if quality >= target_quality:
+                best_dim, high = mid, mid - 1
+            else:
+                low = mid + 1
+        return best_dim
+
+# Usage example
+print("Progressive reduction: 768 → find minimal dim maintaining 95% quality")
 ```
 
 ### Dimension-Specific Optimizations
@@ -753,8 +1065,37 @@ Different dimensions enable different optimizations:
 
 **Ultra-Low Dimensions (64-128): Binary/Hamming Embeddings**
 
-```python
-{{< include /code_examples/ch08_custom_embedding_strategies/binaryembeddings.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show binary embeddings for ultra-compression"
+import numpy as np
+
+class BinaryEmbeddings:
+    """Ultra-compressed binary embeddings for massive scale"""
+
+    def binarize(self, embeddings):
+        """
+        Convert float embeddings to binary
+        768-dim float32 → 96 bytes
+        768-dim binary → 96 bits = 12 bytes (8x compression)
+        """
+        binary = (embeddings > 0).astype(np.uint8)
+        return np.packbits(binary, axis=1)
+
+    def hamming_similarity(self, binary1, binary2):
+        """Ultra-fast similarity using Hamming distance"""
+        xor = np.bitwise_xor(binary1, binary2)
+        hamming_dist = np.unpackbits(xor).sum()
+        max_dist = len(binary1) * 8
+        return 1 - (hamming_dist / max_dist)
+
+# Usage example
+embeddings = np.random.randn(100, 768).astype(np.float32)
+binary_emb = BinaryEmbeddings()
+packed = binary_emb.binarize(embeddings)
+print(f"Original: {embeddings.nbytes:,} bytes → Binary: {packed.nbytes:,} bytes ({embeddings.nbytes/packed.nbytes:.0f}x compression)")
+# Binary enables: 8x compression, 10-100x faster search via POPCOUNT
 ```
 
 ## Cost-Performance Trade-offs at Scale
@@ -915,8 +1256,56 @@ class EmbeddingTCO:
 
 Navigate the trade-off space:
 
-```python
-{{< include /code_examples/ch08_custom_embedding_strategies/costperformancefrontier.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show cost-performance frontier analysis"
+class CostPerformanceFrontier:
+    """Explore cost-performance trade-offs"""
+
+    def generate_configuration_space(self, requirements):
+        """Generate configurations spanning cost-performance space"""
+        configs = []
+        dimensions = [128, 256, 384, 512, 768, 1024]
+        quantizations = ["float32", "float16", "int8", "binary"]
+        index_types = ["flat", "ivf", "hnsw", "pq"]
+
+        for dim in dimensions:
+            for quant in quantizations:
+                for index in index_types:
+                    config = {
+                        "dimension": dim, "quantization": quant, "index_type": index,
+                        "num_embeddings": requirements["num_embeddings"],
+                    }
+                    cost = self.estimate_cost(config)
+                    performance = self.estimate_performance(config)
+                    configs.append({
+                        **config, "annual_cost": cost,
+                        "p99_latency_ms": performance["latency"], "recall@10": performance["recall"],
+                    })
+        return configs
+
+    def find_pareto_optimal(self, configs):
+        """Find Pareto-optimal configurations"""
+        pareto = []
+        for c in configs:
+            dominated = False
+            for other in configs:
+                if (other["recall@10"] >= c["recall@10"] and
+                    other["annual_cost"] <= c["annual_cost"] and
+                    other["p99_latency_ms"] <= c["p99_latency_ms"] and
+                    (other["recall@10"] > c["recall@10"] or
+                     other["annual_cost"] < c["annual_cost"] or
+                     other["p99_latency_ms"] < c["p99_latency_ms"])):
+                    dominated = True
+                    break
+            if not dominated:
+                pareto.append(c)
+        return pareto
+
+# Usage example
+frontier = CostPerformanceFrontier()
+print("Configuration space: 6 dims × 4 quantizations × 4 indices = 96 configs")
 ```
 
 ### Cost Optimization Strategies

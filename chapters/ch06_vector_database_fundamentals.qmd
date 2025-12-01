@@ -56,16 +56,72 @@ The key insight: trading a small amount of accuracy for massive speed gains. Fin
 
 Vector databases leverage geometric properties of high-dimensional spaces:
 
-```python
-{{< include /code_examples/ch06_vector_database_fundamentals/geometricintuition.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show geometric intuition for vector similarity"
+import numpy as np
+
+class GeometricIntuition:
+    """Understanding vector similarity through geometry"""
+
+    def demonstrate_similarity_measures(self):
+        """Common similarity metrics and their geometric meaning"""
+        embedding_a = np.array([0.5, 0.3, 0.8, 0.1])
+        embedding_b = np.array([0.6, 0.4, 0.7, 0.2])
+
+        # Euclidean distance (L2) - straight-line distance
+        l2_distance = np.linalg.norm(embedding_a - embedding_b)
+
+        # Cosine similarity - angle between vectors (most common)
+        cosine_sim = np.dot(embedding_a, embedding_b) / (
+            np.linalg.norm(embedding_a) * np.linalg.norm(embedding_b)
+        )
+
+        # Inner product - projection of one vector onto another
+        inner_product = np.dot(embedding_a, embedding_b)
+
+        return {"l2_distance": l2_distance, "cosine_similarity": cosine_sim, "inner_product": inner_product}
+
+# Usage example
+geo = GeometricIntuition()
+measures = geo.demonstrate_similarity_measures()
+print(f"L2 distance: {measures['l2_distance']:.4f}")
+print(f"Cosine similarity: {measures['cosine_similarity']:.4f}")
 ```
 
 **Principle 3: Hierarchical Navigation is Key**
 
 The breakthrough insight: you don't need to compare with all vectors, just navigate through the space efficiently.
 
-```python
-{{< include /code_examples/ch06_vector_database_fundamentals/hierarchicalnavigation.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show hierarchical navigation concept"
+class HierarchicalNavigation:
+    """How hierarchical structures enable fast search"""
+
+    def hierarchical_solution(self):
+        """Multi-level navigation reduces comparisons"""
+        # Level 0 (coarsest): 1,000 centroids
+        # Level 1: 1M centroids, Level 2: 1B, Level 3: 1T, Level 4: 256T vectors
+        # Search: compare with 1,000 at each level, descend to best
+
+        comparisons_per_level = 1000
+        num_levels = 5
+        total_comparisons = comparisons_per_level * num_levels
+
+        return {
+            "total_comparisons": total_comparisons,
+            "speedup": f"{256_000_000_000_000 / total_comparisons:.2e}x faster",
+            "latency": "<100ms vs 6 years",
+        }
+
+# Usage example
+nav = HierarchicalNavigation()
+result = nav.hierarchical_solution()
+print(f"Total comparisons: {result['total_comparisons']:,}")
+print(f"Speedup: {result['speedup']}")
 ```
 
 **Principle 4: Index Structure is Everything**
@@ -277,8 +333,53 @@ HNSW is the gold standard for high-recall, low-latency vector search. Understand
 - Lower layers have short-range connections (for high accuracy)
 - Search starts at top layer and descends, getting more refined
 
-```python
-{{< include /code_examples/ch06_vector_database_fundamentals/hnswdeepdive.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show HNSW deep dive implementation"
+import math
+
+class HNSWDeepDive:
+    """Understanding HNSW internals for scale"""
+
+    def __init__(self, M=16, ef_construction=200, max_level=5):
+        """
+        M: Max connections per node (typical: 16-64)
+        ef_construction: Candidates considered during build (typical: 100-500)
+        """
+        self.M = M
+        self.ef_construction = ef_construction
+        self.max_level = max_level
+        self.layers = [{} for _ in range(max_level + 1)]
+        self.entry_point = None
+
+    def complexity_analysis(self, num_vectors):
+        """Analyze HNSW complexity"""
+        num_layers = int(math.log(num_vectors) / math.log(self.M))
+        comparisons_per_layer = self.M
+        total_comparisons = num_layers * comparisons_per_layer
+        avg_connections = self.M * 1.5
+        memory_per_vector = avg_connections * 8  # 64-bit ID
+
+        return {
+            "num_layers": num_layers,
+            "comparisons_per_query": total_comparisons,
+            "memory_overhead_bytes": memory_per_vector,
+            "query_complexity": f"O(log N) ≈ {total_comparisons} comparisons",
+        }
+
+    def tune_for_scale(self):
+        """Tuning guidelines for trillion-scale"""
+        return {
+            "M": {"small_1m": 16, "medium_100m": 32, "large_10b": 48, "trillion_100t": 64},
+            "ef_construction": {"fast": 100, "balanced": 200, "high_quality": 400},
+            "ef_search": {"fast_low_recall": 50, "balanced": 100, "high_recall": 200},
+        }
+
+# Usage example
+hnsw = HNSWDeepDive(M=48, ef_construction=300)
+analysis = hnsw.complexity_analysis(num_vectors=100_000_000_000)
+print(f"HNSW for 100B vectors: {analysis['num_layers']} layers, {analysis['comparisons_per_query']} comparisons/query")
 ```
 
 **HNSW at Trillion Scale: Practical Considerations**
@@ -322,8 +423,49 @@ While HNSW is excellent for recall and latency, IVF-PQ excels at massive scale w
 
 **Core Concept**: IVF partitions the space into Voronoi cells. Search checks only the cells nearest to query. Product Quantization compresses vectors 20-100x.
 
-```python
-{{< include /code_examples/ch06_vector_database_fundamentals/ivfpqstrategy.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show IVF-PQ strategy implementation"
+import numpy as np
+
+class IVFPQStrategy:
+    """IVF with Product Quantization for memory efficiency"""
+
+    def __init__(self, num_centroids=65536, num_subquantizers=8, bits_per_sq=8):
+        """
+        num_centroids: Number of Voronoi cells (typical: 4096-65536)
+        num_subquantizers: Divide vector into subvectors (typical: 8-16)
+        bits_per_sq: Bits per subquantizer (typical: 8 = 256 clusters)
+        """
+        self.num_centroids = num_centroids
+        self.num_subquantizers = num_subquantizers
+        self.bits_per_sq = bits_per_sq
+
+    def memory_analysis(self, num_vectors, embedding_dim):
+        """Compare memory usage vs uncompressed"""
+        # Uncompressed: float32
+        uncompressed_bytes = num_vectors * embedding_dim * 4
+
+        # IVF-PQ: centroids + codes
+        centroid_bytes = self.num_centroids * embedding_dim * 4
+        code_bytes_per_vector = self.num_subquantizers * (self.bits_per_sq // 8)
+        compressed_bytes = centroid_bytes + (num_vectors * code_bytes_per_vector)
+
+        compression_ratio = uncompressed_bytes / compressed_bytes
+
+        return {
+            "uncompressed_gb": uncompressed_bytes / (1024**3),
+            "compressed_gb": compressed_bytes / (1024**3),
+            "compression_ratio": f"{compression_ratio:.1f}x",
+            "savings_pct": f"{(1 - compressed_bytes / uncompressed_bytes) * 100:.1f}%",
+        }
+
+# Usage example
+ivf_pq = IVFPQStrategy(num_centroids=65536, num_subquantizers=96, bits_per_sq=8)
+memory = ivf_pq.memory_analysis(num_vectors=100_000_000_000, embedding_dim=768)
+print(f"Uncompressed: {memory['uncompressed_gb']:,.0f} GB")
+print(f"Compressed: {memory['compressed_gb']:,.0f} GB ({memory['compression_ratio']} compression)")
 ```
 
 **HNSW vs IVF-PQ Trade-offs**

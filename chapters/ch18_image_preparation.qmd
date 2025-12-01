@@ -31,8 +31,64 @@ Unlike text where chunking is explicit, image models handle spatial "chunking" i
 
 Convolutional Neural Networks process images through hierarchical feature extraction:
 
-```python
-{{< include /code_examples/ch18_image_preparation/cnn_embeddings.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show CNN Embeddings"
+import torch
+import torchvision.models as models
+import torchvision.transforms as transforms
+import numpy as np
+from typing import List
+
+class CNNEmbedder:
+    """CNN-based image embedding with batched inference."""
+    def __init__(self, model_name: str = "resnet50", device: str = None, batch_size: int = 32):
+        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+        self.batch_size = batch_size
+
+        # Load model
+        if model_name == "resnet50":
+            model = models.resnet50(weights="IMAGENET1K_V1")
+            self.embedding_dim = 2048
+        elif model_name == "resnet18":
+            model = models.resnet18(weights="IMAGENET1K_V1")
+            self.embedding_dim = 512
+        else:
+            raise ValueError(f"Unknown model: {model_name}")
+
+        # Remove classifier
+        modules = list(model.children())[:-1]
+        self.model = torch.nn.Sequential(*modules).to(self.device)
+        self.model.eval()
+
+        self.preprocess = transforms.Compose([
+            transforms.Resize(256),
+            transforms.CenterCrop(224),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ])
+
+    def encode(self, images: List) -> np.ndarray:
+        """Encode images to embeddings."""
+        from PIL import Image
+        all_embeddings = []
+
+        for i in range(0, len(images), self.batch_size):
+            batch_images = images[i:i + self.batch_size]
+            tensors = [self.preprocess(img if isinstance(img, Image.Image) else Image.fromarray(img))
+                      for img in batch_images]
+            batch_tensor = torch.stack(tensors).to(self.device)
+
+            with torch.no_grad():
+                features = self.model(batch_tensor)
+                embeddings = features.squeeze(-1).squeeze(-1)
+                all_embeddings.append(embeddings.cpu().numpy())
+
+        return np.vstack(all_embeddings)
+
+# Usage example
+print("CNNEmbedder ready for ResNet50 embeddings (2048-dim)")
 ```
 
 **How CNNs create embeddings:**
@@ -52,8 +108,60 @@ Convolutional Neural Networks process images through hierarchical feature extrac
 
 Vision Transformers take a fundamentally different approach—they explicitly split images into patches:
 
-```python
-{{< include /code_examples/ch18_image_preparation/vit_embeddings.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show ViT Embeddings"
+import torch
+import torchvision.models as models
+import torchvision.transforms as transforms
+import numpy as np
+from typing import List
+
+class ViTEmbedder:
+    """Vision Transformer embedder with patch-based processing."""
+    def __init__(self, model_name: str = "vit_b_16", device: str = None, batch_size: int = 32):
+        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+        self.batch_size = batch_size
+        self.embedding_dims = {"vit_b_16": 768, "vit_b_32": 768, "vit_l_16": 1024}
+        self.embedding_dim = self.embedding_dims[model_name]
+
+        # Load model
+        model_fn = {"vit_b_16": models.vit_b_16, "vit_b_32": models.vit_b_32, "vit_l_16": models.vit_l_16}
+        self.model = model_fn[model_name](weights="IMAGENET1K_V1")
+        self.model.heads = torch.nn.Identity()
+        self.model = self.model.to(self.device)
+        self.model.eval()
+
+        self.preprocess = transforms.Compose([
+            transforms.Resize(256),
+            transforms.CenterCrop(224),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ])
+
+    def encode(self, images: List, normalize: bool = True) -> np.ndarray:
+        """Encode images to embeddings."""
+        from PIL import Image
+        all_embeddings = []
+
+        for i in range(0, len(images), self.batch_size):
+            batch_images = images[i:i + self.batch_size]
+            tensors = [self.preprocess(img if isinstance(img, Image.Image) else Image.fromarray(img))
+                      for img in batch_images]
+            batch_tensor = torch.stack(tensors).to(self.device)
+
+            with torch.no_grad():
+                embeddings = self.model(batch_tensor)
+                if normalize:
+                    embeddings = torch.nn.functional.normalize(embeddings, p=2, dim=1)
+                all_embeddings.append(embeddings.cpu().numpy())
+
+        return np.vstack(all_embeddings)
+
+# Usage example
+print("ViTEmbedder ready: 224x224 images split into 196 patches (14x14 grid)")
+print("CLS token provides 768-dim embedding")
 ```
 
 **How ViT creates embeddings:**
@@ -95,16 +203,135 @@ Image preprocessing significantly impacts embedding quality. Each model expects 
 
 ### Standard Preprocessing Pipeline
 
-```python
-{{< include /code_examples/ch18_image_preparation/preprocessing_pipeline.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Preprocessing Pipeline"
+from dataclasses import dataclass
+from typing import Tuple
+import numpy as np
+
+@dataclass
+class PreprocessConfig:
+    """Configuration for image preprocessing."""
+    target_size: Tuple[int, int] = (224, 224)
+    resize_method: str = "resize"  # 'resize', 'crop', 'pad'
+    normalize: bool = True
+    mean: Tuple[float, ...] = (0.485, 0.456, 0.406)
+    std: Tuple[float, ...] = (0.229, 0.224, 0.225)
+
+class ImagePreprocessor:
+    """Standard preprocessing pipeline for image embeddings."""
+    def __init__(self, config: PreprocessConfig = None):
+        self.config = config or PreprocessConfig()
+
+    def preprocess(self, image) -> np.ndarray:
+        """Preprocess a single image."""
+        from PIL import Image
+
+        if isinstance(image, np.ndarray):
+            image = Image.fromarray(image)
+
+        # Resize
+        if self.config.resize_method == "resize":
+            image = image.resize(self.config.target_size)
+        elif self.config.resize_method == "crop":
+            image = self._center_crop(image)
+        elif self.config.resize_method == "pad":
+            image = self._resize_with_pad(image)
+
+        # Convert to numpy and scale to [0, 1]
+        img_array = np.array(image, dtype=np.float32)
+        if img_array.max() > 1.0:
+            img_array = img_array / 255.0
+
+        # Normalize
+        if self.config.normalize:
+            mean = np.array(self.config.mean)
+            std = np.array(self.config.std)
+            img_array = (img_array - mean) / std
+
+        return img_array
+
+    def _center_crop(self, image) -> "Image":
+        """Resize then center crop to target size."""
+        w, h = image.size
+        target_w, target_h = self.config.target_size
+        scale = max(target_w / w, target_h / h)
+        new_w, new_h = int(w * scale), int(h * scale)
+        image = image.resize((new_w, new_h))
+        left = (new_w - target_w) // 2
+        top = (new_h - target_h) // 2
+        return image.crop((left, top, left + target_w, top + target_h))
+
+    def _resize_with_pad(self, image) -> "Image":
+        """Resize preserving aspect ratio with padding."""
+        from PIL import Image as PILImage
+        w, h = image.size
+        target_w, target_h = self.config.target_size
+        scale = min(target_w / w, target_h / h)
+        new_w, new_h = int(w * scale), int(h * scale)
+        image = image.resize((new_w, new_h))
+        padded = PILImage.new("RGB", self.config.target_size, (128, 128, 128))
+        left = (target_w - new_w) // 2
+        top = (target_h - new_h) // 2
+        padded.paste(image, (left, top))
+        return padded
+
+# Usage example
+preprocessor = ImagePreprocessor()
+print("ImagePreprocessor ready with ImageNet normalization")
 ```
 
 ### Resolution and Aspect Ratio
 
 Most models expect fixed input sizes (224×224, 384×384, etc.). How you achieve this matters:
 
-```python
-{{< include /code_examples/ch18_image_preparation/resolution_handling.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Resolution Handling"
+from enum import Enum
+import numpy as np
+
+class ResizeStrategy(Enum):
+    """Available resize strategies."""
+    STRETCH = "stretch"
+    CENTER_CROP = "center_crop"
+    PAD = "pad"
+    MULTI_CROP = "multi_crop"
+
+def resize_for_embedding(image, target_size=(224, 224), strategy=ResizeStrategy.CENTER_CROP):
+    """Resize image using specified strategy."""
+    from PIL import Image
+
+    if isinstance(image, np.ndarray):
+        image = Image.fromarray(image)
+
+    if strategy == ResizeStrategy.STRETCH:
+        return np.array(image.resize(target_size))
+    elif strategy == ResizeStrategy.CENTER_CROP:
+        # Resize so smaller dimension matches, then crop
+        w, h = image.size
+        scale = max(target_size[0] / w, target_size[1] / h)
+        new_size = (int(w * scale), int(h * scale))
+        image = image.resize(new_size)
+        left = (image.size[0] - target_size[0]) // 2
+        top = (image.size[1] - target_size[1]) // 2
+        return np.array(image.crop((left, top, left + target_size[0], top + target_size[1])))
+    elif strategy == ResizeStrategy.PAD:
+        # Resize with padding
+        w, h = image.size
+        scale = min(target_size[0] / w, target_size[1] / h)
+        new_w, new_h = int(w * scale), int(h * scale)
+        image = image.resize((new_w, new_h))
+        from PIL import Image as PILImage
+        padded = PILImage.new("RGB", target_size, (0, 0, 0))
+        padded.paste(image, ((target_size[0] - new_w) // 2, (target_size[1] - new_h) // 2))
+        return np.array(padded)
+
+# Usage example
+print("Resize strategies: STRETCH, CENTER_CROP, PAD, MULTI_CROP")
 ```
 
 | Strategy | Pros | Cons | Best For |
@@ -118,16 +345,104 @@ Most models expect fixed input sizes (224×224, 384×384, etc.). How you achieve
 
 ### Color and Normalization
 
-```python
-{{< include /code_examples/ch18_image_preparation/color_normalization.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Color Normalization"
+import numpy as np
+
+# Standard normalization values
+IMAGENET_MEAN = (0.485, 0.456, 0.406)
+IMAGENET_STD = (0.229, 0.224, 0.225)
+CLIP_MEAN = (0.48145466, 0.4578275, 0.40821073)
+CLIP_STD = (0.26862954, 0.26130258, 0.27577711)
+
+def normalize_image(image: np.ndarray, mean=IMAGENET_MEAN, std=IMAGENET_STD) -> np.ndarray:
+    """Apply channel-wise normalization."""
+    image = image.astype(np.float32)
+    if image.max() > 1.0:
+        image = image / 255.0
+    mean = np.array(mean, dtype=np.float32)
+    std = np.array(std, dtype=np.float32)
+    return (image - mean) / std
+
+class ColorNormalizer:
+    """Comprehensive color normalization for consistent embeddings."""
+    def __init__(self, model_type: str = "imagenet"):
+        if model_type == "imagenet":
+            self.mean = IMAGENET_MEAN
+            self.std = IMAGENET_STD
+        elif model_type == "clip":
+            self.mean = CLIP_MEAN
+            self.std = CLIP_STD
+        else:
+            self.mean = (0.5, 0.5, 0.5)
+            self.std = (0.5, 0.5, 0.5)
+
+    def normalize(self, image: np.ndarray) -> np.ndarray:
+        """Apply model-specific normalization."""
+        return normalize_image(image, self.mean, self.std)
+
+# Usage example
+normalizer = ColorNormalizer(model_type="imagenet")
+print(f"Normalizer ready with mean={IMAGENET_MEAN}, std={IMAGENET_STD}")
 ```
 
 ### Quality Assessment
 
 Not all images are worth embedding. Filter low-quality inputs:
 
-```python
-{{< include /code_examples/ch18_image_preparation/quality_assessment.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Quality Assessment"
+import numpy as np
+from dataclasses import dataclass
+from typing import List
+
+@dataclass
+class QualityResult:
+    """Result of image quality assessment."""
+    passed: bool
+    blur_score: float
+    brightness: float
+    contrast: float
+    issues: List[str]
+
+def assess_image_quality(image, min_resolution: int = 100, blur_threshold: float = 100.0) -> QualityResult:
+    """Assess image quality for embedding suitability."""
+    import cv2
+    from PIL import Image
+
+    if isinstance(image, Image.Image):
+        image_array = np.array(image)
+    else:
+        image_array = image
+
+    issues = []
+
+    # Resolution check
+    h, w = image_array.shape[:2]
+    if min(h, w) < min_resolution:
+        issues.append(f"Resolution too low: {min(h, w)}px < {min_resolution}px")
+
+    # Convert to grayscale for analysis
+    gray = cv2.cvtColor(image_array, cv2.COLOR_RGB2GRAY) if len(image_array.shape) == 3 else image_array
+
+    # Brightness and contrast
+    brightness = np.mean(gray) / 255.0
+    contrast = np.std(gray) / 255.0
+
+    # Blur detection using Laplacian variance
+    blur_score = cv2.Laplacian(gray, cv2.CV_64F).var()
+    if blur_score < blur_threshold:
+        issues.append(f"Image too blurry: {blur_score:.1f}")
+
+    return QualityResult(passed=len(issues)==0, blur_score=blur_score,
+                        brightness=brightness, contrast=contrast, issues=issues)
+
+# Usage example
+print("Quality checks: resolution, blur, brightness, contrast")
 ```
 
 ## Handling Large Images
@@ -138,36 +453,236 @@ Standard embedding models expect ~224×224 inputs. Large images (satellite image
 
 Split large images into overlapping tiles, embed each, then aggregate:
 
-```python
-{{< include /code_examples/ch18_image_preparation/tiling_strategy.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Tiling Strategy"
+import numpy as np
+from dataclasses import dataclass
+from typing import List, Tuple
+
+@dataclass
+class Tile:
+    """A tile extracted from a larger image."""
+    image: np.ndarray
+    x: int
+    y: int
+    row: int
+    col: int
+
+def tile_image(image, tile_size: Tuple[int, int] = (224, 224), overlap: float = 0.1) -> List[Tile]:
+    """Split a large image into overlapping tiles."""
+    from PIL import Image
+    if isinstance(image, Image.Image):
+        image = np.array(image)
+
+    h, w = image.shape[:2]
+    tile_w, tile_h = tile_size
+    stride_x = int(tile_w * (1 - overlap))
+    stride_y = int(tile_h * (1 - overlap))
+
+    tiles = []
+    row, y = 0, 0
+    while y < h:
+        col, x = 0, 0
+        while x < w:
+            x_end, y_end = min(x + tile_w, w), min(y + tile_h, h)
+            tile_img = image[y:y_end, x:x_end]
+            if tile_img.shape[0] >= tile_h * 0.5 and tile_img.shape[1] >= tile_w * 0.5:
+                if tile_img.shape[0] < tile_h or tile_img.shape[1] < tile_w:
+                    padded = np.zeros((tile_h, tile_w, image.shape[2]), dtype=image.dtype)
+                    padded[:tile_img.shape[0], :tile_img.shape[1]] = tile_img
+                    tile_img = padded
+                tiles.append(Tile(image=tile_img, x=x, y=y, row=row, col=col))
+            x += stride_x
+            col += 1
+        y += stride_y
+        row += 1
+    return tiles
+
+# Usage example
+print("Tiling: split large images, embed tiles, aggregate (mean/max/weighted)")
 ```
 
 ### Multi-Resolution Pyramids
 
 Create embeddings at multiple scales for scale-invariant retrieval:
 
-```python
-{{< include /code_examples/ch18_image_preparation/multi_resolution.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Multi-Resolution Embedding"
+import numpy as np
+
+class MultiResolutionEmbedder:
+    """Create embeddings at multiple scales."""
+    def __init__(self, encoder, scales=None, target_size=224):
+        self.encoder = encoder
+        self.scales = scales or [0.5, 1.0, 2.0]
+        self.target_size = target_size
+
+    def embed(self, image):
+        """Create embeddings at multiple resolutions."""
+        from PIL import Image as PILImage
+        embeddings = {}
+        for scale in self.scales:
+            new_w, new_h = int(image.width * scale), int(image.height * scale)
+            if new_w < self.target_size or new_h < self.target_size:
+                continue
+            scaled = image.resize((new_w, new_h), PILImage.LANCZOS)
+            left, top = (new_w - self.target_size) // 2, (new_h - self.target_size) // 2
+            cropped = scaled.crop((left, top, left + self.target_size, top + self.target_size))
+            embeddings[f"scale_{scale:.1f}"] = self.encoder.encode(cropped)
+        return embeddings
+
+# Usage example
+print("Multi-resolution: embed at scales [0.5, 1.0, 2.0], aggregate for scale invariance")
 ```
 
 ### Domain-Specific Large Image Handling
 
 #### Satellite and Aerial Imagery
 
-```python
-{{< include /code_examples/ch18_image_preparation/satellite_imagery.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Satellite Imagery Processing"
+import numpy as np
+from dataclasses import dataclass
+
+@dataclass
+class SatelliteEmbedding:
+    """Embedding for a satellite image tile."""
+    embedding: np.ndarray
+    tile_id: str
+    bounds: tuple
+
+class SatelliteImageProcessor:
+    """Process satellite imagery for embedding."""
+    def __init__(self, encoder, tile_size=256, overlap=0.1):
+        self.encoder = encoder
+        self.tile_size = tile_size
+        self.overlap = overlap
+
+    def process_large_image(self, image: np.ndarray, bounds=None):
+        """Process large satellite image into embedded tiles."""
+        height, width = image.shape[:2]
+        step = int(self.tile_size * (1 - self.overlap))
+        embeddings = []
+        tile_idx = 0
+        for y in range(0, height - self.tile_size + 1, step):
+            for x in range(0, width - self.tile_size + 1, step):
+                tile = image[y:y + self.tile_size, x:x + self.tile_size]
+                if self._is_valid_tile(tile):
+                    embedding = self.encoder.encode(tile)
+                    embeddings.append(SatelliteEmbedding(embedding=embedding, tile_id=f"tile_{tile_idx}",
+                                                         bounds=(x, y, x + self.tile_size, y + self.tile_size)))
+                    tile_idx += 1
+        return embeddings
+
+    def _is_valid_tile(self, tile):
+        """Check if tile has enough valid data."""
+        valid_pixels = np.all(tile > 0, axis=2) & np.all(tile < 255, axis=2) if len(tile.shape) == 3 else (tile > 0) & (tile < 255)
+        return np.mean(valid_pixels) >= 0.7
+
+# Usage example
+print("Satellite processing: tile large images, filter nodata, georeference")
 ```
 
 #### Medical Imaging (Pathology Slides)
 
-```python
-{{< include /code_examples/ch18_image_preparation/pathology_slides.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Pathology Slide Processing"
+import numpy as np
+from dataclasses import dataclass
+
+@dataclass
+class PathologyEmbedding:
+    """Embedding for a pathology patch."""
+    embedding: np.ndarray
+    patch_id: str
+    location: tuple
+
+class PathologySlideProcessor:
+    """Process whole slide images (WSI) for embedding."""
+    def __init__(self, encoder, patch_size=256, tissue_threshold=0.5):
+        self.encoder = encoder
+        self.patch_size = patch_size
+        self.tissue_threshold = tissue_threshold
+
+    def extract_patches(self, slide_image, tissue_mask=None):
+        """Extract tissue patches from slide image."""
+        from PIL import Image
+        width, height = slide_image.size if isinstance(slide_image, Image.Image) else (slide_image.shape[1], slide_image.shape[0])
+        step = self.patch_size
+        if tissue_mask is None:
+            tissue_mask = self._detect_tissue(slide_image)
+        patches = []
+        patch_idx = 0
+        for y in range(0, height - self.patch_size + 1, step):
+            for x in range(0, width - self.patch_size + 1, step):
+                mask_patch = tissue_mask[y:y + self.patch_size, x:x + self.patch_size]
+                tissue_ratio = np.mean(mask_patch)
+                if tissue_ratio >= self.tissue_threshold:
+                    patch_image = slide_image.crop((x, y, x + self.patch_size, y + self.patch_size)) if hasattr(slide_image, 'crop') else slide_image[y:y+self.patch_size, x:x+self.patch_size]
+                    embedding = self.encoder.encode(patch_image)
+                    patches.append(PathologyEmbedding(embedding=embedding, patch_id=f"patch_{patch_idx}", location=(x, y)))
+                    patch_idx += 1
+        return patches
+
+    def _detect_tissue(self, image):
+        """Detect tissue regions using thresholding."""
+        img_array = np.array(image)
+        gray = np.mean(img_array, axis=2) if len(img_array.shape) == 3 else img_array
+        return ((gray < 220) & (gray > 20)).astype(np.uint8)
+
+# Usage example
+print("Pathology: extract tissue patches, filter background, aggregate to slide-level")
 ```
 
 #### Document Images
 
-```python
-{{< include /code_examples/ch18_image_preparation/document_images.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Document Image Processing"
+import numpy as np
+from dataclasses import dataclass
+from enum import Enum
+
+class DocumentRegionType(Enum):
+    TEXT = "text"
+    FIGURE = "figure"
+    TABLE = "table"
+
+@dataclass
+class DocumentEmbedding:
+    embedding: np.ndarray
+    region_type: DocumentRegionType
+    page_number: int
+
+class DocumentImageProcessor:
+    """Process document images for embedding."""
+    def __init__(self, encoder, target_size=224):
+        self.encoder = encoder
+        self.target_size = target_size
+
+    def process_page(self, image, page_number=0):
+        """Process a document page."""
+        from PIL import Image, ImageOps
+        # Preprocess: grayscale, enhance contrast, denoise
+        gray = image.convert("L") if hasattr(image, 'convert') else image
+        enhanced = ImageOps.autocontrast(gray, cutoff=2)
+        processed = enhanced.convert("RGB")
+        # Resize and embed
+        page_resized = processed.resize((self.target_size, self.target_size))
+        embedding = self.encoder.encode(page_resized)
+        return [DocumentEmbedding(embedding=embedding, region_type=DocumentRegionType.TEXT, page_number=page_number)]
+
+# Usage example
+print("Document processing: preprocess, detect regions (text/figures/tables), embed separately")
 ```
 
 ## Region-of-Interest Extraction
@@ -178,24 +693,94 @@ Sometimes you want embeddings for specific regions rather than whole images.
 
 Detect objects first, then embed each separately:
 
-```python
-{{< include /code_examples/ch18_image_preparation/object_detection_embedding.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Object Detection + Embedding"
+import numpy as np
+from dataclasses import dataclass
+
+@dataclass
+class DetectedObject:
+    bbox: tuple
+    class_name: str
+    confidence: float
+    embedding: np.ndarray = None
+
+def detect_and_embed(image, detector, encoder):
+    """Detect objects, crop them, and embed each."""
+    # Detect objects (using YOLO, Faster R-CNN, etc.)
+    detections = detector.detect(image)
+    # Crop and embed each object
+    for det in detections:
+        x1, y1, x2, y2 = det.bbox
+        cropped = image[y1:y2, x1:x2]
+        det.embedding = encoder.encode(cropped)
+    return detections
+
+# Usage example
+print("Object detection: YOLO/Faster R-CNN -> crop objects -> embed each")
 ```
 
 ### Segmentation-Based Regions
 
 Use semantic or instance segmentation for precise region extraction:
 
-```python
-{{< include /code_examples/ch18_image_preparation/segmentation_embedding.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Segmentation-Based Embedding"
+import numpy as np
+
+def embed_segmented_regions(image, segmentation_mask, encoder):
+    """Extract embeddings from segmented regions."""
+    embeddings = []
+    for segment_id in np.unique(segmentation_mask)[1:]:  # Skip background (0)
+        mask = (segmentation_mask == segment_id)
+        # Get bounding box
+        rows, cols = np.where(mask)
+        if len(rows) == 0:
+            continue
+        y1, y2, x1, x2 = rows.min(), rows.max(), cols.min(), cols.max()
+        # Extract and mask region
+        region = image[y1:y2+1, x1:x2+1]
+        region_mask = mask[y1:y2+1, x1:x2+1]
+        region[~region_mask] = 255  # White background
+        # Embed
+        embedding = encoder.encode(region)
+        embeddings.append((segment_id, embedding))
+    return embeddings
+
+# Usage example
+print("Segmentation: semantic/instance seg -> extract regions -> embed with masked background")
 ```
 
 ### Attention-Guided Regions
 
 Use model attention to identify important regions:
 
-```python
-{{< include /code_examples/ch18_image_preparation/attention_regions.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Attention-Guided Regions"
+import numpy as np
+
+def extract_attention_regions(image, model, top_k=5):
+    """Use model attention to identify important regions."""
+    # Get attention maps from model (e.g., ViT attention, GradCAM)
+    attention_map = model.get_attention(image)
+    # Find top-k regions with highest attention
+    flat_idx = np.argsort(attention_map.flatten())[-top_k:]
+    regions = []
+    for idx in flat_idx:
+        y, x = np.unravel_index(idx, attention_map.shape)
+        # Extract region around attention peak
+        region = image[max(0,y-56):y+56, max(0,x-56):x+56]
+        regions.append(region)
+    return regions
+
+# Usage example
+print("Attention-guided: use ViT attention/GradCAM -> extract salient regions -> embed")
 ```
 
 ## Multi-Object Scene Handling
@@ -204,14 +789,53 @@ Scenes with multiple objects present a choice: one embedding for the whole scene
 
 ### Scene-Level vs Object-Level Embeddings
 
-```python
-{{< include /code_examples/ch18_image_preparation/scene_vs_object.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Scene vs Object Embeddings"
+import numpy as np
+
+def scene_level_embedding(image, encoder):
+    """Single embedding for entire scene."""
+    return encoder.encode(image)
+
+def object_level_embeddings(image, detector, encoder):
+    """Separate embeddings for each object."""
+    objects = detector.detect(image)
+    embeddings = []
+    for obj in objects:
+        x1, y1, x2, y2 = obj.bbox
+        cropped = image[y1:y2, x1:x2]
+        embeddings.append((obj.class_name, encoder.encode(cropped)))
+    return embeddings
+
+# Usage example
+print("Scene-level: 1 embedding. Object-level: N embeddings. Hybrid: both")
 ```
 
 ### Hybrid Approaches
 
-```python
-{{< include /code_examples/ch18_image_preparation/hybrid_embedding.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Hybrid Embedding Approach"
+import numpy as np
+
+def hybrid_embedding(image, detector, encoder):
+    """Combine scene-level and object-level embeddings."""
+    # Scene embedding
+    scene_emb = encoder.encode(image)
+    # Object embeddings
+    objects = detector.detect(image)
+    object_embs = []
+    for obj in objects:
+        x1, y1, x2, y2 = obj.bbox
+        cropped = image[y1:y2, x1:x2]
+        object_embs.append(encoder.encode(cropped))
+    return {"scene": scene_emb, "objects": object_embs, "count": len(object_embs)}
+
+# Usage example
+print("Hybrid: store both scene and object embeddings for comprehensive search")
 ```
 
 | Approach | Storage | Query Types Supported | Best For |
@@ -228,50 +852,241 @@ When training or fine-tuning embedding models, augmentation creates diverse view
 
 ### Standard Augmentation Pipeline
 
-```python
-{{< include /code_examples/ch18_image_preparation/augmentation_pipeline.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Augmentation Pipeline"
+import torchvision.transforms as T
+
+def create_training_augmentation():
+    """Standard augmentation for training embedding models."""
+    return T.Compose([
+        T.RandomResizedCrop(224, scale=(0.8, 1.0)),
+        T.RandomHorizontalFlip(),
+        T.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
+        T.RandomGrayscale(p=0.1),
+        T.ToTensor(),
+        T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ])
+
+def create_test_augmentation():
+    """Minimal augmentation for testing."""
+    return T.Compose([
+        T.Resize(256),
+        T.CenterCrop(224),
+        T.ToTensor(),
+        T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ])
+
+# Usage example
+print("Augmentation: crop, flip, color jitter for training; crop for test")
 ```
 
 ### Augmentation for Contrastive Learning
 
-```python
-{{< include /code_examples/ch18_image_preparation/contrastive_augmentation.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Contrastive Augmentation"
+import torchvision.transforms as T
+
+def create_contrastive_augmentation():
+    """Strong augmentation for contrastive learning (SimCLR-style)."""
+    return T.Compose([
+        T.RandomResizedCrop(224, scale=(0.2, 1.0)),
+        T.RandomHorizontalFlip(p=0.5),
+        T.RandomApply([T.ColorJitter(0.8, 0.8, 0.8, 0.2)], p=0.8),
+        T.RandomGrayscale(p=0.2),
+        T.GaussianBlur(kernel_size=23, sigma=(0.1, 2.0)),
+        T.ToTensor(),
+        T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ])
+
+# Usage example
+print("Contrastive: strong augmentations (SimCLR) to create positive pairs")
 ```
 
 ### Domain-Specific Augmentation
 
-```python
-{{< include /code_examples/ch18_image_preparation/domain_augmentation.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Domain-Specific Augmentation"
+import torchvision.transforms as T
+
+def medical_augmentation():
+    """Augmentation for medical images."""
+    return T.Compose([
+        T.RandomRotation(15),
+        T.RandomAffine(degrees=0, translate=(0.1, 0.1)),
+        T.ColorJitter(brightness=0.1, contrast=0.1),
+        T.ToTensor(),
+    ])
+
+def satellite_augmentation():
+    """Augmentation for satellite imagery."""
+    return T.Compose([
+        T.RandomRotation(90),  # Any rotation valid
+        T.RandomHorizontalFlip(),
+        T.RandomVerticalFlip(),
+        T.ToTensor(),
+    ])
+
+# Usage example
+print("Domain-specific: tailored augmentations for medical, satellite, etc.")
 ```
 
 ## Video Frame Extraction
 
 Videos require selecting which frames to embed:
 
-```python
-{{< include /code_examples/ch18_image_preparation/video_frames.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Video Frame Embedding"
+import numpy as np
+
+def embed_video_frames(video_path, encoder, sample_rate=30):
+    """Extract and embed video frames."""
+    import cv2
+    cap = cv2.VideoCapture(video_path)
+    frame_embeddings = []
+    frame_idx = 0
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret:
+            break
+        if frame_idx % sample_rate == 0:
+            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            embedding = encoder.encode(frame_rgb)
+            frame_embeddings.append((frame_idx, embedding))
+        frame_idx += 1
+    cap.release()
+    return frame_embeddings
+
+# Usage example
+print("Video: sample frames at intervals -> embed each -> temporal indexing")
 ```
 
 ## Production Image Pipeline
 
 Putting it all together into a production system:
 
-```python
-{{< include /code_examples/ch18_image_preparation/production_pipeline.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Production Pipeline"
+from dataclasses import dataclass
+import numpy as np
+
+@dataclass
+class ImageEmbeddingResult:
+    embedding: np.ndarray
+    image_id: str
+    metadata: dict
+
+class ProductionImagePipeline:
+    """Production-ready image embedding pipeline."""
+    def __init__(self, encoder, preprocessor, quality_filter=None):
+        self.encoder = encoder
+        self.preprocessor = preprocessor
+        self.quality_filter = quality_filter
+
+    def process(self, image, image_id: str):
+        """Process single image through full pipeline."""
+        # Quality check
+        if self.quality_filter and not self.quality_filter.is_valid(image):
+            return None
+        # Preprocess
+        processed = self.preprocessor.preprocess(image)
+        # Embed
+        embedding = self.encoder.encode(processed)
+        # Return with metadata
+        return ImageEmbeddingResult(embedding=embedding, image_id=image_id,
+                                   metadata={"size": image.shape[:2]})
+
+# Usage example
+print("Production: quality filter -> preprocess -> embed -> store with metadata")
 ```
 
 ## Quality and Consistency
 
 ### Embedding Consistency Checks
 
-```python
-{{< include /code_examples/ch18_image_preparation/consistency_checks.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Consistency Checks"
+import numpy as np
+
+def check_embedding_consistency(embeddings, threshold=0.95):
+    """Check for duplicate or near-duplicate embeddings."""
+    from sklearn.metrics.pairwise import cosine_similarity
+    similarities = cosine_similarity(embeddings)
+    np.fill_diagonal(similarities, 0)
+    duplicates = np.where(similarities > threshold)
+    return list(zip(duplicates[0], duplicates[1]))
+
+def validate_embedding_distribution(embeddings):
+    """Check if embeddings have reasonable distribution."""
+    norms = np.linalg.norm(embeddings, axis=1)
+    mean_sim = np.mean(cosine_similarity(embeddings))
+    return {
+        "mean_norm": float(np.mean(norms)),
+        "std_norm": float(np.std(norms)),
+        "mean_similarity": float(mean_sim),
+    }
+
+# Usage example
+print("Consistency: check for duplicates, validate distribution, monitor quality")
 ```
 
 ### Batch Processing Best Practices
 
-```python
-{{< include /code_examples/ch18_image_preparation/batch_processing.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Batch Processing"
+import numpy as np
+from typing import List
+
+class BatchImageProcessor:
+    """Efficient batch processing for large image datasets."""
+    def __init__(self, encoder, batch_size=32, num_workers=4):
+        self.encoder = encoder
+        self.batch_size = batch_size
+        self.num_workers = num_workers
+
+    def process_batch(self, images: List):
+        """Process images in batches for efficiency."""
+        embeddings = []
+        for i in range(0, len(images), self.batch_size):
+            batch = images[i:i + self.batch_size]
+            batch_embeddings = self.encoder.encode(batch)
+            embeddings.append(batch_embeddings)
+        return np.vstack(embeddings) if embeddings else np.array([])
+
+    def process_directory(self, image_dir: str):
+        """Process all images in a directory."""
+        from PIL import Image
+        import os
+        images = []
+        image_paths = []
+        for filename in os.listdir(image_dir):
+            if filename.endswith(('.jpg', '.png', '.jpeg')):
+                path = os.path.join(image_dir, filename)
+                images.append(Image.open(path))
+                image_paths.append(path)
+                if len(images) >= self.batch_size:
+                    embeddings = self.process_batch(images)
+                    yield list(zip(image_paths, embeddings))
+                    images, image_paths = [], []
+        if images:
+            embeddings = self.process_batch(images)
+            yield list(zip(image_paths, embeddings))
+
+# Usage example
+print("Batch processing: process images in batches, use DataLoader for efficiency")
 ```
 
 ## Comparing Text and Image Preparation

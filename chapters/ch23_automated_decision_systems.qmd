@@ -22,8 +22,68 @@ Traditional business rules face limitations:
 
 **Embedding approach**: Learn entity embeddings (customers, products, transactions) and decision boundaries from historical outcomes. New decisions query: "find similar past cases, what happened?" See @sec-custom-embedding-strategies for guidance on building these embeddings, and @sec-siamese-networks for similarity-based learning approaches.
 
-```python
-{{< include /code_examples/ch23_automated_decision_systems/from.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Case-Based Reasoning System"
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import numpy as np
+from dataclasses import dataclass
+from typing import List, Tuple, Optional
+
+
+@dataclass
+class BusinessCase:
+    """Historical business decision case."""
+    case_id: str
+    entity_id: str
+    context: dict
+    decision: any
+    outcome: Optional[any] = None
+    embedding: Optional[np.ndarray] = None
+
+
+class EntityEncoder(nn.Module):
+    """Encode entities for decision making."""
+    def __init__(self, embedding_dim: int = 128,
+                 num_categorical: int = 10, num_numerical: int = 20):
+        super().__init__()
+        self.embedding_dim = embedding_dim
+        self.categorical_embeddings = nn.ModuleList(
+            [nn.Embedding(1000, 16) for _ in range(num_categorical)]
+        )
+        self.numerical_encoder = nn.Sequential(
+            nn.Linear(num_numerical, 64),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(64, 64)
+        )
+        feature_dim = num_categorical * 16 + 64
+        self.feature_encoder = nn.Sequential(
+            nn.Linear(feature_dim, 256),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(256, embedding_dim)
+        )
+
+    def forward(self, categorical_features, numerical_features):
+        """Encode entities to embeddings."""
+        cat_embs = [emb_layer(categorical_features[:, i])
+                    for i, emb_layer in enumerate(self.categorical_embeddings)]
+        cat_emb = torch.cat(cat_embs, dim=1)
+        num_emb = self.numerical_encoder(numerical_features)
+        combined = torch.cat([cat_emb, num_emb], dim=1)
+        entity_emb = self.feature_encoder(combined)
+        return F.normalize(entity_emb, p=2, dim=1)
+
+# Usage example
+encoder = EntityEncoder(embedding_dim=128, num_categorical=10, num_numerical=20)
+cat_features = torch.randint(0, 100, (1, 10))
+num_features = torch.randn(1, 20)
+embedding = encoder(cat_features, num_features)
+print(f"Entity embedding shape: {embedding.shape}")
 ```
 
 :::{.callout-tip}
@@ -74,8 +134,92 @@ Traditional pricing approaches:
 
 **Embedding approach**: Learn product embeddings (quality, brand, features) and customer embeddings (purchase history, preferences). Price = f(product_emb, customer_emb, context). See @sec-custom-embedding-strategies for approaches to building these embeddings.
 
-```python
-{{< include /code_examples/ch23_automated_decision_systems/class.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Dynamic Pricing Engine"
+import torch
+import torch.nn as nn
+import numpy as np
+from dataclasses import dataclass
+from typing import Dict, Tuple
+
+
+@dataclass
+class Product:
+    """Product with pricing attributes."""
+    product_id: str
+    category: str
+    brand: str
+    cost: float
+    base_price: float
+    embedding: np.ndarray = None
+
+
+class DemandModel(nn.Module):
+    """Predict purchase probability as function of price."""
+    def __init__(self, embedding_dim: int = 128, context_dim: int = 10):
+        super().__init__()
+        input_dim = embedding_dim * 2 + 1 + context_dim
+        self.demand_predictor = nn.Sequential(
+            nn.Linear(input_dim, 256),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(128, 1),
+            nn.Sigmoid()
+        )
+
+    def forward(self, product_emb, customer_emb, price, context):
+        """Predict purchase probability."""
+        combined = torch.cat([product_emb, customer_emb, price, context], dim=1)
+        purchase_prob = self.demand_predictor(combined)
+        return purchase_prob
+
+
+class DynamicPricingEngine:
+    """Dynamic pricing using embeddings."""
+    def __init__(self, demand_model, min_margin: float = 0.2):
+        self.demand_model = demand_model
+        self.min_margin = min_margin
+
+    def optimize_price(self, product_emb, customer_emb, cost: float,
+                       base_price: float, num_price_points: int = 20) -> Tuple[float, float]:
+        """Optimize price for product-customer pair."""
+        min_price = cost * (1 + self.min_margin)
+        max_price = base_price * 1.2
+        prices = np.linspace(min_price, max_price, num_price_points)
+
+        best_price = None
+        best_profit = -float('inf')
+
+        with torch.no_grad():
+            for price in prices:
+                price_t = torch.tensor([[price]]).float()
+                context_t = torch.zeros(1, 10).float()
+                purchase_prob = self.demand_model(
+                    product_emb, customer_emb, price_t, context_t
+                ).item()
+
+                expected_profit = purchase_prob * (price - cost)
+                if expected_profit > best_profit:
+                    best_profit = expected_profit
+                    best_price = price
+
+        return best_price, best_profit
+
+# Usage example
+demand_model = DemandModel(embedding_dim=128)
+pricing_engine = DynamicPricingEngine(demand_model, min_margin=0.2)
+
+product_emb = torch.randn(1, 128)
+customer_emb = torch.randn(1, 128)
+optimal_price, expected_profit = pricing_engine.optimize_price(
+    product_emb, customer_emb, cost=50.0, base_price=100.0
+)
+print(f"Optimal price: ${optimal_price:.2f}, Expected profit: ${expected_profit:.2f}")
 ```
 
 :::{.callout-tip}
@@ -124,8 +268,84 @@ Traditional approaches:
 
 **Embedding approach**: Learn embeddings of facilities (warehouses, suppliers), products, and routes. Optimize decisions via learned representations that capture complex cost structures. See @sec-custom-embedding-strategies for the decision framework on building domain-specific embeddings.
 
-```python
-{{< include /code_examples/ch23_automated_decision_systems/class_1.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Supply Chain Optimizer"
+import torch
+import torch.nn as nn
+import numpy as np
+from dataclasses import dataclass
+from typing import List, Tuple
+
+
+@dataclass
+class Facility:
+    """Warehouse or distribution center."""
+    facility_id: str
+    location: Tuple[float, float]
+    capacity: float
+    cost_structure: dict
+    embedding: np.ndarray = None
+
+
+class RouteCostModel(nn.Module):
+    """Predict cost of fulfilling order from facility."""
+    def __init__(self, embedding_dim: int = 128):
+        super().__init__()
+        input_dim = embedding_dim * 2 + 10
+        self.cost_predictor = nn.Sequential(
+            nn.Linear(input_dim, 256),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Linear(128, 1)
+        )
+
+    def forward(self, facility_emb, order_emb, context):
+        """Predict fulfillment cost."""
+        combined = torch.cat([facility_emb, order_emb, context], dim=1)
+        cost = self.cost_predictor(combined)
+        return cost
+
+
+class SupplyChainOptimizer:
+    """Optimize supply chain decisions using embeddings."""
+    def __init__(self, cost_model):
+        self.cost_model = cost_model
+
+    def select_facility(self, order_emb, facilities: List[Facility]) -> Tuple[str, float]:
+        """Select which facility should fulfill order."""
+        best_facility = None
+        best_cost = float('inf')
+
+        with torch.no_grad():
+            for facility in facilities:
+                facility_emb = torch.from_numpy(facility.embedding).unsqueeze(0).float()
+                context = torch.zeros(1, 10).float()  # Distance, urgency, etc.
+
+                cost = self.cost_model(facility_emb, order_emb, context).item()
+
+                if cost < best_cost:
+                    best_cost = cost
+                    best_facility = facility.facility_id
+
+        return best_facility, best_cost
+
+# Usage example
+cost_model = RouteCostModel(embedding_dim=128)
+optimizer = SupplyChainOptimizer(cost_model)
+
+# Create facilities
+facilities = [
+    Facility('warehouse_1', (37.7, -122.4), 10000, {}, np.random.randn(128)),
+    Facility('warehouse_2', (40.7, -74.0), 15000, {}, np.random.randn(128))
+]
+
+order_emb = torch.randn(1, 128)
+selected_facility, cost = optimizer.select_facility(order_emb, facilities)
+print(f"Selected facility: {selected_facility}, Cost: ${cost:.2f}")
 ```
 
 :::{.callout-tip}
@@ -174,8 +394,69 @@ Traditional approaches:
 
 **Embedding approach**: Learn embeddings capturing risk from multi-modal data (text, images, graphs), enabling non-linear risk assessment that adapts to new data. See @sec-custom-embedding-strategies for guidance on choosing the right level of customization for your domain.
 
-```python
-{{< include /code_examples/ch23_automated_decision_systems/class_2.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Risk Scoring Model"
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import numpy as np
+
+
+class RiskEncoder(nn.Module):
+    """Encode entities for risk assessment."""
+    def __init__(self, embedding_dim: int = 128):
+        super().__init__()
+        self.encoder = nn.Sequential(
+            nn.Linear(50, 256),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(128, embedding_dim)
+        )
+
+    def forward(self, features):
+        """Encode entity features for risk assessment."""
+        risk_emb = self.encoder(features)
+        return F.normalize(risk_emb, p=2, dim=1)
+
+
+class RiskScoringModel(nn.Module):
+    """Predict risk score from embedding."""
+    def __init__(self, embedding_dim: int = 128):
+        super().__init__()
+        self.risk_head = nn.Sequential(
+            nn.Linear(embedding_dim, 128),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(64, 1),
+            nn.Sigmoid()
+        )
+
+    def forward(self, embeddings):
+        """Predict risk scores (probability of adverse event)."""
+        risk_scores = self.risk_head(embeddings)
+        return risk_scores
+
+# Usage example
+risk_encoder = RiskEncoder(embedding_dim=128)
+risk_model = RiskScoringModel(embedding_dim=128)
+
+# Credit application features
+features = torch.randn(1, 50)  # Income, debt, credit history, etc.
+
+# Encode and score
+embedding = risk_encoder(features)
+risk_score = risk_model(embedding)
+
+print(f"Risk score (probability of default): {risk_score.item():.3f}")
+print(f"Decision: {'APPROVE' if risk_score.item() < 0.15 else 'REJECT'}")
 ```
 
 :::{.callout-tip}
@@ -224,8 +505,92 @@ Traditional approaches:
 
 **Embedding approach**: Learn equipment embeddings from multi-modal data (sensor streams, images, audio). Predict failure by detecting drift from normal operation patterns. See @sec-custom-embedding-strategies for approaches to building these embeddings, and @sec-contrastive-learning for training techniques.
 
-```python
-{{< include /code_examples/ch23_automated_decision_systems/class_3.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Predictive Maintenance System"
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+
+class EquipmentEncoder(nn.Module):
+    """Encode equipment state from sensor time series."""
+    def __init__(self, embedding_dim: int = 128, num_sensors: int = 10):
+        super().__init__()
+        # LSTM for sensor time series
+        self.sensor_encoder = nn.LSTM(
+            input_size=num_sensors,
+            hidden_size=64,
+            num_layers=2,
+            batch_first=True,
+            dropout=0.2
+        )
+        # Fusion layer
+        self.fusion = nn.Sequential(
+            nn.Linear(64, 128),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(128, embedding_dim)
+        )
+
+    def forward(self, sensor_data):
+        """Encode equipment state from sensor readings."""
+        _, (hidden, _) = self.sensor_encoder(sensor_data)
+        sensor_emb = hidden[-1]
+        equipment_emb = self.fusion(sensor_emb)
+        return F.normalize(equipment_emb, p=2, dim=1)
+
+
+class FailurePredictionModel(nn.Module):
+    """Predict equipment failure from embedding."""
+    def __init__(self, embedding_dim: int = 128):
+        super().__init__()
+        # Failure probability head
+        self.failure_prob_head = nn.Sequential(
+            nn.Linear(embedding_dim, 128),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(128, 1),
+            nn.Sigmoid()
+        )
+        # Time to failure head
+        self.time_to_failure_head = nn.Sequential(
+            nn.Linear(embedding_dim, 128),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(128, 1),
+            nn.ReLU()
+        )
+
+    def forward(self, embeddings):
+        """Predict failure probability and time to failure."""
+        failure_prob = self.failure_prob_head(embeddings)
+        time_to_failure = self.time_to_failure_head(embeddings)
+        return failure_prob, time_to_failure
+
+# Usage example
+equipment_encoder = EquipmentEncoder(embedding_dim=128, num_sensors=10)
+failure_model = FailurePredictionModel(embedding_dim=128)
+
+# Sensor time series (100 timesteps, 10 sensors)
+sensor_data = torch.randn(1, 100, 10)
+
+# Encode equipment state
+equipment_emb = equipment_encoder(sensor_data)
+
+# Predict failure
+failure_prob, time_to_failure = failure_model(equipment_emb)
+
+print(f"Failure probability (next 100 hours): {failure_prob.item():.1%}")
+print(f"Estimated time to failure: {time_to_failure.item():.0f} hours")
+
+if failure_prob.item() > 0.8:
+    print("→ URGENT: Schedule maintenance immediately")
+elif failure_prob.item() > 0.3:
+    print("→ MONITOR: Schedule maintenance soon")
+else:
+    print("→ NORMAL: Continue operation")
 ```
 
 :::{.callout-tip}

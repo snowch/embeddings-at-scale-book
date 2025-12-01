@@ -37,16 +37,94 @@ Euclidean space has a fundamental limitation: the number of points at distance $
 
 The Poincaré ball model represents hyperbolic space as the unit ball in Euclidean space with a special distance metric:
 
-```python
-{{< include /code_examples/ch12_advanced_embedding_techniques/hyperbolicembedding.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Hyperbolic Embedding Implementation"
+import torch
+import torch.nn as nn
+
+
+class HyperbolicEmbedding(nn.Module):
+    """Hyperbolic embeddings in Poincaré ball for hierarchical data."""
+
+    def __init__(self, num_items, embedding_dim, curvature=1.0):
+        super().__init__()
+        self.curvature = curvature
+        self.embeddings = nn.Embedding(num_items, embedding_dim)
+        nn.init.uniform_(self.embeddings.weight, -1e-3, 1e-3)
+
+    def poincare_distance(self, u, v):
+        """Compute Poincaré distance between points u and v."""
+        sqrt_c = self.curvature ** 0.5
+        diff_norm_sq = torch.sum((u - v) ** 2, dim=-1)
+        u_norm_sq = torch.sum(u ** 2, dim=-1)
+        v_norm_sq = torch.sum(v ** 2, dim=-1)
+
+        numerator = 2 * diff_norm_sq
+        denominator = (1 - u_norm_sq) * (1 - v_norm_sq)
+        return torch.acosh(1 + numerator / (denominator + 1e-7)) / sqrt_c
+
+    def project_to_ball(self, x, eps=1e-5):
+        """Project points to Poincaré ball (norm < 1)."""
+        norm = torch.norm(x, p=2, dim=-1, keepdim=True)
+        max_norm = 1 - eps
+        return x / torch.clamp(norm / max_norm, min=1.0)
+
+    def forward(self, indices):
+        """Get embeddings and project to Poincaré ball."""
+        emb = self.embeddings(indices)
+        return self.project_to_ball(emb)
+
+
+# Usage example
+model = HyperbolicEmbedding(num_items=1000, embedding_dim=10, curvature=1.0)
+indices = torch.tensor([0, 1, 10])
+embeddings = model(indices)
+distance = model.poincare_distance(embeddings[0], embeddings[1])
+print(f"Hyperbolic distance: {distance.item():.4f}")
 ```
 
 ### Enterprise Applications of Hierarchical Embeddings
 
 **1. Product Recommendation with Category Awareness**
 
-```python
-{{< include /code_examples/ch12_advanced_embedding_techniques/hierarchicalproductrecommender.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Hierarchical Product Recommender"
+import torch
+import torch.nn as nn
+
+
+class HierarchicalProductRecommender:
+    """Product recommendation system using hyperbolic embeddings for category-aware recommendations."""
+
+    def __init__(self, product_catalog, embedding_dim=10, curvature=1.0):
+        self.catalog = product_catalog
+        self.hyperbolic_model = HyperbolicEmbedding(len(product_catalog), embedding_dim, curvature)
+
+    def recommend(self, product_id, top_k=10, category_weight=0.3):
+        """Recommend products based on hyperbolic distance and category structure."""
+        query_emb = self.hyperbolic_model(torch.tensor([product_id]))
+
+        distances = []
+        for pid in range(len(self.catalog)):
+            if pid == product_id:
+                continue
+            prod_emb = self.hyperbolic_model(torch.tensor([pid]))
+            dist = self.hyperbolic_model.poincare_distance(query_emb, prod_emb)
+            distances.append((pid, dist.item()))
+
+        distances.sort(key=lambda x: x[1])
+        return [pid for pid, _ in distances[:top_k]]
+
+
+# Usage example
+catalog = {"laptop_gaming": 0, "laptop_business": 1, "phone": 2}
+recommender = HierarchicalProductRecommender(catalog, embedding_dim=10)
+recommendations = recommender.recommend(product_id=0, top_k=5)
+print(f"Recommendations for product 0: {recommendations}")
 ```
 
 **2. Knowledge Graph Embeddings**
@@ -124,8 +202,42 @@ A static embedding averages these meanings, losing temporal context. A dynamic e
 **2. Continuous Evolution**: Embeddings as functions of time
 **3. Recurrent Updates**: Update embeddings based on new observations
 
-```python
-{{< include /code_examples/ch12_advanced_embedding_techniques/dynamicembedding.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Dynamic Embedding"
+import torch
+import torch.nn as nn
+
+
+class DynamicEmbedding(nn.Module):
+    """Dynamic embeddings that evolve over time based on user interactions."""
+
+    def __init__(self, num_items, embedding_dim, num_time_slices=10):
+        super().__init__()
+        self.num_time_slices = num_time_slices
+        self.base_embeddings = nn.Embedding(num_items, embedding_dim)
+        self.temporal_adjustment = nn.Embedding(num_time_slices, embedding_dim)
+
+    def forward(self, item_ids, time_slice_ids):
+        """Get time-aware embeddings."""
+        base_emb = self.base_embeddings(item_ids)
+        temporal_adj = self.temporal_adjustment(time_slice_ids)
+        return base_emb + 0.1 * temporal_adj
+
+    def update_from_interactions(self, item_id, interaction_embedding, learning_rate=0.01):
+        """Incrementally update embeddings based on new interactions."""
+        with torch.no_grad():
+            current = self.base_embeddings.weight[item_id]
+            self.base_embeddings.weight[item_id] = current + learning_rate * (interaction_embedding - current)
+
+
+# Usage example
+model = DynamicEmbedding(num_items=1000, embedding_dim=128, num_time_slices=24)
+item_ids = torch.tensor([10, 20, 30])
+time_ids = torch.tensor([5, 5, 10])
+embeddings = model(item_ids, time_ids)
+print(f"Dynamic embeddings shape: {embeddings.shape}")
 ```
 
 ### Production Deployment of Dynamic Embeddings
@@ -140,8 +252,49 @@ For systems with millions of users and billions of interactions:
 4. **Versioned embeddings**: Maintain multiple versions (current, 5min old, 1hr old) for consistency
 :::
 
-```python
-{{< include /code_examples/ch12_advanced_embedding_techniques/streamingembeddingservice.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Streaming Embedding Service"
+import asyncio
+from collections import deque
+from datetime import datetime
+import torch
+
+
+class StreamingEmbeddingService:
+    """Real-time embedding service with streaming updates."""
+
+    def __init__(self, model, update_interval_seconds=60):
+        self.model = model
+        self.update_interval = update_interval_seconds
+        self.pending_updates = deque()
+        self.last_update = datetime.now()
+
+    async def queue_interaction(self, item_id, interaction_data):
+        """Queue interaction for batch update."""
+        self.pending_updates.append((item_id, interaction_data))
+        if len(self.pending_updates) >= 100 or (datetime.now() - self.last_update).total_seconds() > self.update_interval:
+            await self.flush_updates()
+
+    async def flush_updates(self):
+        """Apply pending updates in batch."""
+        if not self.pending_updates:
+            return
+
+        updates = list(self.pending_updates)
+        self.pending_updates.clear()
+
+        for item_id, data in updates:
+            self.model.update_from_interactions(item_id, torch.randn(128), learning_rate=0.01)
+
+        self.last_update = datetime.now()
+        print(f"Flushed {len(updates)} updates")
+
+# Usage example
+model = DynamicEmbedding(num_items=1000, embedding_dim=128)
+service = StreamingEmbeddingService(model, update_interval_seconds=60)
+print("Streaming service initialized for real-time updates")
 ```
 
 :::{.callout-warning}
@@ -172,16 +325,90 @@ Compositional embeddings learn **how to combine** components, not just what the 
 
 ### Approaches to Composition
 
-```python
-{{< include /code_examples/ch12_advanced_embedding_techniques/compositionalembedding.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Compositional Embedding"
+import torch
+import torch.nn as nn
+
+
+class CompositionalEmbedding(nn.Module):
+    """Learn to compose embeddings from multiple components using attention."""
+
+    def __init__(self, component_dims, output_dim=128):
+        super().__init__()
+        self.component_encoders = nn.ModuleList([
+            nn.Linear(dim, output_dim) for dim in component_dims
+        ])
+        self.attention = nn.MultiheadAttention(output_dim, num_heads=4, batch_first=True)
+        self.output_proj = nn.Linear(output_dim, output_dim)
+
+    def forward(self, components, component_mask=None):
+        """Compose embeddings from multiple components.
+
+        Args:
+            components: List of tensors, one per component
+            component_mask: Boolean mask for missing components
+        """
+        encoded = []
+        for i, comp in enumerate(components):
+            if comp is not None:
+                encoded.append(self.component_encoders[i](comp))
+            else:
+                encoded.append(torch.zeros(comp.size(0), self.component_encoders[i].out_features))
+
+        stacked = torch.stack(encoded, dim=1)
+        attended, _ = self.attention(stacked, stacked, stacked, key_padding_mask=component_mask)
+        return self.output_proj(attended.mean(dim=1))
+
+
+# Usage example
+model = CompositionalEmbedding(component_dims=[64, 128, 32], output_dim=128)
+components = [torch.randn(16, 64), torch.randn(16, 128), torch.randn(16, 32)]
+composed = model(components)
+print(f"Composed embedding shape: {composed.shape}")
 ```
 
 ### Task-Specific Composition Weights
 
 A powerful extension: **learn different composition weights for different tasks**.
 
-```python
-{{< include /code_examples/ch12_advanced_embedding_techniques/taskadaptivecomposition.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Task-Adaptive Composition"
+import torch
+import torch.nn as nn
+
+
+class TaskAdaptiveComposition(nn.Module):
+    """Learn task-specific composition weights for multi-component entities."""
+
+    def __init__(self, num_components, embedding_dim, num_tasks=3):
+        super().__init__()
+        self.component_embeddings = nn.ModuleList([
+            nn.Embedding(1000, embedding_dim) for _ in range(num_components)
+        ])
+        self.task_weights = nn.Embedding(num_tasks, num_components)
+        nn.init.uniform_(self.task_weights.weight, 0, 1)
+
+    def forward(self, component_ids, task_id):
+        """Compose embeddings with task-specific weights."""
+        component_embs = [enc(ids) for enc, ids in zip(self.component_embeddings, component_ids)]
+        stacked = torch.stack(component_embs, dim=1)
+
+        weights = torch.softmax(self.task_weights(task_id), dim=-1)
+        weighted = stacked * weights.unsqueeze(-1)
+        return weighted.sum(dim=1)
+
+
+# Usage example
+model = TaskAdaptiveComposition(num_components=3, embedding_dim=64, num_tasks=3)
+comp_ids = [torch.tensor([10]), torch.tensor([20]), torch.tensor([30])]
+task_id = torch.tensor([1])
+composed = model(comp_ids, task_id)
+print(f"Task-adaptive composed embedding: {composed.shape}")
 ```
 
 :::{.callout-tip}
@@ -203,8 +430,50 @@ Standard embeddings provide point estimates with no uncertainty. We need probabi
 
 ### Approaches to Uncertainty Quantification
 
-```python
-{{< include /code_examples/ch12_advanced_embedding_techniques/probabilisticembedding.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Probabilistic Embedding"
+import torch
+import torch.nn as nn
+
+
+class ProbabilisticEmbedding(nn.Module):
+    """Embeddings with uncertainty quantification using variational approach."""
+
+    def __init__(self, num_items, embedding_dim):
+        super().__init__()
+        self.mean_embeddings = nn.Embedding(num_items, embedding_dim)
+        self.logvar_embeddings = nn.Embedding(num_items, embedding_dim)
+
+    def forward(self, item_ids, num_samples=1):
+        """Sample from embedding distribution."""
+        mean = self.mean_embeddings(item_ids)
+        logvar = self.logvar_embeddings(item_ids)
+        std = torch.exp(0.5 * logvar)
+
+        if num_samples == 1:
+            eps = torch.randn_like(std)
+            return mean + eps * std, std
+        else:
+            samples = []
+            for _ in range(num_samples):
+                eps = torch.randn_like(std)
+                samples.append(mean + eps * std)
+            return torch.stack(samples), std
+
+    def uncertainty(self, item_ids):
+        """Get uncertainty scores."""
+        logvar = self.logvar_embeddings(item_ids)
+        return torch.exp(0.5 * logvar).mean(dim=-1)
+
+
+# Usage example
+model = ProbabilisticEmbedding(num_items=1000, embedding_dim=128)
+items = torch.tensor([10, 20, 30])
+embeddings, uncertainty = model(items)
+uncertainty_scores = model.uncertainty(items)
+print(f"Embeddings: {embeddings.shape}, Uncertainty: {uncertainty_scores}")
 ```
 
 :::{.callout-warning}
@@ -248,22 +517,144 @@ Federated training:
 3. Central server aggregates updates
 4. Repeat until convergence
 
-```python
-{{< include /code_examples/ch12_advanced_embedding_techniques/federatedembeddingserver.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Federated Embedding Server"
+import torch
+import torch.nn as nn
+
+
+class FederatedEmbeddingServer:
+    """Central server for federated embedding learning."""
+
+    def __init__(self, global_model, num_clients=10):
+        self.global_model = global_model
+        self.num_clients = num_clients
+        self.client_weights = [1.0 / num_clients] * num_clients
+
+    def aggregate_updates(self, client_models):
+        """Aggregate model updates from clients using weighted average."""
+        global_dict = self.global_model.state_dict()
+
+        for key in global_dict.keys():
+            global_dict[key] = torch.zeros_like(global_dict[key])
+            for i, client_model in enumerate(client_models):
+                client_dict = client_model.state_dict()
+                global_dict[key] += self.client_weights[i] * client_dict[key]
+
+        self.global_model.load_state_dict(global_dict)
+
+    def distribute_model(self):
+        """Send updated global model to clients."""
+        return self.global_model.state_dict()
+
+
+# Usage example
+global_model = nn.Embedding(1000, 128)
+server = FederatedEmbeddingServer(global_model, num_clients=5)
+print("Federated server initialized for distributed training")
 ```
 
 ### Privacy-Preserving Techniques
 
 **1. Differential Privacy**: Add calibrated noise to updates
 
-```python
-{{< include /code_examples/ch12_advanced_embedding_techniques/differentiallyprivateembedding.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Differentially Private Embedding"
+import torch
+import torch.nn as nn
+
+
+class DifferentiallyPrivateEmbedding:
+    """Add differential privacy noise to embeddings for privacy preservation."""
+
+    def __init__(self, model, epsilon=1.0, delta=1e-5):
+        self.model = model
+        self.epsilon = epsilon
+        self.delta = delta
+        self.sensitivity = 1.0
+
+    def add_noise(self, gradients):
+        """Add calibrated Gaussian noise for differential privacy."""
+        sigma = (self.sensitivity * torch.sqrt(2 * torch.log(torch.tensor(1.25 / self.delta)))) / self.epsilon
+        noisy_gradients = {}
+        for key, grad in gradients.items():
+            noise = torch.randn_like(grad) * sigma
+            noisy_gradients[key] = grad + noise
+        return noisy_gradients
+
+    def private_train_step(self, batch, optimizer):
+        """Training step with differential privacy."""
+        optimizer.zero_grad()
+        loss = self.model(batch)
+        loss.backward()
+
+        gradients = {name: param.grad.clone() for name, param in self.model.named_parameters() if param.grad is not None}
+        noisy_grads = self.add_noise(gradients)
+
+        for name, param in self.model.named_parameters():
+            if name in noisy_grads:
+                param.grad = noisy_grads[name]
+
+        optimizer.step()
+        return loss.item()
+
+
+# Usage example
+model = nn.Embedding(1000, 128)
+dp_trainer = DifferentiallyPrivateEmbedding(model, epsilon=1.0)
+print(f"DP training with epsilon={dp_trainer.epsilon}")
 ```
 
 **2. Secure Aggregation**: Encrypt updates before sharing
 
-```python
-{{< include /code_examples/ch12_advanced_embedding_techniques/secureaggregation.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Secure Aggregation"
+import torch
+
+
+class SecureAggregation:
+    """Secure aggregation using secret sharing for federated learning."""
+
+    def __init__(self, num_clients):
+        self.num_clients = num_clients
+
+    def add_secret_shares(self, model_update):
+        """Add secret shares to model update for secure aggregation."""
+        shares = []
+        for _ in range(self.num_clients - 1):
+            share = {k: torch.randn_like(v) for k, v in model_update.items()}
+            shares.append(share)
+
+        final_share = {}
+        for key in model_update.keys():
+            final_share[key] = model_update[key] - sum(s[key] for s in shares)
+
+        shares.append(final_share)
+        return shares
+
+    def aggregate_shares(self, client_shares):
+        """Aggregate secret shares to recover sum without revealing individual updates."""
+        aggregated = {}
+        first_client = client_shares[0]
+
+        for key in first_client.keys():
+            aggregated[key] = sum(client[key] for client in client_shares)
+
+        return aggregated
+
+
+# Usage example
+secure_agg = SecureAggregation(num_clients=5)
+update = {'embeddings': torch.randn(100, 128)}
+shares = secure_agg.add_secret_shares(update)
+reconstructed = secure_agg.aggregate_shares(shares)
+print(f"Secure aggregation with {secure_agg.num_clients} clients")
 ```
 
 :::{.callout-tip}

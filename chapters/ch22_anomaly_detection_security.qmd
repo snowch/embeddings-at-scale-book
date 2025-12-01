@@ -21,8 +21,56 @@ Traditional fraud detection faces limitations:
 
 **Embedding approach**: Learn transaction embeddings capturing behavior patterns. Normal transactions cluster together; fraud transactions lie in sparse regions or form small, distinct clusters. See @sec-custom-embedding-strategies for guidance on building these embeddings, and @sec-contrastive-learning for training techniques that learn to distinguish normal from anomalous patterns.
 
-```python
-{{< include /code_examples/ch22_anomaly_detection_security/from.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Transaction Autoencoder for Fraud Detection"
+import torch
+import torch.nn as nn
+import numpy as np
+
+
+class TransactionAutoencoder(nn.Module):
+    """Autoencoder for fraud detection via reconstruction error."""
+    def __init__(self, input_dim: int = 128, latent_dim: int = 32):
+        super().__init__()
+        # Encoder
+        self.encoder = nn.Sequential(
+            nn.Linear(input_dim, 64),
+            nn.ReLU(),
+            nn.Linear(64, latent_dim)
+        )
+        # Decoder
+        self.decoder = nn.Sequential(
+            nn.Linear(latent_dim, 64),
+            nn.ReLU(),
+            nn.Linear(64, input_dim)
+        )
+
+    def forward(self, x):
+        """Encode and decode."""
+        latent = self.encoder(x)
+        reconstructed = self.decoder(latent)
+        return latent, reconstructed
+
+    def compute_anomaly_score(self, x):
+        """Compute anomaly score (reconstruction error)."""
+        _, reconstructed = self.forward(x)
+        scores = ((x - reconstructed) ** 2).mean(dim=1)
+        return scores
+
+# Usage example
+model = TransactionAutoencoder(input_dim=128, latent_dim=32)
+
+# Normal transaction
+normal_txn = torch.randn(1, 128) * 0.1
+score_normal = model.compute_anomaly_score(normal_txn)
+print(f"Normal transaction anomaly score: {score_normal.item():.4f}")
+
+# Anomalous transaction
+anomalous_txn = torch.randn(1, 128) * 2.0
+score_anomalous = model.compute_anomaly_score(anomalous_txn)
+print(f"Anomalous transaction score: {score_anomalous.item():.4f}")
 ```
 
 :::{.callout-tip}
@@ -102,8 +150,51 @@ if distance_to_nearest_normal_cluster > threshold:
 
 **Embedding approach**: Learn normal behavior embeddings for each user/device. Anomalies = deviation from learned patterns. See @sec-custom-embedding-strategies for approaches to building behavioral embeddings, from fine-tuning pre-trained models to custom architectures.
 
-```python
-{{< include /code_examples/ch22_anomaly_detection_security/from_1.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show User Behavior Anomaly Detection"
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+
+class UserBehaviorModel(nn.Module):
+    """Model user behavior as sequence of events."""
+    def __init__(self, event_dim: int = 64, hidden_dim: int = 128, num_event_types: int = 20):
+        super().__init__()
+        self.event_type_embedding = nn.Embedding(num_event_types, event_dim)
+        self.lstm = nn.LSTM(input_size=event_dim, hidden_size=hidden_dim,
+                            num_layers=2, batch_first=True)
+        self.attention = nn.Linear(hidden_dim, 1)
+        self.output_projection = nn.Linear(hidden_dim, event_dim)
+
+    def forward(self, event_sequences):
+        """Encode user behavior from event sequence."""
+        event_embs = self.event_type_embedding(event_sequences)
+        lstm_out, _ = self.lstm(event_embs)
+
+        # Attention mechanism
+        attn_weights = torch.softmax(self.attention(lstm_out), dim=1)
+        behavior_emb = (lstm_out * attn_weights).sum(dim=1)
+
+        behavior_emb = self.output_projection(behavior_emb)
+        return F.normalize(behavior_emb, p=2, dim=1)
+
+# Usage example
+model = UserBehaviorModel(event_dim=64, hidden_dim=128, num_event_types=20)
+
+# Normal behavior sequence
+normal_sequence = torch.tensor([[0, 2, 3, 2, 0]])  # login, file_read, etc.
+normal_emb = model(normal_sequence)
+
+# Anomalous behavior sequence
+anomalous_sequence = torch.tensor([[1, 4, 5, 4]])  # login_failure, file_delete, etc.
+anomalous_emb = model(anomalous_sequence)
+
+# Compare
+distance = torch.norm(normal_emb - anomalous_emb)
+print(f"Behavior distance: {distance.item():.4f}")
 ```
 
 :::{.callout-tip}
@@ -157,8 +248,83 @@ Traditional quality control uses thresholds:
 
 **Embedding approach**: Learn product embeddings from sensor/image data. Normal products cluster tightly; defects are outliers. See @sec-custom-embedding-strategies for guidance on choosing between pre-trained and custom embeddings for your domain.
 
-```python
-{{< include /code_examples/ch22_anomaly_detection_security/from_2.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Quality Control System"
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import numpy as np
+
+
+class ProductEncoder(nn.Module):
+    """Encode products from sensor measurements."""
+    def __init__(self, measurement_dim: int = 100, output_dim: int = 128):
+        super().__init__()
+        self.measurement_encoder = nn.Sequential(
+            nn.Linear(measurement_dim, 256),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(256, output_dim)
+        )
+
+    def forward(self, measurements):
+        """Encode product to embedding."""
+        product_emb = self.measurement_encoder(measurements)
+        return F.normalize(product_emb, p=2, dim=1)
+
+
+class QualityControlSystem:
+    """Manufacturing quality control using embeddings."""
+    def __init__(self, embedding_dim: int = 128):
+        self.embedding_dim = embedding_dim
+        self.encoder = ProductEncoder(measurement_dim=100, output_dim=embedding_dim)
+        self.encoder.eval()
+        self.cluster_centroid = None
+        self.cluster_radius = None
+
+    def build_normal_cluster(self, normal_products):
+        """Build cluster from defect-free products."""
+        embeddings = []
+        for measurements in normal_products:
+            measurements_tensor = torch.from_numpy(measurements).unsqueeze(0).float()
+            with torch.no_grad():
+                emb = self.encoder(measurements_tensor)
+                embeddings.append(emb.numpy()[0])
+
+        embeddings = np.array(embeddings)
+        self.cluster_centroid = np.mean(embeddings, axis=0)
+
+        distances = np.linalg.norm(embeddings - self.cluster_centroid, axis=1)
+        self.cluster_radius = np.percentile(distances, 95)  # 95th percentile
+
+    def inspect_product(self, measurements):
+        """Inspect product for defects."""
+        measurements_tensor = torch.from_numpy(measurements).unsqueeze(0).float()
+        with torch.no_grad():
+            emb = self.encoder(measurements_tensor).numpy()[0]
+
+        distance = np.linalg.norm(emb - self.cluster_centroid)
+        is_defective = distance > self.cluster_radius
+        return is_defective, float(distance)
+
+# Usage example
+qc_system = QualityControlSystem(embedding_dim=64)
+
+# Build baseline from 100 normal products
+normal_products = [np.random.randn(100).astype(np.float32) * 0.1 for _ in range(100)]
+qc_system.build_normal_cluster(normal_products)
+
+# Test normal product
+test_normal = np.random.randn(100).astype(np.float32) * 0.1
+is_def, dist = qc_system.inspect_product(test_normal)
+print(f"Normal product - Defective: {is_def}, Distance: {dist:.4f}")
+
+# Test defective product
+test_defect = np.random.randn(100).astype(np.float32) * 2.0
+is_def, dist = qc_system.inspect_product(test_defect)
+print(f"Defective product - Defective: {is_def}, Distance: {dist:.4f}")
 ```
 
 :::{.callout-tip}
@@ -211,8 +377,86 @@ Traditional risk models use scores (credit score, financial ratios):
 
 **Embedding approach**: Learn entity embeddings from financial data, network relationships, and behavioral patterns. Risk propagates through networks. See @sec-custom-embedding-strategies for the decision framework on building domain-specific embeddings.
 
-```python
-{{< include /code_examples/ch22_anomaly_detection_security/class.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Risk Assessment System"
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import numpy as np
+
+
+class FinancialEntityEncoder(nn.Module):
+    """Encode financial entities for risk assessment."""
+    def __init__(self, feature_dim: int = 50, embedding_dim: int = 128):
+        super().__init__()
+        self.encoder = nn.Sequential(
+            nn.Linear(feature_dim, 128),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(128, embedding_dim)
+        )
+
+    def forward(self, features):
+        """Encode entity features."""
+        emb = self.encoder(features)
+        return F.normalize(emb, p=2, dim=1)
+
+
+class RiskAssessmentSystem:
+    """Financial risk assessment using embeddings."""
+    def __init__(self, embedding_dim: int = 128):
+        self.embedding_dim = embedding_dim
+        self.encoder = FinancialEntityEncoder(embedding_dim=embedding_dim)
+        self.encoder.eval()
+        self.risk_centroids = {}  # low, medium, high
+
+    def build_risk_clusters(self, entities_by_risk):
+        """Build risk clusters from labeled entities."""
+        for risk_level, entities in entities_by_risk.items():
+            embeddings = []
+            for features in entities:
+                features_tensor = torch.from_numpy(features).unsqueeze(0).float()
+                with torch.no_grad():
+                    emb = self.encoder(features_tensor).numpy()[0]
+                embeddings.append(emb)
+
+            if embeddings:
+                self.risk_centroids[risk_level] = np.mean(embeddings, axis=0)
+
+    def assess_risk(self, features):
+        """Assess risk level for entity."""
+        features_tensor = torch.from_numpy(features).unsqueeze(0).float()
+        with torch.no_grad():
+            emb = self.encoder(features_tensor).numpy()[0]
+
+        # Compute distance to each risk cluster
+        distances = {}
+        for risk_level, centroid in self.risk_centroids.items():
+            distance = np.linalg.norm(emb - centroid)
+            distances[risk_level] = float(distance)
+
+        # Assign to nearest cluster
+        risk_level = min(distances.keys(), key=lambda k: distances[k])
+        return risk_level, distances
+
+# Usage example
+risk_system = RiskAssessmentSystem(embedding_dim=64)
+
+# Build risk clusters
+entities_by_risk = {
+    'low': [np.array([0.2, 0.9] + [0.0] * 48, dtype=np.float32) for _ in range(50)],
+    'medium': [np.array([0.4, 0.7] + [0.0] * 48, dtype=np.float32) for _ in range(50)],
+    'high': [np.array([0.8, 0.4] + [0.0] * 48, dtype=np.float32) for _ in range(50)]
+}
+risk_system.build_risk_clusters(entities_by_risk)
+
+# Assess new entity
+test_entity = np.array([0.25, 0.95] + [0.0] * 48, dtype=np.float32)
+risk, distances = risk_system.assess_risk(test_entity)
+print(f"Risk level: {risk}")
+print(f"Distances: {distances}")
 ```
 
 :::{.callout-tip}
@@ -266,8 +510,46 @@ Users exhibit consistent patterns:
 
 **Challenge**: Detect deviations while adapting to legitimate behavior changes (new job, new phone).
 
-```python
-{{< include /code_examples/ch22_anomaly_detection_security/behavioral_anomaly_example.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Behavioral Anomaly Detection Example"
+def behavioral_anomaly_example():
+    """Account takeover detection for web application."""
+    print("=== Account Takeover Detection ===")
+    print("\nNormal baseline:")
+    print("  Login time: Weekdays 9am-6pm")
+    print("  Location: San Francisco office")
+    print("  Device: MacBook Pro")
+    print("  Actions: View dashboard, edit documents")
+    print("  Velocity: 10-20 pages/session")
+
+    print("\n--- Legitimate Session ---")
+    print("Time: Tuesday 2pm")
+    print("Location: San Francisco office")
+    print("Device: MacBook Pro")
+    print("Actions: View dashboard, edit report, send email")
+    print("Velocity: 15 pages")
+    print("→ Anomaly score: 0.05 (NORMAL)")
+
+    print("\n--- Compromised Session ---")
+    print("Time: Saturday 3am")
+    print("Location: Unknown (Tor exit node)")
+    print("Device: Windows PC (new)")
+    print("Actions: Access admin panel, bulk export users, delete logs")
+    print("Velocity: 150 pages")
+    print("→ Anomaly score: 0.95 (ALERT: Possible account takeover)")
+
+    print("\n--- Legitimate Travel ---")
+    print("Time: Monday 10am")
+    print("Location: New York office (business trip)")
+    print("Device: MacBook Pro + iPhone")
+    print("Actions: View dashboard, edit documents")
+    print("Velocity: 12 pages")
+    print("→ Anomaly score: 0.25 (MONITOR: New location, but normal actions)")
+
+# Run example
+behavioral_anomaly_example()
 ```
 
 :::{.callout-tip}
