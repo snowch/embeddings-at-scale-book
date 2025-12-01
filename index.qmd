@@ -21,6 +21,7 @@ Available in multiple formats for your convenience:
 
 - **[📕 Download PDF](downloads/Embeddings-at-Scale.pdf)** - Optimized for printing and offline reading
 - **[📱 Download EPUB](downloads/Embeddings-at-Scale.epub)** - For e-readers and mobile devices
+- **[📚 Download EPUB by Part](downloads/Embeddings-at-Scale-Parts.zip)** - Smaller EPUBs split by part (7 files)
 - **[📓 Download Jupyter Notebooks](downloads/Embeddings-at-Scale-Notebooks.zip)** - Interactive notebooks for all chapters
 :::
 
