@@ -88,6 +88,36 @@ jobs:
         run: |
           ./scripts/generate-part-epubs.sh
 
+      - name: Validate EPUBs with EPUBCheck
+        run: |
+          # Download EPUBCheck
+          EPUBCHECK_VERSION="5.1.0"
+          wget -q "https://github.com/w3c/epubcheck/releases/download/v${EPUBCHECK_VERSION}/epubcheck-${EPUBCHECK_VERSION}.zip"
+          unzip -q "epubcheck-${EPUBCHECK_VERSION}.zip"
+
+          echo "Validating EPUB files..."
+          ERRORS=0
+
+          # Validate main EPUB
+          if [ -f _book/Embeddings-at-Scale.epub ]; then
+            echo "Checking: Embeddings-at-Scale.epub"
+            java -jar "epubcheck-${EPUBCHECK_VERSION}/epubcheck.jar" _book/Embeddings-at-Scale.epub --warn || ERRORS=$((ERRORS + 1))
+          fi
+
+          # Validate per-part EPUBs
+          for epub in _book/part-epubs/*.epub; do
+            if [ -f "$epub" ]; then
+              echo "Checking: $(basename $epub)"
+              java -jar "epubcheck-${EPUBCHECK_VERSION}/epubcheck.jar" "$epub" --warn || ERRORS=$((ERRORS + 1))
+            fi
+          done
+
+          if [ $ERRORS -gt 0 ]; then
+            echo "::warning::$ERRORS EPUB file(s) had validation issues"
+          else
+            echo "All EPUB files passed validation"
+          fi
+
       - name: Copy additional formats to downloads folder
         run: |
           mkdir -p _book/downloads
