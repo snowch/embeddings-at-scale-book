@@ -23,8 +23,69 @@ Traditional geospatial analysis faces limitations:
 
 **Embedding approach**: Learn representations of geographic regions from multi-modal imagery. Similar scenes cluster together; changes manifest as embedding drift. Enable rapid search across global imagery archives.
 
-```python
-{{< include /code_examples/ch30_defense_intelligence/geoint.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show GEOINT embedding architecture"
+from dataclasses import dataclass
+from typing import Optional
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+@dataclass
+class GEOINTConfig:
+    image_size: int = 512
+    n_spectral_bands: int = 4  # RGB + NIR
+    embedding_dim: int = 512
+    n_object_classes: int = 50
+
+class SatelliteImageEncoder(nn.Module):
+    """Encode satellite/aerial imagery into scene embeddings."""
+    def __init__(self, config: GEOINTConfig):
+        super().__init__()
+        self.backbone = nn.Sequential(
+            nn.Conv2d(config.n_spectral_bands, 64, 7, stride=2, padding=3), nn.BatchNorm2d(64), nn.ReLU(), nn.MaxPool2d(3, 2, 1),
+            nn.Conv2d(64, 128, 3, padding=1), nn.BatchNorm2d(128), nn.ReLU(), nn.MaxPool2d(2),
+            nn.Conv2d(128, 256, 3, padding=1), nn.BatchNorm2d(256), nn.ReLU(), nn.MaxPool2d(2),
+            nn.Conv2d(256, 512, 3, padding=1), nn.BatchNorm2d(512), nn.ReLU(), nn.AdaptiveAvgPool2d(1))
+        self.proj = nn.Linear(512, config.embedding_dim)
+
+    def forward(self, images: torch.Tensor) -> torch.Tensor:
+        features = self.backbone(images).squeeze(-1).squeeze(-1)
+        return F.normalize(self.proj(features), dim=-1)
+
+class ChangeDetectionEncoder(nn.Module):
+    """Detect changes between bi-temporal satellite images."""
+    def __init__(self, config: GEOINTConfig):
+        super().__init__()
+        self.encoder = SatelliteImageEncoder(config)
+        self.change_analyzer = nn.Sequential(
+            nn.Linear(config.embedding_dim * 2, 1024), nn.ReLU(),
+            nn.Linear(1024, config.embedding_dim))
+        self.change_classifier = nn.Linear(config.embedding_dim, 10)  # Change types
+
+    def forward(self, before: torch.Tensor, after: torch.Tensor) -> tuple:
+        emb_before, emb_after = self.encoder(before), self.encoder(after)
+        combined = torch.cat([emb_before, emb_after], dim=-1)
+        change_emb = F.normalize(self.change_analyzer(combined), dim=-1)
+        return change_emb, self.change_classifier(change_emb)
+
+# Usage example
+geoint_config = GEOINTConfig()
+sat_encoder = SatelliteImageEncoder(geoint_config)
+change_detector = ChangeDetectionEncoder(geoint_config)
+
+# Encode satellite imagery (4-band: RGB + NIR)
+satellite_images = torch.randn(4, 4, 512, 512)
+scene_embeddings = sat_encoder(satellite_images)
+print(f"Scene embeddings: {scene_embeddings.shape}")  # [4, 512]
+
+# Detect changes between image pairs
+before_images = torch.randn(2, 4, 512, 512)
+after_images = torch.randn(2, 4, 512, 512)
+change_emb, change_logits = change_detector(before_images, after_images)
+print(f"Change embeddings: {change_emb.shape}, logits: {change_logits.shape}")
 ```
 
 :::{.callout-tip}
@@ -77,8 +138,68 @@ Traditional signals analysis faces limitations:
 
 **Embedding approach**: Learn representations of communications that capture semantic content, behavioral patterns, and network relationships. Similar communications cluster together; entity embeddings link identities across sources.
 
-```python
-{{< include /code_examples/ch30_defense_intelligence/sigint.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show SIGINT embedding architecture"
+@dataclass
+class SIGINTConfig:
+    vocab_size: int = 50000
+    max_seq_length: int = 512
+    embedding_dim: int = 768
+    n_heads: int = 12
+    n_layers: int = 6
+    n_languages: int = 100
+
+class MultilingualTextEncoder(nn.Module):
+    """Encode text in any language to unified embedding space."""
+    def __init__(self, config: SIGINTConfig):
+        super().__init__()
+        self.token_embed = nn.Embedding(config.vocab_size, config.embedding_dim)
+        self.position_embed = nn.Embedding(config.max_seq_length, config.embedding_dim)
+        self.language_embed = nn.Embedding(config.n_languages, config.embedding_dim)
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=config.embedding_dim, nhead=config.n_heads, batch_first=True)
+        self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=config.n_layers)
+
+    def forward(self, input_ids: torch.Tensor, attention_mask: Optional[torch.Tensor] = None,
+                language_ids: Optional[torch.Tensor] = None) -> torch.Tensor:
+        positions = torch.arange(input_ids.size(1), device=input_ids.device).unsqueeze(0)
+        x = self.token_embed(input_ids) + self.position_embed(positions)
+        if language_ids is not None:
+            x = x + self.language_embed(language_ids).unsqueeze(1)
+        if attention_mask is not None:
+            x = self.transformer(x, src_key_padding_mask=~attention_mask.bool())
+        else:
+            x = self.transformer(x)
+        embeddings = x.mean(dim=1)
+        return F.normalize(embeddings, dim=-1)
+
+class EntityEmbedding(nn.Module):
+    """Learn embeddings for entity resolution across sources."""
+    def __init__(self, config: SIGINTConfig):
+        super().__init__()
+        self.text_encoder = MultilingualTextEncoder(config)
+        self.attribute_encoder = nn.Sequential(
+            nn.Linear(100, config.embedding_dim), nn.ReLU(), nn.Linear(config.embedding_dim, config.embedding_dim))
+        self.fusion = nn.Sequential(
+            nn.Linear(config.embedding_dim * 2, config.embedding_dim), nn.ReLU(),
+            nn.Linear(config.embedding_dim, config.embedding_dim))
+
+    def forward(self, name_ids: torch.Tensor, name_mask: torch.Tensor, attributes: torch.Tensor) -> torch.Tensor:
+        name_emb = self.text_encoder(name_ids, name_mask)
+        attr_emb = F.normalize(self.attribute_encoder(attributes), dim=-1)
+        return F.normalize(self.fusion(torch.cat([name_emb, attr_emb], dim=-1)), dim=-1)
+
+# Usage example
+sigint_config = SIGINTConfig()
+text_encoder = MultilingualTextEncoder(sigint_config)
+
+# Encode multilingual text (tokenized input)
+input_ids = torch.randint(0, 50000, (4, 128))
+attention_mask = torch.ones(4, 128)
+text_embeddings = text_encoder(input_ids, attention_mask)
+print(f"Text embeddings: {text_embeddings.shape}")  # [4, 768]
 ```
 
 :::{.callout-tip}
@@ -132,8 +253,65 @@ Traditional open-source analysis faces limitations:
 
 **Embedding approach**: Learn unified representations of documents, images, and videos from public sources. Enable semantic search across all modalities, cluster related content, and identify coordinated information operations.
 
-```python
-{{< include /code_examples/ch30_defense_intelligence/osint.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show OSINT embedding architecture"
+@dataclass
+class OSINTConfig:
+    text_embedding_dim: int = 768
+    image_embedding_dim: int = 512
+    unified_dim: int = 512
+    n_sources: int = 100
+
+class MultiModalOSINTEncoder(nn.Module):
+    """Encode text, images, and video from open sources."""
+    def __init__(self, config: OSINTConfig):
+        super().__init__()
+        self.text_proj = nn.Sequential(
+            nn.Linear(config.text_embedding_dim, config.unified_dim), nn.ReLU(),
+            nn.Linear(config.unified_dim, config.unified_dim))
+        self.image_proj = nn.Sequential(
+            nn.Linear(config.image_embedding_dim, config.unified_dim), nn.ReLU(),
+            nn.Linear(config.unified_dim, config.unified_dim))
+        self.fusion = nn.Sequential(
+            nn.Linear(config.unified_dim * 2, config.unified_dim), nn.ReLU(),
+            nn.Linear(config.unified_dim, config.unified_dim))
+
+    def encode_text(self, text_features: torch.Tensor) -> torch.Tensor:
+        return F.normalize(self.text_proj(text_features), dim=-1)
+
+    def encode_image(self, image_features: torch.Tensor) -> torch.Tensor:
+        return F.normalize(self.image_proj(image_features), dim=-1)
+
+    def fuse(self, text_emb: torch.Tensor, image_emb: torch.Tensor) -> torch.Tensor:
+        return F.normalize(self.fusion(torch.cat([text_emb, image_emb], dim=-1)), dim=-1)
+
+class CredibilityScorer(nn.Module):
+    """Score source credibility based on historical patterns."""
+    def __init__(self, config: OSINTConfig):
+        super().__init__()
+        self.source_embed = nn.Embedding(config.n_sources, config.unified_dim)
+        self.scorer = nn.Sequential(
+            nn.Linear(config.unified_dim * 2, 256), nn.ReLU(),
+            nn.Linear(256, 1), nn.Sigmoid())
+
+    def forward(self, content_emb: torch.Tensor, source_ids: torch.Tensor) -> torch.Tensor:
+        source_emb = self.source_embed(source_ids)
+        combined = torch.cat([content_emb, source_emb], dim=-1)
+        return self.scorer(combined)
+
+# Usage example
+osint_config = OSINTConfig()
+osint_encoder = MultiModalOSINTEncoder(osint_config)
+
+# Encode text and image from social media post
+text_features = torch.randn(4, 768)  # Pre-extracted text embeddings
+image_features = torch.randn(4, 512)  # Pre-extracted image embeddings
+text_emb = osint_encoder.encode_text(text_features)
+image_emb = osint_encoder.encode_image(image_features)
+fused_emb = osint_encoder.fuse(text_emb, image_emb)
+print(f"Fused OSINT embeddings: {fused_emb.shape}")  # [4, 512]
 ```
 
 :::{.callout-tip}
@@ -187,8 +365,79 @@ Traditional cyber defense faces limitations:
 
 **Embedding approach**: Learn behavioral representations of network traffic, system activity, and malware that capture attack patterns. Similar attacks cluster together; novel attacks appear as anomalies. Enable attribution through technique and infrastructure embeddings.
 
-```python
-{{< include /code_examples/ch30_defense_intelligence/cybersecurity.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show cybersecurity embedding architecture"
+@dataclass
+class CyberConfig:
+    n_network_features: int = 100
+    n_system_features: int = 50
+    embedding_dim: int = 256
+    n_attack_types: int = 20
+
+class NetworkBehaviorEncoder(nn.Module):
+    """Encode network traffic patterns for intrusion detection."""
+    def __init__(self, config: CyberConfig):
+        super().__init__()
+        self.flow_encoder = nn.LSTM(config.n_network_features, 256, num_layers=2,
+                                     batch_first=True, bidirectional=True)
+        self.proj = nn.Linear(512, config.embedding_dim)
+
+    def forward(self, flow_sequences: torch.Tensor) -> torch.Tensor:
+        _, (hidden, _) = self.flow_encoder(flow_sequences)
+        combined = torch.cat([hidden[-2], hidden[-1]], dim=-1)
+        return F.normalize(self.proj(combined), dim=-1)
+
+class MalwareEncoder(nn.Module):
+    """Encode malware samples for family classification."""
+    def __init__(self, config: CyberConfig):
+        super().__init__()
+        self.static_encoder = nn.Sequential(
+            nn.Linear(2048, 512), nn.ReLU(), nn.Linear(512, 256))  # PE features
+        self.behavior_encoder = nn.LSTM(100, 256, num_layers=2, batch_first=True)
+        self.fusion = nn.Sequential(
+            nn.Linear(512, 256), nn.ReLU(), nn.Linear(256, config.embedding_dim))
+        self.classifier = nn.Linear(config.embedding_dim, config.n_attack_types)
+
+    def forward(self, static_features: torch.Tensor, behavior_seq: torch.Tensor) -> tuple:
+        static_emb = self.static_encoder(static_features)
+        _, (behavior_hidden, _) = self.behavior_encoder(behavior_seq)
+        combined = torch.cat([static_emb, behavior_hidden[-1]], dim=-1)
+        embedding = F.normalize(self.fusion(combined), dim=-1)
+        return embedding, self.classifier(embedding)
+
+class ThreatActorProfiler(nn.Module):
+    """Profile threat actors from TTPs and infrastructure."""
+    def __init__(self, config: CyberConfig):
+        super().__init__()
+        self.ttp_encoder = nn.Sequential(
+            nn.Linear(200, 256), nn.ReLU(), nn.Linear(256, 256))  # ATT&CK techniques
+        self.infra_encoder = nn.Sequential(
+            nn.Linear(100, 128), nn.ReLU(), nn.Linear(128, 128))  # C2, domains
+        self.fusion = nn.Sequential(
+            nn.Linear(384, 256), nn.ReLU(), nn.Linear(256, config.embedding_dim))
+
+    def forward(self, ttps: torch.Tensor, infrastructure: torch.Tensor) -> torch.Tensor:
+        ttp_emb = self.ttp_encoder(ttps)
+        infra_emb = self.infra_encoder(infrastructure)
+        return F.normalize(self.fusion(torch.cat([ttp_emb, infra_emb], dim=-1)), dim=-1)
+
+# Usage example
+cyber_config = CyberConfig()
+network_encoder = NetworkBehaviorEncoder(cyber_config)
+malware_encoder = MalwareEncoder(cyber_config)
+
+# Encode network flow sequences for anomaly detection
+flow_sequences = torch.randn(4, 100, 100)  # 100 timesteps, 100 features per flow
+network_embeddings = network_encoder(flow_sequences)
+print(f"Network behavior embeddings: {network_embeddings.shape}")  # [4, 256]
+
+# Encode malware sample
+static_features = torch.randn(4, 2048)  # PE header features
+behavior_sequences = torch.randn(4, 50, 100)  # API call sequences
+malware_emb, malware_logits = malware_encoder(static_features, behavior_sequences)
+print(f"Malware embeddings: {malware_emb.shape}")  # [4, 256]
 ```
 
 :::{.callout-tip}
@@ -242,8 +491,71 @@ Traditional autonomy faces limitations:
 
 **Embedding approach**: Learn representations of scenes, terrain, and mission context that enable robust perception and planning. Similar situations map to similar actions; novel situations trigger human oversight.
 
-```python
-{{< include /code_examples/ch30_defense_intelligence/autonomous.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show autonomous systems embedding architecture"
+@dataclass
+class AutonomousConfig:
+    lidar_points: int = 20000
+    camera_channels: int = 3
+    embedding_dim: int = 512
+    n_action_classes: int = 10
+
+class MultiSensorFusionEncoder(nn.Module):
+    """Fuse camera, lidar, radar for scene understanding."""
+    def __init__(self, config: AutonomousConfig):
+        super().__init__()
+        self.camera_encoder = nn.Sequential(
+            nn.Conv2d(config.camera_channels, 64, 7, stride=2, padding=3), nn.BatchNorm2d(64), nn.ReLU(),
+            nn.MaxPool2d(3, 2, 1), nn.Conv2d(64, 128, 3, padding=1), nn.BatchNorm2d(128), nn.ReLU(),
+            nn.AdaptiveAvgPool2d(1))
+        self.lidar_encoder = nn.Sequential(
+            nn.Linear(config.lidar_points * 4, 1024), nn.ReLU(),
+            nn.Linear(1024, 512), nn.ReLU(), nn.Linear(512, 256))
+        self.fusion = nn.Sequential(
+            nn.Linear(128 + 256, 512), nn.ReLU(), nn.Linear(512, config.embedding_dim))
+
+    def forward(self, camera: torch.Tensor, lidar: torch.Tensor) -> torch.Tensor:
+        camera_emb = self.camera_encoder(camera).squeeze(-1).squeeze(-1)
+        lidar_emb = self.lidar_encoder(lidar.flatten(1))
+        return F.normalize(self.fusion(torch.cat([camera_emb, lidar_emb], dim=-1)), dim=-1)
+
+class NavigationEncoder(nn.Module):
+    """Encode terrain and route for GPS-denied navigation."""
+    def __init__(self, config: AutonomousConfig):
+        super().__init__()
+        self.terrain_encoder = nn.Sequential(
+            nn.Conv2d(1, 32, 3, padding=1), nn.ReLU(), nn.MaxPool2d(2),
+            nn.Conv2d(32, 64, 3, padding=1), nn.ReLU(), nn.AdaptiveAvgPool2d(4))
+        self.proj = nn.Linear(64 * 16, config.embedding_dim)
+
+    def forward(self, terrain_map: torch.Tensor) -> torch.Tensor:
+        features = self.terrain_encoder(terrain_map).flatten(1)
+        return F.normalize(self.proj(features), dim=-1)
+
+class ActionPredictor(nn.Module):
+    """Predict actions from scene embeddings."""
+    def __init__(self, config: AutonomousConfig):
+        super().__init__()
+        self.action_head = nn.Sequential(
+            nn.Linear(config.embedding_dim, 256), nn.ReLU(),
+            nn.Linear(256, config.n_action_classes))
+        self.confidence_head = nn.Sequential(
+            nn.Linear(config.embedding_dim, 64), nn.ReLU(), nn.Linear(64, 1), nn.Sigmoid())
+
+    def forward(self, scene_emb: torch.Tensor) -> tuple:
+        return self.action_head(scene_emb), self.confidence_head(scene_emb)
+
+# Usage example
+auto_config = AutonomousConfig()
+sensor_encoder = MultiSensorFusionEncoder(auto_config)
+
+# Encode multi-sensor perception
+camera_images = torch.randn(4, 3, 224, 224)
+lidar_points = torch.randn(4, 20000, 4)  # x, y, z, intensity
+scene_embeddings = sensor_encoder(camera_images, lidar_points)
+print(f"Scene embeddings: {scene_embeddings.shape}")  # [4, 512]
 ```
 
 :::{.callout-tip}
@@ -298,8 +610,80 @@ Traditional command support faces limitations:
 
 **Embedding approach**: Learn representations of situations that capture operationally relevant features. Similar situations map to similar successful responses; enable rapid retrieval of relevant precedents and courses of action.
 
-```python
-{{< include /code_examples/ch30_defense_intelligence/decision_support.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show decision support embedding architecture"
+@dataclass
+class DecisionConfig:
+    intel_dim: int = 512
+    n_sources: int = 5  # GEOINT, SIGINT, HUMINT, OSINT, cyber
+    embedding_dim: int = 512
+    n_course_of_action: int = 10
+
+class MultiSourceFusionEncoder(nn.Module):
+    """Fuse intelligence from multiple sources."""
+    def __init__(self, config: DecisionConfig):
+        super().__init__()
+        self.source_encoders = nn.ModuleList([
+            nn.Sequential(nn.Linear(config.intel_dim, 256), nn.ReLU(), nn.Linear(256, 256))
+            for _ in range(config.n_sources)])
+        self.attention = nn.MultiheadAttention(256, num_heads=8, batch_first=True)
+        self.fusion = nn.Sequential(
+            nn.Linear(256, 512), nn.ReLU(), nn.Linear(512, config.embedding_dim))
+
+    def forward(self, intel_sources: list) -> torch.Tensor:
+        encoded = [enc(src) for enc, src in zip(self.source_encoders, intel_sources)]
+        stacked = torch.stack(encoded, dim=1)  # [batch, n_sources, 256]
+        attended, _ = self.attention(stacked, stacked, stacked)
+        pooled = attended.mean(dim=1)
+        return F.normalize(self.fusion(pooled), dim=-1)
+
+class SituationEncoder(nn.Module):
+    """Encode operational situation for decision support."""
+    def __init__(self, config: DecisionConfig):
+        super().__init__()
+        self.intel_fusion = MultiSourceFusionEncoder(config)
+        self.context_encoder = nn.Sequential(
+            nn.Linear(100, 256), nn.ReLU(), nn.Linear(256, 256))  # Mission, ROE, constraints
+        self.fusion = nn.Sequential(
+            nn.Linear(config.embedding_dim + 256, 512), nn.ReLU(),
+            nn.Linear(512, config.embedding_dim))
+
+    def forward(self, intel_sources: list, context: torch.Tensor) -> torch.Tensor:
+        intel_emb = self.intel_fusion(intel_sources)
+        context_emb = self.context_encoder(context)
+        return F.normalize(self.fusion(torch.cat([intel_emb, context_emb], dim=-1)), dim=-1)
+
+class CourseOfActionGenerator(nn.Module):
+    """Generate and score courses of action."""
+    def __init__(self, config: DecisionConfig):
+        super().__init__()
+        self.coa_scorer = nn.Sequential(
+            nn.Linear(config.embedding_dim, 256), nn.ReLU(),
+            nn.Linear(256, config.n_course_of_action))
+        self.risk_estimator = nn.Sequential(
+            nn.Linear(config.embedding_dim, 128), nn.ReLU(), nn.Linear(128, 1), nn.Sigmoid())
+
+    def forward(self, situation_emb: torch.Tensor) -> tuple:
+        coa_scores = self.coa_scorer(situation_emb)
+        risk = self.risk_estimator(situation_emb)
+        return coa_scores, risk
+
+# Usage example
+decision_config = DecisionConfig()
+situation_encoder = SituationEncoder(decision_config)
+coa_generator = CourseOfActionGenerator(decision_config)
+
+# Encode multi-source intelligence
+intel_sources = [torch.randn(4, 512) for _ in range(5)]  # GEOINT, SIGINT, etc.
+context = torch.randn(4, 100)  # Mission context
+situation_emb = situation_encoder(intel_sources, context)
+print(f"Situation embeddings: {situation_emb.shape}")  # [4, 512]
+
+# Generate course of action recommendations
+coa_scores, risk = coa_generator(situation_emb)
+print(f"COA scores: {coa_scores.shape}, Risk: {risk.shape}")
 ```
 
 :::{.callout-tip}

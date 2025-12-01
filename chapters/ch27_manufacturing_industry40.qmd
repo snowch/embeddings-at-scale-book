@@ -24,8 +24,74 @@ Traditional quality inspection faces limitations:
 
 **Embedding approach**: Learn sensor embeddings from high-dimensional time-series data (temperature, pressure, vibration, power consumption, acoustic signatures). Normal production occupies a learned region in embedding space; deviations predict defects before visible manifestation. Time-series transformers capture temporal dependencies across sensors, predicting defect probability for next N products and flagging specific parameter combinations causing issues.
 
-```python
-{{< include /code_examples/ch27_manufacturing_industry40/class.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show predictive quality architecture"
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Dict, List, Optional, Tuple
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+@dataclass
+class SensorReading:
+    """Multi-sensor time-series data for quality prediction."""
+    timestamp: datetime
+    machine_id: str
+    product_id: str
+    sensors: Dict[str, float]
+    process_params: Dict[str, float] = field(default_factory=dict)
+    quality_label: Optional[str] = None
+    embedding: Optional[np.ndarray] = None
+
+@dataclass
+class QualityPrediction:
+    """Predicted quality outcome with contributing factors."""
+    product_id: str
+    timestamp: datetime
+    defect_probability: float
+    defect_type_probabilities: Dict[str, float] = field(default_factory=dict)
+    confidence: float = 0.0
+    contributing_factors: List[Tuple[str, float]] = field(default_factory=list)
+    severity: Optional[str] = None  # minor, major, critical
+
+class SensorEncoder(nn.Module):
+    """Encode multi-sensor time-series using temporal convolutions + attention."""
+    def __init__(self, num_sensors: int, hidden_dim: int = 256, embedding_dim: int = 512):
+        super().__init__()
+        self.temporal_conv = nn.Sequential(
+            nn.Conv1d(num_sensors, hidden_dim, kernel_size=3, padding=1), nn.ReLU(),
+            nn.Conv1d(hidden_dim, hidden_dim, kernel_size=3, dilation=2, padding=2), nn.ReLU())
+        self.transformer = nn.TransformerEncoder(
+            nn.TransformerEncoderLayer(d_model=hidden_dim, nhead=8, batch_first=True), num_layers=4)
+        self.projection = nn.Sequential(
+            nn.Linear(hidden_dim, embedding_dim), nn.LayerNorm(embedding_dim))
+
+    def forward(self, sensor_data: torch.Tensor) -> torch.Tensor:
+        x = self.temporal_conv(sensor_data.transpose(1, 2)).transpose(1, 2)
+        x = self.transformer(x).mean(dim=1)
+        return self.projection(x)
+
+class DefectPredictor(nn.Module):
+    """Multi-task predictor for defect type, probability, and severity."""
+    def __init__(self, embedding_dim: int, num_defect_types: int = 5):
+        super().__init__()
+        self.fusion = nn.Sequential(
+            nn.Linear(embedding_dim * 3, 512), nn.ReLU(), nn.Dropout(0.1),
+            nn.Linear(512, 512), nn.ReLU())
+        self.defect_binary = nn.Linear(512, 1)
+        self.defect_type = nn.Linear(512, num_defect_types)
+        self.severity = nn.Linear(512, 3)
+
+    def forward(self, sensor_emb: torch.Tensor, process_emb: torch.Tensor,
+                product_emb: torch.Tensor) -> Dict[str, torch.Tensor]:
+        fused = self.fusion(torch.cat([sensor_emb, process_emb, product_emb], dim=-1))
+        return {"defect_prob": torch.sigmoid(self.defect_binary(fused)),
+                "defect_type": self.defect_type(fused),
+                "severity": self.severity(fused)}
 ```
 
 :::{.callout-tip}
@@ -81,8 +147,83 @@ Traditional supply chain management faces limitations:
 
 **Embedding approach**: Learn embeddings for suppliers (reliability history, financial health, geographic risk), parts (substitutability, demand patterns), and shipments (route characteristics, delay patterns). Similar suppliers cluster together; part embeddings enable substitute recommendations; shipment embeddings predict delays. Graph neural networks capture supply network structure—disruption to one supplier affects downstream manufacturers through learned graph relationships.
 
-```python
-{{< include /code_examples/ch27_manufacturing_industry40/risklevel.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show supply chain architecture"
+from enum import Enum
+
+class RiskLevel(Enum):
+    LOW = "low"
+    MODERATE = "moderate"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+@dataclass
+class Supplier:
+    """Supplier with performance history and risk factors."""
+    supplier_id: str
+    name: str
+    tier: int  # 1=direct, 2=supplier's supplier
+    location: Dict[str, str]
+    financial_health: Dict[str, float] = field(default_factory=dict)
+    performance_history: Dict[str, List[float]] = field(default_factory=dict)
+    certifications: List[str] = field(default_factory=list)
+    parts_supplied: List[str] = field(default_factory=list)
+    embedding: Optional[np.ndarray] = None
+
+@dataclass
+class Shipment:
+    """Shipment with tracking and risk prediction."""
+    shipment_id: str
+    supplier_id: str
+    parts: List[str]
+    origin: str
+    destination: str
+    carrier: str
+    scheduled_arrival: datetime
+    predicted_delay: float = 0.0
+    risk_level: RiskLevel = RiskLevel.LOW
+    embedding: Optional[np.ndarray] = None
+
+class SupplierEncoder(nn.Module):
+    """Encode supplier attributes and performance history."""
+    def __init__(self, num_locations: int, embedding_dim: int = 512):
+        super().__init__()
+        self.location_embedding = nn.Embedding(num_locations, 64)
+        self.financial_encoder = nn.Sequential(
+            nn.Linear(10, 256), nn.ReLU(), nn.Dropout(0.1))
+        self.performance_encoder = nn.LSTM(input_size=5, hidden_size=256,
+                                            num_layers=2, batch_first=True)
+        self.fusion = nn.Sequential(
+            nn.Linear(64 + 256 + 256, 512), nn.ReLU(),
+            nn.Linear(512, embedding_dim), nn.LayerNorm(embedding_dim))
+
+    def forward(self, location_ids: torch.Tensor, financial: torch.Tensor,
+                performance: torch.Tensor) -> torch.Tensor:
+        loc_emb = self.location_embedding(location_ids)
+        fin_emb = self.financial_encoder(financial)
+        _, (perf_emb, _) = self.performance_encoder(performance)
+        combined = torch.cat([loc_emb, fin_emb, perf_emb[-1]], dim=-1)
+        return self.fusion(combined)
+
+class SupplyNetworkGNN(nn.Module):
+    """Graph neural network for supply chain risk propagation."""
+    def __init__(self, node_dim: int = 512, edge_dim: int = 64, num_layers: int = 3):
+        super().__init__()
+        self.convs = nn.ModuleList([
+            nn.Linear(node_dim + edge_dim, node_dim) for _ in range(num_layers)])
+        self.norms = nn.ModuleList([nn.LayerNorm(node_dim) for _ in range(num_layers)])
+
+    def forward(self, node_features: torch.Tensor, edge_index: torch.Tensor,
+                edge_features: torch.Tensor) -> torch.Tensor:
+        x = node_features
+        for conv, norm in zip(self.convs, self.norms):
+            messages = torch.cat([x[edge_index[0]], edge_features], dim=-1)
+            aggregated = torch.zeros_like(x)
+            aggregated.index_add_(0, edge_index[1], conv(messages))
+            x = F.relu(norm(x + aggregated))
+        return x
 ```
 
 :::{.callout-tip}
@@ -138,8 +279,80 @@ Traditional equipment management faces limitations:
 
 **Embedding approach**: Learn machine state embeddings from sensor streams (vibration, temperature, power, acoustic, oil analysis). Similar operating conditions cluster together; degradation trajectories embed as temporal paths in embedding space. Transfer learning enables new machines to inherit learned patterns from similar equipment. Reinforcement learning optimizes scheduling decisions—which jobs to run on which machines—maximizing throughput while respecting maintenance constraints.
 
-```python
-{{< include /code_examples/ch27_manufacturing_industry40/machinestatus.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show equipment optimization architecture"
+class MachineStatus(Enum):
+    RUNNING = "running"
+    IDLE = "idle"
+    MAINTENANCE = "maintenance"
+    FAILED = "failed"
+
+class MaintenanceType(Enum):
+    PREVENTIVE = "preventive"
+    PREDICTIVE = "predictive"
+    CORRECTIVE = "corrective"
+    EMERGENCY = "emergency"
+
+@dataclass
+class MachineState:
+    """Machine operational state at point in time."""
+    machine_id: str
+    timestamp: datetime
+    status: MachineStatus
+    sensors: Dict[str, float]
+    operating_params: Dict[str, float] = field(default_factory=dict)
+    runtime_hours: float = 0.0
+    cycles_completed: int = 0
+    embedding: Optional[np.ndarray] = None
+
+@dataclass
+class MaintenancePrediction:
+    """Predicted maintenance with timing and severity."""
+    machine_id: str
+    remaining_useful_life: float  # hours
+    confidence_interval: Tuple[float, float]
+    failure_mode: str
+    severity: str  # low, medium, high, critical
+    recommended_maintenance: MaintenanceType
+    optimal_timing: datetime
+    cost_if_delayed: float
+
+class MachineStateEncoder(nn.Module):
+    """Encode machine sensors and operating parameters."""
+    def __init__(self, num_sensors: int, embedding_dim: int = 512):
+        super().__init__()
+        self.sensor_projection = nn.Linear(num_sensors, 256)
+        self.transformer = nn.TransformerEncoder(
+            nn.TransformerEncoderLayer(d_model=256, nhead=8, batch_first=True), num_layers=3)
+        self.param_encoder = nn.Sequential(
+            nn.Linear(10, 256), nn.ReLU(), nn.Dropout(0.1))
+        self.projection = nn.Sequential(
+            nn.Linear(512, 256), nn.ReLU(),
+            nn.Linear(256, embedding_dim), nn.LayerNorm(embedding_dim))
+
+    def forward(self, sensor_data: torch.Tensor, params: torch.Tensor) -> torch.Tensor:
+        sensor_repr = self.transformer(self.sensor_projection(sensor_data)).mean(dim=1)
+        param_repr = self.param_encoder(params)
+        return self.projection(torch.cat([sensor_repr, param_repr], dim=-1))
+
+class DegradationModel(nn.Module):
+    """Predict remaining useful life using survival analysis."""
+    def __init__(self, embedding_dim: int = 512, num_time_bins: int = 100):
+        super().__init__()
+        self.trajectory_encoder = nn.LSTM(embedding_dim, 512, num_layers=2, batch_first=True)
+        self.hazard_predictor = nn.Sequential(
+            nn.Linear(512, 512), nn.ReLU(), nn.Linear(512, num_time_bins))
+
+    def forward(self, trajectory: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        _, (hidden, _) = self.trajectory_encoder(trajectory)
+        hazard = torch.sigmoid(self.hazard_predictor(hidden[-1]))
+        survival_curve = torch.exp(-torch.cumsum(hazard, dim=-1))
+        time_bins = torch.arange(hazard.size(-1), device=hazard.device, dtype=torch.float32)
+        pdf = hazard * survival_curve
+        expected_rul = (pdf * time_bins).sum(dim=-1) / pdf.sum(dim=-1)
+        return survival_curve, expected_rul
 ```
 
 :::{.callout-tip}
@@ -195,8 +408,84 @@ Traditional process management faces limitations:
 
 **Embedding approach**: Learn process embeddings from sensor streams, work orders, material flows, and operator actions. Similar process states cluster together; successful workflows embed near high-quality outcomes. Reinforcement learning discovers optimal control policies by exploring embedding space. Sequence models predict next process steps and identify deviations before quality issues manifest. Graph neural networks model process dependencies, propagating optimization insights across interconnected operations.
 
-```python
-{{< include /code_examples/ch27_manufacturing_industry40/processstatus.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show process automation architecture"
+class ProcessStatus(Enum):
+    RUNNING = "running"
+    IDLE = "idle"
+    BLOCKED = "blocked"
+    STARVED = "starved"
+
+class DeviationType(Enum):
+    PARAMETER_DRIFT = "parameter_drift"
+    MATERIAL_VARIATION = "material_variation"
+    EQUIPMENT_DEGRADATION = "equipment_degradation"
+
+@dataclass
+class ProcessStep:
+    """Individual process operation definition."""
+    step_id: str
+    step_name: str
+    workstation: str
+    process_parameters: Dict[str, float] = field(default_factory=dict)
+    cycle_time: float = 0.0
+    dependencies: List[str] = field(default_factory=list)
+
+@dataclass
+class ProcessExecution:
+    """Process execution instance with tracking."""
+    execution_id: str
+    work_order_id: str
+    step_id: str
+    start_time: datetime
+    status: ProcessStatus = ProcessStatus.RUNNING
+    actual_parameters: Dict[str, float] = field(default_factory=dict)
+    sensor_readings: Dict[str, List[float]] = field(default_factory=dict)
+    embedding: Optional[np.ndarray] = None
+
+@dataclass
+class Bottleneck:
+    """Identified process bottleneck."""
+    step_id: str
+    severity: str
+    utilization: float
+    queue_length: int
+    recommendations: List[str] = field(default_factory=list)
+
+class ProcessStateEncoder(nn.Module):
+    """Encode process state from parameters and sensors."""
+    def __init__(self, num_parameters: int, num_sensors: int, embedding_dim: int = 512):
+        super().__init__()
+        self.param_encoder = nn.Sequential(
+            nn.Linear(num_parameters, 256), nn.ReLU(), nn.Linear(256, 256))
+        self.sensor_encoder = nn.LSTM(input_size=num_sensors, hidden_size=256,
+                                       num_layers=2, batch_first=True)
+        self.fusion = nn.Sequential(
+            nn.Linear(512 + 64, 256), nn.ReLU(),
+            nn.Linear(256, embedding_dim), nn.LayerNorm(embedding_dim))
+
+    def forward(self, params: torch.Tensor, sensors: torch.Tensor,
+                context: torch.Tensor) -> torch.Tensor:
+        param_emb = self.param_encoder(params)
+        _, (sensor_emb, _) = self.sensor_encoder(sensors)
+        combined = torch.cat([param_emb, sensor_emb[-1], context], dim=-1)
+        return self.fusion(combined)
+
+class WorkflowEncoder(nn.Module):
+    """Encode sequential workflow to trajectory embedding."""
+    def __init__(self, state_dim: int = 512):
+        super().__init__()
+        self.lstm = nn.LSTM(state_dim, 512, num_layers=3, batch_first=True, bidirectional=True)
+        self.attention = nn.MultiheadAttention(1024, num_heads=8, batch_first=True)
+        self.projection = nn.Sequential(
+            nn.Linear(1024, 512), nn.ReLU(), nn.Linear(512, state_dim))
+
+    def forward(self, step_embs: torch.Tensor) -> torch.Tensor:
+        workflow, _ = self.lstm(step_embs)
+        attn_out, _ = self.attention(workflow, workflow, workflow)
+        return self.projection(attn_out.mean(dim=1))
 ```
 
 :::{.callout-tip}
@@ -252,8 +541,82 @@ Traditional simulation and modeling faces limitations:
 
 **Embedding approach**: Learn latent representations of physical system states from sensor data, control inputs, and outcomes. Similar system states embed nearby; state evolution learns from historical trajectories. Neural networks parameterize state transition dynamics—given current state and action, predict next state and outcomes. Enables fast simulation (milliseconds vs hours), automatic adaptation to system changes, and transfer learning across similar assets.
 
-```python
-{{< include /code_examples/ch27_manufacturing_industry40/class_1.py >}}
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show digital twin architecture"
+from typing import Any
+
+@dataclass
+class DigitalTwinState:
+    """Digital twin state representation."""
+    timestamp: datetime
+    asset_id: str
+    sensor_values: Dict[str, float]
+    control_inputs: Dict[str, float] = field(default_factory=dict)
+    latent_state: Optional[np.ndarray] = None
+    prediction_error: float = 0.0
+
+@dataclass
+class SimulationScenario:
+    """What-if simulation scenario."""
+    scenario_id: str
+    description: str
+    actions: List[Dict[str, float]]
+    time_horizon: int
+    objectives: List[str] = field(default_factory=list)
+    constraints: Dict[str, Tuple[float, float]] = field(default_factory=dict)
+    results: Optional[Dict[str, Any]] = None
+
+class StateEncoder(nn.Module):
+    """Encode observations to latent state (variational)."""
+    def __init__(self, num_sensors: int, state_dim: int = 128):
+        super().__init__()
+        self.encoder = nn.Sequential(
+            nn.Linear(num_sensors, 256), nn.ReLU(), nn.Dropout(0.1),
+            nn.Linear(256, 256), nn.ReLU(), nn.Linear(256, state_dim * 2))
+        self.state_dim = state_dim
+
+    def forward(self, obs: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        encoded = self.encoder(obs)
+        return encoded[:, :self.state_dim], encoded[:, self.state_dim:]
+
+    def sample(self, mean: torch.Tensor, log_var: torch.Tensor) -> torch.Tensor:
+        return mean + torch.randn_like(mean) * torch.exp(0.5 * log_var)
+
+class TransitionModel(nn.Module):
+    """Learn state transition dynamics: s_{t+1} = f(s_t, a_t)."""
+    def __init__(self, state_dim: int = 128, action_dim: int = 10):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(state_dim + action_dim, 256), nn.ReLU(), nn.Dropout(0.1),
+            nn.Linear(256, 256), nn.ReLU(), nn.Linear(256, state_dim * 2))
+
+    def forward(self, state: torch.Tensor, action: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        out = self.net(torch.cat([state, action], dim=-1))
+        return out[:, :state.size(-1)], out[:, state.size(-1):]
+
+class ObservationDecoder(nn.Module):
+    """Decode latent state to sensor predictions."""
+    def __init__(self, state_dim: int = 128, num_sensors: int = 50):
+        super().__init__()
+        self.decoder = nn.Sequential(
+            nn.Linear(state_dim, 256), nn.ReLU(), nn.Dropout(0.1),
+            nn.Linear(256, 256), nn.ReLU(), nn.Linear(256, num_sensors))
+
+    def forward(self, state: torch.Tensor) -> torch.Tensor:
+        return self.decoder(state)
+
+class RewardPredictor(nn.Module):
+    """Predict outcomes from state-action pairs."""
+    def __init__(self, state_dim: int = 128, action_dim: int = 10, num_objectives: int = 5):
+        super().__init__()
+        self.predictor = nn.Sequential(
+            nn.Linear(state_dim + action_dim, 256), nn.ReLU(), nn.Dropout(0.1),
+            nn.Linear(256, 256), nn.ReLU(), nn.Linear(256, num_objectives))
+
+    def forward(self, state: torch.Tensor, action: torch.Tensor) -> torch.Tensor:
+        return self.predictor(torch.cat([state, action], dim=-1))
 ```
 
 :::{.callout-tip}
