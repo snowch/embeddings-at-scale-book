@@ -1,0 +1,847 @@
+# Defense and Intelligence {#sec-defense-intelligence}
+
+:::{.callout-note}
+## Chapter Overview
+Defense and intelligence organizations face unique challenges: processing vast streams of multi-source data under time pressure, identifying threats in adversarial environments, and making high-stakes decisions with incomplete information. This chapter applies embeddings to national security applications: geospatial intelligence using satellite and aerial imagery embeddings for object detection, change monitoring, and activity pattern recognition across global areas of interest, signals intelligence with embeddings for communication analysis, entity resolution, and pattern discovery in intercepted data, open-source intelligence aggregating and analyzing public information from news, social media, and technical sources at scale, cybersecurity and threat intelligence using behavioral embeddings for intrusion detection, malware classification, and threat actor attribution, autonomous systems leveraging embeddings for perception, navigation, and coordinated operations, and command and control decision support synthesizing multi-source intelligence into actionable insights for commanders. These techniques transform intelligence analysis from manual review to automated pattern recognition while maintaining human oversight for critical decisions.
+:::
+
+After exploring scientific computing applications (@sec-scientific-computing), embeddings enable **defense and intelligence transformation** at unprecedented scale. Traditional intelligence analysis relies on human analysts reviewing individual reports, images, and signals—an approach overwhelmed by modern data volumes. **Embedding-based intelligence systems** represent diverse data sources in unified vector spaces, enabling automated triage, pattern discovery across sources, and rapid response to emerging threats while augmenting rather than replacing human judgment.
+
+## Geospatial Intelligence (GEOINT)
+
+Geospatial intelligence encompasses satellite imagery, aerial photography, and geographic data for monitoring activities, tracking changes, and understanding terrain. **Embedding-based GEOINT** enables automated analysis of imagery at global scale.
+
+### The GEOINT Challenge
+
+Traditional geospatial analysis faces limitations:
+
+- **Data volume**: Commercial satellites generate terabytes daily; analysts cannot review all imagery
+- **Revisit frequency**: Daily global coverage requires automated change detection
+- **Object diversity**: Must detect vehicles, structures, vessels, aircraft across varied terrain
+- **Camouflage and denial**: Adversaries actively conceal activities
+- **Multi-sensor fusion**: Combining optical, radar, infrared, and hyperspectral data
+
+**Embedding approach**: Learn representations of geographic regions from multi-modal imagery. Similar scenes cluster together; changes manifest as embedding drift. Enable rapid search across global imagery archives.
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show GEOINT embedding architecture"
+from dataclasses import dataclass
+from typing import Optional
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+@dataclass
+class GEOINTConfig:
+    image_size: int = 512
+    n_spectral_bands: int = 4  # RGB + NIR
+    embedding_dim: int = 512
+    n_object_classes: int = 50
+
+class SatelliteImageEncoder(nn.Module):
+    """Encode satellite/aerial imagery into scene embeddings."""
+    def __init__(self, config: GEOINTConfig):
+        super().__init__()
+        self.backbone = nn.Sequential(
+            nn.Conv2d(config.n_spectral_bands, 64, 7, stride=2, padding=3), nn.BatchNorm2d(64), nn.ReLU(), nn.MaxPool2d(3, 2, 1),
+            nn.Conv2d(64, 128, 3, padding=1), nn.BatchNorm2d(128), nn.ReLU(), nn.MaxPool2d(2),
+            nn.Conv2d(128, 256, 3, padding=1), nn.BatchNorm2d(256), nn.ReLU(), nn.MaxPool2d(2),
+            nn.Conv2d(256, 512, 3, padding=1), nn.BatchNorm2d(512), nn.ReLU(), nn.AdaptiveAvgPool2d(1))
+        self.proj = nn.Linear(512, config.embedding_dim)
+
+    def forward(self, images: torch.Tensor) -> torch.Tensor:
+        features = self.backbone(images).squeeze(-1).squeeze(-1)
+        return F.normalize(self.proj(features), dim=-1)
+
+class ChangeDetectionEncoder(nn.Module):
+    """Detect changes between bi-temporal satellite images."""
+    def __init__(self, config: GEOINTConfig):
+        super().__init__()
+        self.encoder = SatelliteImageEncoder(config)
+        self.change_analyzer = nn.Sequential(
+            nn.Linear(config.embedding_dim * 2, 1024), nn.ReLU(),
+            nn.Linear(1024, config.embedding_dim))
+        self.change_classifier = nn.Linear(config.embedding_dim, 10)  # Change types
+
+    def forward(self, before: torch.Tensor, after: torch.Tensor) -> tuple:
+        emb_before, emb_after = self.encoder(before), self.encoder(after)
+        combined = torch.cat([emb_before, emb_after], dim=-1)
+        change_emb = F.normalize(self.change_analyzer(combined), dim=-1)
+        return change_emb, self.change_classifier(change_emb)
+
+# Usage example
+geoint_config = GEOINTConfig()
+sat_encoder = SatelliteImageEncoder(geoint_config)
+change_detector = ChangeDetectionEncoder(geoint_config)
+
+# Encode satellite imagery (4-band: RGB + NIR)
+satellite_images = torch.randn(4, 4, 512, 512)
+scene_embeddings = sat_encoder(satellite_images)
+print(f"Scene embeddings: {scene_embeddings.shape}")  # [4, 512]
+
+# Detect changes between image pairs
+before_images = torch.randn(2, 4, 512, 512)
+after_images = torch.randn(2, 4, 512, 512)
+change_emb, change_logits = change_detector(before_images, after_images)
+print(f"Change embeddings: {change_emb.shape}, logits: {change_logits.shape}")
+```
+
+:::{.callout-tip}
+## GEOINT Best Practices
+
+**Image processing:**
+
+- **Multi-resolution**: Process at multiple scales (strategic overview to tactical detail)
+- **Temporal stacks**: Include historical imagery for change context
+- **Multi-spectral fusion**: Combine visible, infrared, SAR, and hyperspectral
+- **Atmospheric correction**: Account for haze, clouds, illumination
+- **Orthorectification**: Correct for terrain distortion
+
+**Object detection:**
+
+- **Domain adaptation**: Fine-tune on defense-specific objects
+- **Few-shot learning**: Detect novel object types from limited examples
+- **Small object detection**: Vehicles, equipment visible at only a few pixels
+- **Occlusion handling**: Partial visibility under trees, camouflage nets
+- **Confidence calibration**: Reliable uncertainty for downstream decisions
+
+**Change detection:**
+
+- **Bi-temporal comparison**: Detect differences between image pairs
+- **Anomaly detection**: Identify unusual patterns without explicit change labels
+- **Activity patterns**: Characterize normal vs abnormal facility operations
+- **False positive reduction**: Filter clouds, shadows, seasonal changes
+
+**Production:**
+
+- **Tipping and cueing**: Prioritize imagery for analyst review
+- **Automated reporting**: Generate structured intelligence products
+- **Audit trails**: Maintain provenance for assessments
+- **Human-in-the-loop**: Analyst verification of automated detections
+:::
+
+## Signals Intelligence (SIGINT)
+
+Signals intelligence involves collecting and analyzing electronic communications and emissions. **Embedding-based SIGINT** enables automated processing of communications for entity resolution, topic discovery, and pattern analysis.
+
+### The SIGINT Challenge
+
+Traditional signals analysis faces limitations:
+
+- **Volume**: Billions of communications daily exceed human review capacity
+- **Languages**: Content spans hundreds of languages and dialects
+- **Encryption**: Increasing use of encryption limits content access
+- **Entity resolution**: Linking identities across platforms and time
+- **Timeliness**: Intelligence value decays rapidly
+
+**Embedding approach**: Learn representations of communications that capture semantic content, behavioral patterns, and network relationships. Similar communications cluster together; entity embeddings link identities across sources.
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show SIGINT embedding architecture"
+@dataclass
+class SIGINTConfig:
+    vocab_size: int = 50000
+    max_seq_length: int = 512
+    embedding_dim: int = 768
+    n_heads: int = 12
+    n_layers: int = 6
+    n_languages: int = 100
+
+class MultilingualTextEncoder(nn.Module):
+    """Encode text in any language to unified embedding space."""
+    def __init__(self, config: SIGINTConfig):
+        super().__init__()
+        self.token_embed = nn.Embedding(config.vocab_size, config.embedding_dim)
+        self.position_embed = nn.Embedding(config.max_seq_length, config.embedding_dim)
+        self.language_embed = nn.Embedding(config.n_languages, config.embedding_dim)
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=config.embedding_dim, nhead=config.n_heads, batch_first=True)
+        self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=config.n_layers)
+
+    def forward(self, input_ids: torch.Tensor, attention_mask: Optional[torch.Tensor] = None,
+                language_ids: Optional[torch.Tensor] = None) -> torch.Tensor:
+        positions = torch.arange(input_ids.size(1), device=input_ids.device).unsqueeze(0)
+        x = self.token_embed(input_ids) + self.position_embed(positions)
+        if language_ids is not None:
+            x = x + self.language_embed(language_ids).unsqueeze(1)
+        if attention_mask is not None:
+            x = self.transformer(x, src_key_padding_mask=~attention_mask.bool())
+        else:
+            x = self.transformer(x)
+        embeddings = x.mean(dim=1)
+        return F.normalize(embeddings, dim=-1)
+
+class EntityEmbedding(nn.Module):
+    """Learn embeddings for entity resolution across sources."""
+    def __init__(self, config: SIGINTConfig):
+        super().__init__()
+        self.text_encoder = MultilingualTextEncoder(config)
+        self.attribute_encoder = nn.Sequential(
+            nn.Linear(100, config.embedding_dim), nn.ReLU(), nn.Linear(config.embedding_dim, config.embedding_dim))
+        self.fusion = nn.Sequential(
+            nn.Linear(config.embedding_dim * 2, config.embedding_dim), nn.ReLU(),
+            nn.Linear(config.embedding_dim, config.embedding_dim))
+
+    def forward(self, name_ids: torch.Tensor, name_mask: torch.Tensor, attributes: torch.Tensor) -> torch.Tensor:
+        name_emb = self.text_encoder(name_ids, name_mask)
+        attr_emb = F.normalize(self.attribute_encoder(attributes), dim=-1)
+        return F.normalize(self.fusion(torch.cat([name_emb, attr_emb], dim=-1)), dim=-1)
+
+# Usage example
+sigint_config = SIGINTConfig()
+text_encoder = MultilingualTextEncoder(sigint_config)
+
+# Encode multilingual text (tokenized input)
+input_ids = torch.randint(0, 50000, (4, 128))
+attention_mask = torch.ones(4, 128)
+text_embeddings = text_encoder(input_ids, attention_mask)
+print(f"Text embeddings: {text_embeddings.shape}")  # [4, 768]
+```
+
+:::{.callout-tip}
+## SIGINT Best Practices
+
+**Text analysis:**
+
+- **Multilingual embeddings**: Unified representation across languages
+- **Domain adaptation**: Fine-tune on intelligence-relevant vocabulary
+- **Named entity recognition**: Extract persons, organizations, locations
+- **Coreference resolution**: Link mentions across documents
+- **Translation-invariant**: Similar content similar regardless of language
+
+**Entity resolution:**
+
+- **Multi-source fusion**: Link identities across platforms
+- **Temporal consistency**: Track entities over time
+- **Behavioral signatures**: Distinguish entities with similar names
+- **Graph embeddings**: Capture network position and relationships
+- **Uncertainty quantification**: Confidence in identity linkages
+
+**Pattern analysis:**
+
+- **Topic modeling**: Discover themes in communication streams
+- **Anomaly detection**: Identify unusual communication patterns
+- **Trend detection**: Track emerging topics and concerns
+- **Sentiment analysis**: Gauge intent and emotional state
+- **Network analysis**: Map communication networks and hierarchies
+
+**Operational:**
+
+- **Real-time processing**: Sub-second latency for time-sensitive intelligence
+- **Scalability**: Handle billions of communications
+- **Privacy controls**: Minimize collection on protected communications
+- **Audit logging**: Complete records of queries and access
+:::
+
+## Open-Source Intelligence (OSINT)
+
+Open-source intelligence leverages publicly available information from news, social media, academic publications, and technical sources. **Embedding-based OSINT** enables comprehensive monitoring and analysis of the public information environment.
+
+### The OSINT Challenge
+
+Traditional open-source analysis faces limitations:
+
+- **Information overload**: Millions of relevant sources publishing continuously
+- **Verification**: Distinguishing reliable from unreliable sources
+- **Synthesis**: Connecting fragments across disparate sources
+- **Foreign language**: Important sources in dozens of languages
+- **Multimedia**: Images, video, and audio alongside text
+
+**Embedding approach**: Learn unified representations of documents, images, and videos from public sources. Enable semantic search across all modalities, cluster related content, and identify coordinated information operations.
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show OSINT embedding architecture"
+@dataclass
+class OSINTConfig:
+    text_embedding_dim: int = 768
+    image_embedding_dim: int = 512
+    unified_dim: int = 512
+    n_sources: int = 100
+
+class MultiModalOSINTEncoder(nn.Module):
+    """Encode text, images, and video from open sources."""
+    def __init__(self, config: OSINTConfig):
+        super().__init__()
+        self.text_proj = nn.Sequential(
+            nn.Linear(config.text_embedding_dim, config.unified_dim), nn.ReLU(),
+            nn.Linear(config.unified_dim, config.unified_dim))
+        self.image_proj = nn.Sequential(
+            nn.Linear(config.image_embedding_dim, config.unified_dim), nn.ReLU(),
+            nn.Linear(config.unified_dim, config.unified_dim))
+        self.fusion = nn.Sequential(
+            nn.Linear(config.unified_dim * 2, config.unified_dim), nn.ReLU(),
+            nn.Linear(config.unified_dim, config.unified_dim))
+
+    def encode_text(self, text_features: torch.Tensor) -> torch.Tensor:
+        return F.normalize(self.text_proj(text_features), dim=-1)
+
+    def encode_image(self, image_features: torch.Tensor) -> torch.Tensor:
+        return F.normalize(self.image_proj(image_features), dim=-1)
+
+    def fuse(self, text_emb: torch.Tensor, image_emb: torch.Tensor) -> torch.Tensor:
+        return F.normalize(self.fusion(torch.cat([text_emb, image_emb], dim=-1)), dim=-1)
+
+class CredibilityScorer(nn.Module):
+    """Score source credibility based on historical patterns."""
+    def __init__(self, config: OSINTConfig):
+        super().__init__()
+        self.source_embed = nn.Embedding(config.n_sources, config.unified_dim)
+        self.scorer = nn.Sequential(
+            nn.Linear(config.unified_dim * 2, 256), nn.ReLU(),
+            nn.Linear(256, 1), nn.Sigmoid())
+
+    def forward(self, content_emb: torch.Tensor, source_ids: torch.Tensor) -> torch.Tensor:
+        source_emb = self.source_embed(source_ids)
+        combined = torch.cat([content_emb, source_emb], dim=-1)
+        return self.scorer(combined)
+
+# Usage example
+osint_config = OSINTConfig()
+osint_encoder = MultiModalOSINTEncoder(osint_config)
+
+# Encode text and image from social media post
+text_features = torch.randn(4, 768)  # Pre-extracted text embeddings
+image_features = torch.randn(4, 512)  # Pre-extracted image embeddings
+text_emb = osint_encoder.encode_text(text_features)
+image_emb = osint_encoder.encode_image(image_features)
+fused_emb = osint_encoder.fuse(text_emb, image_emb)
+print(f"Fused OSINT embeddings: {fused_emb.shape}")  # [4, 512]
+```
+
+:::{.callout-tip}
+## OSINT Best Practices
+
+**Collection:**
+
+- **Breadth**: Monitor diverse sources (news, social media, forums, academic)
+- **Depth**: Historical archives for longitudinal analysis
+- **Real-time**: Streaming ingestion of emerging content
+- **Structured data**: Extract metadata, entities, relationships
+- **Provenance**: Maintain source attribution and collection time
+
+**Analysis:**
+
+- **Cross-lingual search**: Query in any language, retrieve all languages
+- **Semantic clustering**: Group related content across sources
+- **Source credibility**: Assess reliability based on history and corroboration
+- **Narrative tracking**: Follow story evolution across sources
+- **Influence detection**: Identify coordinated amplification campaigns
+
+**Verification:**
+
+- **Image forensics**: Detect manipulated or out-of-context images
+- **Source triangulation**: Corroborate claims across independent sources
+- **Timeline reconstruction**: Establish sequence of events
+- **Geolocation**: Verify claimed locations from visual evidence
+- **Deepfake detection**: Identify synthetic media
+
+**Production:**
+
+- **Alerting**: Notify analysts of significant developments
+- **Summarization**: Condense large document sets to key points
+- **Reporting**: Generate structured intelligence products
+- **Visualization**: Maps, timelines, network graphs
+:::
+
+## Cybersecurity and Threat Intelligence
+
+Cyber defense requires detecting intrusions, analyzing malware, and attributing attacks. **Embedding-based cybersecurity** enables behavioral detection, malware family classification, and threat actor profiling.
+
+### The Cybersecurity Challenge
+
+Traditional cyber defense faces limitations:
+
+- **Signature evasion**: Attackers modify malware to evade detection
+- **Zero-day attacks**: No signatures for novel vulnerabilities
+- **Alert fatigue**: Security teams overwhelmed by false positives
+- **Attribution**: Linking attacks to threat actors is difficult
+- **Speed**: Attackers move faster than manual analysis
+
+**Embedding approach**: Learn behavioral representations of network traffic, system activity, and malware that capture attack patterns. Similar attacks cluster together; novel attacks appear as anomalies. Enable attribution through technique and infrastructure embeddings.
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show cybersecurity embedding architecture"
+@dataclass
+class CyberConfig:
+    n_network_features: int = 100
+    n_system_features: int = 50
+    embedding_dim: int = 256
+    n_attack_types: int = 20
+
+class NetworkBehaviorEncoder(nn.Module):
+    """Encode network traffic patterns for intrusion detection."""
+    def __init__(self, config: CyberConfig):
+        super().__init__()
+        self.flow_encoder = nn.LSTM(config.n_network_features, 256, num_layers=2,
+                                     batch_first=True, bidirectional=True)
+        self.proj = nn.Linear(512, config.embedding_dim)
+
+    def forward(self, flow_sequences: torch.Tensor) -> torch.Tensor:
+        _, (hidden, _) = self.flow_encoder(flow_sequences)
+        combined = torch.cat([hidden[-2], hidden[-1]], dim=-1)
+        return F.normalize(self.proj(combined), dim=-1)
+
+class MalwareEncoder(nn.Module):
+    """Encode malware samples for family classification."""
+    def __init__(self, config: CyberConfig):
+        super().__init__()
+        self.static_encoder = nn.Sequential(
+            nn.Linear(2048, 512), nn.ReLU(), nn.Linear(512, 256))  # PE features
+        self.behavior_encoder = nn.LSTM(100, 256, num_layers=2, batch_first=True)
+        self.fusion = nn.Sequential(
+            nn.Linear(512, 256), nn.ReLU(), nn.Linear(256, config.embedding_dim))
+        self.classifier = nn.Linear(config.embedding_dim, config.n_attack_types)
+
+    def forward(self, static_features: torch.Tensor, behavior_seq: torch.Tensor) -> tuple:
+        static_emb = self.static_encoder(static_features)
+        _, (behavior_hidden, _) = self.behavior_encoder(behavior_seq)
+        combined = torch.cat([static_emb, behavior_hidden[-1]], dim=-1)
+        embedding = F.normalize(self.fusion(combined), dim=-1)
+        return embedding, self.classifier(embedding)
+
+class ThreatActorProfiler(nn.Module):
+    """Profile threat actors from TTPs and infrastructure."""
+    def __init__(self, config: CyberConfig):
+        super().__init__()
+        self.ttp_encoder = nn.Sequential(
+            nn.Linear(200, 256), nn.ReLU(), nn.Linear(256, 256))  # ATT&CK techniques
+        self.infra_encoder = nn.Sequential(
+            nn.Linear(100, 128), nn.ReLU(), nn.Linear(128, 128))  # C2, domains
+        self.fusion = nn.Sequential(
+            nn.Linear(384, 256), nn.ReLU(), nn.Linear(256, config.embedding_dim))
+
+    def forward(self, ttps: torch.Tensor, infrastructure: torch.Tensor) -> torch.Tensor:
+        ttp_emb = self.ttp_encoder(ttps)
+        infra_emb = self.infra_encoder(infrastructure)
+        return F.normalize(self.fusion(torch.cat([ttp_emb, infra_emb], dim=-1)), dim=-1)
+
+# Usage example
+cyber_config = CyberConfig()
+network_encoder = NetworkBehaviorEncoder(cyber_config)
+malware_encoder = MalwareEncoder(cyber_config)
+
+# Encode network flow sequences for anomaly detection
+flow_sequences = torch.randn(4, 100, 100)  # 100 timesteps, 100 features per flow
+network_embeddings = network_encoder(flow_sequences)
+print(f"Network behavior embeddings: {network_embeddings.shape}")  # [4, 256]
+
+# Encode malware sample
+static_features = torch.randn(4, 2048)  # PE header features
+behavior_sequences = torch.randn(4, 50, 100)  # API call sequences
+malware_emb, malware_logits = malware_encoder(static_features, behavior_sequences)
+print(f"Malware embeddings: {malware_emb.shape}")  # [4, 256]
+```
+
+:::{.callout-tip}
+## Cybersecurity Best Practices
+
+**Behavioral detection:**
+
+- **Baseline learning**: Establish normal behavior per user/system
+- **Contextual features**: Time, location, peer group for anomaly detection
+- **Sequence modeling**: Capture attack kill chain patterns
+- **Multi-stage detection**: Correlate across reconnaissance, exploitation, exfiltration
+- **Adversarial robustness**: Resist evasion attempts
+
+**Malware analysis:**
+
+- **Static features**: Code structure, imports, strings
+- **Dynamic features**: Runtime behavior, API calls, network activity
+- **Hybrid analysis**: Combine static and dynamic for coverage
+- **Family clustering**: Group variants for intelligence production
+- **Capability extraction**: Identify malware functionality
+
+**Threat intelligence:**
+
+- **TTP extraction**: Map attacks to MITRE ATT&CK framework
+- **Infrastructure tracking**: Link C2 servers, domains, IPs
+- **Actor profiling**: Characterize threat actor capabilities and intent
+- **Campaign correlation**: Link related attacks across time
+- **Predictive**: Anticipate actor next moves
+
+**Operations:**
+
+- **Real-time detection**: Sub-second alerting on threats
+- **Automated response**: Containment actions for confirmed threats
+- **False positive reduction**: Minimize analyst burden
+- **Integration**: Connect to SIEM, SOAR, threat feeds
+:::
+
+## Autonomous Systems
+
+Defense autonomous systems include unmanned vehicles (air, ground, maritime), robotics, and semi-autonomous weapons. **Embedding-based autonomy** enables perception, navigation, and multi-agent coordination.
+
+### The Autonomous Systems Challenge
+
+Traditional autonomy faces limitations:
+
+- **Perception**: Robust sensing in degraded/contested environments
+- **Navigation**: GPS-denied and dynamic environments
+- **Coordination**: Multi-agent collaboration and deconfliction
+- **Adversarial**: Resilience to jamming, spoofing, deception
+- **Trust**: Human confidence in autonomous decisions
+
+**Embedding approach**: Learn representations of scenes, terrain, and mission context that enable robust perception and planning. Similar situations map to similar actions; novel situations trigger human oversight.
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show autonomous systems embedding architecture"
+@dataclass
+class AutonomousConfig:
+    lidar_points: int = 20000
+    camera_channels: int = 3
+    embedding_dim: int = 512
+    n_action_classes: int = 10
+
+class MultiSensorFusionEncoder(nn.Module):
+    """Fuse camera, lidar, radar for scene understanding."""
+    def __init__(self, config: AutonomousConfig):
+        super().__init__()
+        self.camera_encoder = nn.Sequential(
+            nn.Conv2d(config.camera_channels, 64, 7, stride=2, padding=3), nn.BatchNorm2d(64), nn.ReLU(),
+            nn.MaxPool2d(3, 2, 1), nn.Conv2d(64, 128, 3, padding=1), nn.BatchNorm2d(128), nn.ReLU(),
+            nn.AdaptiveAvgPool2d(1))
+        self.lidar_encoder = nn.Sequential(
+            nn.Linear(config.lidar_points * 4, 1024), nn.ReLU(),
+            nn.Linear(1024, 512), nn.ReLU(), nn.Linear(512, 256))
+        self.fusion = nn.Sequential(
+            nn.Linear(128 + 256, 512), nn.ReLU(), nn.Linear(512, config.embedding_dim))
+
+    def forward(self, camera: torch.Tensor, lidar: torch.Tensor) -> torch.Tensor:
+        camera_emb = self.camera_encoder(camera).squeeze(-1).squeeze(-1)
+        lidar_emb = self.lidar_encoder(lidar.flatten(1))
+        return F.normalize(self.fusion(torch.cat([camera_emb, lidar_emb], dim=-1)), dim=-1)
+
+class NavigationEncoder(nn.Module):
+    """Encode terrain and route for GPS-denied navigation."""
+    def __init__(self, config: AutonomousConfig):
+        super().__init__()
+        self.terrain_encoder = nn.Sequential(
+            nn.Conv2d(1, 32, 3, padding=1), nn.ReLU(), nn.MaxPool2d(2),
+            nn.Conv2d(32, 64, 3, padding=1), nn.ReLU(), nn.AdaptiveAvgPool2d(4))
+        self.proj = nn.Linear(64 * 16, config.embedding_dim)
+
+    def forward(self, terrain_map: torch.Tensor) -> torch.Tensor:
+        features = self.terrain_encoder(terrain_map).flatten(1)
+        return F.normalize(self.proj(features), dim=-1)
+
+class ActionPredictor(nn.Module):
+    """Predict actions from scene embeddings."""
+    def __init__(self, config: AutonomousConfig):
+        super().__init__()
+        self.action_head = nn.Sequential(
+            nn.Linear(config.embedding_dim, 256), nn.ReLU(),
+            nn.Linear(256, config.n_action_classes))
+        self.confidence_head = nn.Sequential(
+            nn.Linear(config.embedding_dim, 64), nn.ReLU(), nn.Linear(64, 1), nn.Sigmoid())
+
+    def forward(self, scene_emb: torch.Tensor) -> tuple:
+        return self.action_head(scene_emb), self.confidence_head(scene_emb)
+
+# Usage example
+auto_config = AutonomousConfig()
+sensor_encoder = MultiSensorFusionEncoder(auto_config)
+
+# Encode multi-sensor perception
+camera_images = torch.randn(4, 3, 224, 224)
+lidar_points = torch.randn(4, 20000, 4)  # x, y, z, intensity
+scene_embeddings = sensor_encoder(camera_images, lidar_points)
+print(f"Scene embeddings: {scene_embeddings.shape}")  # [4, 512]
+```
+
+:::{.callout-tip}
+## Autonomous Systems Best Practices
+
+**Perception:**
+
+- **Multi-sensor fusion**: Camera, lidar, radar, IMU
+- **Domain adaptation**: Train on simulation, deploy in reality
+- **Degraded conditions**: Smoke, dust, rain, darkness
+- **Adversarial robustness**: Resist spoofing and deception
+- **Uncertainty quantification**: Know what you don't know
+
+**Navigation:**
+
+- **GPS-denied**: Visual/inertial odometry, terrain matching
+- **Dynamic environments**: Avoid moving obstacles, adapt to changes
+- **Semantic mapping**: Understand scene meaning, not just geometry
+- **Long-range planning**: Hierarchical planning at multiple scales
+- **Contingency**: Fallback behaviors when primary fails
+
+**Multi-agent:**
+
+- **Communication-limited**: Function with intermittent connectivity
+- **Decentralized coordination**: No single point of failure
+- **Task allocation**: Distribute missions across heterogeneous platforms
+- **Deconfliction**: Avoid collisions and interference
+- **Human teaming**: Seamless handoff between autonomous and manned
+
+**Safety:**
+
+- **Behavior bounds**: Constrain actions to safe envelope
+- **Monitoring**: Continuous assessment of system health
+- **Graceful degradation**: Safe behavior as capabilities reduce
+- **Human override**: Operator can always intervene
+- **Verification**: Formal methods for safety-critical behaviors
+:::
+
+## Command and Decision Support
+
+Command and control requires synthesizing intelligence from multiple sources to support decisions under uncertainty and time pressure. **Embedding-based decision support** aggregates information, identifies options, and presents relevant precedents.
+
+### The Decision Support Challenge
+
+Traditional command support faces limitations:
+
+- **Information overload**: Commanders overwhelmed by data
+- **Synthesis**: Integrating intelligence from diverse sources
+- **Timeliness**: Decisions needed before complete information
+- **Uncertainty**: Acting under ambiguity and fog of war
+- **Precedent**: Learning from historical situations
+
+**Embedding approach**: Learn representations of situations that capture operationally relevant features. Similar situations map to similar successful responses; enable rapid retrieval of relevant precedents and courses of action.
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show decision support embedding architecture"
+@dataclass
+class DecisionConfig:
+    intel_dim: int = 512
+    n_sources: int = 5  # GEOINT, SIGINT, HUMINT, OSINT, cyber
+    embedding_dim: int = 512
+    n_course_of_action: int = 10
+
+class MultiSourceFusionEncoder(nn.Module):
+    """Fuse intelligence from multiple sources."""
+    def __init__(self, config: DecisionConfig):
+        super().__init__()
+        self.source_encoders = nn.ModuleList([
+            nn.Sequential(nn.Linear(config.intel_dim, 256), nn.ReLU(), nn.Linear(256, 256))
+            for _ in range(config.n_sources)])
+        self.attention = nn.MultiheadAttention(256, num_heads=8, batch_first=True)
+        self.fusion = nn.Sequential(
+            nn.Linear(256, 512), nn.ReLU(), nn.Linear(512, config.embedding_dim))
+
+    def forward(self, intel_sources: list) -> torch.Tensor:
+        encoded = [enc(src) for enc, src in zip(self.source_encoders, intel_sources)]
+        stacked = torch.stack(encoded, dim=1)  # [batch, n_sources, 256]
+        attended, _ = self.attention(stacked, stacked, stacked)
+        pooled = attended.mean(dim=1)
+        return F.normalize(self.fusion(pooled), dim=-1)
+
+class SituationEncoder(nn.Module):
+    """Encode operational situation for decision support."""
+    def __init__(self, config: DecisionConfig):
+        super().__init__()
+        self.intel_fusion = MultiSourceFusionEncoder(config)
+        self.context_encoder = nn.Sequential(
+            nn.Linear(100, 256), nn.ReLU(), nn.Linear(256, 256))  # Mission, ROE, constraints
+        self.fusion = nn.Sequential(
+            nn.Linear(config.embedding_dim + 256, 512), nn.ReLU(),
+            nn.Linear(512, config.embedding_dim))
+
+    def forward(self, intel_sources: list, context: torch.Tensor) -> torch.Tensor:
+        intel_emb = self.intel_fusion(intel_sources)
+        context_emb = self.context_encoder(context)
+        return F.normalize(self.fusion(torch.cat([intel_emb, context_emb], dim=-1)), dim=-1)
+
+class CourseOfActionGenerator(nn.Module):
+    """Generate and score courses of action."""
+    def __init__(self, config: DecisionConfig):
+        super().__init__()
+        self.coa_scorer = nn.Sequential(
+            nn.Linear(config.embedding_dim, 256), nn.ReLU(),
+            nn.Linear(256, config.n_course_of_action))
+        self.risk_estimator = nn.Sequential(
+            nn.Linear(config.embedding_dim, 128), nn.ReLU(), nn.Linear(128, 1), nn.Sigmoid())
+
+    def forward(self, situation_emb: torch.Tensor) -> tuple:
+        coa_scores = self.coa_scorer(situation_emb)
+        risk = self.risk_estimator(situation_emb)
+        return coa_scores, risk
+
+# Usage example
+decision_config = DecisionConfig()
+situation_encoder = SituationEncoder(decision_config)
+coa_generator = CourseOfActionGenerator(decision_config)
+
+# Encode multi-source intelligence
+intel_sources = [torch.randn(4, 512) for _ in range(5)]  # GEOINT, SIGINT, etc.
+context = torch.randn(4, 100)  # Mission context
+situation_emb = situation_encoder(intel_sources, context)
+print(f"Situation embeddings: {situation_emb.shape}")  # [4, 512]
+
+# Generate course of action recommendations
+coa_scores, risk = coa_generator(situation_emb)
+print(f"COA scores: {coa_scores.shape}, Risk: {risk.shape}")
+```
+
+:::{.callout-tip}
+## Decision Support Best Practices
+
+**Situation representation:**
+
+- **Multi-source fusion**: Integrate GEOINT, SIGINT, HUMINT, OSINT
+- **Temporal modeling**: Track situation evolution
+- **Uncertainty representation**: Confidence levels on all assessments
+- **Red team perspective**: Consider adversary viewpoint
+- **Context awareness**: Mission, rules of engagement, political constraints
+
+**Option generation:**
+
+- **Course of action**: Generate feasible options automatically
+- **Historical precedent**: Retrieve similar past situations
+- **War gaming**: Simulate outcomes of different choices
+- **Risk assessment**: Evaluate probability and impact of outcomes
+- **Resource optimization**: Allocate limited assets effectively
+
+**Presentation:**
+
+- **Information hierarchy**: Surface critical information first
+- **Visualization**: Maps, timelines, relationship graphs
+- **Alerting**: Notify of significant changes
+- **Drill-down**: Enable exploration of supporting evidence
+- **Collaboration**: Share assessments across echelons
+
+**Human factors:**
+
+- **Cognitive load**: Minimize information overload
+- **Trust calibration**: Appropriate confidence in AI recommendations
+- **Explainability**: Justify recommendations with evidence
+- **Override**: Human decision authority always preserved
+- **Training**: Familiarize operators before high-stakes use
+:::
+
+:::{.callout-warning}
+## Ethical Considerations
+
+Defense applications of embeddings raise significant ethical considerations:
+
+**Lethal autonomy:**
+
+- Humans must remain in the loop for lethal decisions
+- Embeddings for targeting require extensive verification
+- Fail-safe defaults when uncertainty is high
+- Clear accountability chains for all decisions
+
+**Surveillance:**
+
+- Collection must comply with legal authorities
+- Minimize impact on protected populations
+- Implement access controls and audit trails
+- Regular oversight and policy review
+
+**Adversarial use:**
+
+- Techniques can be used by adversaries
+- Defensive applications also enable offense
+- Responsible disclosure of vulnerabilities
+- International norms and arms control considerations
+
+**Bias and fairness:**
+
+- Training data may embed historical biases
+- Evaluate performance across populations
+- Regular audits for discriminatory impacts
+- Human review of high-stakes decisions
+
+**Dual use:**
+
+- Same techniques apply to civilian and military
+- Consider proliferation implications
+- Export controls on sensitive capabilities
+- Academic-government research partnerships
+:::
+
+::: {.callout-tip}
+## Video Surveillance Analytics
+
+For video-based security applications—including perimeter monitoring, crowd analytics, incident detection, person re-identification, and forensic video search—see the techniques covered in @sec-video-surveillance.
+:::
+
+## Key Takeaways
+
+:::{.callout-note}
+The performance figures below are illustrative based on published research and hypothetical scenarios. They represent achievable improvements but are not verified results from specific operational systems.
+:::
+
+- **GEOINT at global scale requires automated analysis**: Object detection models achieve 90%+ accuracy on military vehicles and infrastructure, change detection identifies facility activity patterns over time, and embedding-based search enables rapid retrieval across petabyte imagery archives—transforming satellite imagery from periodic review to continuous monitoring
+
+- **SIGINT benefits from behavioral and semantic embeddings**: Multilingual embeddings enable cross-language analysis without translation, entity resolution links identities across platforms with 85%+ precision, and pattern analysis discovers topics and networks in communication streams—handling billions of messages that exceed human review capacity
+
+- **OSINT at scale requires multi-modal embeddings**: Unified representations enable search across text, images, and video in any language, influence detection identifies coordinated campaigns through behavioral clustering, and verification tools assess source credibility and detect manipulated media
+
+- **Cybersecurity shifts from signatures to behaviors**: Behavioral embeddings detect novel attacks without prior signatures, malware family clustering enables rapid triage of new samples, and threat actor profiling supports attribution through technique and infrastructure analysis—reducing detection time from days to seconds
+
+- **Autonomous systems require robust perception embeddings**: Multi-sensor fusion provides reliable perception in degraded conditions, GPS-denied navigation uses learned terrain representations, and multi-agent coordination scales through distributed embeddings—enabling operations in contested environments
+
+- **Decision support synthesizes multi-source intelligence**: Situation embeddings capture operationally relevant features across GEOINT, SIGINT, and OSINT, precedent retrieval surfaces relevant historical cases, and risk assessment quantifies uncertainty—augmenting commander judgment without replacing human authority
+
+- **Defense applications require exceptional verification**: Higher stakes demand more rigorous testing, adversarial robustness is essential, human oversight must be preserved for critical decisions, and ethical considerations constrain acceptable applications
+
+## Looking Ahead
+
+@sec-video-surveillance-analytics covers video surveillance and analytics—a critical application area generating massive vector volumes across industries: real-time video embedding for continuous monitoring at scale, person re-identification tracking individuals across cameras and time, action recognition detecting behaviors and activities, anomaly detection identifying unusual events, forensic video search enabling investigators to find specific events across archives, and industry applications spanning retail loss prevention, smart city traffic and crowd monitoring, manufacturing safety compliance, and privacy-preserving analytics that balance security with civil liberties.
+
+Part VI (Future-Proofing & Optimization) then begins with @sec-performance-optimization, which covers performance optimization for embedding systems: hardware acceleration strategies including GPU clusters, TPUs, and specialized inference chips, memory optimization techniques for billion-parameter models, latency reduction for real-time applications, throughput scaling for batch processing, and cost optimization balancing quality against infrastructure spend.
+
+## Further Reading
+
+### Geospatial Intelligence
+- Shermeyer, Jacob, et al. (2020). "SpaceNet 6: Multi-Sensor All Weather Mapping Dataset." CVPR Workshops.
+- Christie, Gordon, et al. (2018). "Functional Map of the World." CVPR.
+- Gupta, Ritwik, et al. (2019). "xBD: A Dataset for Assessing Building Damage from Satellite Imagery." CVPR Workshops.
+- Van Etten, Adam, et al. (2019). "SpaceNet MVOI: A Multi-View Overhead Imagery Dataset." ICCV.
+- Mundhenk, T. Nathan, et al. (2016). "A Large Contextual Dataset for Classification, Detection and Counting of Cars with Deep Learning." ECCV.
+
+### Signals Intelligence and Communications
+- Conneau, Alexis, et al. (2020). "Unsupervised Cross-lingual Representation Learning at Scale." ACL.
+- Artetxe, Mikel, and Holger Schwenk (2019). "Massively Multilingual Sentence Embeddings for Zero-Shot Cross-Lingual Transfer." TACL.
+- Mudrakarta, Pramod Kaushik, et al. (2018). "It Was the Training Data Pruning Too!" EMNLP.
+- Lample, Guillaume, et al. (2018). "Word Translation Without Parallel Data." ICLR.
+- Huang, Haoyang, et al. (2019). "Unicoder: A Universal Language Encoder by Pre-training with Multiple Cross-lingual Tasks." EMNLP.
+
+### Open-Source Intelligence
+- Starbird, Kate, et al. (2019). "Disinformation as Collaborative Work." CSCW.
+- Wardle, Claire, and Hossein Derakhshan (2017). "Information Disorder: Toward an Interdisciplinary Framework for Research and Policy Making." Council of Europe.
+- Horne, Benjamin D., and Sibel Adali (2017). "This Just In: Fake News Packs a Lot in Title." AAAI Workshop.
+- Shu, Kai, et al. (2017). "Fake News Detection on Social Media: A Data Mining Perspective." ACM SIGKDD Explorations.
+- Nguyen, Dong, et al. (2020). "FANG: Leveraging Social Context for Fake News Detection Using Graph Representation." CIKM.
+
+### Cybersecurity
+- Mirsky, Yisroel, et al. (2018). "Kitsune: An Ensemble of Autoencoders for Online Network Intrusion Detection." NDSS.
+- Raff, Edward, et al. (2018). "Malware Detection by Eating a Whole EXE." AAAI Workshops.
+- Saxe, Joshua, and Konstantin Berlin (2015). "Deep Neural Network Based Malware Detection Using Two Dimensional Binary Program Features." MALWARE.
+- Milajerdi, Sadegh M., et al. (2019). "HOLMES: Real-Time APT Detection through Correlation of Suspicious Information Flows." IEEE S&P.
+- Rosenberg, Ishai, et al. (2018). "Generic Black-Box End-to-End Attack Against State of the Art API Call Based Malware Classifiers." RAID.
+
+### Autonomous Systems
+- Bojarski, Mariusz, et al. (2016). "End to End Learning for Self-Driving Cars." arXiv:1604.07316.
+- Sadeghi, Fereshteh, and Sergey Levine (2017). "CAD2RL: Real Single-Image Flight without a Single Real Image." RSS.
+- Chen, Yilun, et al. (2020). "LiDAR-based Online 3D Video Object Detection with Graph-based Message Passing and Spatiotemporal Transformer Attention." CVPR.
+- Loquercio, Antonio, et al. (2021). "Learning High-Speed Flight in the Wild." Science Robotics.
+- Zhou, Brady, and Philipp Krähenbühl (2022). "Cross-view Transformers for Real-time Map-view Semantic Segmentation." CVPR.
+
+### Decision Support and Multi-Source Fusion
+- Steinberg, Alan N., Christopher L. Bowman, and Franklin E. White (1999). "Revisions to the JDL Data Fusion Model." SPIE.
+- Llinas, James, and David L. Hall (2009). "An Introduction to Multi-Sensor Data Fusion." ISIF.
+- Castanedo, Federico (2013). "A Review of Data Fusion Techniques." The Scientific World Journal.
+- Khaleghi, Bahador, et al. (2013). "Multisensor Data Fusion: A Review of the State-of-the-Art." Information Fusion.
+- Rogova, Galina L., and Eugene Bosse (2010). "Information Quality in Information Fusion." FUSION.
+
+### Ethics and Policy
+- Scharre, Paul (2018). "Army of None: Autonomous Weapons and the Future of War." W.W. Norton.
+- Horowitz, Michael C. (2019). "When Speed Kills: Lethal Autonomous Weapon Systems, Deterrence and Stability." Journal of Strategic Studies.
+- Altmann, Jürgen, and Frank Sauer (2017). "Autonomous Weapon Systems and Strategic Stability." Survival.
+- Boulanin, Vincent, and Maaike Verbruggen (2017). "Mapping the Development of Autonomy in Weapon Systems." SIPRI.
+- Roff, Heather M., and David Danks (2018). "'Trust but Verify': The Difficulty of Trusting Autonomous Weapons Systems." Journal of Military Ethics.

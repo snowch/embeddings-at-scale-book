@@ -1,0 +1,557 @@
+# High-Performance Vector Operations {#sec-high-performance-vector-ops}
+
+:::{.callout-note}
+## Chapter Overview
+Training embedding models at scale is only half the battle—serving embeddings in production requires extreme optimization of vector operations. This chapter explores the computational techniques that enable sub-millisecond similarity search across billion-vector indices: optimized similarity search algorithms that go beyond naive comparison, approximate nearest neighbor (ANN) methods that trade minimal accuracy for massive speedups, GPU acceleration strategies that exploit parallelism for vector operations, memory-mapped storage approaches that handle datasets exceeding RAM, and parallel query processing architectures that serve thousands of concurrent searches. These optimizations transform embedding systems from research prototypes to production services capable of handling trillion-row scale with single-digit millisecond latency.
+:::
+
+After investing weeks in training high-quality embedding models (@sec-scaling-embedding-training) and deploying robust production pipelines (@sec-embedding-pipeline-engineering), the final challenge is **serving embeddings at scale**. A recommendation system might need to search 100 million product embeddings for each user query, processing 10,000 queries per second with p99 latency under 10ms. A fraud detection system might compare incoming transactions against billions of historical embeddings in real-time. These requirements demand optimization at every level: algorithmic improvements, hardware acceleration, memory management, and distributed computation.
+
+## Optimized Similarity Search Algorithms
+
+Similarity search is the core operation in embedding systems: given a query vector, find the most similar vectors in a large corpus. The naive approach—computing similarity between the query and every vector in the index—is prohibitively expensive at scale. **Optimized algorithms** reduce computation through mathematical insights, data structures, and approximations that maintain high accuracy while dramatically reducing latency.
+
+### The Similarity Search Problem
+
+Given:
+
+- **Query vector** q ∈ ℝ^d (embedding dimension d)
+- **Corpus** of N vectors {v₁, v₂, ..., vₙ} where each vᵢ ∈ ℝ^d
+- **Similarity metric** (cosine similarity, Euclidean distance, dot product)
+- **k** = number of nearest neighbors to return
+
+Find: The k vectors in the corpus most similar to q
+
+**Naive algorithm complexity**: O(N × d)
+- For each of N vectors, compute d-dimensional similarity
+- Sort results to find top-k
+- At scale: 1B vectors × 512 dims × 4 bytes = 2TB of data to scan
+
+**Challenge**: Reduce from O(N × d) to sub-linear complexity while maintaining high recall
+
+### Exact Search Optimizations
+
+Before resorting to approximation, several exact search optimizations provide significant speedups:
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show NumPy SIMD Operations"
+import numpy as np
+from typing import List
+
+def cosine_similarity_batch(vectors: np.ndarray, query: np.ndarray) -> np.ndarray:
+    """Calculate cosine similarity using SIMD-optimized operations."""
+    query_norm = query / np.linalg.norm(query)
+    norms = np.linalg.norm(vectors, axis=1, keepdims=True)
+    vectors_norm = vectors / norms
+    return np.dot(vectors_norm, query_norm)
+
+def euclidean_distance_batch(vectors: np.ndarray, query: np.ndarray) -> np.ndarray:
+    """Calculate Euclidean distance using vectorized operations."""
+    diff = vectors - query
+    return np.sqrt(np.sum(diff ** 2, axis=1))
+
+def top_k_indices(similarities: np.ndarray, k: int) -> np.ndarray:
+    """Get indices of top k similarities using partial sort."""
+    return np.argpartition(similarities, -k)[-k:]
+
+# Usage example
+vectors = np.random.randn(10000, 384)  # 10k vectors of dim 384
+query = np.random.randn(384)
+similarities = cosine_similarity_batch(vectors, query)
+top_k_idx = top_k_indices(similarities, k=10)
+print(f"Top 10 most similar vectors: {top_k_idx}")
+print(f"Their similarity scores: {similarities[top_k_idx]}")
+```
+
+:::{.callout-tip}
+## When to Use Exact vs. Approximate Search
+
+**Use exact search when:**
+
+- Corpus < 10M vectors (exact search fast enough with GPU)
+- Zero approximation error required (regulatory/compliance)
+- Have powerful GPUs (A100: 100M+ vectors/sec)
+- Latency budget > 10ms (allows brute force)
+
+**Use approximate search when:**
+
+- Corpus > 10M vectors (exact search too slow)
+- Can tolerate 95-99% recall (most applications)
+- Latency budget < 10ms (need sub-linear algorithms)
+- Want to scale to billions of vectors
+:::
+
+## Approximate Nearest Neighbor (ANN) at Scale
+
+For billion-vector indices, exact search becomes infeasible. **Approximate nearest neighbor (ANN)** algorithms trade small amounts of recall for massive speedups—typically achieving 95-99% recall at 100-1000× lower latency. Modern ANN methods combine graph-based navigation, quantization, and partitioning to enable sub-millisecond search across trillion-row datasets.
+
+### ANN Algorithm Landscape
+
+**Partitioning methods** (divide space into regions):
+
+- **IVF (Inverted File Index)**: Cluster vectors, search only nearby clusters
+- **LSH (Locality-Sensitive Hashing)**: Hash similar vectors to same buckets
+- Pro: Simple, fast for low-dimensional data
+- Con: Curse of dimensionality, many clusters needed for high recall
+
+**Graph methods** (navigate similarity graph):
+
+- **HNSW (Hierarchical Navigable Small World)**: Multi-layer skip list graph
+- **NSG (Navigating Spreading-out Graph)**: Optimized graph structure
+- Pro: Excellent recall-speed trade-off, robust to dimensionality
+- Con: Higher memory usage, slower index build
+
+**Quantization methods** (compress vectors):
+
+- **Product Quantization (PQ)**: Vector compression via clustering
+- **Scalar Quantization (SQ)**: Reduce precision (FP32 → INT8)
+- Pro: Massive memory reduction (8-32×), enables larger indices
+- Con: Accuracy loss, requires reranking
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show IVF (Inverted File) Index Implementation"
+import numpy as np
+from sklearn.cluster import KMeans
+
+class IVFIndex:
+    """Inverted File Index for fast approximate similarity search."""
+
+    def __init__(self, n_clusters: int = 100, n_probes: int = 5):
+        self.n_clusters = n_clusters
+        self.n_probes = n_probes
+        self.cluster_model = None
+        self.inverted_lists = None
+
+    def build(self, vectors: np.ndarray):
+        """Build index by clustering vectors."""
+        self.cluster_model = KMeans(n_clusters=self.n_clusters, random_state=42)
+        cluster_ids = self.cluster_model.fit_predict(vectors)
+
+        # Build inverted lists
+        self.inverted_lists = [[] for _ in range(self.n_clusters)]
+        for idx, cluster_id in enumerate(cluster_ids):
+            self.inverted_lists[cluster_id].append((idx, vectors[idx]))
+
+    def search(self, query: np.ndarray, k: int = 10) -> list:
+        """Search top-k similar vectors by probing nearest clusters."""
+        # Find nearest clusters
+        cluster_distances = np.linalg.norm(
+            self.cluster_model.cluster_centers_ - query, axis=1
+        )
+        nearest_clusters = np.argsort(cluster_distances)[:self.n_probes]
+
+        # Search within nearest clusters
+        candidates = []
+        for cluster_id in nearest_clusters:
+            for idx, vec in self.inverted_lists[cluster_id]:
+                sim = np.dot(vec, query) / (np.linalg.norm(vec) * np.linalg.norm(query))
+                candidates.append((idx, sim))
+
+        # Return top-k
+        candidates.sort(key=lambda x: x[1], reverse=True)
+        return candidates[:k]
+
+# Usage example
+vectors = np.random.randn(100000, 128)  # 100k vectors
+index = IVFIndex(n_clusters=100, n_probes=5)
+index.build(vectors)
+query = np.random.randn(128)
+results = index.search(query, k=10)
+print(f"Found {len(results)} results, top similarity: {results[0][1]:.4f}")
+```
+
+:::{.callout-tip}
+## Choosing the Right ANN Algorithm
+
+**Use IVF when:**
+
+- Batch processing (can afford slower build)
+- Memory constrained (IVF has lower overhead)
+- Low-dimensional embeddings (< 128 dims)
+- Large clusters acceptable (>1M vectors per cluster)
+
+**Use HNSW when:**
+
+- Online updates (incremental indexing)
+- High-dimensional embeddings (> 128 dims)
+- Need best recall-speed trade-off
+- Have memory for graph structure (~10-20 bytes/vector)
+
+**Use Product Quantization when:**
+
+- Massive scale (> 1B vectors)
+- Memory extremely constrained
+- Can tolerate reranking step
+- Storage cost dominates compute cost
+
+**Production systems often combine:**
+
+- HNSW + Product Quantization (graph structure + compression)
+- IVF + Product Quantization (partitioning + compression)
+- Multi-stage: Coarse filter (IVF) → Fine ranking (exact)
+:::
+
+:::{.callout-warning}
+## Recall-Latency Trade-offs
+
+All ANN algorithms have tuning parameters that control recall-latency trade-off:
+
+- **IVF**: More probes = higher recall, higher latency
+- **HNSW**: Higher ef_search = higher recall, higher latency
+- **Typical production**: 95-99% recall is acceptable for most applications
+
+Always measure recall on holdout test set. A 2× speedup at 80% recall may hurt user experience more than the latency improvement helps.
+:::
+
+## GPU Acceleration for Vector Operations
+
+Modern GPUs provide 10-100× speedup for vector operations through massive parallelism. A single NVIDIA A100 GPU has 432 TFLOPS of FP16 throughput—equivalent to thousands of CPU cores. Effective GPU acceleration requires understanding memory hierarchies, kernel optimization, and batching strategies.
+
+### GPU Architecture for Vector Operations
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show GPU-Accelerated Vector Search"
+import numpy as np
+
+class GPUVectorSearch:
+    """GPU-accelerated similarity search using CuPy."""
+
+    def __init__(self, use_fp16: bool = False):
+        try:
+            import cupy as cp
+            self.cp = cp
+            self.use_gpu = True
+            self.dtype = cp.float16 if use_fp16 else cp.float32
+        except ImportError:
+            self.use_gpu = False
+            print("CuPy not available, using CPU fallback")
+
+    def index(self, vectors: np.ndarray):
+        """Transfer vectors to GPU memory."""
+        if self.use_gpu:
+            self.vectors_gpu = self.cp.asarray(vectors, dtype=self.dtype)
+            self.norms_gpu = self.cp.linalg.norm(self.vectors_gpu, axis=1, keepdims=True)
+        else:
+            self.vectors_cpu = vectors
+
+    def search_batch(self, queries: np.ndarray, k: int = 10) -> list:
+        """Search multiple queries in parallel on GPU."""
+        if self.use_gpu:
+            queries_gpu = self.cp.asarray(queries, dtype=self.dtype)
+            query_norms = self.cp.linalg.norm(queries_gpu, axis=1, keepdims=True)
+
+            # Normalized cosine similarity on GPU
+            vectors_norm = self.vectors_gpu / self.norms_gpu
+            queries_norm = queries_gpu / query_norms
+            similarities = self.cp.dot(queries_norm, vectors_norm.T)
+
+            # Get top-k indices
+            top_k_indices = self.cp.argsort(similarities, axis=1)[:, -k:]
+            return self.cp.asnumpy(top_k_indices[:, ::-1])
+        else:
+            # CPU fallback
+            results = []
+            for query in queries:
+                sims = np.dot(self.vectors_cpu, query)
+                top_k = np.argsort(sims)[-k:][::-1]
+                results.append(top_k)
+            return np.array(results)
+
+# Usage example
+vectors = np.random.randn(1000000, 256).astype(np.float32)  # 1M vectors
+gpu_search = GPUVectorSearch(use_fp16=True)
+gpu_search.index(vectors)
+queries = np.random.randn(100, 256).astype(np.float32)  # Batch of 100 queries
+results = gpu_search.search_batch(queries, k=10)
+print(f"Processed {len(queries)} queries, found {results.shape[1]} results each")
+```
+
+:::{.callout-tip}
+## GPU Optimization Best Practices
+
+**Memory management:**
+
+- Use FP16 when possible (2× capacity, minimal accuracy loss)
+- Pin memory for faster CPU→GPU transfers
+- Keep frequently accessed vectors in GPU memory
+- Use unified memory for > GPU capacity (automatic paging)
+
+**Computation optimization:**
+
+- Batch queries to amortize kernel launch overhead (10-100× speedup)
+- Use Tensor Cores (matrix multiplication) over element-wise ops
+- Minimize CPU-GPU synchronization points
+- Profile with `nvprof` or NSight to find bottlenecks
+
+**Multi-GPU scaling:**
+
+- Shard corpus across GPUs for > 80GB datasets
+- Use NCCL for fast inter-GPU communication
+- Pipeline data transfer and computation
+- Consider model parallelism for very wide embeddings
+:::
+
+## Memory-Mapped Vector Storage
+
+Billion-vector indices exceed RAM capacity (1B × 512 dims × 4 bytes = 2TB). **Memory-mapped files** enable working with datasets larger than memory by loading data on-demand from disk, with the OS managing paging and caching.
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Memory-Mapped Vector Storage"
+import numpy as np
+import tempfile
+import os
+
+class MemoryMappedVectorStore:
+    """Efficient vector storage using memory-mapped files for datasets larger than RAM."""
+
+    def __init__(self, filepath: str, dim: int, dtype=np.float32):
+        self.filepath = filepath
+        self.dim = dim
+        self.dtype = dtype
+        self.mmap = None
+        self.count = 0
+
+    def create(self, n_vectors: int):
+        """Create a new memory-mapped file."""
+        shape = (n_vectors, self.dim)
+        self.mmap = np.memmap(self.filepath, dtype=self.dtype, mode='w+', shape=shape)
+        self.count = n_vectors
+
+    def append(self, vectors: np.ndarray):
+        """Append vectors to the store."""
+        if self.mmap is None:
+            self.create(len(vectors))
+        self.mmap[self.count:self.count + len(vectors)] = vectors
+        self.count += len(vectors)
+        self.mmap.flush()
+
+    def load(self):
+        """Load existing memory-mapped file."""
+        if os.path.exists(self.filepath):
+            self.mmap = np.memmap(self.filepath, dtype=self.dtype, mode='r')
+            self.count = self.mmap.shape[0]
+
+    def get_batch(self, indices: np.ndarray) -> np.ndarray:
+        """Retrieve specific vectors by index."""
+        return self.mmap[indices]
+
+    def search_top_k(self, query: np.ndarray, k: int = 10) -> tuple:
+        """Search for top-k most similar vectors."""
+        # Process in chunks to avoid loading entire index into RAM
+        chunk_size = 100000
+        top_indices = []
+        top_similarities = []
+
+        for i in range(0, self.count, chunk_size):
+            end = min(i + chunk_size, self.count)
+            chunk = self.mmap[i:end]
+            sims = np.dot(chunk, query) / (np.linalg.norm(chunk, axis=1) * np.linalg.norm(query))
+            chunk_top_k = np.argsort(sims)[-k:]
+            top_indices.extend(i + chunk_top_k)
+            top_similarities.extend(sims[chunk_top_k])
+
+        # Get global top-k
+        final_top_k = np.argsort(top_similarities)[-k:]
+        return np.array([top_indices[i] for i in final_top_k]), np.array([top_similarities[i] for i in final_top_k])
+
+# Usage example
+with tempfile.NamedTemporaryFile(delete=False, suffix='.mmap') as f:
+    store = MemoryMappedVectorStore(f.name, dim=256)
+    vectors = np.random.randn(1000000, 256).astype(np.float32)
+    store.create(len(vectors))
+    store.mmap[:] = vectors
+    query = np.random.randn(256).astype(np.float32)
+    indices, sims = store.search_top_k(query, k=10)
+    print(f"Top 10 indices: {indices}")
+    print(f"Top 10 similarities: {sims}")
+    os.unlink(f.name)
+```
+
+:::{.callout-tip}
+## Memory-Mapped Storage Best Practices
+
+**When to use:**
+
+- Dataset > available RAM
+- Can tolerate higher latency (10-100ms vs 1-10ms)
+- Access patterns have locality (similar vectors accessed together)
+- Cost-sensitive (avoid paying for 1TB+ RAM)
+
+**Optimizations:**
+
+- Use SSDs (10× faster than HDDs for random access)
+- Cluster similar vectors together (spatial locality → better caching)
+- Combine with RAM cache for hot vectors (90/10 rule applies)
+- Prefetch next batch during computation
+- Use `madvise` to give OS paging hints
+
+**Avoid for:**
+
+- Real-time serving (< 10ms latency requirements)
+- Truly random access patterns (no cache benefits)
+- Frequently updated indices (mmap flush overhead)
+:::
+
+## Parallel Query Processing
+
+Modern embedding systems serve thousands of concurrent queries. **Parallel query processing** distributes load across multiple cores, GPUs, and machines to achieve high throughput while maintaining low latency.
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Parallel Query Processing"
+import numpy as np
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from queue import Queue
+import time
+
+class ParallelQueryProcessor:
+    """Process multiple queries in parallel using thread pool."""
+
+    def __init__(self, vectors: np.ndarray, n_workers: int = 8, batch_timeout: float = 0.05):
+        self.vectors = vectors
+        self.n_workers = n_workers
+        self.batch_timeout = batch_timeout
+        self.executor = ThreadPoolExecutor(max_workers=n_workers)
+        self.query_queue = Queue()
+
+    def search_single(self, query: np.ndarray, k: int = 10) -> np.ndarray:
+        """Search for a single query."""
+        similarities = np.dot(self.vectors, query) / (
+            np.linalg.norm(self.vectors, axis=1) * np.linalg.norm(query)
+        )
+        return np.argsort(similarities)[-k:][::-1]
+
+    def search_batch(self, queries: list, k: int = 10) -> list:
+        """Process multiple queries in parallel."""
+        futures = []
+        for query in queries:
+            future = self.executor.submit(self.search_single, query, k)
+            futures.append(future)
+
+        results = []
+        for future in as_completed(futures):
+            results.append(future.result())
+        return results
+
+    def search_with_batching(self, queries: list, k: int = 10) -> list:
+        """Micro-batch queries for better GPU utilization."""
+        batch_size = 32
+        all_results = []
+
+        for i in range(0, len(queries), batch_size):
+            batch = queries[i:i + batch_size]
+            # Batch process for efficiency
+            batch_queries = np.array(batch)
+            similarities = np.dot(self.vectors, batch_queries.T)
+            top_k_indices = np.argsort(similarities, axis=0)[-k:, :]
+
+            for col in range(top_k_indices.shape[1]):
+                all_results.append(top_k_indices[:, col][::-1])
+
+        return all_results
+
+    def shutdown(self):
+        """Clean up resources."""
+        self.executor.shutdown(wait=True)
+
+# Usage example
+vectors = np.random.randn(100000, 256).astype(np.float32)
+processor = ParallelQueryProcessor(vectors, n_workers=8)
+
+# Process 100 queries in parallel
+queries = [np.random.randn(256).astype(np.float32) for _ in range(100)]
+start = time.time()
+results = processor.search_batch(queries, k=10)
+elapsed = time.time() - start
+print(f"Processed {len(queries)} queries in {elapsed:.3f}s")
+print(f"Throughput: {len(queries)/elapsed:.1f} queries/sec")
+processor.shutdown()
+```
+
+:::{.callout-tip}
+## Parallel Processing Best Practices
+
+**Threading vs multiprocessing:**
+
+- Use threading for I/O-bound tasks (disk, network)
+- Use multiprocessing for CPU-bound tasks (avoids GIL)
+- Use GPU for massive parallelism (thousands of threads)
+
+**Batching strategies:**
+
+- Micro-batching (10-50ms window) for low latency
+- Macro-batching (1-10s window) for high throughput
+- Adaptive batching based on load
+
+**Load balancing:**
+
+- Round-robin for uniform replicas
+- Least-load for heterogeneous replicas
+- Latency-weighted for geographic distribution
+- Health checks to detect failed replicas
+
+**Scaling limits:**
+
+- CPU-bound: Scales to number of cores (8-96)
+- GPU-bound: Scales to GPU memory (80-640GB)
+- I/O-bound: Scales to disk/network bandwidth
+:::
+
+## Key Takeaways
+
+- **Exact search optimizations enable real-time search at million-vector scale**: SIMD vectorization, GPU acceleration, and batch processing provide 10-100× speedups over naive algorithms while maintaining zero approximation error
+
+- **ANN algorithms trade minimal accuracy for massive speedups**: IVF, HNSW, and product quantization achieve 95-99% recall at 100-1000× lower latency than exact search, enabling billion-vector indices with sub-millisecond response times
+
+- **GPU acceleration provides 10-100× speedup for vector operations**: Tensor Cores, FP16 precision, and batched matrix multiplication enable searching 100M+ vectors per second on a single A100 GPU
+
+- **Memory-mapped storage handles datasets exceeding RAM**: Operating system paging combined with tiered caching (hot vectors in RAM, cold on SSD) enables serving trillion-row indices on commodity hardware
+
+- **Parallel query processing achieves high throughput**: Thread pooling, request batching, and load balancing across replicas scale serving capacity to millions of queries per second
+
+- **Production systems combine multiple optimizations**: Successful deployments use ANN + GPU + memory mapping + parallel processing together, with each optimization addressing different bottlenecks
+
+- **The optimization hierarchy**: Algorithm choice (1000× impact) > Hardware acceleration (100× impact) > Parallelism (10× impact) > Implementation details (2× impact). Choose the right algorithm before micro-optimizing
+
+## Looking Ahead
+
+This chapter covered computational optimizations for vector operations in isolation. @sec-data-engineering expands the view to data engineering for embeddings at scale: ETL pipelines that ingest and transform raw data for embedding generation, streaming systems for real-time embedding updates, data quality validation that ensures training stability, schema evolution strategies for backwards compatibility, and multi-source data fusion that combines embeddings across diverse datasets. These data engineering practices ensure embedding systems have the high-quality, well-structured data needed to reach their full potential.
+
+## Further Reading
+
+### Similarity Search Algorithms
+- Johnson, Jeff, et al. (2019). "Billion-scale similarity search with GPUs." IEEE Transactions on Big Data.
+- Malkov, Yury, and D. A. Yashunin (2018). "Efficient and Robust Approximate Nearest Neighbor Search Using Hierarchical Navigable Small World Graphs." IEEE TPAMI.
+- Jégou, Hervé, et al. (2011). "Product Quantization for Nearest Neighbor Search." IEEE TPAMI.
+
+### Approximate Nearest Neighbors
+- Andoni, Alexandr, and Piotr Indyk (2006). "Near-Optimal Hashing Algorithms for Approximate Nearest Neighbor in High Dimensions." FOCS.
+- Baranchuk, Dmitry, et al. (2019). "Learning to Route in Similarity Graphs." ICML.
+- Aumüller, Martin, et al. (2020). "ANN-Benchmarks: A Benchmarking Tool for Approximate Nearest Neighbor Algorithms." Information Systems.
+
+### GPU Acceleration
+- NVIDIA (2020). "CUDA C++ Programming Guide."
+- Harris, Mark (2007). "Optimizing Parallel Reduction in CUDA." NVIDIA Developer.
+- Sismanis, Nikos, et al. (2021). "Efficient Large-Scale Approximate Nearest Neighbor Search on OpenCL FPGA." VLDB.
+
+### Memory Management
+- Boroumand, Amirali, et al. (2018). "Google Workloads for Consumer Devices: Mitigating Data Movement Bottlenecks." ASPLOS.
+- Lim, Kevin, et al. (2009). "Disaggregated Memory for Expansion and Sharing in Blade Servers." ISCA.
+
+### Vector Databases
+- Pinecone Documentation. "Understanding Vector Databases."
+- Weaviate Documentation. "Vector Indexing Algorithms."
+- Milvus Documentation. "System Architecture."
+
+### High-Performance Computing
+- Hennessy, John, and David Patterson (2017). "Computer Architecture: A Quantitative Approach." Morgan Kaufmann.
+- Sanders, Peter, and Kurt Mehlhorn (2019). "Algorithms and Data Structures: The Basic Toolbox." Springer.

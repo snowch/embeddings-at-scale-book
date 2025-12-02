@@ -1,0 +1,1114 @@
+# Video Surveillance and Analytics {#sec-video-surveillance}
+
+:::{.callout-note}
+## Chapter Overview
+Video surveillance and analytics—from retail loss prevention to smart city safety to industrial compliance monitoring—generates more embedding vectors than almost any other application domain, with a single camera producing 86,400 frame embeddings per day and enterprise deployments spanning thousands of cameras. This chapter applies embeddings to video analytics at scale: real-time video stream processing using efficient frame and clip embeddings that enable sub-second event detection across thousands of concurrent camera feeds, person re-identification tracking individuals across multiple cameras and time periods through appearance embeddings robust to pose, lighting, and occlusion changes, action and behavior recognition detecting activities of interest from temporal embeddings that capture motion patterns and human-object interactions, anomaly detection identifying unusual events without explicit training through deviation from learned normal behavior patterns, forensic video search enabling rapid retrieval of specific events, people, or objects across weeks of archived footage through semantic video embeddings, and privacy-preserving analytics that extract actionable insights while protecting individual privacy through on-device processing, face blurring, and federated learning. These techniques transform video from passive recording to active intelligence across retail (shoplifting detection, customer analytics), smart cities (traffic management, public safety), manufacturing (safety compliance, quality inspection), healthcare (patient monitoring, fall detection), and security (access control, perimeter monitoring)—enabling organizations to derive value from the petabytes of video they capture while respecting privacy and operating within resource constraints.
+:::
+
+After exploring defense and intelligence applications (@sec-defense-intelligence), embeddings enable **video surveillance transformation** at unprecedented scale. Traditional video monitoring relies on human operators watching screens—an approach that fails at scale (one operator can effectively monitor 4-8 cameras) and misses critical events during lapses in attention. **Embedding-based video analytics** converts continuous video streams into searchable, analyzable vector representations, enabling automated detection, tracking, and search across camera networks that would be impossible with human review alone—while raising important considerations around privacy, bias, and appropriate use.
+
+## Real-Time Video Stream Processing
+
+Processing live video at scale requires efficient embedding generation that balances accuracy with throughput. **Real-time video processing** extracts embeddings from frames or clips fast enough to enable immediate detection and alerting across thousands of concurrent streams.
+
+### The Real-Time Processing Challenge
+
+Traditional video analytics faces limitations:
+
+- **Throughput**: Processing thousands of concurrent HD/4K streams
+- **Latency**: Detection must occur within seconds for actionable alerts
+- **Resource constraints**: GPU compute is expensive; efficiency matters
+- **Variable content**: Cameras span indoor/outdoor, day/night, crowded/empty scenes
+- **24/7 operation**: Systems must run continuously without degradation
+
+**Embedding approach**: Extract lightweight frame embeddings for rapid scene understanding, with deeper clip embeddings for detected events. Hierarchical processing prioritizes compute on interesting regions and time periods.
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show real-time video processing architecture"
+from dataclasses import dataclass
+from typing import Optional
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+@dataclass
+class VideoConfig:
+    frame_size: int = 224
+    clip_length: int = 16
+    embedding_dim: int = 512
+
+class FrameEncoder(nn.Module):
+    """Efficient frame encoder for real-time processing."""
+    def __init__(self, config: VideoConfig):
+        super().__init__()
+        self.backbone = nn.Sequential(
+            nn.Conv2d(3, 32, 3, stride=2, padding=1), nn.BatchNorm2d(32), nn.ReLU6(),
+            nn.Conv2d(32, 64, 3, stride=2, padding=1), nn.BatchNorm2d(64), nn.ReLU6(),
+            nn.Conv2d(64, 128, 3, stride=2, padding=1), nn.BatchNorm2d(128), nn.ReLU6(),
+            nn.Conv2d(128, 256, 3, stride=2, padding=1), nn.BatchNorm2d(256), nn.ReLU6(),
+            nn.AdaptiveAvgPool2d(1))
+        self.proj = nn.Linear(256, config.embedding_dim)
+
+    def forward(self, frames: torch.Tensor) -> torch.Tensor:
+        features = self.backbone(frames).squeeze(-1).squeeze(-1)
+        return F.normalize(self.proj(features), dim=-1)
+
+class ClipEncoder(nn.Module):
+    """Temporal clip encoder for action understanding."""
+    def __init__(self, config: VideoConfig):
+        super().__init__()
+        self.conv3d = nn.Sequential(
+            nn.Conv3d(3, 64, (3, 7, 7), stride=(1, 2, 2), padding=(1, 3, 3)), nn.BatchNorm3d(64), nn.ReLU(),
+            nn.MaxPool3d((1, 3, 3), (1, 2, 2), (0, 1, 1)),
+            nn.Conv3d(64, 128, (3, 3, 3), stride=(2, 2, 2), padding=1), nn.BatchNorm3d(128), nn.ReLU(),
+            nn.Conv3d(128, 256, (3, 3, 3), stride=(2, 2, 2), padding=1), nn.BatchNorm3d(256), nn.ReLU(),
+            nn.AdaptiveAvgPool3d(1))
+        self.proj = nn.Linear(256, config.embedding_dim)
+
+    def forward(self, clips: torch.Tensor) -> torch.Tensor:
+        features = self.conv3d(clips).squeeze(-1).squeeze(-1).squeeze(-1)
+        return F.normalize(self.proj(features), dim=-1)
+
+class HierarchicalProcessor(nn.Module):
+    """Hierarchical video processing: fast frame detection triggers clip analysis."""
+    def __init__(self, config: VideoConfig):
+        super().__init__()
+        self.frame_encoder = FrameEncoder(config)
+        self.clip_encoder = ClipEncoder(config)
+        self.event_detector = nn.Sequential(
+            nn.Linear(config.embedding_dim, 256), nn.ReLU(), nn.Linear(256, 1), nn.Sigmoid())
+        self.event_classifier = nn.Linear(config.embedding_dim, 20)
+
+    def process_frame(self, frame: torch.Tensor) -> tuple:
+        emb = self.frame_encoder(frame)
+        return emb, self.event_detector(emb)
+
+    def process_clip(self, clip: torch.Tensor) -> tuple:
+        emb = self.clip_encoder(clip)
+        return emb, self.event_classifier(emb)
+
+# Usage example
+config = VideoConfig()
+processor = HierarchicalProcessor(config)
+
+# Process individual frames for fast event detection
+frames = torch.randn(8, 3, 224, 224)
+frame_embs, event_scores = processor.process_frame(frames)
+print(f"Frame embeddings: {frame_embs.shape}, Event scores: {event_scores.shape}")
+
+# Process video clips for detailed classification
+clips = torch.randn(4, 3, 16, 224, 224)  # [batch, channels, time, H, W]
+clip_embs, event_logits = processor.process_clip(clips)
+print(f"Clip embeddings: {clip_embs.shape}, Event logits: {event_logits.shape}")
+```
+
+:::{.callout-tip}
+## Real-Time Processing Best Practices
+
+**Architecture:**
+
+- **Edge-cloud hybrid**: Initial processing at edge, detailed analysis in cloud
+- **Hierarchical models**: Fast detector triggers slower, accurate classifier
+- **Batch processing**: Aggregate frames across cameras for GPU efficiency
+- **Keyframe extraction**: Process representative frames, not every frame
+- **Region of interest**: Focus compute on relevant image areas
+
+**Efficiency:**
+
+- **Model quantization**: INT8 inference for 2-4× speedup with minimal accuracy loss
+- **Knowledge distillation**: Train small models to mimic large ones
+- **Temporal redundancy**: Skip similar consecutive frames
+- **Resolution adaptation**: Process at lower resolution when sufficient
+- **Hardware acceleration**: TensorRT, OpenVINO for optimized inference
+
+**Scalability:**
+
+- **Horizontal scaling**: Add processing nodes as camera count grows
+- **Load balancing**: Distribute streams across available compute
+- **Priority queuing**: Process high-priority cameras first
+- **Graceful degradation**: Reduce frame rate under load vs dropping streams
+- **Auto-scaling**: Spin up resources during peak activity
+
+**Reliability:**
+
+- **Stream reconnection**: Handle camera disconnects gracefully
+- **Failover**: Redundant processing for critical cameras
+- **Health monitoring**: Track processing latency and queue depth
+- **Alerting**: Notify operators of system issues
+- **Graceful shutdown**: Complete in-flight processing before restart
+:::
+
+## Person Re-Identification
+
+Person re-identification (Re-ID) tracks individuals across multiple cameras without relying on face recognition. **Embedding-based Re-ID** learns appearance representations that remain consistent across viewpoints, lighting conditions, and time.
+
+### The Re-ID Challenge
+
+Traditional person tracking faces limitations:
+
+- **Camera gaps**: People disappear between camera fields of view
+- **Appearance changes**: Lighting, pose, and occlusion vary across cameras
+- **Scale**: Large venues may have hundreds of cameras
+- **Time gaps**: Need to match across minutes to hours
+- **Privacy**: Face recognition raises significant privacy concerns
+
+**Embedding approach**: Learn person embeddings from full-body appearance (clothing, body shape, gait) that generalize across cameras. Similar embeddings indicate the same person; enable tracking without biometric identification.
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show person re-identification architecture"
+@dataclass
+class ReIDConfig:
+    image_height: int = 256
+    image_width: int = 128
+    embedding_dim: int = 512
+    n_parts: int = 6
+
+class PartBasedReIDEncoder(nn.Module):
+    """Part-based person re-identification encoder."""
+    def __init__(self, config: ReIDConfig):
+        super().__init__()
+        self.config = config
+        self.backbone = nn.Sequential(
+            nn.Conv2d(3, 64, 7, stride=2, padding=3), nn.BatchNorm2d(64), nn.ReLU(), nn.MaxPool2d(3, 2, 1),
+            nn.Conv2d(64, 128, 3, stride=2, padding=1), nn.BatchNorm2d(128), nn.ReLU(),
+            nn.Conv2d(128, 256, 3, stride=2, padding=1), nn.BatchNorm2d(256), nn.ReLU(),
+            nn.Conv2d(256, 512, 3, padding=1), nn.BatchNorm2d(512), nn.ReLU())
+        self.part_pool = nn.AdaptiveAvgPool2d((config.n_parts, 1))
+        self.part_embeddings = nn.ModuleList([
+            nn.Linear(512, config.embedding_dim // config.n_parts) for _ in range(config.n_parts)])
+        self.global_pool = nn.AdaptiveAvgPool2d(1)
+        self.global_embedding = nn.Linear(512, config.embedding_dim)
+
+    def forward(self, images: torch.Tensor) -> tuple:
+        features = self.backbone(images)
+        global_feat = self.global_pool(features).squeeze(-1).squeeze(-1)
+        global_emb = F.normalize(self.global_embedding(global_feat), dim=-1)
+        part_feats = self.part_pool(features).squeeze(-1)
+        part_embs = [F.normalize(self.part_embeddings[i](part_feats[:, :, i]), dim=-1)
+                     for i in range(self.config.n_parts)]
+        return global_emb, torch.stack(part_embs, dim=1)
+
+class TripletLoss(nn.Module):
+    """Triplet loss for re-identification training."""
+    def __init__(self, margin: float = 0.3):
+        super().__init__()
+        self.margin = margin
+
+    def forward(self, anchor: torch.Tensor, positive: torch.Tensor, negative: torch.Tensor) -> torch.Tensor:
+        pos_dist = F.pairwise_distance(anchor, positive)
+        neg_dist = F.pairwise_distance(anchor, negative)
+        return F.relu(pos_dist - neg_dist + self.margin).mean()
+
+# Usage example
+reid_config = ReIDConfig()
+reid_encoder = PartBasedReIDEncoder(reid_config)
+
+# Encode person crops for re-identification
+person_crops = torch.randn(4, 3, 256, 128)  # [batch, channels, H, W]
+global_emb, part_embs = reid_encoder(person_crops)
+print(f"Global embeddings: {global_emb.shape}")  # [4, 512]
+print(f"Part embeddings: {part_embs.shape}")  # [4, 6, 85]
+
+# Train with triplet loss
+anchor, positive, negative = torch.randn(4, 512), torch.randn(4, 512), torch.randn(4, 512)
+loss = TripletLoss()(anchor, positive, negative)
+print(f"Triplet loss: {loss.item():.4f}")
+```
+
+:::{.callout-tip}
+## Person Re-ID Best Practices
+
+**Feature extraction:**
+
+- **Part-based models**: Encode head, torso, legs separately for robustness
+- **Attention mechanisms**: Focus on discriminative regions
+- **Multi-scale features**: Capture both fine details and global appearance
+- **Temporal pooling**: Aggregate features across multiple frames
+- **Occlusion handling**: Learn to ignore occluded body parts
+
+**Training:**
+
+- **Triplet loss**: Pull same-person embeddings together, push different apart
+- **Hard mining**: Focus on difficult examples (similar different people)
+- **Domain adaptation**: Fine-tune on target camera network
+- **Data augmentation**: Random erasing, color jitter, pose variation
+- **Cross-camera pairs**: Train on same person across different cameras
+
+**Deployment:**
+
+- **Gallery management**: Maintain embeddings for tracked individuals
+- **Matching threshold**: Balance precision (false matches) vs recall (missed matches)
+- **Temporal constraints**: Weight recent observations higher
+- **Spatial constraints**: Use camera topology to prune impossible matches
+- **Batch matching**: Efficient similarity search across large galleries
+
+**Evaluation:**
+
+- **Rank-1 accuracy**: Correct match in top result
+- **mAP**: Mean average precision across queries
+- **Cross-camera**: Separate evaluation per camera pair
+- **Time gap**: Performance vs time between observations
+- **Occlusion robustness**: Performance on partially visible persons
+:::
+
+:::{.callout-warning}
+## Re-ID Privacy Considerations
+
+Person re-identification enables tracking without explicit consent:
+
+- **Scope limitation**: Only track within defined areas with notice
+- **Retention limits**: Delete tracking data after defined period
+- **Purpose restriction**: Use only for stated security purposes
+- **Audit trails**: Log all re-identification queries and results
+- **Opt-out mechanisms**: Provide ways to request non-tracking where feasible
+- **Bias testing**: Evaluate accuracy across demographic groups
+- **Human review**: Require human confirmation for consequential actions
+:::
+
+## Action and Behavior Recognition
+
+Action recognition detects activities of interest in video—from safety violations to suspicious behavior to customer interactions. **Embedding-based action recognition** learns temporal representations that capture motion patterns and human-object interactions.
+
+### The Action Recognition Challenge
+
+Traditional rule-based detection faces limitations:
+
+- **Complexity**: Human actions are highly variable and context-dependent
+- **Subtlety**: Important behaviors may be brief or partially occluded
+- **Context**: Same motion means different things in different contexts
+- **Scale**: Need to detect across many action categories
+- **Novelty**: New behaviors emerge that weren't anticipated
+
+**Embedding approach**: Learn clip embeddings that capture spatiotemporal patterns. Similar actions cluster in embedding space; enable both classification of known actions and detection of anomalous behaviors.
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show action recognition architecture"
+class SlowFastEncoder(nn.Module):
+    """SlowFast-style action recognition with dual pathways."""
+    def __init__(self, embedding_dim: int = 512, n_actions: int = 50):
+        super().__init__()
+        # Slow pathway: high resolution, low frame rate
+        self.slow_conv = nn.Sequential(
+            nn.Conv3d(3, 64, (1, 7, 7), stride=(1, 2, 2), padding=(0, 3, 3)), nn.BatchNorm3d(64), nn.ReLU(),
+            nn.Conv3d(64, 128, (1, 3, 3), stride=(1, 2, 2), padding=(0, 1, 1)), nn.BatchNorm3d(128), nn.ReLU(),
+            nn.Conv3d(128, 256, (3, 3, 3), stride=(2, 2, 2), padding=1), nn.BatchNorm3d(256), nn.ReLU(),
+            nn.AdaptiveAvgPool3d(1))
+        # Fast pathway: low resolution, high frame rate
+        self.fast_conv = nn.Sequential(
+            nn.Conv3d(3, 8, (5, 7, 7), stride=(1, 2, 2), padding=(2, 3, 3)), nn.BatchNorm3d(8), nn.ReLU(),
+            nn.Conv3d(8, 32, (3, 3, 3), stride=(1, 2, 2), padding=(1, 1, 1)), nn.BatchNorm3d(32), nn.ReLU(),
+            nn.Conv3d(32, 64, (3, 3, 3), stride=(2, 2, 2), padding=1), nn.BatchNorm3d(64), nn.ReLU(),
+            nn.AdaptiveAvgPool3d(1))
+        self.fusion = nn.Sequential(nn.Linear(256 + 64, 512), nn.ReLU(), nn.Linear(512, embedding_dim))
+        self.classifier = nn.Linear(embedding_dim, n_actions)
+
+    def forward(self, slow_clip: torch.Tensor, fast_clip: torch.Tensor) -> tuple:
+        slow_feat = self.slow_conv(slow_clip).flatten(1)
+        fast_feat = self.fast_conv(fast_clip).flatten(1)
+        emb = F.normalize(self.fusion(torch.cat([slow_feat, fast_feat], dim=-1)), dim=-1)
+        return emb, self.classifier(emb)
+
+class TemporalActionDetector(nn.Module):
+    """Detect when actions occur in long videos."""
+    def __init__(self, embedding_dim: int = 512, n_actions: int = 50):
+        super().__init__()
+        self.segment_encoder = nn.LSTM(embedding_dim, 256, batch_first=True, bidirectional=True)
+        self.action_classifier = nn.Linear(512, n_actions)
+        self.boundary_predictor = nn.Linear(512, 2)  # start, end
+
+    def forward(self, segment_embeddings: torch.Tensor) -> tuple:
+        lstm_out, _ = self.segment_encoder(segment_embeddings)
+        action_logits = self.action_classifier(lstm_out)
+        boundaries = torch.sigmoid(self.boundary_predictor(lstm_out))
+        return action_logits, boundaries
+
+# Usage example
+action_encoder = SlowFastEncoder(embedding_dim=512, n_actions=50)
+
+# Encode video with slow and fast pathways
+slow_clip = torch.randn(4, 3, 8, 224, 224)   # 8 frames at full resolution
+fast_clip = torch.randn(4, 3, 32, 224, 224)  # 32 frames for motion
+action_emb, action_logits = action_encoder(slow_clip, fast_clip)
+print(f"Action embeddings: {action_emb.shape}, logits: {action_logits.shape}")
+```
+
+:::{.callout-tip}
+## Action Recognition Best Practices
+
+**Temporal modeling:**
+
+- **3D convolutions**: Capture spatiotemporal patterns directly
+- **Two-stream**: Separate RGB (appearance) and optical flow (motion) networks
+- **Temporal transformers**: Attention across frames for long-range dependencies
+- **Recurrent models**: LSTM/GRU for sequential action modeling
+- **Temporal segment networks**: Sample frames across action duration
+
+**Application-specific:**
+
+- **Retail**: Concealment detection, checkout behavior, customer service interactions
+- **Safety**: PPE compliance, unsafe actions, fall detection
+- **Security**: Loitering, tailgating, perimeter breach
+- **Healthcare**: Patient mobility, fall risk behaviors, staff compliance
+- **Traffic**: Accidents, wrong-way driving, pedestrian violations
+
+**Training strategies:**
+
+- **Clip sampling**: Random temporal crops during training
+- **Multi-scale**: Detect actions at different temporal granularities
+- **Weakly supervised**: Learn from video-level labels without frame annotations
+- **Self-supervised**: Pre-train on unlabeled video (temporal order, speed prediction)
+- **Transfer learning**: Fine-tune from Kinetics, AVA, or similar large datasets
+
+**Deployment:**
+
+- **Sliding window**: Apply classifier across video with overlap
+- **Action proposals**: First detect when actions occur, then classify
+- **Streaming inference**: Process video as it arrives without buffering
+- **Confidence calibration**: Reliable uncertainty for alerting decisions
+- **Contextual filtering**: Reduce false positives using scene context
+:::
+
+## Anomaly Detection in Video
+
+Anomaly detection identifies unusual events without requiring explicit training examples. **Embedding-based video anomaly detection** learns representations of normal behavior and flags deviations.
+
+### The Anomaly Detection Challenge
+
+Traditional supervised detection faces limitations:
+
+- **Rare events**: Anomalies are by definition uncommon; limited training data
+- **Unknown unknowns**: Can't train for events never seen before
+- **Context dependence**: Normal varies by time, location, and situation
+- **False positives**: Unusual but benign events trigger alerts
+- **Concept drift**: Normal behavior evolves over time
+
+**Embedding approach**: Learn compressed representations of normal video; anomalies have high reconstruction error or low likelihood under the learned model. No explicit anomaly labels required.
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show video anomaly detection architecture"
+class VideoAutoencoder(nn.Module):
+    """Autoencoder for learning normal video patterns."""
+    def __init__(self, embedding_dim: int = 256):
+        super().__init__()
+        self.encoder = nn.Sequential(
+            nn.Conv3d(3, 64, (3, 4, 4), stride=(1, 2, 2), padding=(1, 1, 1)), nn.BatchNorm3d(64), nn.ReLU(),
+            nn.Conv3d(64, 128, (3, 4, 4), stride=(2, 2, 2), padding=(1, 1, 1)), nn.BatchNorm3d(128), nn.ReLU(),
+            nn.Conv3d(128, 256, (3, 4, 4), stride=(2, 2, 2), padding=(1, 1, 1)), nn.BatchNorm3d(256), nn.ReLU(),
+            nn.AdaptiveAvgPool3d(1))
+        self.latent_proj = nn.Linear(256, embedding_dim)
+        self.decoder_proj = nn.Linear(embedding_dim, 256 * 2 * 4 * 4)
+        self.decoder = nn.Sequential(
+            nn.ConvTranspose3d(256, 128, (3, 4, 4), stride=(2, 2, 2), padding=(1, 1, 1)), nn.BatchNorm3d(128), nn.ReLU(),
+            nn.ConvTranspose3d(128, 64, (3, 4, 4), stride=(2, 2, 2), padding=(1, 1, 1)), nn.BatchNorm3d(64), nn.ReLU(),
+            nn.ConvTranspose3d(64, 3, (3, 4, 4), stride=(1, 2, 2), padding=(1, 1, 1)), nn.Sigmoid())
+
+    def encode(self, video: torch.Tensor) -> torch.Tensor:
+        features = self.encoder(video).flatten(1)
+        return self.latent_proj(features)
+
+    def decode(self, latent: torch.Tensor, target_shape: tuple) -> torch.Tensor:
+        x = self.decoder_proj(latent).view(-1, 256, 2, 4, 4)
+        return F.interpolate(self.decoder(x), size=target_shape[2:], mode='trilinear')
+
+    def forward(self, video: torch.Tensor) -> tuple:
+        latent = self.encode(video)
+        reconstructed = self.decode(latent, video.shape)
+        return reconstructed, latent
+
+class FramePredictionModel(nn.Module):
+    """Predict future frames - anomalies are unpredictable."""
+    def __init__(self, embedding_dim: int = 256):
+        super().__init__()
+        self.frame_encoder = nn.Sequential(
+            nn.Conv2d(3, 64, 4, stride=2, padding=1), nn.ReLU(),
+            nn.Conv2d(64, 128, 4, stride=2, padding=1), nn.ReLU(),
+            nn.Conv2d(128, 256, 4, stride=2, padding=1), nn.ReLU(),
+            nn.AdaptiveAvgPool2d(4))
+        self.temporal = nn.LSTM(256 * 16, embedding_dim, batch_first=True)
+        self.frame_decoder = nn.Sequential(
+            nn.ConvTranspose2d(embedding_dim, 128, 4, stride=2, padding=1), nn.ReLU(),
+            nn.ConvTranspose2d(128, 64, 4, stride=2, padding=1), nn.ReLU(),
+            nn.ConvTranspose2d(64, 3, 4, stride=2, padding=1), nn.Sigmoid())
+
+    def forward(self, frame_sequence: torch.Tensor) -> tuple:
+        batch, seq_len = frame_sequence.shape[:2]
+        frames_flat = frame_sequence.flatten(0, 1)
+        frame_feats = self.frame_encoder(frames_flat).flatten(1).view(batch, seq_len, -1)
+        lstm_out, _ = self.temporal(frame_feats)
+        pred_feats = lstm_out[:, -1].view(-1, lstm_out.shape[-1], 1, 1)
+        pred_feats = F.interpolate(pred_feats, size=(28, 28))
+        return self.frame_decoder(pred_feats), lstm_out[:, -1]
+
+# Usage example
+autoencoder = VideoAutoencoder(embedding_dim=256)
+
+# Detect anomalies by reconstruction error
+video_clip = torch.randn(4, 3, 16, 112, 112)  # [batch, C, T, H, W]
+reconstructed, latent = autoencoder(video_clip)
+recon_error = F.mse_loss(reconstructed, video_clip, reduction='none').mean(dim=[1,2,3,4])
+print(f"Reconstruction errors: {recon_error}")
+print(f"Latent embeddings: {latent.shape}")  # [4, 256]
+```
+
+:::{.callout-tip}
+## Video Anomaly Detection Best Practices
+
+**Learning normal:**
+
+- **Autoencoders**: Reconstruct normal video; anomalies have high error
+- **Predictive models**: Predict future frames; anomalies are unpredictable
+- **Density estimation**: Model distribution of normal embeddings
+- **Memory networks**: Store prototypes of normal patterns
+- **Contrastive learning**: Learn features that distinguish normal variations
+
+**Anomaly scoring:**
+
+- **Reconstruction error**: Pixel or feature-level reconstruction loss
+- **Prediction error**: Difference between predicted and actual future
+- **Likelihood**: Probability under learned normal distribution
+- **Distance to normal**: Nearest neighbor distance in embedding space
+- **Ensemble**: Combine multiple scoring methods for robustness
+
+**Contextual adaptation:**
+
+- **Time-of-day**: Different normal patterns for day vs night
+- **Day-of-week**: Weekend vs weekday differences
+- **Camera-specific**: Learn separate models per camera
+- **Seasonal**: Adapt to weather and seasonal changes
+- **Event-aware**: Adjust thresholds during known events
+
+**Operational:**
+
+- **Threshold tuning**: Balance sensitivity vs false positive rate
+- **Alert fatigue**: Aggregate and prioritize alerts
+- **Human review**: Efficient interfaces for validating anomalies
+- **Feedback loops**: Learn from operator accept/reject decisions
+- **Continuous learning**: Update models as normal evolves
+:::
+
+## Forensic Video Search
+
+Forensic search enables rapid retrieval of specific events, people, or objects across large video archives. **Embedding-based video search** indexes footage for semantic queries across weeks or months of recordings.
+
+### The Forensic Search Challenge
+
+Traditional video review faces limitations:
+
+- **Volume**: Reviewing hours of footage manually is impractical
+- **Speed**: Investigations need answers in minutes, not days
+- **Precision**: Finding specific moments in vast archives
+- **Multi-camera**: Events may span multiple camera views
+- **Retention**: Archives may span weeks to years
+
+**Embedding approach**: Index video with frame and clip embeddings; enable semantic search by example (find similar events), by description (natural language queries), or by structured attributes (person wearing red, vehicle type).
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show forensic video search architecture"
+class VideoIndexer(nn.Module):
+    """Index video for semantic search."""
+    def __init__(self, embedding_dim: int = 512):
+        super().__init__()
+        self.frame_encoder = FrameEncoder(VideoConfig(embedding_dim=embedding_dim))
+        self.clip_encoder = ClipEncoder(VideoConfig(embedding_dim=embedding_dim))
+        self.attribute_head = nn.Sequential(
+            nn.Linear(embedding_dim, 256), nn.ReLU(),
+            nn.Linear(256, 100))  # color, object type, etc.
+
+    def index_frame(self, frame: torch.Tensor) -> tuple:
+        emb = self.frame_encoder(frame)
+        attrs = torch.sigmoid(self.attribute_head(emb))
+        return emb, attrs
+
+    def index_clip(self, clip: torch.Tensor) -> torch.Tensor:
+        return self.clip_encoder(clip)
+
+class TextToVideoEncoder(nn.Module):
+    """Encode text queries for video search."""
+    def __init__(self, vocab_size: int = 30000, embedding_dim: int = 512):
+        super().__init__()
+        self.token_embed = nn.Embedding(vocab_size, 256)
+        self.encoder = nn.LSTM(256, 256, batch_first=True, bidirectional=True)
+        self.proj = nn.Linear(512, embedding_dim)
+
+    def forward(self, token_ids: torch.Tensor) -> torch.Tensor:
+        x = self.token_embed(token_ids)
+        _, (hidden, _) = self.encoder(x)
+        hidden = torch.cat([hidden[-2], hidden[-1]], dim=-1)
+        return F.normalize(self.proj(hidden), dim=-1)
+
+class ForensicSearchSystem:
+    """Search video archives by example, text, or attributes."""
+    def __init__(self, embedding_dim: int = 512):
+        self.indexer = VideoIndexer(embedding_dim)
+        self.text_encoder = TextToVideoEncoder(embedding_dim=embedding_dim)
+        self.index_embeddings: list[torch.Tensor] = []
+        self.index_metadata: list[dict] = []
+
+    def search_by_example(self, query_frame: torch.Tensor, k: int = 10) -> list[dict]:
+        query_emb, _ = self.indexer.index_frame(query_frame)
+        if not self.index_embeddings:
+            return []
+        index = torch.stack(self.index_embeddings)
+        sims = F.cosine_similarity(query_emb.unsqueeze(0), index)
+        top_k = torch.topk(sims, k=min(k, len(self.index_embeddings)))
+        return [{"idx": i.item(), "sim": s.item()} for i, s in zip(top_k.indices, top_k.values)]
+
+# Usage example
+search_system = ForensicSearchSystem(embedding_dim=512)
+
+# Index a query frame
+query_frame = torch.randn(1, 3, 224, 224)
+query_emb, attributes = search_system.indexer.index_frame(query_frame)
+print(f"Query embedding: {query_emb.shape}, Attributes: {attributes.shape}")
+
+# Encode text query
+text_encoder = TextToVideoEncoder(embedding_dim=512)
+query_tokens = torch.randint(0, 30000, (1, 10))  # "person in red shirt"
+text_emb = text_encoder(query_tokens)
+print(f"Text query embedding: {text_emb.shape}")
+```
+
+:::{.callout-tip}
+## Forensic Search Best Practices
+
+**Indexing:**
+
+- **Keyframe selection**: Index representative frames, not every frame
+- **Multi-granularity**: Frame embeddings for appearance, clip embeddings for action
+- **Attribute extraction**: Structured metadata (colors, object types, counts)
+- **Scene segmentation**: Detect shot boundaries and scene changes
+- **Incremental indexing**: Add new footage without full re-index
+
+**Query types:**
+
+- **Query by example**: Find similar to this image/clip
+- **Attribute search**: "Person in red shirt", "white sedan"
+- **Natural language**: "Person running through parking lot"
+- **Composite queries**: Combine multiple constraints
+- **Temporal queries**: "What happened before/after this event"
+
+**Search efficiency:**
+
+- **Approximate nearest neighbor**: HNSW, IVF for sub-second search
+- **Temporal pruning**: Limit search to relevant time windows
+- **Camera filtering**: Search only relevant camera subset
+- **Progressive refinement**: Fast initial filter, detailed re-ranking
+- **Result clustering**: Group similar results for efficient review
+
+**User interface:**
+
+- **Timeline visualization**: Show result distribution over time
+- **Multi-camera view**: Synchronized playback across cameras
+- **Result preview**: Quick thumbnails before full video load
+- **Relevance feedback**: Refine search based on user selections
+- **Export**: Extract clips for evidence or sharing
+:::
+
+## Industry Applications
+
+Video surveillance embeddings enable diverse applications across industries, each with specific requirements and use cases.
+
+### Retail Loss Prevention
+
+Retail environments use video analytics for loss prevention, customer experience, and operations optimization.
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show retail analytics architecture"
+class RetailBehaviorEncoder(nn.Module):
+    """Encode shopper behavior for loss prevention and analytics."""
+    def __init__(self, embedding_dim: int = 256, n_behaviors: int = 20):
+        super().__init__()
+        self.pose_encoder = nn.Sequential(
+            nn.Linear(34, 128), nn.ReLU(), nn.Linear(128, 128))  # 17 keypoints x 2
+        self.trajectory_encoder = nn.LSTM(2, 64, batch_first=True, bidirectional=True)
+        self.scene_encoder = nn.Sequential(
+            nn.Conv2d(3, 64, 3, stride=2, padding=1), nn.ReLU(),
+            nn.Conv2d(64, 128, 3, stride=2, padding=1), nn.ReLU(),
+            nn.AdaptiveAvgPool2d(1))
+        self.fusion = nn.Sequential(
+            nn.Linear(128 + 128 + 128, 256), nn.ReLU(), nn.Linear(256, embedding_dim))
+        self.behavior_classifier = nn.Linear(embedding_dim, n_behaviors)
+
+    def forward(self, pose: torch.Tensor, trajectory: torch.Tensor, scene: torch.Tensor) -> tuple:
+        pose_emb = self.pose_encoder(pose.flatten(1))
+        _, (traj_hidden, _) = self.trajectory_encoder(trajectory)
+        # Transpose bidirectional LSTM hidden: (num_directions, batch, hidden) -> (batch, directions*hidden)
+        traj_emb = traj_hidden.transpose(0, 1).flatten(1)
+        scene_emb = self.scene_encoder(scene).flatten(1)
+        fused = self.fusion(torch.cat([pose_emb, traj_emb, scene_emb], dim=-1))
+        emb = F.normalize(fused, dim=-1)
+        return emb, self.behavior_classifier(emb)
+
+class ProductInteractionEncoder(nn.Module):
+    """Encode customer-product interactions for conversion analysis."""
+    def __init__(self, embedding_dim: int = 128):
+        super().__init__()
+        self.hand_encoder = nn.Sequential(nn.Linear(42, 64), nn.ReLU(), nn.Linear(64, 64))
+        self.product_encoder = nn.Sequential(nn.Linear(256, 128), nn.ReLU(), nn.Linear(128, 64))
+        self.fusion = nn.Sequential(nn.Linear(128, 128), nn.ReLU(), nn.Linear(128, embedding_dim))
+
+    def forward(self, hand_pose: torch.Tensor, product_features: torch.Tensor) -> torch.Tensor:
+        hand_emb = self.hand_encoder(hand_pose.flatten(1))
+        prod_emb = self.product_encoder(product_features)
+        return F.normalize(self.fusion(torch.cat([hand_emb, prod_emb], dim=-1)), dim=-1)
+
+# Usage example
+behavior_encoder = RetailBehaviorEncoder(embedding_dim=256, n_behaviors=20)
+
+# Analyze shopper behavior
+pose_keypoints = torch.randn(4, 17, 2)  # 17 body keypoints
+trajectory = torch.randn(4, 30, 2)  # 30 timesteps of x,y positions
+scene_crop = torch.randn(4, 3, 64, 64)
+behavior_emb, behavior_logits = behavior_encoder(pose_keypoints, trajectory, scene_crop)
+print(f"Behavior embeddings: {behavior_emb.shape}")  # [4, 256]
+
+# Behavior classification (concealment, browsing, etc.)
+predicted_behavior = torch.argmax(behavior_logits, dim=-1)
+print(f"Predicted behaviors: {predicted_behavior}")
+```
+
+:::{.callout-tip}
+## Retail Video Analytics
+
+**Loss prevention:**
+
+- **Concealment detection**: Identify potential shoplifting behavior
+- **Checkout exceptions**: Detect scan avoidance, sweethearting
+- **Fitting room monitoring**: Track items in vs out (respecting privacy)
+- **Exit alerts**: Match items leaving with purchases
+- **Evidence retrieval**: Rapid search for incident documentation
+
+**Customer analytics:**
+
+- **Traffic patterns**: Understand store flow and congestion
+- **Dwell time**: Measure engagement at displays
+- **Queue management**: Monitor wait times, open registers proactively
+- **Demographics**: Aggregate (not individual) customer composition
+- **Conversion analysis**: Correlate behavior with purchases
+
+**Operations:**
+
+- **Staffing optimization**: Align staff with traffic patterns
+- **Planogram compliance**: Verify display setup
+- **Cleanliness monitoring**: Detect spills, maintenance needs
+- **Delivery verification**: Confirm vendor deliveries
+- **Safety compliance**: Employee safety behaviors
+:::
+
+### Smart City Public Safety
+
+Smart cities deploy video analytics for traffic management, public safety, and urban planning.
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show smart city analytics architecture"
+class VehicleEncoder(nn.Module):
+    """Encode vehicles for traffic analysis and tracking."""
+    def __init__(self, embedding_dim: int = 256, n_vehicle_types: int = 10):
+        super().__init__()
+        self.appearance_encoder = nn.Sequential(
+            nn.Conv2d(3, 64, 3, stride=2, padding=1), nn.BatchNorm2d(64), nn.ReLU(),
+            nn.Conv2d(64, 128, 3, stride=2, padding=1), nn.BatchNorm2d(128), nn.ReLU(),
+            nn.Conv2d(128, 256, 3, stride=2, padding=1), nn.BatchNorm2d(256), nn.ReLU(),
+            nn.AdaptiveAvgPool2d(1))
+        self.proj = nn.Linear(256, embedding_dim)
+        self.type_classifier = nn.Linear(embedding_dim, n_vehicle_types)
+        self.color_classifier = nn.Linear(embedding_dim, 12)  # common colors
+
+    def forward(self, vehicle_crops: torch.Tensor) -> tuple:
+        features = self.appearance_encoder(vehicle_crops).flatten(1)
+        emb = F.normalize(self.proj(features), dim=-1)
+        return emb, self.type_classifier(emb), self.color_classifier(emb)
+
+class TrafficFlowEncoder(nn.Module):
+    """Encode traffic patterns for congestion analysis."""
+    def __init__(self, embedding_dim: int = 256):
+        super().__init__()
+        self.spatial_encoder = nn.Sequential(
+            nn.Conv2d(3, 64, 3, padding=1), nn.ReLU(), nn.MaxPool2d(2),
+            nn.Conv2d(64, 128, 3, padding=1), nn.ReLU(), nn.AdaptiveAvgPool2d(8))
+        self.temporal_encoder = nn.LSTM(128 * 64, 256, batch_first=True)
+        self.proj = nn.Linear(256, embedding_dim)
+
+    def forward(self, frame_sequence: torch.Tensor) -> torch.Tensor:
+        batch, seq_len = frame_sequence.shape[:2]
+        frames_flat = frame_sequence.flatten(0, 1)
+        spatial_feats = self.spatial_encoder(frames_flat).flatten(1).view(batch, seq_len, -1)
+        _, (hidden, _) = self.temporal_encoder(spatial_feats)
+        return F.normalize(self.proj(hidden[-1]), dim=-1)
+
+class CrowdDensityEncoder(nn.Module):
+    """Encode crowd density for public safety monitoring."""
+    def __init__(self, embedding_dim: int = 128):
+        super().__init__()
+        self.density_cnn = nn.Sequential(
+            nn.Conv2d(3, 64, 3, padding=1), nn.ReLU(), nn.MaxPool2d(2),
+            nn.Conv2d(64, 128, 3, padding=1), nn.ReLU(), nn.MaxPool2d(2),
+            nn.Conv2d(128, 256, 3, padding=1), nn.ReLU())
+        self.density_regressor = nn.Conv2d(256, 1, 1)  # density map
+        self.embedding = nn.Sequential(nn.AdaptiveAvgPool2d(1), nn.Flatten(), nn.Linear(256, embedding_dim))
+
+    def forward(self, scene: torch.Tensor) -> tuple:
+        features = self.density_cnn(scene)
+        density_map = F.relu(self.density_regressor(features))
+        emb = F.normalize(self.embedding(features), dim=-1)
+        return emb, density_map
+
+# Usage example
+vehicle_encoder = VehicleEncoder(embedding_dim=256)
+traffic_encoder = TrafficFlowEncoder(embedding_dim=256)
+
+# Encode vehicle crops for tracking
+vehicle_crops = torch.randn(4, 3, 128, 256)
+vehicle_emb, type_logits, color_logits = vehicle_encoder(vehicle_crops)
+print(f"Vehicle embeddings: {vehicle_emb.shape}")  # [4, 256]
+
+# Encode traffic flow over time
+traffic_frames = torch.randn(2, 10, 3, 480, 640)  # 10 frames
+traffic_emb = traffic_encoder(traffic_frames)
+print(f"Traffic flow embeddings: {traffic_emb.shape}")  # [2, 256]
+```
+
+:::{.callout-tip}
+## Smart City Video Analytics
+
+**Traffic management:**
+
+- **Vehicle counting**: Traffic volume by time and location
+- **Speed estimation**: Detect speeding, traffic flow
+- **Incident detection**: Accidents, breakdowns, debris
+- **Parking management**: Occupancy, violations, guidance
+- **Signal optimization**: Adaptive timing based on real-time flow
+
+**Public safety:**
+
+- **Crowd monitoring**: Density, flow, anomalies
+- **Incident detection**: Fights, falls, medical emergencies
+- **Abandoned objects**: Unattended bags, packages
+- **Perimeter security**: Intrusion detection at restricted areas
+- **Emergency response**: Rapid situation assessment
+
+**Urban planning:**
+
+- **Pedestrian patterns**: Sidewalk usage, crossing behavior
+- **Public space utilization**: Park, plaza usage patterns
+- **Infrastructure monitoring**: Bridge, tunnel conditions
+- **Environmental monitoring**: Flooding, smoke detection
+- **Accessibility assessment**: Mobility aid usage patterns
+:::
+
+### Manufacturing Safety Compliance
+
+Manufacturing facilities use video analytics for safety monitoring, quality control, and process optimization.
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show manufacturing safety architecture"
+class PPEDetector(nn.Module):
+    """Detect personal protective equipment compliance."""
+    def __init__(self, embedding_dim: int = 256, n_ppe_types: int = 6):
+        super().__init__()
+        self.backbone = nn.Sequential(
+            nn.Conv2d(3, 64, 3, stride=2, padding=1), nn.BatchNorm2d(64), nn.ReLU(),
+            nn.Conv2d(64, 128, 3, stride=2, padding=1), nn.BatchNorm2d(128), nn.ReLU(),
+            nn.Conv2d(128, 256, 3, stride=2, padding=1), nn.BatchNorm2d(256), nn.ReLU(),
+            nn.AdaptiveAvgPool2d(1))
+        self.embedding = nn.Linear(256, embedding_dim)
+        self.ppe_classifier = nn.Linear(embedding_dim, n_ppe_types)  # hard hat, vest, goggles, etc.
+
+    def forward(self, person_crops: torch.Tensor) -> tuple:
+        features = self.backbone(person_crops).flatten(1)
+        emb = F.normalize(self.embedding(features), dim=-1)
+        ppe_logits = self.ppe_classifier(emb)
+        return emb, torch.sigmoid(ppe_logits)
+
+class SafeZoneMonitor(nn.Module):
+    """Monitor restricted zones and safe distances."""
+    def __init__(self, embedding_dim: int = 128):
+        super().__init__()
+        self.scene_encoder = nn.Sequential(
+            nn.Conv2d(3, 64, 3, padding=1), nn.ReLU(), nn.MaxPool2d(2),
+            nn.Conv2d(64, 128, 3, padding=1), nn.ReLU(), nn.MaxPool2d(2),
+            nn.Conv2d(128, 256, 3, padding=1), nn.ReLU(), nn.AdaptiveAvgPool2d(4))
+        self.position_encoder = nn.Sequential(nn.Linear(2, 64), nn.ReLU(), nn.Linear(64, 64))
+        self.fusion = nn.Sequential(nn.Linear(256 * 16 + 64, 256), nn.ReLU(), nn.Linear(256, embedding_dim))
+        self.zone_classifier = nn.Linear(embedding_dim, 5)  # zone types
+        self.violation_detector = nn.Linear(embedding_dim, 1)
+
+    def forward(self, scene: torch.Tensor, positions: torch.Tensor) -> tuple:
+        scene_feat = self.scene_encoder(scene).flatten(1)
+        pos_feat = self.position_encoder(positions)
+        fused = self.fusion(torch.cat([scene_feat, pos_feat], dim=-1))
+        emb = F.normalize(fused, dim=-1)
+        return emb, self.zone_classifier(emb), torch.sigmoid(self.violation_detector(emb))
+
+# Usage example
+ppe_detector = PPEDetector(embedding_dim=256, n_ppe_types=6)
+zone_monitor = SafeZoneMonitor(embedding_dim=128)
+
+# Detect PPE compliance
+worker_crops = torch.randn(4, 3, 128, 64)
+ppe_emb, ppe_probs = ppe_detector(worker_crops)
+print(f"PPE embeddings: {ppe_emb.shape}")  # [4, 256]
+print(f"PPE detection (hard hat, vest, goggles...): {ppe_probs[0]}")
+
+# Monitor zone compliance
+scene_frame = torch.randn(1, 3, 480, 640)
+worker_positions = torch.randn(1, 2)  # normalized x, y
+zone_emb, zone_logits, violation_prob = zone_monitor(scene_frame, worker_positions)
+print(f"Violation probability: {violation_prob.item():.3f}")
+```
+
+:::{.callout-tip}
+## Manufacturing Video Analytics
+
+**Safety compliance:**
+
+- **PPE detection**: Hard hats, safety vests, goggles, gloves
+- **Zone monitoring**: Restricted area access, safe distances
+- **Unsafe behavior**: Running, improper lifting, horseplay
+- **Emergency detection**: Falls, injuries, equipment incidents
+- **Compliance reporting**: Automated safety audits
+
+**Quality control:**
+
+- **Defect detection**: Visual inspection of products
+- **Assembly verification**: Correct parts, proper installation
+- **Process monitoring**: Adherence to standard procedures
+- **Measurement**: Dimensional verification via vision
+- **Traceability**: Link video to production records
+
+**Operations:**
+
+- **Equipment monitoring**: Abnormal operation detection
+- **Workflow analysis**: Cycle time, bottleneck identification
+- **Inventory tracking**: Material movement, levels
+- **Maintenance**: Predictive maintenance from visual indicators
+- **Training**: Capture best practices, identify coaching opportunities
+:::
+
+### Healthcare Patient Safety
+
+Healthcare facilities use video analytics for patient safety, operational efficiency, and quality improvement.
+
+:::{.callout-tip}
+## Healthcare Video Analytics
+
+**Patient safety:**
+
+- **Fall detection**: Immediate alerts for patient falls
+- **Wandering prevention**: Dementia patient monitoring
+- **Bed exit detection**: Alert when at-risk patients attempt to leave bed
+- **Patient activity**: Mobility tracking for recovery assessment
+- **Emergency detection**: Rapid response to medical emergencies
+
+**Infection control:**
+
+- **Hand hygiene**: Monitor compliance with wash requirements
+- **PPE compliance**: Mask, gown, glove usage in appropriate areas
+- **Contact tracing**: Retrospective tracking for outbreak investigation
+- **Isolation compliance**: Monitor isolation room protocols
+- **Visitor management**: Enforce visiting policies
+
+**Operations:**
+
+- **Wait time monitoring**: Emergency department, clinic queues
+- **Room utilization**: OR, exam room efficiency
+- **Staff workflow**: Movement patterns, task analysis
+- **Equipment tracking**: Locate mobile equipment
+- **Capacity management**: Real-time bed availability
+:::
+
+## Privacy-Preserving Video Analytics
+
+Privacy concerns require techniques that extract value from video while protecting individual privacy.
+
+### Privacy Protection Techniques
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show privacy-preserving analytics architecture"
+class FaceAnonymizer(nn.Module):
+    """Detect and blur faces for privacy protection."""
+    def __init__(self, detection_threshold: float = 0.8):
+        super().__init__()
+        self.face_detector = nn.Sequential(
+            nn.Conv2d(3, 32, 3, stride=2, padding=1), nn.ReLU(),
+            nn.Conv2d(32, 64, 3, stride=2, padding=1), nn.ReLU(),
+            nn.Conv2d(64, 128, 3, stride=2, padding=1), nn.ReLU(),
+            nn.Conv2d(128, 5, 1))  # 4 bbox coords + confidence
+        self.threshold = detection_threshold
+
+    def detect_faces(self, image: torch.Tensor) -> torch.Tensor:
+        detections = self.face_detector(image)
+        return detections.permute(0, 2, 3, 1)  # [batch, H, W, 5]
+
+    def blur_faces(self, image: torch.Tensor, detections: torch.Tensor) -> torch.Tensor:
+        # Simplified: in practice would apply Gaussian blur to detected regions
+        return image  # Return original for demo
+
+class PrivacyPreservingEncoder(nn.Module):
+    """Extract embeddings without identifiable features."""
+    def __init__(self, embedding_dim: int = 256):
+        super().__init__()
+        # Encode only motion and pose, not appearance
+        self.pose_encoder = nn.Sequential(
+            nn.Linear(34, 128), nn.ReLU(), nn.Linear(128, embedding_dim))
+        self.motion_encoder = nn.Sequential(
+            nn.Linear(34 * 2, 128), nn.ReLU(), nn.Linear(128, embedding_dim))
+        self.fusion = nn.Sequential(
+            nn.Linear(embedding_dim * 2, 256), nn.ReLU(), nn.Linear(256, embedding_dim))
+
+    def forward(self, pose: torch.Tensor, motion: torch.Tensor) -> torch.Tensor:
+        pose_emb = self.pose_encoder(pose.flatten(1))
+        motion_emb = self.motion_encoder(motion.flatten(1))
+        return F.normalize(self.fusion(torch.cat([pose_emb, motion_emb], dim=-1)), dim=-1)
+
+class DifferentialPrivacyWrapper(nn.Module):
+    """Add differential privacy noise to embeddings."""
+    def __init__(self, base_encoder: nn.Module, epsilon: float = 1.0, delta: float = 1e-5):
+        super().__init__()
+        self.encoder = base_encoder
+        self.epsilon = epsilon
+        self.delta = delta
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        embedding = self.encoder(x)
+        noise_scale = 2.0 / self.epsilon  # Simplified Laplace mechanism
+        noise = torch.zeros_like(embedding).uniform_(-noise_scale, noise_scale)
+        return F.normalize(embedding + noise, dim=-1)
+
+# Usage example
+privacy_encoder = PrivacyPreservingEncoder(embedding_dim=256)
+anonymizer = FaceAnonymizer()
+
+# Encode behavior without identifying appearance
+pose_keypoints = torch.randn(4, 17, 2)  # Skeleton only
+motion_flow = torch.randn(4, 17, 2, 2)  # Pose change over time
+private_emb = privacy_encoder(pose_keypoints, motion_flow.flatten(-2))
+print(f"Privacy-preserving embeddings: {private_emb.shape}")
+
+# Detect and anonymize faces
+image = torch.randn(1, 3, 480, 640)
+face_detections = anonymizer.detect_faces(image)
+print(f"Face detections shape: {face_detections.shape}")
+```
+
+:::{.callout-tip}
+## Privacy-Preserving Techniques
+
+**Data minimization:**
+
+- **Edge processing**: Analyze on-camera, transmit only metadata
+- **Face blurring**: Automatic face detection and anonymization
+- **Body abstraction**: Replace people with silhouettes or skeletons
+- **Selective recording**: Only record when events detected
+- **Retention limits**: Automatic deletion after defined period
+
+**Technical measures:**
+
+- **Differential privacy**: Add noise to aggregate statistics
+- **Federated learning**: Train models without centralizing video
+- **Secure computation**: Encrypted video analysis
+- **Access controls**: Role-based access to video and analytics
+- **Audit logging**: Track all video access and queries
+
+**Policy measures:**
+
+- **Notice**: Clear signage about video monitoring
+- **Purpose limitation**: Define and enforce allowed use cases
+- **Data governance**: Policies for access, retention, sharing
+- **Impact assessments**: Evaluate privacy implications
+- **Regular audits**: Verify compliance with policies
+
+**Bias mitigation:**
+
+- **Demographic testing**: Evaluate accuracy across groups
+- **Training data diversity**: Representative training sets
+- **Threshold calibration**: Equal error rates across demographics
+- **Human review**: Require human confirmation for consequential actions
+- **Continuous monitoring**: Track disparate impact in production
+:::
+
+## Key Takeaways
+
+:::{.callout-note}
+The performance metrics in the takeaways below are illustrative based on published research and industry benchmarks. They represent achievable performance but are not verified results from specific deployments.
+:::
+
+- **Real-time video processing at scale requires hierarchical, edge-cloud architectures**: Processing thousands of concurrent streams demands efficient frame embedding extraction (>100 fps per GPU), edge preprocessing to reduce bandwidth, hierarchical detection (fast filter then accurate classifier), and horizontal scaling with load balancing—achieving sub-second detection latency while managing compute costs
+
+- **Person re-identification enables tracking without biometric identification**: Appearance-based embeddings capture clothing, body shape, and gait patterns robust to pose and lighting changes, achieving 80-95% rank-1 accuracy across camera networks while avoiding face recognition privacy concerns—though still requiring careful governance around tracking scope and retention
+
+- **Action recognition detects behaviors through temporal embeddings**: 3D convolutions, two-stream networks, and temporal transformers capture spatiotemporal patterns for detecting activities from shoplifting behaviors to safety violations to customer interactions, with domain-specific fine-tuning achieving 85-95% accuracy on targeted action sets
+
+- **Anomaly detection identifies unusual events without explicit training examples**: Learning normal behavior patterns through autoencoders, prediction models, and density estimation enables detection of arbitrary anomalies—achieving 70-90% detection with <5% false positive rates when properly tuned to specific camera contexts and time patterns
+
+- **Forensic video search transforms archives into queryable databases**: Indexing keyframes and clips with embeddings enables semantic search across weeks of footage in seconds—finding specific people, objects, or events through query-by-example, attribute search, or natural language without manual review of hours of video
+
+- **Industry applications share common technical foundations with domain-specific requirements**: Retail (loss prevention, customer analytics), smart cities (traffic, public safety), manufacturing (safety compliance, quality), and healthcare (patient safety, infection control) all leverage the same core embedding techniques with specialized models, thresholds, and integration requirements
+
+- **Privacy-preserving analytics must be designed in from the start**: Edge processing, face blurring, purpose limitation, retention policies, access controls, and bias testing are not afterthoughts—they determine whether video analytics deployments are legally compliant, ethically acceptable, and trusted by the people being monitored
+
+## Looking Ahead
+
+Part VI (Future-Proofing & Optimization) begins with @sec-performance-optimization, which covers performance optimization for embedding systems: query optimization strategies for sub-50ms retrieval at trillion-row scale, index tuning for specific workload patterns, caching strategies for frequently accessed embeddings, compression techniques that reduce storage by 75% while maintaining quality, and network optimization for distributed queries across global data centers.
+
+## Further Reading
+
+### Video Understanding and Recognition
+- Carreira, Joao, and Andrew Zisserman (2017). "Quo Vadis, Action Recognition? A New Model and the Kinetics Dataset." CVPR.
+- Feichtenhofer, Christoph, et al. (2019). "SlowFast Networks for Video Recognition." ICCV.
+- Arnab, Anurag, et al. (2021). "ViViT: A Video Vision Transformer." ICCV.
+- Tran, Du, et al. (2015). "Learning Spatiotemporal Features with 3D Convolutional Networks." ICCV.
+- Wang, Limin, et al. (2016). "Temporal Segment Networks: Towards Good Practices for Deep Action Recognition." ECCV.
+
+### Person Re-Identification
+- Ye, Mang, et al. (2021). "Deep Learning for Person Re-identification: A Survey and Outlook." IEEE TPAMI.
+- Luo, Hao, et al. (2019). "Bag of Tricks and a Strong Baseline for Deep Person Re-identification." CVPR Workshops.
+- Sun, Yifan, et al. (2018). "Beyond Part Models: Person Retrieval with Refined Part Pooling." ECCV.
+- He, Shuting, et al. (2021). "TransReID: Transformer-based Object Re-Identification." ICCV.
+- Zheng, Liang, et al. (2015). "Scalable Person Re-identification: A Benchmark." ICCV.
+
+### Video Anomaly Detection
+- Liu, Wen, et al. (2018). "Future Frame Prediction for Anomaly Detection – A New Baseline." CVPR.
+- Sultani, Waqas, et al. (2018). "Real-World Anomaly Detection in Surveillance Videos." CVPR.
+- Park, Hyunjong, et al. (2020). "Learning Memory-guided Normality for Anomaly Detection." CVPR.
+- Georgescu, Mariana-Iuliana, et al. (2021). "Anomaly Detection in Video via Self-Supervised and Multi-Task Learning." CVPR.
+- Ramachandra, Bharathkumar, and Michael Jones (2020). "Street Scene: A New Dataset and Evaluation Protocol for Video Anomaly Detection." WACV.
+
+### Video Retrieval and Search
+- Miech, Antoine, et al. (2019). "HowTo100M: Learning a Text-Video Embedding by Watching Hundred Million Narrated Video Clips." ICCV.
+- Bain, Max, et al. (2021). "Frozen in Time: A Joint Video and Image Encoder for End-to-End Retrieval." ICCV.
+- Xu, Jun, et al. (2016). "MSR-VTT: A Large Video Description Dataset for Bridging Video and Language." CVPR.
+- Lei, Jie, et al. (2021). "Less is More: ClipBERT for Video-and-Language Learning via Sparse Sampling." CVPR.
+- Gabeur, Valentin, et al. (2020). "Multi-modal Transformer for Video Retrieval." ECCV.
+
+### Retail and Smart City Analytics
+- Hampapur, Arun, et al. (2005). "Smart Video Surveillance: Exploring the Concept of Multiscale Spatiotemporal Tracking." IEEE Signal Processing Magazine.
+- Collins, Robert T., et al. (2000). "A System for Video Surveillance and Monitoring." Carnegie Mellon University Technical Report.
+- Senior, Andrew, et al. (2006). "Appearance Models for Occlusion Handling." Image and Vision Computing.
+- Yilmaz, Alper, et al. (2006). "Object Tracking: A Survey." ACM Computing Surveys.
+- Zhang, Shanshan, et al. (2016). "How Far are We from Solving Pedestrian Detection?" CVPR.
+
+### Privacy and Ethics in Video Surveillance
+- Cavallaro, Andrea (2007). "Privacy in Video Surveillance." IEEE Signal Processing Magazine.
+- Senior, Andrew, et al. (2005). "Enabling Video Privacy through Computer Vision." IEEE Security & Privacy.
+- Winkler, Thomas, and Bernhard Rinner (2014). "Security and Privacy Protection in Visual Sensor Networks: A Survey." ACM Computing Surveys.
+- Dwork, Cynthia, and Aaron Roth (2014). "The Algorithmic Foundations of Differential Privacy." Foundations and Trends in Theoretical Computer Science.
+- Buolamwini, Joy, and Timnit Gebru (2018). "Gender Shades: Intersectional Accuracy Disparities in Commercial Gender Classification." FAT*.

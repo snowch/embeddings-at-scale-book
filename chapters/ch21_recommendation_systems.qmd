@@ -1,0 +1,589 @@
+# Recommendation Systems Revolution {#sec-recommendation-systems}
+
+:::{.callout-note}
+## Chapter Overview
+Recommendation systems drive billions in revenue for platforms like Netflix, Amazon, and Spotify by predicting what users want before they search. This chapter revolutionizes recommendations with embeddings: collaborative filtering using learned user and item embeddings that scale to billions of users and items, cold start solutions that leverage content embeddings and meta-learning to recommend for new users and products, real-time personalization with streaming embeddings that adapt to user behavior within seconds, diversity and fairness constraints that prevent filter bubbles and ensure equitable exposure, and cross-domain recommendation transfer that leverages learned representations across product categories and platforms. These techniques transform recommendations from simple popularity rankings to sophisticated personalization engines that understand nuanced preferences at trillion-row scale.
+:::
+
+After mastering semantic search across modalities (@sec-semantic-search), the next application is **recommendation systems**—the engines that power discovery on every major platform. Traditional collaborative filtering (matrix factorization, nearest neighbors) scales poorly beyond millions of users and items, struggles with cold start problems, and requires expensive retraining for updates. **Embedding-based recommendations** solve these challenges by learning dense vector representations of users and items in a shared latent space, enabling efficient similarity search, transfer learning across domains, and real-time personalization through incremental embedding updates.
+
+## Embedding-Based Collaborative Filtering
+
+Collaborative filtering predicts user preferences from historical interactions (clicks, purchases, ratings). **Embedding-based collaborative filtering** learns vector representations where users and items close in embedding space have similar preferences, enabling recommendations via nearest neighbor search at billion-user scale.
+
+### The Collaborative Filtering Challenge
+
+Traditional collaborative filtering approaches have limitations:
+
+- **Matrix factorization** (SVD, ALS): Expensive to retrain (hours), doesn't scale to billions, cold start unsolved
+- **Nearest neighbors**: Sparse interactions create poor similarity estimates
+- **Deep learning** (Neural CF): Better accuracy but requires careful architecture design
+
+**Embedding-based approach**: Learn user embeddings **u** ∈ ℝᵈ and item embeddings **i** ∈ ℝᵈ such that relevance score = **u** · **i** (dot product). High score = likely interaction.
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Collaborative Filtering Model"
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+
+class TwoTowerRecommender(nn.Module):
+    """Two-tower collaborative filtering with user and item embeddings."""
+    def __init__(self, num_users: int, num_items: int, embedding_dim: int = 128):
+        super().__init__()
+        self.user_encoder = nn.Embedding(num_users, embedding_dim)
+        self.item_encoder = nn.Embedding(num_items, embedding_dim)
+
+        # Initialize
+        nn.init.xavier_uniform_(self.user_encoder.weight)
+        nn.init.xavier_uniform_(self.item_encoder.weight)
+
+    def forward(self, user_ids, item_ids):
+        """Predict relevance scores for user-item pairs."""
+        user_emb = F.normalize(self.user_encoder(user_ids), p=2, dim=1)
+        item_emb = F.normalize(self.item_encoder(item_ids), p=2, dim=1)
+
+        # Dot product scoring
+        scores = (user_emb * item_emb).sum(dim=1)
+        return scores
+
+    def recommend(self, user_id, all_item_ids, k=10):
+        """Recommend top-k items for user."""
+        user_emb = F.normalize(self.user_encoder(user_id.unsqueeze(0)), p=2, dim=1)
+        item_embs = F.normalize(self.item_encoder(all_item_ids), p=2, dim=1)
+
+        # Compute all scores
+        scores = torch.matmul(item_embs, user_emb.T).squeeze()
+
+        # Return top-k
+        top_scores, top_indices = torch.topk(scores, k)
+        return all_item_ids[top_indices], top_scores
+
+# Usage example
+model = TwoTowerRecommender(num_users=10000, num_items=5000, embedding_dim=128)
+user_id = torch.tensor(42)
+all_items = torch.arange(5000)
+recommended_items, scores = model.recommend(user_id, all_items, k=10)
+print(f"Recommended {len(recommended_items)} items for user {user_id.item()}")
+```
+
+:::{.callout-tip}
+## Collaborative Filtering Best Practices
+
+**Architecture:**
+
+- **Two-tower design**: Separate user and item encoders (enables independent updates)
+- **Dot product scoring**: Fast inference (matrix multiplication)
+- **Normalization**: L2-normalize embeddings for stable training
+- **Feature fusion**: Combine ID embeddings with content/metadata features
+
+**Training:**
+
+- **Negative sampling**: 4-10 negatives per positive (balance signal)
+- **Hard negative mining**: Sample popular items user didn't click (harder examples) (see @sec-contrastive-learning)
+- **Batch size**: Large batches (1024-8192) for stable gradients
+- **Learning rate**: Start high (0.001), decay over time
+
+**Serving:**
+
+- **Pre-compute item embeddings**: Items change slowly (update daily)
+- **Online user encoding**: Encode user on-the-fly from recent interactions
+- **ANN search**: Use Faiss/ScaNN for sub-millisecond retrieval
+- **Caching**: Cache popular user embeddings (80/20 rule)
+:::
+
+:::{.callout-warning}
+## Popularity Bias
+
+Collaborative filtering suffers from **popularity bias**: Popular items recommended more often, creating rich-get-richer dynamics.
+
+**Consequences:**
+
+- Long-tail items never recommended
+- New items struggle to gain traction
+- Filter bubbles reinforce existing preferences
+
+**Mitigation strategies:**
+
+- **Debiasing**: Downweight popular items during training
+- **Exploration**: Reserve 10-20% of recommendations for exploration
+- **Diversity constraints**: Ensure recommendations span categories
+- **Fairness metrics**: Monitor exposure distribution across items
+:::
+
+## Cold Start Problem Solutions
+
+The **cold start problem** occurs when new users or items have no interaction history, making collaborative filtering impossible. **Cold start solutions** leverage content embeddings, meta-learning, and transfer learning to provide quality recommendations from the first interaction.
+
+### The Cold Start Challenge
+
+Three cold start scenarios:
+
+1. **New user**: No interaction history → cannot estimate preferences
+2. **New item**: No user interactions → cannot estimate quality
+3. **New system**: No users or items → cannot learn patterns
+
+**Traditional approaches fail:**
+
+- Collaborative filtering: Requires interaction history
+- Content-based: Ignores collaborative signal
+- Popularity-based: Ignores user preferences
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Cold Start Solution"
+import torch.nn as nn
+
+
+class ColdStartRecommender(nn.Module):
+    """Hybrid recommender for cold start using content and collaborative signals."""
+    def __init__(self, num_users: int, num_items: int, content_dim: int = 256,
+                 embedding_dim: int = 128):
+        super().__init__()
+
+        # Collaborative embeddings
+        self.user_embedding = nn.Embedding(num_users, embedding_dim)
+        self.item_embedding = nn.Embedding(num_items, embedding_dim)
+
+        # Content encoder for cold start
+        self.content_encoder = nn.Sequential(
+            nn.Linear(content_dim, 256),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(256, embedding_dim)
+        )
+
+    def forward(self, user_ids, item_ids, item_features=None, use_content=False):
+        """Score user-item pairs with optional content fallback."""
+        user_emb = self.user_embedding(user_ids)
+
+        # Use content encoder for cold start items
+        if use_content and item_features is not None:
+            item_emb = self.content_encoder(item_features)
+        else:
+            item_emb = self.item_embedding(item_ids)
+
+        # Normalize and score
+        user_emb = F.normalize(user_emb, p=2, dim=1)
+        item_emb = F.normalize(item_emb, p=2, dim=1)
+
+        scores = (user_emb * item_emb).sum(dim=1)
+        return scores
+
+# Usage example
+model = ColdStartRecommender(num_users=10000, num_items=5000, content_dim=256)
+
+# For new items without interactions, use content features
+import torch
+new_item_features = torch.randn(1, 256)
+user_id = torch.tensor([42])
+item_id = torch.tensor([0])
+score = model(user_id, item_id, new_item_features, use_content=True)
+print(f"Cold start score: {score.item():.3f}")
+```
+
+:::{.callout-tip}
+## Cold Start Best Practices
+
+**Content-based initialization:**
+
+- **Feature quality**: High-quality content features are critical
+- **Pre-training**: Pre-train content encoder on external data
+- **Fine-tuning**: Fine-tune on collaborative signal when available (see @sec-custom-embedding-strategies for guidance on choosing the right level of customization)
+- **Smooth transition**: Gradually increase collaborative weight
+
+**Meta-learning:**
+
+- **Task sampling**: Sample diverse user tasks for meta-training
+- **Support set size**: 1-5 examples (balance adaptation vs overfitting)
+- **Adaptation steps**: 5-10 gradient steps for new users
+- **Regularization**: Prevent overfitting on small support sets
+
+**Hybrid approach:**
+
+- **Dynamic blending**: Adjust weights based on data availability
+- **Threshold tuning**: 10-20 interactions for full collaborative weight
+- **Fallback strategies**: Popularity-based when both signals weak
+- **A/B testing**: Measure impact on new users/items
+:::
+
+## Real-Time Personalization
+
+Traditional recommendation systems update daily or weekly, missing real-time behavior changes. **Real-time personalization** continuously updates user embeddings from streaming interactions, adapting recommendations within seconds to reflect evolving preferences and context.
+
+### The Real-Time Challenge
+
+User preferences change:
+
+- **Session context**: User browsing for gifts has different intent than personal shopping
+- **Temporal trends**: User interested in Christmas movies in December, not July
+- **Sequential patterns**: User watching action trilogy wants next episode, not random movie
+- **Real-time feedback**: User skips recommendations → adjust immediately
+
+**Challenge**: Update user embeddings in real-time without expensive model retraining.
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Real-Time Session Encoder"
+from typing import List
+import torch
+import torch.nn as nn
+
+
+class SessionRecommender(nn.Module):
+    """Real-time personalization using session history."""
+    def __init__(self, num_items: int, embedding_dim: int = 128, hidden_dim: int = 256):
+        super().__init__()
+        self.item_embedding = nn.Embedding(num_items, embedding_dim)
+
+        # Session encoder (LSTM)
+        self.session_encoder = nn.LSTM(
+            input_size=embedding_dim,
+            hidden_size=hidden_dim,
+            num_layers=2,
+            batch_first=True,
+            dropout=0.2
+        )
+
+        # Output projection
+        self.projection = nn.Linear(hidden_dim, embedding_dim)
+
+    def encode_session(self, session_item_ids: torch.Tensor):
+        """Encode user session to embedding."""
+        # Embed session items
+        item_embs = self.item_embedding(session_item_ids)
+
+        # LSTM encoding
+        _, (hidden, _) = self.session_encoder(item_embs)
+
+        # Project to item space
+        session_emb = self.projection(hidden[-1])
+        return F.normalize(session_emb, p=2, dim=1)
+
+    def recommend_next(self, session_item_ids: torch.Tensor, k: int = 10):
+        """Recommend next items based on session history."""
+        # Encode session
+        session_emb = self.encode_session(session_item_ids)
+
+        # Get all item embeddings
+        all_items = torch.arange(self.item_embedding.num_embeddings).to(session_item_ids.device)
+        item_embs = F.normalize(self.item_embedding(all_items), p=2, dim=1)
+
+        # Compute scores
+        scores = torch.matmul(item_embs, session_emb.T).squeeze()
+
+        # Return top-k
+        top_scores, top_indices = torch.topk(scores, k)
+        return all_items[top_indices], top_scores
+
+# Usage example
+model = SessionRecommender(num_items=5000, embedding_dim=128)
+session = torch.tensor([[10, 25, 42, 100]])  # User browsing history
+recommended_items, scores = model.recommend_next(session, k=5)
+print(f"Next item recommendations: {recommended_items.tolist()}")
+```
+
+:::{.callout-tip}
+## Real-Time Personalization Best Practices
+
+**Architecture:**
+
+- **Streaming infrastructure**: Kafka/Kinesis for event ingestion
+- **Session state**: Redis/Memcached for fast session access
+- **Incremental updates**: Update embeddings without full recomputation
+- **Cache strategy**: Invalidate user cache on interactions
+
+**Modeling:**
+
+- **Recency weighting**: Exponential decay (recent events matter more)
+- **Session encoder**: RNN/Transformer for sequential patterns
+- **Context awareness**: Time-of-day, device, location signals
+- **Hybrid fusion**: Base (long-term) + session (short-term) embeddings
+
+**Performance:**
+
+- **Latency target**: p95 < 100ms for embedding computation
+- **Throughput**: 10K+ updates/second per node
+- **Batching**: Micro-batch events for GPU efficiency
+- **Fallback**: Serve base embedding if session computation times out
+:::
+
+## Diversity and Fairness in Recommendations
+
+Purely accuracy-optimized recommenders create **filter bubbles**: users see only items similar to past behavior, reducing diversity and creating unfair exposure for long-tail items. **Diversity and fairness** constraints ensure recommendations span categories, promote exploration, and provide equitable exposure.
+
+### The Diversity Challenge
+
+Accuracy-optimized systems suffer from:
+
+- **Filter bubbles**: Users trapped in narrow content silos
+- **Popularity bias**: Popular items recommended excessively
+- **Homogeneity**: All recommendations similar to each other
+- **Unfair exposure**: Long-tail items never discovered
+
+**Goal**: Balance accuracy, diversity, and fairness.
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Diversity-Aware Ranking"
+import torch
+import numpy as np
+
+
+class DiversityReranker:
+    """MMR-based reranking for diversity."""
+    def __init__(self, lambda_param: float = 0.3):
+        self.lambda_param = lambda_param  # Balance relevance vs diversity
+
+    def rerank(self, query_emb, candidate_embs, candidate_scores, k: int = 10):
+        """Rerank candidates using Maximal Marginal Relevance (MMR).
+
+        MMR selects items that are relevant to query but diverse from each other.
+        """
+        selected = []
+        selected_embs = []
+        remaining_indices = list(range(len(candidate_embs)))
+
+        for _ in range(min(k, len(candidate_embs))):
+            mmr_scores = []
+
+            for idx in remaining_indices:
+                # Relevance score
+                relevance = candidate_scores[idx]
+
+                # Diversity penalty (max similarity to selected items)
+                if selected_embs:
+                    similarities = [torch.dot(candidate_embs[idx], s)
+                                    for s in selected_embs]
+                    diversity_penalty = max(similarities)
+                else:
+                    diversity_penalty = 0.0
+
+                # MMR score
+                mmr = self.lambda_param * relevance - (1 - self.lambda_param) * diversity_penalty
+                mmr_scores.append((idx, mmr))
+
+            # Select item with highest MMR score
+            best_idx, best_score = max(mmr_scores, key=lambda x: x[1])
+            selected.append(best_idx)
+            selected_embs.append(candidate_embs[best_idx])
+            remaining_indices.remove(best_idx)
+
+        return selected
+
+# Usage example
+reranker = DiversityReranker(lambda_param=0.3)
+query = torch.randn(128)
+candidates = torch.randn(50, 128)
+scores = torch.rand(50)
+diverse_ranking = reranker.rerank(query, candidates, scores, k=10)
+print(f"Diverse top-10 ranking: {diverse_ranking}")
+```
+
+:::{.callout-tip}
+## Diversity and Fairness Best Practices
+
+**Diversity techniques:**
+
+- **MMR reranking**: Balance relevance and diversity (λ=0.2-0.4)
+- **Category constraints**: Ensure minimum representation per category
+- **Similarity penalty**: Penalize items similar to already-selected
+- **Exploration bonus**: Boost under-explored items (10-20% of slots)
+
+**Fairness monitoring:**
+
+- **Coverage**: Track % of catalog recommended (target: 80%+)
+- **Gini coefficient**: Monitor inequality (target: <0.5)
+- **Category balance**: Ensure equitable exposure across categories
+- **A/B testing**: Measure impact on user satisfaction and business metrics
+
+**Trade-offs:**
+
+- **Accuracy loss**: Diversity/fairness often reduce short-term accuracy
+- **User satisfaction**: May improve long-term engagement (avoid boredom)
+- **Business value**: Long-tail exposure can discover hidden gems
+- **Tuning**: λ parameter controls accuracy-diversity trade-off
+:::
+
+:::{.callout-warning}
+## Diversity-Accuracy Trade-off
+
+Increasing diversity typically reduces short-term accuracy:
+
+- **MMR (λ=0.5)**: 10-15% accuracy drop, significant diversity gain
+- **Category constraints**: 5-10% accuracy drop, guaranteed representation
+- **Pure exploration**: 30%+ accuracy drop, maximum discovery
+
+**Mitigation strategies:**
+
+- **Adaptive λ**: Increase diversity for engaged users, decrease for new users
+- **Personalized diversity**: Learn per-user diversity preferences
+- **Long-term metrics**: Optimize for session success, not click-through rate
+- **A/B testing**: Measure impact on retention and lifetime value
+:::
+
+## Cross-Domain Recommendation Transfer
+
+Users interact across multiple domains (products, movies, music), but traditional systems treat each domain independently. **Cross-domain recommendation transfer** leverages learned embeddings to transfer knowledge across domains, enabling better cold start and improved recommendations in data-sparse domains.
+
+### The Cross-Domain Challenge
+
+Challenges of multi-domain systems:
+
+- **Data sparsity**: Some domains have limited interactions (e.g., luxury goods)
+- **Cold start**: New domain with no historical data
+- **Shared preferences**: User preferences correlate across domains (action movies → action games)
+- **Different scales**: Domains have different numbers of items and interaction frequencies
+
+**Opportunity**: Transfer learning from data-rich to data-sparse domains.
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Cross-Domain Recommender"
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from typing import Dict
+
+
+class CrossDomainRecommender(nn.Module):
+    """Multi-domain recommender with shared user embeddings."""
+    def __init__(self, embedding_dim: int = 128, num_users: int = 1000000,
+                 num_items_per_domain: Dict[str, int] = None):
+        super().__init__()
+        self.embedding_dim = embedding_dim
+
+        # Shared user encoder across domains
+        self.user_encoder = nn.Embedding(num_users, embedding_dim)
+
+        # Domain-specific item encoders
+        self.item_encoders = nn.ModuleDict()
+        for domain, num_items in num_items_per_domain.items():
+            self.item_encoders[domain] = nn.Embedding(num_items, embedding_dim)
+
+        self.domains = list(num_items_per_domain.keys())
+
+    def forward(self, user_ids: torch.Tensor, item_ids: torch.Tensor, domain: str):
+        """Predict scores for user-item pairs in given domain."""
+        # Encode users (shared across domains)
+        user_emb = F.normalize(self.user_encoder(user_ids), p=2, dim=1)
+
+        # Encode items (domain-specific)
+        item_emb = F.normalize(self.item_encoders[domain](item_ids), p=2, dim=1)
+
+        # Dot product scoring
+        scores = (user_emb * item_emb).sum(dim=1)
+        return scores
+
+    def recommend_cross_domain(self, user_id: int, domain: str, k: int = 10):
+        """Recommend items from specific domain."""
+        user_tensor = torch.tensor([user_id])
+        user_emb = F.normalize(self.user_encoder(user_tensor), p=2, dim=1)
+
+        # Get all items in domain
+        num_items = self.item_encoders[domain].num_embeddings
+        all_items = torch.arange(num_items)
+        item_embs = F.normalize(self.item_encoders[domain](all_items), p=2, dim=1)
+
+        # Compute scores
+        scores = torch.matmul(item_embs, user_emb.T).squeeze()
+
+        # Top-k
+        top_scores, top_indices = torch.topk(scores, k)
+        return all_items[top_indices], top_scores
+
+# Usage example
+model = CrossDomainRecommender(
+    embedding_dim=64,
+    num_users=1000,
+    num_items_per_domain={'movies': 10000, 'books': 5000}
+)
+
+# Recommend books based on movie preferences (shared user embedding)
+recommended_books, scores = model.recommend_cross_domain(user_id=42, domain='books', k=5)
+print(f"Cross-domain recommendations (movies → books): {recommended_books.tolist()}")
+```
+
+:::{.callout-tip}
+## Cross-Domain Transfer Best Practices
+
+**Architecture:**
+
+- **Shared user encoder**: Single embedding space for users across domains
+- **Domain-specific item encoders**: Separate embeddings per domain
+- **Domain bridges**: Learn mappings between domain embeddings
+- **Multi-task learning**: Joint optimization with domain-specific losses
+
+**Transfer strategies:** (see @sec-custom-embedding-strategies for a detailed decision framework)
+
+- **Pre-train + fine-tune**: Train on rich domain, fine-tune on sparse
+- **Freeze encoder**: Transfer user encoder, train only item encoder
+- **Gradual unfreezing**: Progressively unfreeze layers during fine-tuning
+- **Regularization**: L2 penalty to keep close to source weights
+
+**Evaluation:**
+
+- **Cross-domain metrics**: Measure improvement in sparse domain
+- **Cold start impact**: Test on new users/items in sparse domain
+- **Transfer quality**: Correlation between domain preferences
+- **Negative transfer**: Monitor for cases where transfer hurts performance
+:::
+
+## Key Takeaways
+
+- **Embedding-based collaborative filtering scales to billions of users and items**: Two-tower architecture with separate user and item encoders enables independent updates, fast serving via ANN search, and efficient training with negative sampling
+
+- **Cold start solutions leverage content and meta-learning**: Content-based initialization provides embeddings for new items from features, meta-learning (MAML) enables adaptation from 1-5 interactions, and hybrid models smoothly transition from content to collaborative signals
+
+- **Real-time personalization adapts recommendations within seconds**: Session embeddings computed from recent interactions combine with base embeddings to reflect current intent, with streaming architectures enabling sub-100ms latency for embedding updates
+
+- **Diversity and fairness prevent filter bubbles and ensure equitable exposure**: MMR (Maximal Marginal Relevance) balances accuracy and diversity, calibrated recommendations match user preference distributions, and fairness monitoring tracks coverage and inequality via Gini coefficients
+
+- **Cross-domain transfer leverages shared user preferences**: Shared user encoders across domains enable knowledge transfer, pre-training on rich domains improves sparse domains, and multi-task learning jointly optimizes across product categories
+
+- **Production recommenders require careful trade-off management**: Accuracy vs diversity, short-term clicks vs long-term engagement, popularity vs fairness, and collaborative vs content signals all require tuning based on business objectives and user research
+
+- **Embedding dimensionality impacts both quality and cost**: 64-128 dims sufficient for most applications, 256-512 dims for complex domains (fashion, media), with higher dimensions improving accuracy but increasing storage (10TB for 100M items at 512-dim float32) and latency
+
+## Looking Ahead
+
+Part IV (Advanced Applications) continues with @sec-anomaly-detection-security, which applies embeddings to anomaly detection and security: fraud detection systems that identify unusual transaction patterns through embedding space outliers, cybersecurity threat hunting using behavioral embeddings of users and network entities, manufacturing quality control with product embeddings for defect detection, financial risk assessment via company and transaction embeddings, and behavioral anomaly detection that flags account compromises and insider threats through deviation from normal embedding patterns.
+
+## Further Reading
+
+### Collaborative Filtering
+- Koren, Yehuda, Robert Bell, and Chris Volinsky (2009). "Matrix Factorization Techniques for Recommender Systems." IEEE Computer.
+- He, Xiangnan, et al. (2017). "Neural Collaborative Filtering." WWW.
+- Rendle, Steffen, et al. (2012). "BPR: Bayesian Personalized Ranking from Implicit Feedback." UAI.
+- Yi, Xinyang, et al. (2019). "Sampling-Bias-Corrected Neural Modeling for Large Corpus Item Recommendations." RecSys.
+
+### Cold Start and Meta-Learning
+- Finn, Chelsea, Pieter Abbeel, and Sergey Levine (2017). "Model-Agnostic Meta-Learning for Fast Adaptation of Deep Networks." ICML.
+- Vartak, Manasi, et al. (2017). "Meta-Prod2Vec: Product Embeddings Using Side-Information for Recommendation." RecSys.
+- Bharadhwaj, Homanga, et al. (2019). "Meta-Learning for User Cold-Start Recommendation." IJCNN.
+- Lee, Hoyeop, et al. (2019). "MeLU: Meta-Learned User Preference Estimator for Cold-Start Recommendation." KDD.
+
+### Real-Time Personalization
+- Hidasi, Balázs, et al. (2016). "Session-based Recommendations with Recurrent Neural Networks." ICLR.
+- Li, Jing, et al. (2017). "Neural Attentive Session-based Recommendation." CIKM.
+- Quadrana, Massimo, et al. (2017). "Personalizing Session-based Recommendations with Hierarchical Recurrent Neural Networks." RecSys.
+- Wu, Chuhan, et al. (2019). "Session-based Recommendation with Graph Neural Networks." AAAI.
+
+### Diversity and Fairness
+- Carbonell, Jaime, and Jade Goldstein (1998). "The Use of MMR, Diversity-Based Reranking for Reordering Documents and Producing Summaries." SIGIR.
+- Steck, Harald (2018). "Calibrated Recommendations." RecSys.
+- Abdollahpouri, Himan, et al. (2019). "Managing Popularity Bias in Recommender Systems with Personalized Re-ranking." FLAIRS.
+- Mehrotra, Rishabh, et al. (2018). "Towards a Fair Marketplace: Counterfactual Evaluation of the Trade-off Between Relevance, Fairness & Satisfaction in Recommendation Systems." CIKM.
+
+### Cross-Domain Recommendations
+- Fernández-Tobías, Ignacio, et al. (2016). "Cross-domain Recommender Systems: A Survey of the State of the Art." UMAP.
+- Hu, Guangneng, Yu Zhang, and Qiang Yang (2018). "CoNet: Collaborative Cross Networks for Cross-Domain Recommendation." CIKM.
+- Zhu, Feng, et al. (2021). "Transfer-Meta Framework for Cross-domain Recommendation to Cold-Start Users." SIGIR.
+- Man, Tong, et al. (2017). "Cross-Domain Recommendation: An Embedding and Mapping Approach." IJCAI.

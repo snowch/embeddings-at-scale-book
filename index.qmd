@@ -1,0 +1,122 @@
+# Preface {.unnumbered}
+
+::: {.callout-warning}
+## Draft Version
+
+This book is currently a **work in progress**. Content may be incomplete, subject to change, or contain errors. Feedback and suggestions are welcome.
+:::
+
+## Welcome to Embeddings at Scale
+
+**Building Tomorrow's AI with Vector Databases at 256+ Trillion Row Scale**
+
+This comprehensive tutorial is designed for CTOs, Data Scientists, ML Engineers, and Technical Leaders who are ready to transform their organizations through embedding technologies at unprecedented scale.
+
+::: {.content-hidden when-format="epub"}
+## Download This Book
+
+Available in multiple formats for your convenience:
+
+::: {.callout-note appearance="simple"}
+## Download Options
+
+- **[📕 Download PDF](downloads/Embeddings-at-Scale.pdf)** - Optimized for printing and offline reading
+- **[📱 Download EPUB](downloads/Embeddings-at-Scale.epub)** - For e-readers and mobile devices
+- **[📚 Download EPUB by Part](downloads/Embeddings-at-Scale-Parts.zip)** - Smaller EPUBs split by part (7 files)
+- **[📓 Download Jupyter Notebooks](downloads/Embeddings-at-Scale-Notebooks.zip)** - Interactive notebooks for all chapters
+:::
+:::
+
+## Why This Book?
+
+Embeddings have evolved from an academic curiosity to the foundational technology powering the next generation of AI applications. Organizations that master embeddings at scale are building competitive moats that are nearly impossible to replicate. This book provides the complete roadmap from strategy to implementation.
+
+## What You'll Learn
+
+- **Strategic Foundation**: Understanding embeddings as a competitive advantage and designing enterprise-scale architectures
+- **Custom Development**: Moving beyond pre-trained models to build embeddings tailored to your domain
+- **Production Engineering**: Scaling embedding systems to handle trillions of rows with high performance
+- **Advanced Applications**: Implementing RAG, semantic search, recommendations, and anomaly detection at scale
+- **Industry-Specific Solutions**: Real-world applications across finance, healthcare, retail, manufacturing, and media
+- **Future-Proofing**: Optimization, security, monitoring, and preparing for emerging technologies
+- **Implementation Roadmap**: Practical guidance for organizational transformation and deployment
+
+## Prerequisites
+
+This book assumes:
+
+- Basic understanding of machine learning concepts
+- Familiarity with database systems
+- Experience with Python or similar programming languages
+- Understanding of distributed systems (helpful but not required)
+
+::: {.content-hidden when-format="epub"}
+## Interactive Notebooks
+
+Each chapter is available as a Jupyter notebook for interactive learning and experimentation. Download the complete set from the **Download Options** above.
+
+::: {.callout-tip}
+## Getting Started
+
+1. Download the [Jupyter Notebooks](downloads/Embeddings-at-Scale-Notebooks.zip) zip file
+2. Extract to your preferred directory
+3. Install dependencies: `pip install -r requirements.txt`
+4. Launch Jupyter: `jupyter notebook`
+5. Open any chapter notebook and start exploring!
+:::
+
+The notebooks contain all code examples from the book with executable cells, allowing you to run, modify, and experiment with the concepts as you learn.
+:::
+
+## How to Use This Book
+
+Each chapter builds upon previous concepts while remaining self-contained enough for reference use. Code examples, case studies, and practical exercises are integrated throughout.
+
+- **Sequential Reading**: Follow the chapters in order for a complete learning journey
+- **Topic-Specific**: Jump to specific parts or chapters based on your current needs
+- **Reference Guide**: Use appendices for quick lookups and troubleshooting
+
+## Book Structure
+
+This book is organized into seven parts covering 30 chapters:
+
+1. **Foundation & Strategy** - Understanding the embedding revolution and designing architectures
+2. **Custom Embedding Development** - Building specialized embeddings for your use case
+3. **Production Engineering** - Scaling and operationalizing embedding systems
+4. **Advanced Applications** - Implementing sophisticated embedding-powered applications
+5. **Industry Applications** - Domain-specific solutions and case studies
+6. **Future-Proofing & Optimization** - Performance, security, and monitoring
+7. **Implementation Roadmap** - Practical guidance for organizational transformation
+
+## About the Author
+
+**Chris Snow** is the author of *Embeddings at Scale*, bringing expertise in AI and machine learning to help organizations build transformative embedding systems.
+
+## Acknowledgments
+
+This book was created with assistance from AI tools:
+
+- **Cover image**: Generated using Grok 4.1
+- **Content development**: Assisted by Claude Code (Anthropic)
+
+## Feedback and Errata
+
+[Contact information and errata reporting process to be added]
+
+## License
+
+This work is licensed under a [Creative Commons Attribution-NonCommercial 4.0 International License](https://creativecommons.org/licenses/by-nc/4.0/).
+
+You are free to:
+
+- **Share** — copy and redistribute the material in any medium or format
+- **Adapt** — remix, transform, and build upon the material
+
+Under the following terms:
+
+- **Attribution** — You must give appropriate credit
+- **NonCommercial** — You may not use the material for commercial purposes
+
+---
+
+Let's begin the journey to building embedding systems that will transform your organization.

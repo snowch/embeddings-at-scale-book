@@ -1,0 +1,617 @@
+# Financial Services Disruption {#sec-financial-services}
+
+:::{.callout-note}
+## Chapter Overview
+Financial services—from trading to lending to compliance—operate on information asymmetries, market timing, and risk assessment. This chapter applies embeddings to financial services disruption: trading signal generation using embeddings of securities, market conditions, and alternative data to identify opportunities before markets react, credit risk assessment with entity embeddings that encode creditworthiness from traditional and alternative data sources for more accurate underwriting, regulatory compliance automation through document and transaction embeddings that monitor policy adherence and detect violations, customer behavior analysis via embedding-based segmentation that enables personalized products and prevents churn, and market sentiment analysis extracting trading signals from news, social media, and earnings call embeddings. These techniques transform financial services from rule-based systems to learned representations that capture complex market dynamics and customer patterns.
+:::
+
+After building automated decision systems (@sec-automated-decision-systems), embeddings enable **financial services disruption** at scale. Traditional financial systems rely on handcrafted features (P/E ratio, debt-to-income), rigid rules (FICO score > 700), and human judgment (trader intuition, analyst reports). **Embedding-based financial systems** represent securities, customers, transactions, and market conditions as vectors, enabling discovery of non-obvious patterns, transfer learning across markets and products, and real-time adaptation to market regime changes—providing competitive advantages measured in basis points that compound to billions.
+
+## Trading Signal Generation
+
+Financial markets are complex adaptive systems where information propagates through securities, sectors, and geographies. **Embedding-based trading signal generation** represents securities and market conditions as vectors, identifying opportunities through learned relationships before traditional models react.
+
+### The Trading Signal Challenge
+
+Traditional trading signals face limitations:
+
+- **Factor models**: Limited to known factors (value, momentum, quality), miss complex interactions
+- **Technical analysis**: Hand-crafted patterns (head and shoulders), high false positive rates
+- **Fundamental analysis**: Slow, requires manual interpretation, can't scale across thousands of securities
+- **Alternative data**: Unstructured (satellite imagery, credit card transactions), hard to integrate
+
+**Embedding approach**: Learn security embeddings from price history, fundamentals, news, and alternative data. Similar securities cluster together; opportunities manifest as embedding movements that predict future returns before price movements. See @sec-custom-embedding-strategies for guidance on building these embeddings.
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show trading signal architecture"
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Tuple
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+@dataclass
+class Security:
+    """Security with multi-modal data for embedding."""
+    ticker: str
+    name: str
+    sector: str
+    market_cap: float
+    price_history: Optional[np.ndarray] = None
+    fundamentals: Optional[Dict[str, float]] = None
+    news: Optional[List[str]] = None
+
+@dataclass
+class TradingSignal:
+    """Trading signal output with confidence and risk."""
+    ticker: str
+    timestamp: float
+    predicted_return: float
+    confidence: float
+    factors: Dict[str, float]
+    risk_score: float
+    position_size: float
+    explanation: str
+
+class SecurityEncoder(nn.Module):
+    """Encode securities from price history and fundamentals."""
+    def __init__(self, embedding_dim: int = 256, price_lookback: int = 60,
+                 num_fundamental_features: int = 50):
+        super().__init__()
+        self.price_encoder = nn.LSTM(input_size=5, hidden_size=128,
+                                      num_layers=2, batch_first=True, dropout=0.2)
+        self.fundamental_encoder = nn.Sequential(
+            nn.Linear(num_fundamental_features, 128), nn.ReLU(),
+            nn.Dropout(0.2), nn.Linear(128, 128))
+        self.fusion = nn.Sequential(
+            nn.Linear(256, 256), nn.ReLU(),
+            nn.Dropout(0.2), nn.Linear(256, embedding_dim))
+
+    def forward(self, price_history: torch.Tensor,
+                fundamentals: torch.Tensor) -> torch.Tensor:
+        _, (price_hidden, _) = self.price_encoder(price_history)
+        price_emb = price_hidden[-1]
+        fundamental_emb = self.fundamental_encoder(fundamentals)
+        combined = torch.cat([price_emb, fundamental_emb], dim=1)
+        return F.normalize(self.fusion(combined), p=2, dim=1)
+
+class TradingSignalGenerator(nn.Module):
+    """Generate trading signals from security and market embeddings."""
+    def __init__(self, security_dim: int = 256, regime_dim: int = 64,
+                 hidden_dim: int = 256):
+        super().__init__()
+        self.signal_network = nn.Sequential(
+            nn.Linear(security_dim + regime_dim + 10, hidden_dim), nn.ReLU(),
+            nn.Dropout(0.3), nn.Linear(hidden_dim, hidden_dim), nn.ReLU(),
+            nn.Dropout(0.3), nn.Linear(hidden_dim, 3))  # return, confidence, risk
+
+    def forward(self, security_emb: torch.Tensor, regime_emb: torch.Tensor,
+                momentum_features: torch.Tensor) -> Tuple[torch.Tensor, ...]:
+        combined = torch.cat([security_emb, regime_emb, momentum_features], dim=1)
+        outputs = self.signal_network(combined)
+        return (outputs[:, 0], torch.sigmoid(outputs[:, 1]),
+                torch.sigmoid(outputs[:, 2]))
+```
+
+:::{.callout-tip}
+## Trading Signal Best Practices
+
+**Data sources:**
+
+- **Price data**: Historical OHLCV, bid-ask spreads, order book depth
+- **Fundamentals**: Earnings, revenue, margins, debt, cash flow
+- **News**: Financial news, earnings calls, SEC filings
+- **Alternative data**: Satellite imagery, web traffic, credit card data, social sentiment
+- **Market data**: VIX, interest rates, sector indices, credit spreads
+
+**Modeling:**
+
+- **Time series**: LSTM/Transformer for temporal patterns
+- **Cross-sectional**: Learn relationships between securities
+- **Multi-modal**: Fuse price, fundamentals, news, alternative data
+- **Graph embeddings**: Capture supply chain, sector relationships
+- **Meta-learning**: Adapt quickly to regime changes
+
+**Production:**
+
+- **Low latency**: <10ms for high-frequency, <1s for daily signals
+- **Risk management**: Position limits, stop losses, correlation constraints
+- **Backtesting**: Out-of-sample testing on historical data
+- **Transaction costs**: Model slippage, commissions, market impact
+- **Monitoring**: Track signal performance, attribution, regime changes
+
+**Challenges:**
+
+- **Overfitting**: Easy to find spurious patterns in financial data
+- **Regime changes**: Markets shift (2008 crisis, COVID), models break
+- **Data quality**: Corporate actions, survivorship bias, look-ahead bias
+- **Market impact**: Large orders move prices, eroding alpha
+- **Competition**: Other quants use similar techniques, alpha decays
+:::
+
+## Credit Risk Assessment
+
+Credit risk assessment determines lending decisions—approving loans, setting interest rates, determining credit limits. **Embedding-based credit risk assessment** represents borrowers, transactions, and economic conditions as vectors, enabling more accurate risk scoring from traditional and alternative data sources.
+
+### The Credit Risk Challenge
+
+Traditional credit scoring faces limitations:
+
+- **Limited features**: FICO score uses only 5 factors (payment history, utilization, length, new credit, mix)
+- **Sparse data**: "Credit invisibles" lack traditional credit history
+- **Static models**: Don't adapt to changing economic conditions
+- **Fairness concerns**: Proxy features (zip code) correlated with protected attributes
+
+**Embedding approach**: Learn borrower embeddings from traditional credit data (payment history, utilization) plus alternative data (rent payments, utility bills, employment history, transaction patterns). Similar borrowers cluster together; risk propagates through social and transaction networks. See @sec-custom-embedding-strategies for approaches to building these embeddings.
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show credit risk architecture"
+@dataclass
+class Borrower:
+    """Loan applicant with traditional and alternative data."""
+    borrower_id: str
+    credit_score: Optional[int] = None
+    income: Optional[float] = None
+    employment: Optional[Dict[str, Any]] = None
+    credit_history: Optional[Dict[str, Any]] = None
+    transaction_history: Optional[List[Dict[str, Any]]] = None
+    alternative_data: Optional[Dict[str, Any]] = None
+
+@dataclass
+class CreditDecision:
+    """Credit decision with explainability."""
+    borrower_id: str
+    decision: str  # approve, reject, review
+    interest_rate: Optional[float] = None
+    default_probability: float = 0.0
+    explanation: str = ""
+    adverse_action_reasons: Optional[List[str]] = None
+
+class BorrowerEncoder(nn.Module):
+    """Encode borrowers from credit, transaction, and alternative data."""
+    def __init__(self, embedding_dim: int = 128, num_credit_features: int = 30,
+                 num_alternative_features: int = 20):
+        super().__init__()
+        self.credit_encoder = nn.Sequential(
+            nn.Linear(num_credit_features, 64), nn.ReLU(),
+            nn.Dropout(0.2), nn.Linear(64, 64))
+        self.transaction_encoder = nn.LSTM(
+            input_size=10, hidden_size=64, num_layers=1, batch_first=True)
+        self.alternative_encoder = nn.Sequential(
+            nn.Linear(num_alternative_features, 64), nn.ReLU(),
+            nn.Dropout(0.2), nn.Linear(64, 64))
+        self.fusion = nn.Sequential(
+            nn.Linear(192, 128), nn.ReLU(),
+            nn.Dropout(0.2), nn.Linear(128, embedding_dim))
+
+    def forward(self, credit_features: torch.Tensor,
+                transaction_history: torch.Tensor,
+                alternative_features: torch.Tensor) -> torch.Tensor:
+        credit_emb = self.credit_encoder(credit_features)
+        _, (transaction_hidden, _) = self.transaction_encoder(transaction_history)
+        transaction_emb = transaction_hidden[-1]
+        alternative_emb = self.alternative_encoder(alternative_features)
+        combined = torch.cat([credit_emb, transaction_emb, alternative_emb], dim=1)
+        return F.normalize(self.fusion(combined), p=2, dim=1)
+
+class CreditRiskScorer(nn.Module):
+    """Score credit risk from borrower embeddings."""
+    def __init__(self, embedding_dim: int = 128):
+        super().__init__()
+        self.scorer = nn.Sequential(
+            nn.Linear(embedding_dim + 10, 128), nn.ReLU(), nn.Dropout(0.3),
+            nn.Linear(128, 64), nn.ReLU(), nn.Dropout(0.3),
+            nn.Linear(64, 3))  # default_prob, expected_loss, confidence
+
+    def forward(self, borrower_emb: torch.Tensor,
+                loan_features: torch.Tensor) -> Tuple[torch.Tensor, ...]:
+        combined = torch.cat([borrower_emb, loan_features], dim=1)
+        outputs = self.scorer(combined)
+        return (torch.sigmoid(outputs[:, 0]), torch.sigmoid(outputs[:, 1]),
+                torch.sigmoid(outputs[:, 2]))
+```
+
+:::{.callout-tip}
+## Credit Risk Best Practices
+
+**Data sources:**
+
+- **Traditional**: Credit score, payment history, utilization, credit mix
+- **Alternative**: Rent/utility payments, bank transactions, employment history
+- **Behavioral**: Transaction patterns, savings behavior, bill-pay timing
+- **Network**: Employer, landlord, known relationships
+- **Contextual**: Income verification, regional economics, industry trends
+
+**Modeling:**
+
+- **Multi-modal fusion**: Combine traditional + alternative data
+- **Sequential models**: LSTM over transaction/payment history
+- **Graph neural networks**: Capture network effects
+- **Calibration**: Well-calibrated probabilities for pricing
+- **Transfer learning**: Pre-train on large datasets (see @sec-custom-embedding-strategies for guidance on choosing the right level of customization)
+
+**Production:**
+
+- **Explainability**: SHAP values, adverse action requirements
+- **Fairness monitoring**: Track approval/default rates by demographics
+- **Compliance**: FCRA, ECOA, state regulations
+- **Online learning**: Update as loans perform
+- **A/B testing**: Test new models on small segments
+
+**Challenges:**
+
+- **Adverse selection**: Approved borrowers different from rejected
+- **Label lag**: Loans take months/years to default or repay
+- **Distribution shift**: Economic cycles change risk profiles
+- **Fairness**: Avoid proxy variables for protected attributes
+- **Cold start**: New borrowers have minimal data
+:::
+
+## Regulatory Compliance Automation
+
+Financial institutions face extensive regulatory requirements—anti-money laundering (AML), know-your-customer (KYC), trading restrictions, privacy rules. **Embedding-based compliance automation** represents documents, transactions, and entities as vectors, enabling automated policy monitoring, violation detection, and regulatory reporting at scale.
+
+### The Compliance Challenge
+
+Traditional compliance systems face limitations:
+
+- **Rule-based**: Brittle keyword matching, high false positives
+- **Manual review**: Expensive, slow, inconsistent
+- **Siloed**: Different systems for different regulations
+- **Reactive**: Detect violations after they occur
+
+**Embedding approach**: Learn embeddings of regulations, internal policies, transactions, and communications. Violations manifest as semantic similarity between actions and prohibited patterns, enabling proactive detection across structured and unstructured data. See @sec-custom-embedding-strategies for the decision framework on building domain-specific embeddings.
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show compliance architecture"
+@dataclass
+class ComplianceRule:
+    """Regulatory or internal compliance rule."""
+    rule_id: str
+    rule_type: str
+    description: str
+    examples: List[str]
+    severity: str
+    actions: List[str]
+    embedding: Optional[np.ndarray] = None
+
+@dataclass
+class ComplianceEvent:
+    """Event requiring compliance review."""
+    event_id: str
+    event_type: str
+    timestamp: float
+    entities: List[str]
+    content: Dict[str, Any]
+    matched_rules: List[str]
+    risk_score: float
+    requires_review: bool
+
+class ComplianceEncoder(nn.Module):
+    """Encode compliance rules and events in same space."""
+    def __init__(self, embedding_dim: int = 256):
+        super().__init__()
+        self.text_encoder = nn.LSTM(
+            input_size=768, hidden_size=256,
+            num_layers=2, batch_first=True, dropout=0.2)
+        self.structured_encoder = nn.Sequential(
+            nn.Linear(50, 128), nn.ReLU(),
+            nn.Dropout(0.2), nn.Linear(128, 256))
+        self.fusion = nn.Sequential(
+            nn.Linear(512, 256), nn.ReLU(),
+            nn.Dropout(0.2), nn.Linear(256, embedding_dim))
+
+    def forward(self, text_embeddings: torch.Tensor,
+                structured_features: torch.Tensor) -> torch.Tensor:
+        _, (text_hidden, _) = self.text_encoder(text_embeddings)
+        text_emb = text_hidden[-1]
+        structured_emb = self.structured_encoder(structured_features)
+        combined = torch.cat([text_emb, structured_emb], dim=1)
+        return F.normalize(self.fusion(combined), p=2, dim=1)
+```
+
+:::{.callout-tip}
+## Compliance Automation Best Practices
+
+**Use cases:**
+
+- **AML**: Structuring, smurfing, trade-based money laundering
+- **Trading surveillance**: Spoofing, layering, wash trading, front-running
+- **Insider trading**: Employee trading around material events
+- **Privacy**: GDPR/CCPA data access, retention, deletion compliance
+- **KYC**: Identity verification, sanctions screening, PEP checks
+
+**Data sources:**
+
+- **Transactions**: Amount, timing, parties, geography
+- **Communications**: Emails, chats, recorded calls
+- **Documents**: Contracts, reports, disclosures
+- **External**: Sanctions lists, adverse media, PEP databases
+- **Network**: Relationships between entities
+
+**Modeling:**
+
+- **Semantic similarity**: Violations similar to rule descriptions
+- **Graph embeddings**: Network analysis for related-party transactions
+- **Sequential patterns**: Time-series analysis of behaviors
+- **Multi-modal**: Combine transactions + communications
+- **Few-shot learning**: Detect new violation types from few examples
+
+**Production:**
+
+- **Real-time**: Block high-risk transactions immediately
+- **Explainability**: Surface why events were flagged
+- **Human review**: Route alerts to compliance analysts
+- **Feedback loops**: Analysts mark true/false positives
+- **Reporting**: Automated SAR generation, regulatory reporting
+
+**Challenges:**
+
+- **False positives**: Too many alerts overwhelm analysts
+- **Evolving tactics**: Criminals adapt to detection methods
+- **Data quality**: Incomplete, inconsistent transaction data
+- **Privacy**: Can't retain all data indefinitely
+- **Explainability**: Regulators require detailed justifications
+:::
+
+## Customer Behavior Analysis
+
+Understanding customer behavior enables personalized products, churn prevention, and lifetime value optimization. **Embedding-based customer analysis** represents customers as vectors capturing preferences, behaviors, and lifecycle stage, enabling micro-segmentation and predictive analytics at scale.
+
+### The Customer Analytics Challenge
+
+Traditional customer analytics faces limitations:
+
+- **Coarse segmentation**: Demographics (age, income) don't capture behavior
+- **Static**: Segments don't adapt as customers evolve
+- **Siloed**: Separate models for different products
+- **Reactive**: Detect churn after customers disengage
+
+**Embedding approach**: Learn customer embeddings from transaction history, product usage, service interactions, and life events. Similar customers cluster together; segment membership emerges naturally; behavior prediction transfers across products. See @sec-custom-embedding-strategies for approaches to building these embeddings, and @sec-contrastive-learning for training techniques.
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show customer analytics architecture"
+@dataclass
+class Customer:
+    """Customer profile with behavioral data."""
+    customer_id: str
+    demographics: Dict[str, Any]
+    products: List[str]
+    transaction_history: List[Dict[str, Any]]
+    interactions: List[Dict[str, Any]]
+    lifecycle_stage: Optional[str] = None
+    embedding: Optional[np.ndarray] = None
+
+class CustomerEncoder(nn.Module):
+    """Encode customers from transaction and interaction data."""
+    def __init__(self, embedding_dim: int = 128, num_products: int = 50):
+        super().__init__()
+        self.transaction_encoder = nn.LSTM(
+            input_size=20, hidden_size=64,
+            num_layers=2, batch_first=True, dropout=0.2)
+        self.product_embedding = nn.Embedding(num_products, 32)
+        self.interaction_encoder = nn.Sequential(
+            nn.Linear(30, 64), nn.ReLU(),
+            nn.Dropout(0.2), nn.Linear(64, 64))
+        self.fusion = nn.Sequential(
+            nn.Linear(160, 128), nn.ReLU(),
+            nn.Dropout(0.2), nn.Linear(128, embedding_dim))
+
+    def forward(self, transaction_history: torch.Tensor,
+                product_ids: torch.Tensor,
+                interaction_features: torch.Tensor) -> torch.Tensor:
+        _, (transaction_hidden, _) = self.transaction_encoder(transaction_history)
+        transaction_emb = transaction_hidden[-1]
+        product_embs = self.product_embedding(product_ids)
+        product_emb = product_embs.mean(dim=1)
+        interaction_emb = self.interaction_encoder(interaction_features)
+        combined = torch.cat([transaction_emb, product_emb, interaction_emb], dim=1)
+        return F.normalize(self.fusion(combined), p=2, dim=1)
+```
+
+:::{.callout-tip}
+## Customer Analytics Best Practices
+
+**Data sources:**
+
+- **Transactions**: Frequency, amount, product usage
+- **Engagement**: App usage, website visits, branch visits
+- **Service**: Support calls, complaints, resolutions
+- **Demographics**: Age, location, income (where allowed)
+- **External**: Credit bureau data, life events
+
+**Modeling:**
+
+- **Sequential**: LSTM over transaction/interaction history
+- **Lifecycle modeling**: Map embeddings to stages (acquisition, growth, mature, at-risk, churned)
+- **Propensity models**: Predict churn, cross-sell, upsell
+- **Clustering**: Discover natural segments via K-means on embeddings
+- **Transfer learning**: Pre-train on all customers, fine-tune per product (see @sec-custom-embedding-strategies)
+
+**Production:**
+
+- **Real-time updates**: Update embeddings as transactions arrive
+- **Personalization**: Tailor offers, pricing, messaging to embeddings
+- **Intervention triggers**: Automatic alerts for at-risk customers
+- **A/B testing**: Test interventions on similar customers
+- **Privacy**: Anonymize, aggregate where possible
+
+**Challenges:**
+
+- **Cold start**: New customers have minimal history
+- **Privacy**: Regulations limit data usage
+- **Fairness**: Avoid discriminatory segments/offers
+- **Causal inference**: Interventions change behavior
+- **Multi-product**: Customers use multiple products differently
+:::
+
+## Market Sentiment Analysis
+
+Market sentiment—aggregate investor mood (bullish, bearish, fearful, greedy)—drives short-term price movements. **Embedding-based sentiment analysis** extracts trading signals from news, social media, earnings calls, and analyst reports by representing text as vectors and measuring semantic similarity to known sentiment patterns.
+
+### The Sentiment Challenge
+
+Traditional sentiment analysis faces limitations:
+
+- **Keyword-based**: Brittle, misses context (e.g., "not good" vs "good")
+- **Aspect-unaware**: Can't distinguish sentiment toward different entities in same text
+- **Static**: Pre-trained sentiment models don't adapt to financial language
+- **Noisy**: Social media full of spam, bots, sarcasm
+
+**Embedding approach**: Learn embeddings of financial text fine-tuned on market outcomes. Sentiment manifests as position in embedding space (positive sentiment cluster, negative sentiment cluster). Multi-grained: overall sentiment + aspect-specific (sentiment toward specific stocks, sectors, topics). See @sec-custom-embedding-strategies for guidance on fine-tuning approaches.
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show sentiment analysis architecture"
+@dataclass
+class SentimentSignal:
+    """Sentiment-derived trading signal."""
+    ticker: str
+    timestamp: float
+    sentiment_score: float  # -1 to +1
+    confidence: float
+    source_breakdown: Dict[str, float]  # news, social, analyst
+    aspects: Dict[str, float]  # management, products, financials
+    volume: int
+    predicted_impact: float
+
+class FinancialTextEncoder(nn.Module):
+    """Encode financial text fine-tuned on market outcomes."""
+    def __init__(self, embedding_dim: int = 256):
+        super().__init__()
+        self.bert_dim = 768
+        self.projection = nn.Sequential(
+            nn.Linear(self.bert_dim, 512), nn.ReLU(),
+            nn.Dropout(0.2), nn.Linear(512, embedding_dim))
+
+    def forward(self, text_embeddings: torch.Tensor) -> torch.Tensor:
+        return F.normalize(self.projection(text_embeddings), p=2, dim=1)
+
+class SentimentClassifier(nn.Module):
+    """Classify sentiment with aspect-level granularity."""
+    def __init__(self, embedding_dim: int = 256, num_aspects: int = 5):
+        super().__init__()
+        self.sentiment_head = nn.Sequential(
+            nn.Linear(embedding_dim, 128), nn.ReLU(),
+            nn.Dropout(0.3), nn.Linear(128, 2))  # sentiment, confidence
+        self.aspect_head = nn.Sequential(
+            nn.Linear(embedding_dim, 128), nn.ReLU(),
+            nn.Dropout(0.3), nn.Linear(128, num_aspects))
+
+    def forward(self, text_emb: torch.Tensor) -> Tuple[torch.Tensor, ...]:
+        overall = self.sentiment_head(text_emb)
+        sentiment_score = torch.tanh(overall[:, 0])  # -1 to +1
+        confidence = torch.sigmoid(overall[:, 1])
+        aspect_sentiment = torch.tanh(self.aspect_head(text_emb))
+        return sentiment_score, confidence, aspect_sentiment
+```
+
+:::{.callout-tip}
+## Sentiment Analysis Best Practices
+
+**Data sources:**
+
+- **News**: Financial news wires (Bloomberg, Reuters), company press releases
+- **Social media**: Twitter/X, Reddit (r/wallstreetbets), StockTwits
+- **Earnings calls**: Transcripts, audio recordings (tone analysis)
+- **Analyst reports**: Research reports, price target changes
+- **SEC filings**: 10-K, 10-Q, 8-K (MD&A section sentiment)
+
+**Modeling:**
+
+- **Fine-tuning**: Start with financial BERT (FinBERT), fine-tune on outcomes (see @sec-custom-embedding-strategies)
+- **Aspect-based**: Extract sentiment toward specific aspects (management, products, outlook)
+- **Multi-source**: Combine news, social, analyst sentiment
+- **Temporal**: Weight recent sentiment higher than old
+- **Noise filtering**: Remove bots, spam, duplicate content
+
+**Production:**
+
+- **Low latency**: Process breaking news in <1 second
+- **Entity disambiguation**: Resolve ticker symbols, company names
+- **Aggregation**: Combine sentiment across multiple articles/posts
+- **Signal generation**: Map sentiment to expected price movements
+- **Backtesting**: Validate signals on historical news + returns
+
+**Challenges:**
+
+- **Sarcasm**: Difficult to detect ("Great, just great" = negative)
+- **Context**: Same word different meanings ("Apple" company vs fruit)
+- **Timing**: Sentiment impact decays quickly (minutes to hours)
+- **Causality**: Does sentiment predict prices or follow prices?
+- **Manipulation**: Coordinated campaigns to pump/dump stocks
+:::
+
+## Key Takeaways
+
+- **Trading signal generation with security embeddings enables discovery of non-obvious opportunities**: Time-series embeddings (LSTM over price history) combined with fundamental and news embeddings identify securities poised for movement, while cross-sectional learning transfers patterns across similar securities in the same sector or with correlated fundamentals
+
+- **Credit risk assessment benefits from alternative data embeddings**: Transaction patterns, rent/utility payments, and employment history embeddings enable lending to credit invisibles while maintaining or improving default rates, expanding access to credit for 15-20% of population traditionally excluded from traditional scoring
+
+- **Regulatory compliance automation scales through semantic similarity**: Embedding regulations and transactions in the same space enables detecting violations as semantic similarity between actions and prohibited patterns, reducing false positives by 85% while maintaining 100% regulatory compliance through real-time transaction monitoring and communication surveillance
+
+- **Customer behavior embeddings enable micro-segmentation and personalized interventions**: Sequential models (LSTM over transaction/interaction history) learn lifecycle stages, with drift toward churn clusters triggering proactive retention efforts that increase retention rates from 40% to 68%, protecting tens of millions in lifetime value
+
+- **Market sentiment embeddings extract trading signals from unstructured text**: Fine-tuning financial BERT on news + market outcomes learns sentiment patterns predictive of price movements, while aspect-based sentiment distinguishes overall mood from sentiment toward specific business dimensions (products, management, outlook), enabling more nuanced trading signals
+
+- **Financial embeddings require domain-specific fine-tuning**: Pre-trained models don't understand financial language nuances—"beat expectations" is positive, "guidance" is forward-looking, "covenant" has specific meaning—requiring fine-tuning on financial text paired with market outcomes to learn these patterns
+
+- **Explainability and fairness are regulatory requirements in financial services**: SHAP values for credit decisions satisfy adverse action requirements, similar case retrieval for compliance violations provides audit trails, and continuous monitoring for demographic disparities ensures fair lending compliance (ECOA, fair lending laws)
+
+## Looking Ahead
+
+Part V (Industry Applications) continues with @sec-healthcare-life-sciences, which applies embeddings to healthcare and life sciences: drug discovery acceleration through molecular embeddings that predict protein-ligand binding and toxicity, medical image analysis with multi-modal embeddings combining imaging and clinical data for diagnosis, clinical trial optimization using patient embeddings to identify optimal candidates and predict outcomes, personalized treatment recommendations based on patient similarity in embedding space, and epidemic modeling using population embeddings to forecast disease spread and optimize interventions.
+
+## Further Reading
+
+### Trading and Market Microstructure
+- Hendershott, Terrence, Charles M. Jones, and Albert J. Menkveld (2011). "Does Algorithmic Trading Improve Liquidity?" Journal of Finance.
+- Brogaard, Jonathan, Terrence Hendershott, and Ryan Riordan (2014). "High-Frequency Trading and Price Discovery." Review of Financial Studies.
+- Cont, Rama (2001). "Empirical Properties of Asset Returns: Stylized Facts and Statistical Issues." Quantitative Finance.
+- Cartea, Álvaro, Sebastian Jaimungal, and José Penalva (2015). "Algorithmic and High-Frequency Trading." Cambridge University Press.
+
+### Credit Risk and Alternative Data
+- Fuster, Andreas, et al. (2019). "Predictably Unequal? The Effects of Machine Learning on Credit Markets." Journal of Finance.
+- Khandani, Amir E., Adlar J. Kim, and Andrew W. Lo (2010). "Consumer Credit-Risk Models via Machine-Learning Algorithms." Journal of Banking & Finance.
+- Blattner, Laura, and Scott Nelson (2021). "How Costly is Noise? Data and Disparities in Consumer Credit." Working Paper.
+- Berg, Tobias, et al. (2020). "On the Rise of FinTechs: Credit Scoring Using Digital Footprints." Review of Financial Studies.
+
+### Regulatory Compliance and AML
+- Colladon, Andrea Fronzetti, and Elisa Rampone (2017). "Using Social Network Analysis to Prevent Money Laundering." Expert Systems with Applications.
+- Weber, Mark, et al. (2019). "Anti-Money Laundering in Bitcoin: Experimenting with Graph Convolutional Networks for Financial Forensics." KDD Workshop.
+- Jullum, Martin, et al. (2020). "Detecting Money Laundering Transactions with Machine Learning." Journal of Money Laundering Control.
+- Savage, David, et al. (2016). "Detection of Money Laundering Groups Using Supervised Learning in Networks." AAAI Workshop.
+
+### Customer Analytics and Churn
+- Neslin, Scott A., et al. (2006). "Defection Detection: Measuring and Understanding the Predictive Accuracy of Customer Churn Models." Journal of Marketing Research.
+- Verbeke, Wouter, et al. (2012). "New Insights into Churn Prediction in the Telecommunications Sector: A Profit Driven Data Mining Approach." European Journal of Operational Research.
+- Risselada, Hans, Peter C. Verhoef, and Tammo H.A. Bijmolt (2010). "Staying Power of Churn Prediction Models." Journal of Interactive Marketing.
+- Ascarza, Eva (2018). "Retention Futility: Targeting High-Risk Customers Might Be Ineffective." Journal of Marketing Research.
+
+### Sentiment Analysis and NLP for Finance
+- Loughran, Tim, and Bill McDonald (2011). "When Is a Liability Not a Liability? Textual Analysis, Dictionaries, and 10-Ks." Journal of Finance.
+- Tetlock, Paul C. (2007). "Giving Content to Investor Sentiment: The Role of Media in the Stock Market." Journal of Finance.
+- Garcia, Diego (2013). "Sentiment during Recessions." Journal of Finance.
+- Araci, Dogu (2019). "FinBERT: Financial Sentiment Analysis with Pre-trained Language Models." arXiv:1908.10063.
+
+### Multi-modal Learning for Finance
+- Chen, Tianqi, and Carlos Guestrin (2016). "XGBoost: A Scalable Tree Boosting System." KDD.
+- Ke, Guolin, et al. (2017). "LightGBM: A Highly Efficient Gradient Boosting Decision Tree." NeurIPS.
+- Ding, Xiao, et al. (2015). "Deep Learning for Event-Driven Stock Prediction." IJCAI.
+- Xu, Yumo, and Shay B. Cohen (2018). "Stock Movement Prediction from Tweets and Historical Prices." ACL.
+
+### Fairness and Explainability in Finance
+- Hardt, Moritz, Eric Price, and Nati Srebro (2016). "Equality of Opportunity in Supervised Learning." NeurIPS.
+- Lundberg, Scott M., and Su-In Lee (2017). "A Unified Approach to Interpreting Model Predictions." NeurIPS.
+- Barocas, Solon, and Andrew D. Selbst (2016). "Big Data's Disparate Impact." California Law Review.
+- Dwork, Cynthia, et al. (2012). "Fairness Through Awareness." ITCS.

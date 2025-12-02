@@ -1,0 +1,169 @@
+name: Publish Book
+
+on:
+  workflow_run:
+    workflows: ["Code Quality"]
+    types:
+      - completed
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    steps:
+      - name: Free up disk space
+        run: |
+          # Remove unnecessary tools to free up space
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          df -h
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Quarto
+        uses: quarto-dev/quarto-actions/setup@v2
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Python dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Install TinyTeX for PDF rendering
+        run: quarto install tinytex
+
+      - name: Get commit hash and create footer
+        id: git_commit
+        run: |
+          COMMIT_HASH=$(git rev-parse --short HEAD)
+          echo "GIT_COMMIT_HASH=$COMMIT_HASH" >> $GITHUB_ENV
+          echo "COMMIT_HASH=$COMMIT_HASH" >> $GITHUB_OUTPUT
+          # Create footer HTML file
+          cat > footer.html << EOF
+          <footer class="book-footer" style="margin-top: 2rem; padding: 1rem 0; border-top: 1px solid #dee2e6; font-size: 0.875rem; color: #6c757d;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div>Built from commit: <code>$COMMIT_HASH</code></div>
+              <div>© 2024 Chris Snow</div>
+            </div>
+          </footer>
+          EOF
+
+      - name: Render Book (all formats)
+        run: |
+          set -o pipefail
+          quarto render -M git-commit:${{ steps.git_commit.outputs.COMMIT_HASH }} 2>&1 | tee render.log
+          if grep -q "ERROR.*Build failed due to missing include file" render.log; then
+            echo "::error::Build failed due to missing include files"
+            exit 1
+          fi
+
+      - name: Upload Render Log on Failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quarto-error-log
+          path: |
+             render.log
+             index.log
+             *.log
+
+      - name: Ensure .nojekyll exists
+        run: touch _book/.nojekyll
+
+      - name: Convert chapters to Jupyter notebooks
+        run: |
+          ./scripts/convert-to-notebooks.sh
+
+      - name: Generate per-part EPUBs
+        run: |
+          ./scripts/generate-part-epubs.sh
+
+      - name: Validate EPUBs with EPUBCheck
+        run: |
+          # Download EPUBCheck
+          EPUBCHECK_VERSION="5.1.0"
+          wget -q "https://github.com/w3c/epubcheck/releases/download/v${EPUBCHECK_VERSION}/epubcheck-${EPUBCHECK_VERSION}.zip"
+          unzip -q "epubcheck-${EPUBCHECK_VERSION}.zip"
+
+          echo "Validating EPUB files..."
+          ERRORS=0
+
+          # Validate main EPUB
+          if [ -f _book/Embeddings-at-Scale.epub ]; then
+            echo "Checking: Embeddings-at-Scale.epub"
+            java -jar "epubcheck-${EPUBCHECK_VERSION}/epubcheck.jar" _book/Embeddings-at-Scale.epub --warn || ERRORS=$((ERRORS + 1))
+          fi
+
+          # Validate per-part EPUBs
+          for epub in _book/part-epubs/*.epub; do
+            if [ -f "$epub" ]; then
+              echo "Checking: $(basename $epub)"
+              java -jar "epubcheck-${EPUBCHECK_VERSION}/epubcheck.jar" "$epub" --warn || ERRORS=$((ERRORS + 1))
+            fi
+          done
+
+          if [ $ERRORS -gt 0 ]; then
+            echo "::warning::$ERRORS EPUB file(s) had validation issues"
+          else
+            echo "All EPUB files passed validation"
+          fi
+
+      - name: Copy additional formats to downloads folder
+        run: |
+          mkdir -p _book/downloads
+          if [ -f _book/Embeddings-at-Scale.pdf ]; then
+            cp _book/Embeddings-at-Scale.pdf _book/downloads/
+          fi
+          if [ -f _book/Embeddings-at-Scale.epub ]; then
+            cp _book/Embeddings-at-Scale.epub _book/downloads/
+          fi
+
+      - name: List _book contents for debugging
+        run: ls -la _book/
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '_book'
+
+      - name: Cleanup to free space for cache
+        run: |
+          # Remove large build artifacts to free space for pip cache
+          rm -rf epubcheck-*
+          rm -rf ~/.cache/huggingface
+          rm -rf ~/.cache/torch
+          rm -rf ~/texmf
+          df -h
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

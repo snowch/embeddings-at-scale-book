@@ -1,0 +1,199 @@
+# Code Examples and Templates {#sec-appendix-code .unnumbered}
+
+This appendix provides information about the production-ready code templates and examples for implementing embedding systems.
+
+## GitHub Repository
+
+All code examples from this book are available in the companion GitHub repository:
+
+**Repository**: [github.com/snowch/embeddings-at-scale-book](https://github.com/snowch/embeddings-at-scale-book)
+
+**Code Location**: `/code_examples/` directory
+
+## Repository Structure
+
+The code examples are organized by chapter:
+
+```
+code_examples/
+├── README.md                          # Master guide
+├── requirements.txt                   # Python dependencies
+├── ch01_foundations/                  # Chapter 1 examples
+│   ├── README.md
+│   └── *.py (16 files)
+├── ch02_strategic_architecture/       # Chapter 2 examples
+│   ├── README.md
+│   └── *.py (30 files)
+├── ch03_vector_database_fundamentals/ # Chapter 3 examples
+│   └── *.py (21 files)
+├── ch04_custom_embedding_strategies/  # Chapter 4 examples
+│   └── *.py (21 files)
+├── ch05_contrastive_learning/         # Chapter 5 examples
+│   └── *.py (21 files)
+├── ch06_siamese_networks/             # Chapter 6 examples
+│   └── *.py (13 files)
+└── ch07-ch30/                         # Remaining chapters
+    └── *.py (130+ files)
+```
+
+**Total**: 253 Python files containing 66,908 lines of code
+
+## Getting Started
+
+### Clone the Repository
+
+```bash
+git clone https://github.com/snowch/embeddings-at-scale-book.git
+cd embeddings-at-scale-book/code_examples
+```
+
+### Install Dependencies
+
+All code examples use a common set of dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+The requirements include:
+
+- **PyTorch** (≥2.0.0) - Deep learning framework
+- **Transformers** (≥4.30.0) - Hugging Face transformers
+- **Sentence-Transformers** (≥2.2.0) - Embedding models
+- **FAISS** (≥1.7.4) - Vector similarity search
+- **NumPy**, **Pandas**, **scikit-learn** - Data processing
+- And 15+ additional libraries
+
+### Run Examples
+
+Each chapter directory contains a README with specific instructions. General pattern:
+
+```bash
+# Navigate to chapter directory
+cd ch05_contrastive_learning
+
+# Run specific example
+python3 infonceloss.py
+
+# Or import in your own code
+from infonceloss import InfoNCELoss
+```
+
+## Key Code Categories
+
+### Embedding Training
+
+Chapters with complete training implementations:
+
+- **Ch05**: Contrastive learning (InfoNCE, SimCLR, MoCo)
+- **Ch06**: Siamese networks (contrastive loss, triplet loss)
+- **Ch07**: Self-supervised learning (BERT-style, autoencoder)
+- **Ch08**: Advanced techniques (hyperbolic, dynamic, federated)
+
+### Vector Operations
+
+Production-ready vector database code:
+
+- **Ch03**: Vector database fundamentals (HNSW, IVF, PQ)
+- **Ch11**: High-performance operations (quantization, compression)
+- **Ch14**: Semantic search implementation
+
+### Production Engineering
+
+Scalability and deployment:
+
+- **Ch09**: Embedding pipelines (MLOps, monitoring)
+- **Ch10**: Distributed training (multi-GPU, multi-node)
+- **Ch12**: Data engineering (preprocessing, validation)
+
+### Advanced Applications
+
+Complete application examples:
+
+- **Ch13**: RAG at scale
+- **Ch15**: Recommendation systems
+- **Ch16**: Anomaly detection
+- **Ch17**: Automated decision systems
+
+### Industry Applications
+
+Domain-specific implementations:
+
+- **Ch18**: Financial services
+- **Ch19**: Healthcare and life sciences
+- **Ch20**: Retail and e-commerce
+- **Ch21**: Manufacturing and Industry 4.0
+- **Ch22**: Media and entertainment
+
+## Code Quality
+
+All code examples have been:
+
+- ✅ Syntax checked (98%+ pass rate)
+- ✅ Organized with clear naming conventions
+- ✅ Documented with inline comments
+- ✅ Accompanied by chapter-specific READMEs
+
+## Usage Guidelines
+
+### Educational Use
+
+All code is provided for educational purposes under the book's Creative Commons license:
+
+- ✅ Free to use for learning
+- ✅ Free to modify and experiment
+- ✅ Free to share with attribution
+
+### Production Use
+
+The code examples are designed as templates and learning tools. For production use:
+
+1. **Review security**: Add authentication, input validation, rate limiting
+2. **Add error handling**: Production-grade exception handling
+3. **Optimize for scale**: Add caching, monitoring, logging
+4. **Test thoroughly**: Unit tests, integration tests, load tests
+
+## Additional Resources
+
+### Chapter READMEs
+
+Each chapter directory contains a README with:
+
+- Overview of code examples
+- Key algorithms implemented
+- Usage instructions
+- Dependencies and requirements
+
+### Master README
+
+The `/code_examples/README.md` provides:
+
+- Complete file listing
+- Quick start guide
+- Common issues and solutions
+- Contribution guidelines
+
+## Reporting Issues
+
+If you find issues with the code examples:
+
+1. Check the chapter README for known issues
+2. Verify you're using compatible library versions
+3. Report issues on the GitHub repository
+
+## Contributing
+
+Contributions are welcome! See the repository's CONTRIBUTING.md for:
+
+- Code style guidelines
+- Testing requirements
+- Pull request process
+
+---
+
+**Quick Links**:
+
+- 📦 [GitHub Repository](https://github.com/snowch/embeddings-at-scale-book)
+- 📁 [Browse Code Examples](https://github.com/snowch/embeddings-at-scale-book/tree/main/code_examples)
+- 📋 [Requirements File](https://github.com/snowch/embeddings-at-scale-book/blob/main/code_examples/requirements.txt)
+- 📖 [Master Code README](https://github.com/snowch/embeddings-at-scale-book/blob/main/code_examples/README.md)

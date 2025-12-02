@@ -1,0 +1,48 @@
+#!/bin/bash
+# Claude Code Session Start Hook
+# This script runs automatically when Claude Code starts a session
+# It ensures the environment matches CI/CD requirements (publish.yml)
+
+set -e
+
+echo "Setting up development environment..."
+
+# Install ruff with exact CI/CD version
+if ! command -v ruff &> /dev/null || ! ruff --version | grep -q "0.14.4"; then
+    echo "Installing ruff==0.14.4 (matches CI/CD)..."
+    pip install -q ruff==0.14.4
+    echo "Ruff 0.14.4 installed"
+else
+    echo "Ruff 0.14.4 already installed"
+fi
+
+# Install Quarto (matches CI/CD publish workflow)
+if ! command -v quarto &> /dev/null; then
+    echo "Installing Quarto..."
+    # Download and install Quarto CLI (latest stable version)
+    QUARTO_VERSION="1.6.42"
+    wget -q "https://github.com/quarto-dev/quarto-cli/releases/download/v${QUARTO_VERSION}/quarto-${QUARTO_VERSION}-linux-amd64.deb" -O /tmp/quarto.deb
+    sudo dpkg -i /tmp/quarto.deb || sudo apt-get install -f -y
+    rm -f /tmp/quarto.deb
+    echo "Quarto ${QUARTO_VERSION} installed"
+else
+    echo "Quarto already installed: $(quarto --version)"
+fi
+
+# Install TinyTeX for PDF rendering (matches CI/CD publish workflow)
+if ! quarto list tools 2>/dev/null | grep -q "tinytex.*installed" && ! command -v tlmgr &> /dev/null; then
+    echo "Installing TinyTeX for PDF rendering..."
+    quarto install tinytex --no-prompt
+    echo "TinyTeX installed"
+else
+    echo "TinyTeX already installed"
+fi
+
+# Install Python dependencies from requirements.txt (matches CI/CD publish workflow)
+if [ -f "requirements.txt" ]; then
+    echo "Installing Python dependencies from requirements.txt..."
+    pip install -q -r requirements.txt
+    echo "Python dependencies installed"
+fi
+
+echo "Environment ready!"

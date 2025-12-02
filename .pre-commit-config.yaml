@@ -1,0 +1,79 @@
+# Pre-commit hooks for code quality
+# Install: pip install pre-commit
+# Setup: pre-commit install
+# Run manually: pre-commit run --all-files
+
+repos:
+  # Ruff - Fast Python linter and formatter
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.4
+    hooks:
+      # Run the linter
+      - id: ruff
+        name: ruff lint
+        args: [--fix, --exit-non-zero-on-fix]
+        files: ^code_examples/.*\.py$
+
+      # Run the formatter
+      - id: ruff-format
+        name: ruff format
+        files: ^code_examples/.*\.py$
+
+  # General pre-commit hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      # Check for syntax errors
+      - id: check-ast
+        name: Check Python AST
+        files: ^code_examples/.*\.py$
+
+      # Check YAML files
+      - id: check-yaml
+        name: Check YAML
+        exclude: ^\.github/workflows/
+
+      # Check TOML files
+      - id: check-toml
+        name: Check TOML
+
+      # Check for merge conflicts
+      - id: check-merge-conflict
+
+      # Check for large files
+      - id: check-added-large-files
+        args: [--maxkb=1000]
+
+      # Trim trailing whitespace
+      - id: trailing-whitespace
+        files: ^code_examples/.*\.py$
+
+      # Ensure files end with newline
+      - id: end-of-file-fixer
+        files: ^code_examples/.*\.py$
+
+      # Check for debugger imports
+      - id: debug-statements
+        files: ^code_examples/.*\.py$
+
+  # Check for common security issues
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.5
+    hooks:
+      - id: bandit
+        name: Bandit Security Check
+        args: [-ll, --skip=B101,B601]  # Skip assert and shell=True warnings for educational code
+        files: ^code_examples/.*\.py$
+
+# Configuration for pre-commit.ci (optional cloud service)
+ci:
+  autofix_commit_msg: |
+    [pre-commit.ci] auto fixes from pre-commit hooks
+
+    for more information, see https://pre-commit.ci
+  autofix_prs: true
+  autoupdate_branch: ''
+  autoupdate_commit_msg: '[pre-commit.ci] pre-commit autoupdate'
+  autoupdate_schedule: weekly
+  skip: []
+  submodules: false

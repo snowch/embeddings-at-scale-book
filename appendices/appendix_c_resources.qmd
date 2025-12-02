@@ -1,0 +1,94 @@
+# Resources and Tools {#sec-appendix-resources .unnumbered}
+
+This appendix provides curated resources for continued learning and implementation.
+
+## Open Source Tools and Libraries
+
+### Embedding Generation
+
+- **[Tool Name]**: [Description and link to be added]
+- **[Tool Name]**: [Description and link to be added]
+
+### Vector Databases
+
+- **[Database Name]**: [Description and link to be added]
+- **[Database Name]**: [Description and link to be added]
+
+### Training Frameworks
+
+- **[Framework Name]**: [Description and link to be added]
+- **[Framework Name]**: [Description and link to be added]
+
+### Evaluation and Benchmarking
+
+- **[Tool Name]**: [Description and link to be added]
+- **[Tool Name]**: [Description and link to be added]
+
+## Commercial Platform Evaluations
+
+### Enterprise Vector Databases
+
+[Detailed evaluations to be added]
+
+### Managed Embedding Services
+
+[Detailed evaluations to be added]
+
+### MLOps Platforms
+
+[Detailed evaluations to be added]
+
+## Research Papers and Publications
+
+### Foundational Papers
+
+- [Paper citations to be added]
+
+### Recent Advances
+
+- [Paper citations to be added]
+
+### Domain-Specific Applications
+
+- [Paper citations to be added]
+
+## Community Resources and Forums
+
+### Online Communities
+
+- **[Community Name]**: [Description and link to be added]
+- **[Community Name]**: [Description and link to be added]
+
+### Conferences and Events
+
+- **[Conference Name]**: [Description and link to be added]
+- **[Conference Name]**: [Description and link to be added]
+
+### Blogs and Newsletters
+
+- **[Blog/Newsletter Name]**: [Description and link to be added]
+- **[Blog/Newsletter Name]**: [Description and link to be added]
+
+## Certification Programs
+
+### Available Certifications
+
+- **[Certification Name]**: [Description and link to be added]
+- **[Certification Name]**: [Description and link to be added]
+
+### Training Courses
+
+- **[Course Name]**: [Description and link to be added]
+- **[Course Name]**: [Description and link to be added]
+
+## Datasets for Practice
+
+### Public Datasets
+
+- **[Dataset Name]**: [Description and link to be added]
+- **[Dataset Name]**: [Description and link to be added]
+
+### Benchmark Datasets
+
+- **[Dataset Name]**: [Description and link to be added]
+- **[Dataset Name]**: [Description and link to be added]
