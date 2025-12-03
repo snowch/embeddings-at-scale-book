@@ -534,24 +534,34 @@ flowchart TB
         subgraph index["Index Time (once per item)"]
             direction LR
             Items[Raw Data<br/>text, images, etc.] --> Encoder[Embedding Model<br/>BERT, CLIP, etc.] --> Vectors[Vectors<br/>768-1536 dims]
-            Vectors --> VDB[(Vector Database)]
         end
+
+        VDB[(Vector Database)]
 
         subgraph query["Query Time (per request)"]
             direction LR
-            UserQuery[User Query] --> QEncoder[Same Encoder] --> QVec[Query Vector]
+            UserQuery[User Query] --> QEncoder[Embedding Model<br/>same as index] --> QVec[Query Vector]
             QVec --> Search[ANN Search<br/>sub-millisecond]
-            VDB2[(Vector Database)] --> Search
             Search --> Results[Top-K Results]
         end
+
+        Vectors --> VDB
+        VDB --> Search
     end
 
-    style classification fill:#ffcccc,stroke:#cc0000
-    style index fill:#ccffcc,stroke:#00cc00
-    style query fill:#cce5ff,stroke:#0066cc
+    style classification fill:#ffcccc,stroke:#cc0000,color:#000000
+    style embedding fill:#f5f5f5,stroke:#666666
+    style index fill:#ccffcc,stroke:#00aa00,color:#000000
+    style query fill:#cce5ff,stroke:#0066cc,color:#000000
 ```
 
 The embedding *is* the neural network's understanding, frozen into a reusable vector. Once computed, comparing two embeddings is just a dot product—pure math that runs in microseconds, not milliseconds.
+
+::: {.callout-tip}
+## Batch vs. Real-Time Indexing
+
+"Index time" doesn't mean batch-only. Production systems often encode items in real-time as they arrive—a new product listing, incoming document, or user action gets embedded immediately and becomes searchable within milliseconds. The key insight remains: each item pays the encoding cost once, regardless of whether that happens in batch or streaming mode.
+:::
 
 ::: {.callout-note}
 ## Why Is Similarity Search Orders of Magnitude Faster?
