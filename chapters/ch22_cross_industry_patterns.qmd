@@ -859,11 +859,13 @@ print(f"Discovery results: {len(results)} documents")
 
 ## Looking Ahead
 
-The next chapter, @sec-entity-resolution, covers a particularly important cross-industry challenge: identifying and linking records that refer to the same real-world entities across disparate data sources—a problem that scales to trillions of comparison pairs.
+The next chapter, @sec-video-surveillance, covers another critical cross-industry application: video surveillance and analytics—from retail loss prevention to smart city safety to industrial compliance monitoring—generating more embedding vectors than almost any other domain.
 
-Following entity resolution, the remaining chapters in Part V explore industry-specific applications:
+Following video surveillance, @sec-entity-resolution addresses a fundamental cross-industry challenge: identifying and linking records that refer to the same real-world entities across disparate data sources—a problem that scales to trillions of comparison pairs.
 
-- @sec-financial-services applies these patterns to trading, credit risk, and regulatory compliance, adding fraud detection and risk scoring specific to financial services
+The remaining chapters in Part V explore industry-specific applications:
+
+- @sec-financial-services applies these patterns to trading, credit risk, and regulatory compliance
 - @sec-healthcare-life-sciences addresses patient safety, clinical decision support, and medical data security
 - @sec-retail-ecommerce covers dynamic pricing, inventory optimization, and customer journey analysis
 - @sec-manufacturing-industry40 explores quality control, predictive maintenance, and supply chain optimization
