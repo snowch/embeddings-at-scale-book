@@ -51,14 +51,8 @@ jobs:
       - name: Install TinyTeX for PDF rendering
         run: quarto install tinytex
 
-      - name: Install Chrome for Mermaid diagrams
-        run: |
-          wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-          sudo dpkg -i google-chrome-stable_current_amd64.deb || sudo apt-get -f install -y
-          # Tell Quarto and Puppeteer where to find Chrome
-          CHROME_BIN=$(which google-chrome-stable)
-          echo "QUARTO_CHROMIUM=$CHROME_BIN" >> $GITHUB_ENV
-          echo "PUPPETEER_EXECUTABLE_PATH=$CHROME_BIN" >> $GITHUB_ENV
+      - name: Install librsvg for SVG to PDF conversion
+        run: sudo apt-get update && sudo apt-get install -y librsvg2-bin
 
       - name: Get commit hash and create footer
         id: git_commit

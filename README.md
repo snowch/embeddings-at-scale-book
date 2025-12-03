@@ -36,8 +36,8 @@ cd embeddings-at-scale-book
 # Install Python dependencies
 pip install -r requirements.txt
 
-# Install Chromium for Mermaid diagram rendering (PDF output)
-quarto install chromium
+# Install librsvg for SVG to PDF conversion (macOS)
+brew install librsvg
 
 # Preview the book (with live reload)
 quarto preview

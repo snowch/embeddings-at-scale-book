@@ -520,40 +520,7 @@ Here's what makes embeddings powerful: **they separate the expensive neural netw
 
 Think of it this way: a classifier is like calling an expert for every question. An embedding is like having the expert write down their knowledge once, then you can consult those notes instantly, forever.
 
-```{mermaid}
-%%| label: fig-embedding-workflow
-%%| fig-cap: "Embedding workflow: encoding data once, then using fast vector search for decisions"
-%%| fig-width: 100%
-flowchart TB
-    subgraph classification["Classification Workflow"]
-        direction LR
-        Q1[Query] --> NN1[Neural Network<br/>expensive, every time] --> D1[Decision]
-    end
-
-    subgraph embedding["Embedding Workflow"]
-        subgraph index["Index Time (once per item)"]
-            direction LR
-            Items[Raw Data<br/>text, images, etc.] --> Encoder[Embedding Model<br/>BERT, CLIP, etc.] --> Vectors[Vectors<br/>768-1536 dims]
-        end
-
-        VDB[(Vector Database)]
-
-        subgraph query["Query Time (per request)"]
-            direction LR
-            UserQuery[User Query] --> QEncoder[Embedding Model<br/>same as index] --> QVec[Query Vector]
-            QVec --> Search[ANN Search<br/>sub-millisecond]
-            Search --> Results[Top-K Results]
-        end
-
-        Vectors --> VDB
-        VDB --> Search
-    end
-
-    style classification fill:#ffcccc,stroke:#cc0000,color:#000000
-    style embedding fill:#f5f5f5,stroke:#666666
-    style index fill:#ccffcc,stroke:#00aa00,color:#000000
-    style query fill:#cce5ff,stroke:#0066cc,color:#000000
-```
+![Embedding workflow: encoding data once, then using fast vector search for decisions](images/embedding-workflow.svg){#fig-embedding-workflow}
 
 The embedding *is* the neural network's understanding, frozen into a reusable vector. Once computed, comparing two embeddings is just a dot product—pure math that runs in microseconds, not milliseconds.
 
