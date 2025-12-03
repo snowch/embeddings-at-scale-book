@@ -73,28 +73,31 @@ generate_part_epub "IV" "Advanced Applications" \
     chapters/ch20_semantic_search.qmd \
     chapters/ch21_recommendation_systems.qmd
 
-# Part V: Industry Applications
-generate_part_epub "V" "Industry Applications" \
+# Part V: Cross-Industry Applications
+generate_part_epub "V" "Cross-Industry Applications" \
     chapters/ch22_cross_industry_patterns.qmd \
-    chapters/ch23_entity_resolution.qmd \
-    chapters/ch24_financial_services.qmd \
-    chapters/ch25_healthcare_life_sciences.qmd \
-    chapters/ch26_retail_ecommerce.qmd \
-    chapters/ch27_manufacturing_industry40.qmd \
-    chapters/ch28_media_entertainment.qmd \
-    chapters/ch29_scientific_computing.qmd \
-    chapters/ch30_defense_intelligence.qmd \
-    chapters/ch31_video_surveillance_analytics.qmd
+    chapters/ch23_video_surveillance_analytics.qmd \
+    chapters/ch24_entity_resolution.qmd
 
-# Part VI: Future-Proofing & Optimization
-generate_part_epub "VI" "Future-Proofing and Optimization" \
+# Part VI: Industry-Specific Applications
+generate_part_epub "VI" "Industry-Specific Applications" \
+    chapters/ch25_financial_services.qmd \
+    chapters/ch26_healthcare_life_sciences.qmd \
+    chapters/ch27_retail_ecommerce.qmd \
+    chapters/ch28_manufacturing_industry40.qmd \
+    chapters/ch29_media_entertainment.qmd \
+    chapters/ch30_scientific_computing.qmd \
+    chapters/ch31_defense_intelligence.qmd
+
+# Part VII: Future-Proofing & Optimization
+generate_part_epub "VII" "Future-Proofing and Optimization" \
     chapters/ch32_performance_optimization.qmd \
     chapters/ch33_security_privacy.qmd \
     chapters/ch34_monitoring_observability.qmd \
     chapters/ch35_future_trends.qmd
 
-# Part VII: Implementation Roadmap
-generate_part_epub "VII" "Implementation Roadmap" \
+# Part VIII: Implementation Roadmap
+generate_part_epub "VIII" "Implementation Roadmap" \
     chapters/ch36_organizational_transformation.qmd \
     chapters/ch37_implementation_roadmap.qmd \
     chapters/ch38_case_studies.qmd \
