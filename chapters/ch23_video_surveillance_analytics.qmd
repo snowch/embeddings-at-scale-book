@@ -494,6 +494,62 @@ print(f"Latent embeddings: {latent.shape}")  # [4, 256]
 - **Continuous learning**: Update models as normal evolves
 :::
 
+:::{.callout-important}
+## Initializing Video Anomaly Detection: The First Week
+
+When deploying anomaly detection on a new camera, you face the bootstrap problem: what's "normal" for this specific view?
+
+**Day 1-2: Observation Mode**
+
+- Collect video without generating alerts
+- Extract frame embeddings every 1-5 seconds
+- Build initial embedding distribution
+- **Do not alert**—you're learning, not detecting
+
+**Day 3-5: Baseline Calibration**
+
+- Train autoencoder or density model on collected normal data
+- Set initial threshold at 99th percentile of reconstruction error (very conservative)
+- Generate "silent alerts" for internal review
+- Have operators label obvious anomalies and false positives
+
+**Day 6-7: Soft Launch**
+
+- Enable alerts with high threshold (low sensitivity)
+- Collect operator feedback (accept/reject)
+- Adjust threshold based on acceptable false positive rate
+
+**Minimum data requirements:**
+
+| Model Type | Minimum Video | Notes |
+|------------|---------------|-------|
+| Autoencoder | 24-48 hours | Need full day/night cycle |
+| Prediction model | 48-72 hours | Need temporal patterns |
+| Density estimation | 72+ hours | Need robust distribution |
+
+**Handling time-of-day variations:**
+
+Option 1: Train separate models for day/night/shift changes
+Option 2: Include time features in embedding (hour-of-day, day-of-week)
+Option 3: Use time-aware thresholds (tighter at night when less activity expected)
+
+**What if anomalies occur during baseline collection?**
+
+- Rare anomalies won't significantly impact model (<<1% of frames)
+- Model learns the dominant pattern, not outliers
+- After deployment, retroactively flag baseline anomalies using trained model
+
+**Camera-specific vs. shared models:**
+
+| Approach | Pros | Cons |
+|----------|------|------|
+| Per-camera model | Optimal accuracy | More training time per camera |
+| Shared backbone + camera head | Faster deployment | May miss camera-specific patterns |
+| Transfer learning | Best of both | Requires model architecture design |
+
+For large deployments (100+ cameras), start with shared backbone trained on diverse cameras, then fine-tune per-camera heads.
+:::
+
 ## Forensic Video Search
 
 Forensic search enables rapid retrieval of specific events, people, or objects across large video archives. **Embedding-based video search** indexes footage for semantic queries across weeks or months of recordings.

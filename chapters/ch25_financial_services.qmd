@@ -222,6 +222,53 @@ print(f"Anomalous transaction score: {score_anomalous.item():.4f}")
 - **A/B testing**: Measure impact on fraud reduction and user experience
 :::
 
+:::{.callout-note}
+## Bootstrapping Fraud Detection: The First 90 Days
+
+When deploying a new fraud detection system, you face a chicken-and-egg problem: you need labeled fraud to train, but you need a trained system to find fraud. Practical approaches:
+
+**Phase 1: Rule-Based Foundation (Days 1-30)**
+
+Start with rule-based detection running in parallel:
+
+- Velocity rules (>5 transactions in 1 hour)
+- Amount thresholds (transactions >$10,000)
+- Geography rules (transaction from new country)
+- Known fraud patterns (card testing sequences)
+
+These rules generate initial labels for embedding model training. They won't catch sophisticated fraud, but they provide a starting point.
+
+**Phase 2: Supervised Bootstrap (Days 30-60)**
+
+Use Phase 1 labels plus chargebacks (which arrive with 30-60 day delay) to train initial embeddings:
+
+- Labeled fraud from rules and chargebacks (~1,000+ examples)
+- Labeled normal from transactions that completed without dispute
+- Train autoencoder on "clean" transactions (no chargebacks, no rule triggers)
+
+**Phase 3: Embedding-First Detection (Days 60-90)**
+
+Transition to embedding-based primary detection:
+
+- Autoencoder flags high-reconstruction-error transactions
+- Compare new transactions to fraud cluster centroids
+- Keep rule-based as fallback for known patterns
+
+**Ongoing: Continuous Learning**
+
+- Incorporate chargeback feedback (30-60 day lag)
+- Retrain weekly on new normal patterns
+- Monitor for distribution shift (holiday seasons, new products)
+
+**Minimum data thresholds:**
+
+| Model Type | Minimum Normal | Minimum Fraud | Notes |
+|------------|---------------|---------------|-------|
+| Autoencoder | 100K transactions | 0 (unsupervised) | More data = better normal representation |
+| Classifier | 100K normal | 500+ fraud | Severe imbalance requires techniques |
+| Entity embeddings | 10K users | 100+ fraud users | Need repeated fraud to learn patterns |
+:::
+
 :::{.callout-warning}
 ## False Positive Management
 

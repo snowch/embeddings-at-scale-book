@@ -39,6 +39,56 @@ if distance_to_nearest_normal_cluster > threshold:
 
 **Embedding approach**: Learn normal behavior embeddings for each user/device. Anomalies = deviation from learned patterns. See @sec-custom-embedding-strategies for approaches to building behavioral embeddings, from fine-tuning pre-trained models to custom architectures.
 
+:::{.callout-important}
+## Establishing "Normal": The Cold Start Problem
+
+A common question: *when the system is first deployed, how do you know what's normal?* Several approaches:
+
+**1. Baseline Learning Period (most common)**
+
+Run the system in "learning mode" for 2-4 weeks before alerting. During this period:
+
+- Collect behavior embeddings without generating alerts
+- Assume the vast majority of traffic is legitimate (typically >99%)
+- Build per-user/per-device baseline clusters
+- Use statistical methods (IQR, percentile thresholds) to set initial anomaly boundaries
+
+**2. Labeled Historical Data (supervised bootstrap)**
+
+If you have historical logs with known incidents:
+
+- Label past incidents as "malicious" (from SIEM alerts, incident reports)
+- Everything else becomes the "normal" training set
+- Risk: unknown compromises in "normal" data (addressed below)
+
+**3. Clean Room Approach (high-security environments)**
+
+- Build baseline from controlled test traffic or synthetic data
+- Gradually incorporate production traffic after validation
+- Most conservative but slowest to deploy
+
+**What about malicious traffic already in the baseline?**
+
+This is a real concern—an attacker who's already present gets "grandfathered" into normal. Mitigations:
+
+- **Peer group analysis**: Compare users to similar roles. An analyst doing admin tasks stands out even if that's "their normal"
+- **Behavioral drift detection**: Alert on *gradual* changes, not just sudden ones
+- **External threat intelligence**: Cross-reference with known IOCs during baseline period
+- **Periodic baseline refresh**: Rebuild baselines periodically, excluding known-bad periods
+- **Hybrid detection**: Run rule-based detection in parallel during baseline learning
+
+**Practical timeline**:
+
+| Phase | Duration | Mode |
+|-------|----------|------|
+| Initial collection | 1-2 weeks | Silent (no alerts) |
+| Baseline calibration | 1-2 weeks | High-threshold alerts only |
+| Production | Ongoing | Full alerting with feedback loop |
+
+The key insight: you don't need *perfect* baselines to detect *novel* attacks. Even a baseline contaminated with some malicious behavior will flag attacks that differ from *that* attacker's patterns.
+:::
+
+
 ```{python}
 #| echo: true
 #| code-fold: true
