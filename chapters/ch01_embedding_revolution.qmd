@@ -91,14 +91,14 @@ ax1.set_aspect('equal')
 ax1.axhline(y=0, color='lightgray', linestyle='-', linewidth=0.5)
 ax1.axvline(x=0, color='lightgray', linestyle='-', linewidth=0.5)
 
-# King vector (along x-axis-ish)
-king1 = np.array([1.0, 0.15])
+# King vector - angle ~10° from x-axis
+king1 = np.array([0.98, 0.17])
 ax1.annotate('', xy=king1, xytext=(0, 0),
             arrowprops=dict(arrowstyle='->', color='#2563eb', lw=2.5))
 ax1.text(king1[0] + 0.05, king1[1] - 0.08, 'king', fontsize=12, fontweight='bold', color='#2563eb')
 
-# Queen vector (small angle from king)
-queen = np.array([0.9, 0.45])
+# Queen vector - angle ~42° (32° from king for cos≈0.85)
+queen = np.array([0.74, 0.67])
 ax1.annotate('', xy=queen, xytext=(0, 0),
             arrowprops=dict(arrowstyle='->', color='#dc2626', lw=2.5))
 ax1.text(queen[0] + 0.05, queen[1] + 0.02, 'queen', fontsize=12, fontweight='bold', color='#dc2626')
@@ -107,9 +107,9 @@ ax1.text(queen[0] + 0.05, queen[1] + 0.02, 'queen', fontsize=12, fontweight='bol
 theta1 = np.linspace(np.arctan2(king1[1], king1[0]), np.arctan2(queen[1], queen[0]), 20)
 arc_r = 0.3
 ax1.plot(arc_r * np.cos(theta1), arc_r * np.sin(theta1), 'g-', lw=2)
-ax1.text(0.35, 0.18, 'θ', fontsize=14, color='green', fontweight='bold')
+ax1.text(0.35, 0.22, 'θ', fontsize=14, color='green', fontweight='bold')
 
-ax1.set_title('Similar Vectors\ncos(θ) ≈ 0.94 → High similarity', fontsize=11, fontweight='bold')
+ax1.set_title('Similar Vectors\ncos(θ) ≈ 0.85 → High similarity', fontsize=11, fontweight='bold')
 ax1.axis('off')
 
 # Right plot: Dissimilar vectors (large angle)
@@ -120,14 +120,14 @@ ax2.set_aspect('equal')
 ax2.axhline(y=0, color='lightgray', linestyle='-', linewidth=0.5)
 ax2.axvline(x=0, color='lightgray', linestyle='-', linewidth=0.5)
 
-# King vector
-king2 = np.array([1.0, 0.15])
+# King vector - same angle ~10° from x-axis
+king2 = np.array([0.98, 0.17])
 ax2.annotate('', xy=king2, xytext=(0, 0),
             arrowprops=dict(arrowstyle='->', color='#2563eb', lw=2.5))
 ax2.text(king2[0] + 0.05, king2[1] - 0.08, 'king', fontsize=12, fontweight='bold', color='#2563eb')
 
-# Apple vector (large angle from king)
-apple = np.array([0.25, 0.95])
+# Apple vector - angle ~68° (58° from king for cos≈0.53)
+apple = np.array([0.38, 0.93])
 ax2.annotate('', xy=apple, xytext=(0, 0),
             arrowprops=dict(arrowstyle='->', color='#16a34a', lw=2.5))
 ax2.text(apple[0] - 0.12, apple[1] + 0.02, 'apple', fontsize=12, fontweight='bold', color='#16a34a')
@@ -137,7 +137,7 @@ theta2 = np.linspace(np.arctan2(king2[1], king2[0]), np.arctan2(apple[1], apple[
 ax2.plot(arc_r * np.cos(theta2), arc_r * np.sin(theta2), 'g-', lw=2)
 ax2.text(0.22, 0.22, 'θ', fontsize=14, color='green', fontweight='bold')
 
-ax2.set_title('Dissimilar Vectors\ncos(θ) ≈ 0.37 → Low similarity', fontsize=11, fontweight='bold')
+ax2.set_title('Dissimilar Vectors\ncos(θ) ≈ 0.53 → Low similarity', fontsize=11, fontweight='bold')
 ax2.axis('off')
 
 plt.tight_layout()
