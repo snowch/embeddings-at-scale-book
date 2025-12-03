@@ -55,6 +55,10 @@ jobs:
         run: |
           wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
           sudo dpkg -i google-chrome-stable_current_amd64.deb || sudo apt-get -f install -y
+          # Tell Quarto and Puppeteer where to find Chrome
+          CHROME_BIN=$(which google-chrome-stable)
+          echo "QUARTO_CHROMIUM=$CHROME_BIN" >> $GITHUB_ENV
+          echo "PUPPETEER_EXECUTABLE_PATH=$CHROME_BIN" >> $GITHUB_ENV
 
       - name: Get commit hash and create footer
         id: git_commit
