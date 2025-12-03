@@ -364,6 +364,18 @@ class CreditRiskScorer(nn.Module):
 - **Cold start**: New borrowers have minimal data
 :::
 
+:::{.callout-important}
+## FCRA/ECOA Regulatory Requirements for AI Credit Decisions
+
+**FCRA (Fair Credit Reporting Act)** and **ECOA (Equal Credit Opportunity Act)** impose specific requirements on embedding-based credit systems:
+
+- **Adverse Action Notices**: When credit is denied, lenders must provide *specific reasons* for the decision. For embedding-based systems, this requires extracting interpretable factors (e.g., "insufficient payment history," "high debt ratio") from the model's reasoning—not just a score or embedding distance.
+- **Prohibited Bases**: ECOA prohibits discrimination based on race, color, religion, national origin, sex, marital status, or age. Embedding models must be audited to ensure they don't encode proxies for these protected characteristics.
+- **Consent and Disclosure**: FCRA requires consumer consent for credit checks and disclosure of adverse action reasons, which affects how embedding-based risk signals are documented and communicated.
+
+Embedding systems that cannot generate specific adverse action reasons are non-compliant with consumer lending regulations.
+:::
+
 ## Regulatory Compliance Automation
 
 Financial institutions face extensive regulatory requirements—anti-money laundering (AML), know-your-customer (KYC), trading restrictions, privacy rules. **Embedding-based compliance automation** represents documents, transactions, and entities as vectors, enabling automated policy monitoring, violation detection, and regulatory reporting at scale.
@@ -670,7 +682,7 @@ class SentimentClassifier(nn.Module):
 
 - **Credit risk assessment benefits from alternative data embeddings**: Transaction patterns, rent/utility payments, and employment history embeddings enable lending to credit invisibles while maintaining or improving default rates, expanding access to credit for 15-20% of population traditionally excluded from traditional scoring
 
-- **Regulatory compliance automation scales through semantic similarity**: Embedding regulations and transactions in the same space enables detecting violations as semantic similarity between actions and prohibited patterns, reducing false positives by 85% while maintaining 100% regulatory compliance through real-time transaction monitoring and communication surveillance
+- **Regulatory compliance automation scales through semantic similarity**: Embedding regulations and transactions in the same space enables detecting violations as semantic similarity between actions and prohibited patterns, reducing false positives by 85% while achieving comprehensive policy coverage through real-time transaction monitoring and communication surveillance
 
 - **Customer behavior embeddings enable micro-segmentation and personalized interventions**: Sequential models (LSTM over transaction/interaction history) learn lifecycle stages, with drift toward churn clusters triggering proactive retention efforts that increase retention rates from 40% to 68%, protecting tens of millions in lifetime value
 

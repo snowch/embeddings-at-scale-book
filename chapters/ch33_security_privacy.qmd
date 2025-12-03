@@ -658,12 +658,13 @@ print(f"Regions: {[r.value for r in DataRegion]}")
 - Implement geo-fencing at application level
 - Regular audits of data location
 
-**Deletion Implementation**:
+**Deletion Implementation** (note: deletion from embedding systems is an unsolved challenge at scale):
 
 - Asynchronous processing (don't block user)
 - Multi-stage: Active data → Archives → Backups
 - Track deletion status, notify user on completion
 - Consider "soft delete" with delayed hard delete
+- **Unsolved challenges**: Removing individual records from trained models is technically difficult—models may have "memorized" patterns from deleted data; removing from production vector indices requires rebuilding or tombstoning; complete forensic deletion from all replicas may be infeasible
 
 **Consent Management**:
 

@@ -25,12 +25,12 @@ Quantum computing provides theoretical advantages for embedding operations:
 
 **However**: Quantum advantage requires careful analysis—most speedups apply to specific problem structures, quantum coherence limits computation time (milliseconds currently), quantum I/O costs dominate for large datasets, error correction overhead significant, and current quantum computers have 100-1000 qubits limiting practical applications.
 
-**Practical quantum roadmap**:
+**Practical quantum roadmap** (conservative estimates given quantum I/O bottleneck):
 
-- **2025-2027**: Hybrid classical-quantum algorithms (quantum subroutines for bottlenecks)
-- **2028-2030**: Quantum-accelerated similarity search for 10^9-10^12 embeddings
-- **2031-2035**: Full quantum embedding systems with error correction
-- **2036+**: Quantum-native embedding architectures
+- **2025-2029**: Foundation building—hybrid classical-quantum algorithms (quantum subroutines for bottlenecks)
+- **2030-2035**: Early adoption—quantum-accelerated similarity search for specialized workloads
+- **2035-2040**: Production systems—full quantum embedding systems with error correction
+- **2040+**: Quantum-native embedding architectures
 
 ```{python}
 #| echo: true
@@ -208,21 +208,21 @@ Organizations planning for quantum-enhanced embedding systems should adopt phase
 - Prototype hybrid quantum-classical algorithms
 - Track quantum hardware improvements (qubit count, coherence, error rates)
 
-**Phase 2 (2028-2030): Early Adoption of Specialized Applications**
+**Phase 2 (2030-2035): Early Adoption of Specialized Applications**
 - Deploy quantum annealing for embedding optimization (clustering, graph problems)
 - Use quantum kernels for specialized similarity computations
 - Integrate quantum subroutines into classical pipelines (bottleneck acceleration)
 - Benchmark quantum vs classical performance
 - Build quantum-aware system architecture
 
-**Phase 3 (2031-2035): Quantum-Accelerated Production Systems**
+**Phase 3 (2035-2040): Quantum-Accelerated Production Systems**
 - Deploy quantum-accelerated similarity search for trillion-scale databases
 - Use variational quantum algorithms for embedding training
 - Implement error correction for reliable quantum computation
 - Hybrid quantum-classical embedding architectures as standard
 - Quantum-optimized data structures and algorithms
 
-**Phase 4 (2036+): Quantum-Native Embedding Systems**
+**Phase 4 (2040+): Quantum-Native Embedding Systems**
 - Full quantum embedding generation and search
 - Quantum machine learning models end-to-end
 - Quantum-distributed embedding systems across data centers
@@ -236,7 +236,7 @@ Neuromorphic computing—using brain-inspired spiking neural networks and specia
 
 Neuromorphic systems provide unique benefits for embedding applications:
 
-- **Energy efficiency**: 1000-10000× better energy per inference vs GPUs
+- **Energy efficiency**: 10-100× effective speedup when matching GPU accuracy (1000× raw energy efficiency, but SNNs require more timesteps to match accuracy)
 - **Always-on operation**: Continuous inference on battery-powered devices
 - **Event-driven**: Only compute when input changes (sparse computation)
 - **Low latency**: <1ms inference with no batching required

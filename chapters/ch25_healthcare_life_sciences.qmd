@@ -9,7 +9,7 @@ After transforming financial services (@sec-financial-services), embeddings enab
 
 ## Drug Discovery Acceleration
 
-Drug discovery traditionally takes 10-15 years and costs $2.6B per approved drug, with >90% of candidates failing in clinical trials. **Embedding-based drug discovery** represents molecules and proteins as vectors, predicting binding affinity, toxicity, and efficacy computationally before expensive synthesis and testing.
+Drug discovery traditionally takes 10-15 years and costs $1.3B-$2.6B per approved drug (varying by therapeutic area), with overall attrition from IND submission to approval exceeding 90%. **Embedding-based drug discovery** represents molecules and proteins as vectors, predicting binding affinity, toxicity, and efficacy computationally before expensive synthesis and testing.
 
 ### The Drug Discovery Challenge
 
@@ -273,7 +273,7 @@ class ClinicalEncoder(nn.Module):
 
 ## Clinical Trial Optimization
 
-Clinical trials cost $100M-$1B and take 5-10 years, with 90% of drugs failing. **Embedding-based clinical trial optimization** identifies optimal trial participants, predicts treatment response, and enables adaptive trial designs that learn during the trial.
+Clinical trials cost $100M-$1B and take 5-10 years, with phase-specific failure rates varying (Phase I: ~30%, Phase II: ~60%, Phase III: ~50%). **Embedding-based clinical trial optimization** identifies optimal trial participants, predicts treatment response, and enables adaptive trial designs that learn during the trial.
 
 ### The Clinical Trial Challenge
 

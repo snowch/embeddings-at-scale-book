@@ -76,8 +76,12 @@ class MultiModalEncoder:
         similarities = torch.matmul(candidate_embs, query_emb.T)
         return similarities
 
-# Usage example
-encoder = MultiModalEncoder(text_encoder=None, image_encoder=None, audio_encoder=None)
+# Usage example (in production, provide actual encoder models)
+encoder = MultiModalEncoder(
+    text_encoder=nn.Linear(768, 512),  # Placeholder for text encoder
+    image_encoder=nn.Linear(2048, 512),  # Placeholder for image encoder
+    audio_encoder=nn.Linear(128, 512)  # Placeholder for audio encoder
+)
 print(f"Multi-modal encoder with {encoder.embedding_dim}-dim shared space")
 ```
 

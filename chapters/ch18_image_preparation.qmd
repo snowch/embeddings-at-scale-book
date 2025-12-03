@@ -161,7 +161,7 @@ class ViTEmbedder:
 
 # Usage example
 print("ViTEmbedder ready: 224x224 images split into 196 patches (14x14 grid)")
-print("CLS token provides 768-dim embedding")
+print("CLS token provides 768-dim embedding (ViT-Base; variants differ: ViT-Large=1024, ViT-Huge=1280)")
 ```
 
 **How ViT creates embeddings:**
@@ -181,7 +181,7 @@ Each patch → 768-dim token (linear projection)
                     ↓
 Transformer layers (self-attention)
                     ↓
-[CLS] token output → 768-dim embedding
+[CLS] token output → embedding (768-dim for ViT-Base, 1024 for ViT-Large)
 ```
 
 ### The Key Insight: Internal vs External Chunking

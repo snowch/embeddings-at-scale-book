@@ -127,7 +127,7 @@ Target ROI: 3-5× minimum for Phase 2 approval
 - **Impact**: 30% → 45% zero-result → conversion (6% absolute lift)
 - **Value**: 100K searches/day × 6% lift × $80 AOV × 365 days = $17.5M/year
 - **Cost**: $300K development + $50K/year infrastructure = $350K
-- **ROI**: ($17.5M - $0.05M) / $0.35M = 49× (exceptional)
+- **ROI**: ($17.5M - $0.05M) / $0.35M = 49× (exceptional—typical range is 3-10× for first implementations; this assumes very high search volume and strong conversion lift)
 ## Phase 2: Pilot Deployment and Optimization
 
 Pilot deployment and optimization—scaling validated concepts to real production with actual users—transitions from technical feasibility to product-market fit validation. **Phase 2 objectives**: deploy to production environment with real users measuring actual behavior and outcomes, achieve target performance metrics (latency, quality, reliability) under realistic load and data distribution, iterate rapidly based on user feedback optimizing for actual usage patterns rather than assumptions, build operational capabilities establishing monitoring, incident response, and continuous improvement, and validate economic model confirming costs and value at scale justify enterprise rollout.
@@ -725,7 +725,7 @@ Enterprise rollout and scaling—expanding from pilot to organization-wide deplo
 
 Typical Phase 3 characteristics for enterprise embedding initiatives:
 
-- **Duration**: 16-24 weeks from pilot completion to full enterprise deployment
+- **Duration**: 24-36 weeks from pilot completion to full enterprise deployment (shorter timelines possible with strong execution)
 - **Team size**: 10-15 people (platform team + application teams + support)
 - **Investment**: $800K-$2M (infrastructure + tooling + migration + training)
 - **Data scale**: 100M-10B+ records (full production datasets)

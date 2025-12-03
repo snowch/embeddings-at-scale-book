@@ -685,7 +685,7 @@ print(f"  Phone from: external_api (only source)")
 
 - **Data engineering is the foundation of embedding systems**: High-quality embeddings require high-quality data engineering; invest in pipelines, quality frameworks, and fusion strategies before scaling models
 
-- **The data engineering hierarchy**: Quality (1000× impact) > Schema design (100× impact) > Performance (10× impact). Focus on correctness before optimizing throughput
+- **The data engineering hierarchy**: Quality > Schema design > Performance. Impact ratios vary by domain, but garbage-in-garbage-out applies universally—focus on correctness before optimizing throughput
 
 ## Looking Ahead
 

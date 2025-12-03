@@ -851,12 +851,12 @@ This specific number appears frequently in next-generation embedding systems. Wh
 **Entity Coverage at Global Scale**:
 
 -   8 billion people × 10,000 behavioral vectors each = 80 trillion
--   500 million businesses × 1,000 product/service vectors each = 500 trillion
+-   500 million businesses × 1,000 product/service vectors each = 500 billion
 -   100 billion web pages × 100 passage embeddings each = 10 trillion
 -   1 trillion images × 10 crop/augmentation embeddings each = 10 trillion
 -   100 billion IoT devices × 1,000 time-series snapshots each = 100 trillion
 
-Sum: \~700 trillion potential embeddings for a complete representation of commercial activity globally. 256 trillion (2\^48 rows) is a practical target that captures the majority.
+Sum: \~200 trillion potential embeddings for a complete representation of commercial activity globally. 256 trillion (2\^48 rows) is a practical target that provides headroom for growth.
 
 **Storage and Compute Economics**:
 

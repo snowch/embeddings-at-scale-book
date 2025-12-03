@@ -209,7 +209,9 @@ class MultiModalProductEncoder(nn.Module):
         if product_ids is not None:
             beh_emb = self.behavioral_encoder(product_ids)
         else:
-            beh_emb = torch.zeros(batch_size, self.embedding_dim)
+            # Determine device from available inputs
+            device = images.device if images is not None else text.device
+            beh_emb = torch.zeros(batch_size, self.embedding_dim, device=device)
         modality_embeddings.append(beh_emb)
 
         # Attention-weighted fusion

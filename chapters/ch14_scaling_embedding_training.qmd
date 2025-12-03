@@ -248,7 +248,7 @@ from torch.cuda.amp import GradScaler, autocast
 
 
 class MixedPrecisionTrainer:
-    """Automatic mixed precision (AMP) training for 2-3x speedup."""
+    """Automatic mixed precision (AMP) training for 1.5-2x speedup (workload-dependent)."""
 
     def __init__(self, model, device="cuda"):
         self.model = model.to(device)
@@ -279,7 +279,7 @@ class MixedPrecisionTrainer:
 
 # Usage example
 # trainer = MixedPrecisionTrainer(model)
-print("Mixed precision training: 2-3x speedup on modern GPUs")
+print("Mixed precision training: 1.5-2x speedup typical on modern GPUs")
 ```
 
 :::{.callout-tip}
@@ -300,7 +300,7 @@ print("Mixed precision training: 2-3x speedup on modern GPUs")
 **Use mixed precision almost always:**
 
 - Modern GPUs (V100, A100) have Tensor Cores
-- 2-3× speedup with minimal code changes
+- 1.5-2× speedup with minimal code changes
 - Rarely causes numerical issues (except very deep networks)
 :::
 
@@ -412,7 +412,7 @@ print("8-bit optimizers: 4x memory reduction vs standard Adam")
 
 When hitting memory limits, apply optimizations in this order:
 
-1. **Mixed precision (FP16)**: 2× memory reduction, 2-3× speedup
+1. **Mixed precision (FP16)**: 2× memory reduction, 1.5-2× speedup
 2. **Gradient accumulation**: Enables larger effective batch sizes
 3. **Gradient checkpointing**: 10-50× activation memory reduction
 4. **Optimizer state optimization**: 8-bit Adam or SGD
@@ -696,7 +696,7 @@ print("Spot instance training: 50-90% cost savings with checkpointing")
 
 **Immediate savings (no quality impact):**
 1. **Spot instances**: 50-90% discount (with checkpointing)
-2. **Mixed precision**: 2-3× speedup → 50-70% cost reduction
+2. **Mixed precision**: 1.5-2× speedup → 40-60% cost reduction
 3. **Reserved instances**: 30-50% discount for long-term projects
 4. **Multi-cloud**: Compare prices across AWS/GCP/Azure
 
@@ -720,7 +720,7 @@ print("Spot instance training: 50-90% cost savings with checkpointing")
 
 - **Gradient accumulation enables large effective batch sizes**: Split large batches into micro-batches to fit memory constraints while maintaining the benefits of large-batch contrastive learning (16K-32K samples)
 
-- **Mixed precision training provides 2-3× speedup**: FP16 computation on Tensor Cores with FP32 master weights maintains numerical stability while dramatically reducing memory usage and accelerating training
+- **Mixed precision training provides 1.5-2× speedup**: FP16 computation on Tensor Cores with FP32 master weights maintains numerical stability while reducing memory usage and accelerating training (actual speedup is workload-dependent)
 
 - **Memory optimization unlocks larger models**: Gradient checkpointing, optimizer state quantization (8-bit Adam), and efficient activation management reduce memory footprint by 10-50×, enabling BERT-scale models on single GPUs
 

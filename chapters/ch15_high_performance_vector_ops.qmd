@@ -85,7 +85,7 @@ print(f"Their similarity scores: {similarities[top_k_idx]}")
 
 ## Approximate Nearest Neighbor (ANN) at Scale
 
-For billion-vector indices, exact search becomes infeasible. **Approximate nearest neighbor (ANN)** algorithms trade small amounts of recall for massive speedups—typically achieving 95-99% recall at 100-1000× lower latency. Modern ANN methods combine graph-based navigation, quantization, and partitioning to enable sub-millisecond search across trillion-row datasets.
+For billion-vector indices, exact search becomes infeasible. **Approximate nearest neighbor (ANN)** algorithms trade small amounts of recall for massive speedups—typically achieving 95-99% recall at 10-100× lower latency for million-scale indices, scaling to 100-1000× at billion-scale. Modern ANN methods combine graph-based navigation, quantization, and partitioning to enable sub-millisecond search across trillion-row datasets.
 
 ### ANN Algorithm Landscape
 
@@ -320,14 +320,15 @@ class MemoryMappedVectorStore:
         self.count = 0
 
     def create(self, n_vectors: int):
-        """Create a new memory-mapped file."""
+        """Create a new memory-mapped file with pre-allocated capacity."""
         shape = (n_vectors, self.dim)
         self.mmap = np.memmap(self.filepath, dtype=self.dtype, mode='w+', shape=shape)
-        self.count = n_vectors
+        self.count = 0  # Start with zero vectors written
 
     def append(self, vectors: np.ndarray):
         """Append vectors to the store."""
         if self.mmap is None:
+            # Pre-allocate space for initial batch (can grow later)
             self.create(len(vectors))
         self.mmap[self.count:self.count + len(vectors)] = vectors
         self.count += len(vectors)
@@ -381,7 +382,7 @@ with tempfile.NamedTemporaryFile(delete=False, suffix='.mmap') as f:
 **When to use:**
 
 - Dataset > available RAM
-- Can tolerate higher latency (10-100ms vs 1-10ms)
+- Can tolerate slightly higher latency (0.1-1ms SSD access vs <0.1ms RAM)
 - Access patterns have locality (similar vectors accessed together)
 - Cost-sensitive (avoid paying for 1TB+ RAM)
 
