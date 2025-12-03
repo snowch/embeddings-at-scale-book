@@ -503,7 +503,93 @@ Embeddings transform how we represent information in computer systems:
 
 This fundamental shift enables applications that were impossible with traditional discrete representations: semantic search that understands intent, recommendation systems that discover surprising connections, and AI systems that reason about concepts rather than manipulate symbols.
 
-Now that we understand what embeddings are and their key properties, a natural question arises: why use embeddings at all instead of simply running a neural network to classify or score each item directly?
+Now that we understand what embeddings are and their key properties, let's examine how embedding systems actually work in practice.
+
+## The Embedding Workflow
+
+Understanding the embedding workflow is essential before we can appreciate why this approach is so powerful. The workflow has two distinct phases: **Index Time** (when we prepare our data) and **Query Time** (when we search).
+
+![The embedding workflow: data is encoded once at index time, then searched efficiently at query time](images/embedding-workflow.svg){#fig-embedding-workflow}
+
+### Index Time: Encode Once, Store Forever
+
+During the indexing phase, we process each piece of raw data (text, images, etc.) exactly once:
+
+1. **Raw Data** enters the system—this could be documents, product descriptions, images, or any content you want to make searchable.
+
+2. **Encoder** (a neural network like BERT or CLIP) transforms the raw data into a dense vector—the embedding. This is the computationally expensive step, but it only happens once per item.
+
+3. **Embeddings** are stored in a **Vector Database** along with document IDs. The vector database builds an index structure (like HNSW) that enables fast similarity search.
+
+4. **Document Store** keeps the original content, indexed by the same document IDs. This separation is important: embeddings are for searching, but users want to see the original content.
+
+```python
+# Index time: runs once per document
+def index_document(doc_id, content):
+    # 1. Create embedding (expensive, but only once)
+    embedding = encoder.encode(content)  # 5-20ms
+
+    # 2. Store embedding with document ID
+    vector_db.insert(doc_id, embedding)
+
+    # 3. Store original content
+    document_store.insert(doc_id, content)
+```
+
+::: {.callout-tip}
+## Batch vs. Real-Time Indexing
+
+"Index time" doesn't mean batch-only. Production systems often encode items in real-time as they arrive—a new product listing, incoming document, or user action gets embedded immediately and becomes searchable within milliseconds. The key insight remains: each item pays the encoding cost once, regardless of whether that happens in batch or streaming mode.
+:::
+
+### Query Time: Fast Similarity Search
+
+When a user searches, the query follows a different path:
+
+1. **Query** enters the system as text (or other input).
+
+2. **Encoder** (the same model used at index time) converts the query into an embedding. This ensures queries and documents live in the same vector space.
+
+3. **Query Vector** is compared against all stored embeddings using **ANN Search** (Approximate Nearest Neighbor). This is extremely fast—typically under 1 millisecond even for billions of vectors.
+
+4. **Top-K IDs** are returned: the document IDs of the most similar items, along with their similarity scores.
+
+5. **Document Store** lookup retrieves the **Original Content** for those IDs—this is what we show the user.
+
+```python
+# Query time: runs on every search
+def search(query, top_k=10):
+    # 1. Encode query (same model as indexing)
+    query_embedding = encoder.encode(query)  # 5-20ms
+
+    # 2. Fast similarity search
+    doc_ids, scores = vector_db.search(query_embedding, k=top_k)  # <1ms
+
+    # 3. Fetch original content by ID
+    results = document_store.get_many(doc_ids)
+
+    return list(zip(results, scores))
+```
+
+### Why This Architecture Matters
+
+The key insight is the **separation of concerns**:
+
+- **Vector Database** stores embeddings and handles similarity search. It returns IDs, not content.
+- **Document Store** holds the actual content. It handles retrieval by ID.
+- **Embeddings are not decoded** back to original content—they're a compressed semantic representation used only for finding similar items.
+
+This separation provides several benefits:
+
+1. **Storage efficiency**: Vector databases are optimized for high-dimensional vectors; document stores are optimized for content retrieval.
+
+2. **Flexibility**: You can update content without re-embedding (if meaning unchanged), or re-embed without changing the content store.
+
+3. **Scalability**: Vector search and content retrieval can scale independently.
+
+4. **Cost optimization**: Embeddings can be stored in specialized vector databases while large documents stay in cheaper object storage.
+
+With this workflow understood, a natural question arises: why use embeddings at all instead of simply running a neural network to classify or score each item directly?
 
 ## Why Embeddings Instead of Direct Classification?
 
@@ -520,15 +606,7 @@ Here's what makes embeddings powerful: **they separate the expensive neural netw
 
 Think of it this way: a classifier is like calling an expert for every question. An embedding is like having the expert write down their knowledge once, then you can consult those notes instantly, forever.
 
-![Embedding workflow: encoding data once, then using fast vector search for decisions](images/embedding-workflow.svg){#fig-embedding-workflow}
-
-The embedding *is* the neural network's understanding, frozen into a reusable vector. Once computed, comparing two embeddings is just a dot product—pure math that runs in microseconds, not milliseconds.
-
-::: {.callout-tip}
-## Batch vs. Real-Time Indexing
-
-"Index time" doesn't mean batch-only. Production systems often encode items in real-time as they arrive—a new product listing, incoming document, or user action gets embedded immediately and becomes searchable within milliseconds. The key insight remains: each item pays the encoding cost once, regardless of whether that happens in batch or streaming mode.
-:::
+As shown in @fig-embedding-workflow, the neural network runs once at index time to create embeddings, while query time uses only fast vector operations. The embedding *is* the neural network's understanding, frozen into a reusable vector. Once computed, comparing two embeddings is just a dot product—pure math that runs in microseconds, not milliseconds.
 
 ::: {.callout-note}
 ## Why Is Similarity Search Orders of Magnitude Faster?
