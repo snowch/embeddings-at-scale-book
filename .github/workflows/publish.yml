@@ -71,6 +71,8 @@ jobs:
           EOF
 
       - name: Render Book (all formats)
+        env:
+          TOKENIZERS_PARALLELISM: false  # Avoid deadlocks in forked processes
         run: |
           set -o pipefail
           quarto render -M git-commit:${{ steps.git_commit.outputs.COMMIT_HASH }} 2>&1 | tee render.log
