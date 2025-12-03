@@ -1,0 +1,4 @@
+/* Hide the sidebar title text since we have the logo */
+.sidebar-title {
+  display: none !important;
+}

@@ -27,7 +27,7 @@
   <text x="35" y="128" font-family="system-ui, sans-serif" font-size="13" font-weight="600" fill="#334155">Embedding Workflow</text>
 
   <!-- Index Time -->
-  <rect x="40" y="145" width="640" height="80" rx="6" fill="#dcfce7" stroke="#16a34a" stroke-width="1.5"/>
+  <rect x="40" y="145" width="647" height="165" rx="6" fill="#dcfce7" stroke="#16a34a" stroke-width="1.5"/>
   <text x="55" y="165" font-family="system-ui, sans-serif" font-size="11" font-weight="600" fill="#166534">Index Time (once per item)</text>
 
   <rect x="55" y="178" width="100" height="38" rx="4" fill="#fff" stroke="#666"/>
@@ -43,74 +43,72 @@
   <line x1="287" y1="197" x2="317" y2="197" stroke="#444" stroke-width="1.5" marker-end="url(#arrow)"/>
 
   <rect x="319" y="178" width="100" height="38" rx="4" fill="#fff" stroke="#666"/>
-  <text x="369" y="201" font-family="system-ui, sans-serif" font-size="11" text-anchor="middle">Vectors</text>
+  <text x="369" y="201" font-family="system-ui, sans-serif" font-size="11" text-anchor="middle">Embeddings</text>
 
-  <!-- Arrow from Vectors down to DB -->
+  <!-- Arrow from Embeddings down to Vector DB -->
   <line x1="369" y1="216" x2="369" y2="248" stroke="#444" stroke-width="1.5" marker-end="url(#arrow)"/>
 
-  <!-- Document Store (right side) -->
-  <rect x="520" y="250" width="140" height="50" rx="6" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
-  <text x="590" y="272" font-family="system-ui, sans-serif" font-size="11" text-anchor="middle" font-weight="500">Document Store</text>
-  <text x="590" y="287" font-family="system-ui, sans-serif" font-size="9" text-anchor="middle" fill="#666">original content</text>
+  <!-- Arrow from Raw Data down then across to Document Store -->
+  <line x1="104" y1="216" x2="104" y2="236" stroke="#444" stroke-width="1.5"/>
+  <line x1="104" y1="236" x2="599" y2="236" stroke="#444" stroke-width="1.5"/>
+  <line x1="599" y1="236" x2="599" y2="249" stroke="#444" stroke-width="1.5" marker-end="url(#arrow)"/>
 
-  <!-- Arrow from Raw Data to Document Store -->
-  <line x1="105" y1="216" x2="105" y2="275" stroke="#444" stroke-width="1.5" stroke-dasharray="4,3"/>
-  <line x1="105" y1="275" x2="518" y2="275" stroke="#444" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
-
-  <!-- Vector Database (center, between boxes) -->
+  <!-- Vector Database -->
   <rect x="289" y="250" width="160" height="50" rx="25" fill="#fff" stroke="#444" stroke-width="2"/>
   <text x="369" y="272" font-family="system-ui, sans-serif" font-size="11" text-anchor="middle" font-weight="500">Vector Database</text>
-  <text x="369" y="287" font-family="system-ui, sans-serif" font-size="9" text-anchor="middle" fill="#666">vectors + IDs</text>
+  <text x="369" y="287" font-family="system-ui, sans-serif" font-size="9" text-anchor="middle" fill="#666">vectors + doc IDs</text>
 
-  <!-- Arrow from DB down to Query Time -->
-  <line x1="369" y1="300" x2="369" y2="332" stroke="#444" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <!-- Document Store -->
+  <rect x="525" y="251" width="140" height="50" rx="6" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+  <text x="595" y="273" font-family="system-ui, sans-serif" font-size="11" text-anchor="middle" font-weight="500">Document Store</text>
+  <text x="595" y="288" font-family="system-ui, sans-serif" font-size="9" text-anchor="middle" fill="#666">original content</text>
 
   <!-- Query Time -->
-  <rect x="40" y="320" width="640" height="170" rx="6" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+  <rect x="40" y="320" width="647" height="170" rx="6" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
   <text x="55" y="340" font-family="system-ui, sans-serif" font-size="11" font-weight="600" fill="#1e40af">Query Time (per request)</text>
 
-  <rect x="55" y="358" width="80" height="38" rx="4" fill="#fff" stroke="#666"/>
-  <text x="95" y="381" font-family="system-ui, sans-serif" font-size="11" text-anchor="middle">Query</text>
+  <!-- Original Content box (in Query Time area) -->
+  <rect x="547" y="346" width="115" height="50" rx="4" fill="#fff" stroke="#666"/>
+  <text x="604" y="366" font-family="system-ui, sans-serif" font-size="11" text-anchor="middle">Original Content</text>
+  <text x="604" y="381" font-family="system-ui, sans-serif" font-size="9" text-anchor="middle" fill="#666">fetched by ID</text>
 
-  <line x1="135" y1="377" x2="165" y2="377" stroke="#444" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <!-- Query Time flow -->
+  <rect x="56" y="426" width="80" height="38" rx="4" fill="#fff" stroke="#666"/>
+  <text x="96" y="449" font-family="system-ui, sans-serif" font-size="11" text-anchor="middle">Query</text>
 
-  <rect x="167" y="358" width="100" height="38" rx="4" fill="#fff" stroke="#666"/>
-  <text x="217" y="373" font-family="system-ui, sans-serif" font-size="11" text-anchor="middle">Encoder</text>
-  <text x="217" y="386" font-family="system-ui, sans-serif" font-size="9" text-anchor="middle" fill="#666">(same model)</text>
+  <line x1="136" y1="445" x2="166" y2="445" stroke="#444" stroke-width="1.5" marker-end="url(#arrow)"/>
 
-  <line x1="267" y1="377" x2="297" y2="377" stroke="#444" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <rect x="168" y="426" width="100" height="38" rx="4" fill="#fff" stroke="#666"/>
+  <text x="218" y="441" font-family="system-ui, sans-serif" font-size="11" text-anchor="middle">Encoder</text>
+  <text x="218" y="454" font-family="system-ui, sans-serif" font-size="9" text-anchor="middle" fill="#666">(same model)</text>
 
-  <rect x="299" y="358" width="100" height="38" rx="4" fill="#fff" stroke="#666"/>
-  <text x="349" y="381" font-family="system-ui, sans-serif" font-size="11" text-anchor="middle">Query Vector</text>
+  <line x1="268" y1="445" x2="298" y2="445" stroke="#444" stroke-width="1.5" marker-end="url(#arrow)"/>
 
-  <line x1="399" y1="377" x2="429" y2="377" stroke="#444" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <rect x="300" y="426" width="100" height="38" rx="4" fill="#fff" stroke="#666"/>
+  <text x="350" y="449" font-family="system-ui, sans-serif" font-size="11" text-anchor="middle">Query Vector</text>
 
-  <rect x="431" y="358" width="100" height="38" rx="4" fill="#fff" stroke="#666"/>
-  <text x="481" y="373" font-family="system-ui, sans-serif" font-size="11" text-anchor="middle">ANN Search</text>
-  <text x="481" y="386" font-family="system-ui, sans-serif" font-size="9" text-anchor="middle" fill="#666">&lt;1ms</text>
+  <line x1="400" y1="445" x2="430" y2="445" stroke="#444" stroke-width="1.5" marker-end="url(#arrow)"/>
 
-  <line x1="531" y1="377" x2="548" y2="377" stroke="#444" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <rect x="432" y="426" width="100" height="38" rx="4" fill="#fff" stroke="#666"/>
+  <text x="482" y="441" font-family="system-ui, sans-serif" font-size="11" text-anchor="middle">ANN Search</text>
+  <text x="482" y="454" font-family="system-ui, sans-serif" font-size="9" text-anchor="middle" fill="#666">&lt;1ms</text>
 
-  <rect x="550" y="358" width="115" height="38" rx="4" fill="#fff" stroke="#666"/>
-  <text x="607" y="373" font-family="system-ui, sans-serif" font-size="11" text-anchor="middle">Top-K IDs</text>
-  <text x="607" y="386" font-family="system-ui, sans-serif" font-size="9" text-anchor="middle" fill="#666">+ similarity scores</text>
+  <line x1="532" y1="445" x2="549" y2="445" stroke="#444" stroke-width="1.5" marker-end="url(#arrow)"/>
 
-  <!-- Arrow from Top-K IDs to Document Store lookup -->
-  <line x1="607" y1="396" x2="607" y2="425" stroke="#444" stroke-width="1.5"/>
-  <line x1="607" y1="425" x2="607" y2="455" stroke="#444" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <rect x="551" y="426" width="115" height="38" rx="4" fill="#fff" stroke="#666"/>
+  <text x="608" y="441" font-family="system-ui, sans-serif" font-size="11" text-anchor="middle">Top-K IDs</text>
+  <text x="608" y="454" font-family="system-ui, sans-serif" font-size="9" text-anchor="middle" fill="#666">+ similarity scores</text>
 
-  <!-- Final Results -->
-  <rect x="550" y="425" width="115" height="50" rx="4" fill="#fff" stroke="#666"/>
-  <text x="607" y="445" font-family="system-ui, sans-serif" font-size="11" text-anchor="middle">Original Content</text>
-  <text x="607" y="460" font-family="system-ui, sans-serif" font-size="9" text-anchor="middle" fill="#666">fetched by ID</text>
-
-  <!-- Arrow from DB to ANN Search -->
-  <line x1="420" y1="275" x2="481" y2="275" stroke="#444" stroke-width="1.5"/>
-  <line x1="481" y1="275" x2="481" y2="356" stroke="#444" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <!-- Arrow from Top-K IDs up to Document Store -->
+  <line x1="608" y1="426" x2="608" y2="405" stroke="#444" stroke-width="1.5"/>
+  <line x1="608" y1="405" x2="680" y2="405" stroke="#444" stroke-width="1.5"/>
+  <line x1="680" y1="405" x2="680" y2="276" stroke="#444" stroke-width="1.5"/>
+  <line x1="680" y1="276" x2="667" y2="276" stroke="#444" stroke-width="1.5" marker-end="url(#arrow)"/>
 
   <!-- Arrow from Document Store down to Original Content -->
-  <line x1="590" y1="300" x2="590" y2="310" stroke="#444" stroke-width="1.5"/>
-  <line x1="590" y1="310" x2="540" y2="310" stroke="#444" stroke-width="1.5"/>
-  <line x1="540" y1="310" x2="540" y2="450" stroke="#444" stroke-width="1.5"/>
-  <line x1="540" y1="450" x2="548" y2="450" stroke="#444" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="601" y1="301" x2="601" y2="344" stroke="#444" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Arrow from Vector DB to ANN Search -->
+  <line x1="449" y1="275" x2="482" y2="275" stroke="#444" stroke-width="1.5"/>
+  <line x1="482" y1="275" x2="482" y2="424" stroke="#444" stroke-width="1.5" marker-end="url(#arrow)"/>
 </svg>
