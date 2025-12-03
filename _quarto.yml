@@ -51,11 +51,14 @@ book:
         - chapters/ch20_semantic_search.qmd
         - chapters/ch21_recommendation_systems.qmd
 
-    - part: "Part V: Industry Applications"
+    - part: "Part V: Cross-Industry Applications"
       chapters:
         - chapters/ch22_cross_industry_patterns.qmd
         - chapters/ch23_video_surveillance_analytics.qmd
         - chapters/ch24_entity_resolution.qmd
+
+    - part: "Part VI: Industry-Specific Applications"
+      chapters:
         - chapters/ch25_financial_services.qmd
         - chapters/ch26_healthcare_life_sciences.qmd
         - chapters/ch27_retail_ecommerce.qmd
@@ -64,14 +67,14 @@ book:
         - chapters/ch30_scientific_computing.qmd
         - chapters/ch31_defense_intelligence.qmd
 
-    - part: "Part VI: Future-Proofing & Optimization"
+    - part: "Part VII: Future-Proofing & Optimization"
       chapters:
         - chapters/ch32_performance_optimization.qmd
         - chapters/ch33_security_privacy.qmd
         - chapters/ch34_monitoring_observability.qmd
         - chapters/ch35_future_trends.qmd
 
-    - part: "Part VII: Implementation Roadmap"
+    - part: "Part VIII: Implementation Roadmap"
       chapters:
         - chapters/ch36_organizational_transformation.qmd
         - chapters/ch37_implementation_roadmap.qmd

@@ -6,7 +6,7 @@ Building Tomorrow's AI with Vector Databases at 256+ Trillion Row Scale
 
 ## About This Book
 
-This comprehensive 800-1000 page book is designed for CTOs, Data Scientists, ML Engineers, and Technical Leaders who want to master embedding technologies at unprecedented scale. It covers everything from strategic foundations to production implementation across 30 chapters organized into 7 parts.
+This comprehensive 1000+ page book is designed for CTOs, Data Scientists, ML Engineers, and Technical Leaders who want to master embedding technologies at unprecedented scale. It covers everything from strategic foundations to production implementation across 39 chapters organized into 8 parts.
 
 ## 📚 Book Structure
 
@@ -14,9 +14,10 @@ This comprehensive 800-1000 page book is designed for CTOs, Data Scientists, ML 
 - **Part II: Custom Embedding Development** - Building specialized embeddings for your use case
 - **Part III: Production Engineering** - Scaling and operationalizing embedding systems
 - **Part IV: Advanced Applications** - Implementing sophisticated embedding-powered applications
-- **Part V: Industry Applications** - Domain-specific solutions and case studies
-- **Part VI: Future-Proofing & Optimization** - Performance, security, and monitoring
-- **Part VII: Implementation Roadmap** - Practical guidance for organizational transformation
+- **Part V: Cross-Industry Applications** - Patterns applicable across all industries (anomaly detection, video analytics, entity resolution)
+- **Part VI: Industry-Specific Applications** - Domain-specific solutions (financial, healthcare, retail, manufacturing, media, scientific, defense)
+- **Part VII: Future-Proofing & Optimization** - Performance, security, and monitoring
+- **Part VIII: Implementation Roadmap** - Practical guidance for organizational transformation
 
 ## 🚀 Getting Started
 
