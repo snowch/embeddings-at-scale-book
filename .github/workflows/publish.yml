@@ -51,6 +51,9 @@ jobs:
       - name: Install TinyTeX for PDF rendering
         run: quarto install tinytex
 
+      - name: Install Chromium for Mermaid diagrams
+        run: quarto install chromium --no-prompt
+
       - name: Get commit hash and create footer
         id: git_commit
         run: |
