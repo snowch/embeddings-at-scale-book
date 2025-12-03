@@ -46,6 +46,30 @@ quarto preview
 quarto render
 ```
 
+### Code Execution Caching
+
+This project uses Quarto's `freeze: auto` feature to cache Python code execution results. This dramatically speeds up CI/CD builds by avoiding re-execution of unchanged code.
+
+**How it works:**
+- Code cell outputs are cached in the `_freeze/` directory
+- The `_freeze/` directory is committed to git
+- CI uses cached results instead of re-executing all code
+- Only changed chapters are re-executed
+
+**Workflow when modifying code cells:**
+
+```bash
+# After modifying Python code in any chapter:
+quarto render
+
+# Commit both the chapter and updated freeze cache
+git add chapters/chXX_*.qmd _freeze/
+git commit -m "Update chapter XX with new code"
+git push
+```
+
+**Important:** Always render locally and commit `_freeze/` changes when you modify Python code cells. This ensures CI builds are fast and consistent.
+
 ## 📖 Reading the Book
 
 ### Online (GitHub Pages)
