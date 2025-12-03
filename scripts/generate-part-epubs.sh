@@ -67,8 +67,8 @@ generate_part_epub "III" "Production Engineering" \
     chapters/ch17_text_chunking.qmd \
     chapters/ch18_image_preparation.qmd
 
-# Part IV: Advanced Applications
-generate_part_epub "IV" "Advanced Applications" \
+# Part IV: Core Application Patterns
+generate_part_epub "IV" "Core Application Patterns" \
     chapters/ch19_rag_at_scale.qmd \
     chapters/ch20_semantic_search.qmd \
     chapters/ch21_recommendation_systems.qmd

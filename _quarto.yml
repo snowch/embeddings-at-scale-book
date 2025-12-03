@@ -45,7 +45,7 @@ book:
         - chapters/ch17_text_chunking.qmd
         - chapters/ch18_image_preparation.qmd
 
-    - part: "Part IV: Advanced Applications"
+    - part: "Part IV: Core Application Patterns"
       chapters:
         - chapters/ch19_rag_at_scale.qmd
         - chapters/ch20_semantic_search.qmd

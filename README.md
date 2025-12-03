@@ -13,7 +13,7 @@ This comprehensive 1000+ page book is designed for CTOs, Data Scientists, ML Eng
 - **Part I: Foundation & Strategy** - Understanding the embedding revolution and designing architectures
 - **Part II: Custom Embedding Development** - Building specialized embeddings for your use case
 - **Part III: Production Engineering** - Scaling and operationalizing embedding systems
-- **Part IV: Advanced Applications** - Implementing sophisticated embedding-powered applications
+- **Part IV: Core Application Patterns** - RAG, semantic search, and recommendation systems
 - **Part V: Cross-Industry Applications** - Patterns applicable across all industries (anomaly detection, video analytics, entity resolution)
 - **Part VI: Industry-Specific Applications** - Domain-specific solutions (financial, healthcare, retail, manufacturing, media, scientific, defense)
 - **Part VII: Future-Proofing & Optimization** - Performance, security, and monitoring
