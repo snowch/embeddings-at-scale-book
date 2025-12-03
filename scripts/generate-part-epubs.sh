@@ -76,6 +76,7 @@ generate_part_epub "IV" "Advanced Applications" \
 # Part V: Industry Applications
 generate_part_epub "V" "Industry Applications" \
     chapters/ch22_cross_industry_patterns.qmd \
+    chapters/ch23_entity_resolution.qmd \
     chapters/ch24_financial_services.qmd \
     chapters/ch25_healthcare_life_sciences.qmd \
     chapters/ch26_retail_ecommerce.qmd \

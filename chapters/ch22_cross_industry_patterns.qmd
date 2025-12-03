@@ -343,6 +343,500 @@ Each industry applies embedding-driven rules differently:
 - **Retail** (@sec-retail-ecommerce): Pricing rules, promotion targeting, inventory allocation
 - **Manufacturing** (@sec-manufacturing-industry40): Quality gates, process parameters, maintenance scheduling
 
+## Customer Support Intelligence
+
+Customer support operations generate massive volumes of unstructured data—tickets, chat transcripts, emails, call recordings—that embeddings transform into actionable intelligence. **Embedding-based customer support systems** enable semantic routing, automated resolution, agent assist, and proactive issue detection at scale.
+
+### The Support Intelligence Challenge
+
+Traditional customer support systems rely on keyword matching and manual categorization:
+
+- **Routing failures**: "My card doesn't work" routes to "card services" instead of "fraud"
+- **Knowledge silos**: Solutions exist but agents can't find them
+- **Repetitive work**: Agents solve the same problems repeatedly
+- **Reactive posture**: Issues discovered when customers complain
+
+**Embedding approach**: Encode tickets, knowledge articles, and historical resolutions into a unified semantic space. Similar issues cluster together; solutions transfer across variations. See @sec-semantic-search for search implementation and @sec-rag-at-scale for retrieval-augmented response generation.
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Customer Support Embedding System"
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from dataclasses import dataclass
+from typing import Optional
+import numpy as np
+
+
+@dataclass
+class SupportTicket:
+    """Customer support ticket with metadata."""
+    ticket_id: str
+    text: str
+    category: Optional[str] = None
+    priority: Optional[str] = None
+    resolution: Optional[str] = None
+    embedding: Optional[np.ndarray] = None
+
+
+class SupportEncoder(nn.Module):
+    """Encode support tickets for semantic operations."""
+    def __init__(self, vocab_size: int = 30000, embedding_dim: int = 256,
+                 hidden_dim: int = 512):
+        super().__init__()
+        self.token_embedding = nn.Embedding(vocab_size, embedding_dim)
+        self.encoder = nn.TransformerEncoder(
+            nn.TransformerEncoderLayer(
+                d_model=embedding_dim, nhead=8, dim_feedforward=hidden_dim,
+                batch_first=True
+            ),
+            num_layers=4
+        )
+        self.pooler = nn.Linear(embedding_dim, embedding_dim)
+
+    def forward(self, token_ids, attention_mask=None):
+        """Encode ticket text to embedding."""
+        embeddings = self.token_embedding(token_ids)
+        encoded = self.encoder(embeddings, src_key_padding_mask=attention_mask)
+        # Mean pooling over sequence
+        pooled = encoded.mean(dim=1)
+        return F.normalize(self.pooler(pooled), p=2, dim=1)
+
+
+class SemanticRouter:
+    """Route tickets based on semantic similarity to category exemplars."""
+    def __init__(self, encoder: nn.Module, categories: dict[str, list]):
+        self.encoder = encoder
+        self.category_centroids = {}
+        self._build_centroids(categories)
+
+    def _build_centroids(self, categories: dict[str, list]):
+        """Compute centroid embedding for each category."""
+        for category, exemplar_ids in categories.items():
+            # In production: encode exemplar tickets, compute mean
+            self.category_centroids[category] = np.random.randn(256)
+
+    def route(self, ticket_embedding: np.ndarray, top_k: int = 3):
+        """Route ticket to most similar categories."""
+        similarities = {}
+        for category, centroid in self.category_centroids.items():
+            sim = np.dot(ticket_embedding, centroid) / (
+                np.linalg.norm(ticket_embedding) * np.linalg.norm(centroid)
+            )
+            similarities[category] = sim
+        return sorted(similarities.items(), key=lambda x: -x[1])[:top_k]
+
+
+# Usage example
+encoder = SupportEncoder()
+print("Support encoder initialized")
+print(f"Embedding dimension: 256")
+
+# Demonstrate routing concept
+categories = {
+    "billing": ["exemplar_1", "exemplar_2"],
+    "technical": ["exemplar_3", "exemplar_4"],
+    "account": ["exemplar_5", "exemplar_6"],
+    "fraud": ["exemplar_7", "exemplar_8"]
+}
+router = SemanticRouter(encoder, categories)
+sample_embedding = np.random.randn(256)
+routes = router.route(sample_embedding)
+print(f"\nSample routing results: {routes[:2]}")
+```
+
+:::{.callout-tip}
+## Customer Support Intelligence Best Practices
+
+**Semantic Routing:**
+
+- **Multi-label routing**: Tickets often span categories (billing + technical)
+- **Skill-based matching**: Route to agents with relevant expertise
+- **Load balancing**: Consider agent capacity alongside semantic match
+- **Escalation prediction**: Identify tickets likely to escalate early
+
+**Knowledge Retrieval:**
+
+- **Dense retrieval**: Find relevant articles without exact keyword match
+- **Solution transfer**: Apply resolutions from similar past tickets
+- **Agent assist**: Surface relevant info during live interactions
+- **Auto-suggest**: Propose responses for agent review
+
+**Analytics:**
+
+- **Issue clustering**: Discover emerging problems automatically
+- **Root cause analysis**: Link symptoms to underlying causes
+- **Customer journey**: Track issues across channels and time
+- **Satisfaction prediction**: Predict CSAT from ticket embeddings
+
+**Scale Considerations:**
+
+- **Millions of tickets**: Incremental index updates, not full rebuilds
+- **Real-time routing**: <100ms for routing decisions
+- **Multi-language**: Cross-lingual embeddings for global support
+- **Privacy**: PII handling for regulated industries
+:::
+
+### Industry Applications of Support Intelligence
+
+- **Financial Services** (@sec-financial-services): Compliance-aware routing, fraud escalation, regulatory inquiry handling
+- **Healthcare** (@sec-healthcare-life-sciences): HIPAA-compliant support, clinical vs. billing separation, urgent care routing
+- **Retail** (@sec-retail-ecommerce): Order status, returns processing, loyalty program support
+- **Telecommunications**: Network issues, service changes, billing disputes
+
+## Competitive Intelligence
+
+Organizations must monitor competitors, track market trends, and identify emerging opportunities. **Embedding-based competitive intelligence** processes vast amounts of unstructured data—news, patents, SEC filings, social media, job postings—to surface actionable insights that would be impossible to find manually.
+
+### The Intelligence Challenge
+
+Traditional competitive intelligence faces limitations:
+
+- **Volume**: Too much information to read manually
+- **Noise**: Most content is irrelevant or redundant
+- **Latency**: By the time analysts find it, it's old news
+- **Connections**: Hard to link signals across sources
+
+**Embedding approach**: Encode all sources into a unified semantic space. Monitor for clusters (emerging trends), anomalies (breaking news), and trajectories (strategic shifts). See @sec-semantic-search for retrieval and @sec-recommendation-systems for personalized alerting.
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Competitive Intelligence System"
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import numpy as np
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Optional
+
+
+@dataclass
+class IntelDocument:
+    """Document from intelligence feed."""
+    doc_id: str
+    source: str  # news, patent, filing, social, jobs
+    timestamp: datetime
+    text: str
+    entities: list[str]  # companies, people, products mentioned
+    embedding: Optional[np.ndarray] = None
+
+
+class TrendDetector:
+    """Detect emerging trends from document embeddings."""
+    def __init__(self, embedding_dim: int = 384, window_days: int = 7):
+        self.embedding_dim = embedding_dim
+        self.window_days = window_days
+        self.cluster_centroids = []
+        self.cluster_sizes = []
+
+    def detect_emerging_clusters(self, recent_embeddings: np.ndarray,
+                                 historical_centroids: np.ndarray,
+                                 threshold: float = 0.3):
+        """Find document clusters that don't match historical patterns."""
+        emerging = []
+        # Simple clustering simulation
+        n_clusters = min(10, len(recent_embeddings) // 10)
+        for i in range(n_clusters):
+            cluster_centroid = recent_embeddings[i * 10:(i + 1) * 10].mean(axis=0)
+            # Check distance to all historical centroids
+            if len(historical_centroids) > 0:
+                max_sim = max(
+                    np.dot(cluster_centroid, hist) / (
+                        np.linalg.norm(cluster_centroid) * np.linalg.norm(hist)
+                    )
+                    for hist in historical_centroids
+                )
+                if max_sim < threshold:
+                    emerging.append({
+                        'centroid': cluster_centroid,
+                        'novelty_score': 1 - max_sim,
+                        'size': 10
+                    })
+        return emerging
+
+
+class CompetitorTracker:
+    """Track competitor activities through embedding trajectories."""
+    def __init__(self, competitors: list[str]):
+        self.competitors = competitors
+        self.trajectories = {c: [] for c in competitors}
+
+    def update_trajectory(self, competitor: str,
+                          embedding: np.ndarray, timestamp: datetime):
+        """Add new data point to competitor trajectory."""
+        self.trajectories[competitor].append({
+            'embedding': embedding,
+            'timestamp': timestamp
+        })
+
+    def detect_strategic_shift(self, competitor: str,
+                               window: int = 30) -> Optional[dict]:
+        """Detect if competitor's focus has shifted."""
+        trajectory = self.trajectories.get(competitor, [])
+        if len(trajectory) < window * 2:
+            return None
+
+        # Compare recent centroid to historical centroid
+        recent = np.mean([t['embedding'] for t in trajectory[-window:]], axis=0)
+        historical = np.mean([t['embedding'] for t in trajectory[-window*2:-window]], axis=0)
+
+        shift_magnitude = np.linalg.norm(recent - historical)
+        if shift_magnitude > 0.5:  # Threshold
+            return {
+                'competitor': competitor,
+                'shift_magnitude': shift_magnitude,
+                'direction': recent - historical
+            }
+        return None
+
+
+# Usage example
+print("=== Competitive Intelligence System ===")
+
+# Trend detection
+detector = TrendDetector()
+recent = np.random.randn(100, 384)  # 100 recent documents
+historical = np.random.randn(50, 384)  # 50 historical cluster centroids
+emerging = detector.detect_emerging_clusters(recent, historical)
+print(f"\nEmerging trends detected: {len(emerging)}")
+
+# Competitor tracking
+tracker = CompetitorTracker(['CompetitorA', 'CompetitorB', 'CompetitorC'])
+print(f"Tracking {len(tracker.competitors)} competitors")
+```
+
+:::{.callout-tip}
+## Competitive Intelligence Best Practices
+
+**Data Sources:**
+
+- **News & Press**: Product launches, partnerships, executive changes
+- **Patents**: R&D direction, technology bets, acquisition targets
+- **SEC Filings**: Strategy statements, risk factors, segment performance
+- **Job Postings**: Hiring trends reveal strategic priorities
+- **Social Media**: Sentiment, product feedback, crisis indicators
+
+**Analysis Patterns:**
+
+- **Entity linking**: Connect mentions across sources (company aliases, subsidiaries)
+- **Event detection**: Identify significant events (launches, acquisitions, lawsuits)
+- **Sentiment tracking**: Monitor perception over time
+- **Relationship mapping**: Who partners with whom, who competes where
+
+**Alerting:**
+
+- **Semantic alerts**: "Notify me about AI chip developments" (not keyword "AI chip")
+- **Competitor alerts**: Any significant activity from tracked competitors
+- **Anomaly alerts**: Unusual volume or sentiment patterns
+- **Personalized feeds**: Different stakeholders need different views
+
+**Scale Considerations:**
+
+- **Millions of documents/day**: Streaming ingestion and embedding
+- **Real-time updates**: Hours matter for breaking news
+- **Global coverage**: Multi-language processing
+- **Historical analysis**: Years of data for trend analysis
+:::
+
+### Industry Applications of Competitive Intelligence
+
+- **Financial Services** (@sec-financial-services): Market moving news, regulatory changes, fintech monitoring
+- **Healthcare** (@sec-healthcare-life-sciences): Clinical trial tracking, drug approval monitoring, competitor pipelines
+- **Retail** (@sec-retail-ecommerce): Pricing intelligence, product launches, market expansion signals
+- **Manufacturing** (@sec-manufacturing-industry40): Supply chain disruptions, technology trends, trade policy impacts
+
+## Document Classification and Compliance
+
+Every organization processes documents that must be classified, routed, and retained according to policies. **Embedding-based document intelligence** automates classification at scale, ensures compliance with retention policies, and surfaces relevant documents for legal and regulatory requests.
+
+### The Document Challenge
+
+Organizations struggle with document management:
+
+- **Volume**: Millions of documents across email, files, chat, contracts
+- **Inconsistency**: Manual classification is error-prone and inconsistent
+- **Compliance risk**: Misclassified documents create legal exposure
+- **Discovery cost**: Finding relevant documents for litigation is expensive
+
+**Embedding approach**: Encode all documents into semantic space. Classification becomes nearest-neighbor to labeled exemplars. Compliance rules apply to embedding regions. Discovery queries semantic similarity, not just keywords.
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Document Classification System"
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import numpy as np
+from dataclasses import dataclass
+from typing import Optional
+from datetime import datetime
+
+
+@dataclass
+class Document:
+    """Enterprise document with classification metadata."""
+    doc_id: str
+    content: str
+    doc_type: Optional[str] = None  # contract, email, report, etc.
+    sensitivity: Optional[str] = None  # public, internal, confidential, restricted
+    retention_class: Optional[str] = None
+    embedding: Optional[np.ndarray] = None
+
+
+class DocumentClassifier:
+    """Classify documents using embedding similarity."""
+    def __init__(self, embedding_dim: int = 384):
+        self.embedding_dim = embedding_dim
+        self.class_exemplars = {}  # class -> list of exemplar embeddings
+        self.class_centroids = {}  # class -> centroid embedding
+
+    def add_exemplar(self, class_name: str, embedding: np.ndarray):
+        """Add labeled exemplar for a class."""
+        if class_name not in self.class_exemplars:
+            self.class_exemplars[class_name] = []
+        self.class_exemplars[class_name].append(embedding)
+        # Update centroid
+        self.class_centroids[class_name] = np.mean(
+            self.class_exemplars[class_name], axis=0
+        )
+
+    def classify(self, embedding: np.ndarray,
+                 top_k: int = 3) -> list[tuple[str, float]]:
+        """Classify document by similarity to class centroids."""
+        similarities = []
+        for class_name, centroid in self.class_centroids.items():
+            sim = np.dot(embedding, centroid) / (
+                np.linalg.norm(embedding) * np.linalg.norm(centroid)
+            )
+            similarities.append((class_name, float(sim)))
+        return sorted(similarities, key=lambda x: -x[1])[:top_k]
+
+
+class ComplianceEngine:
+    """Apply compliance rules based on document classification."""
+    def __init__(self):
+        self.retention_rules = {
+            'contract': {'years': 7, 'legal_hold': True},
+            'financial': {'years': 7, 'legal_hold': True},
+            'hr_record': {'years': 5, 'legal_hold': False},
+            'correspondence': {'years': 3, 'legal_hold': False},
+            'marketing': {'years': 1, 'legal_hold': False}
+        }
+        self.sensitivity_rules = {
+            'pii': 'confidential',
+            'phi': 'restricted',
+            'financial': 'confidential',
+            'trade_secret': 'restricted'
+        }
+
+    def apply_retention(self, doc: Document) -> dict:
+        """Determine retention requirements."""
+        rule = self.retention_rules.get(
+            doc.doc_type, {'years': 3, 'legal_hold': False}
+        )
+        return {
+            'doc_id': doc.doc_id,
+            'retention_years': rule['years'],
+            'legal_hold_eligible': rule['legal_hold'],
+            'destroy_after': datetime.now().year + rule['years']
+        }
+
+
+class LegalDiscovery:
+    """Support e-discovery with semantic search."""
+    def __init__(self, classifier: DocumentClassifier):
+        self.classifier = classifier
+        self.document_index = {}  # doc_id -> embedding
+
+    def add_document(self, doc_id: str, embedding: np.ndarray):
+        """Index document for discovery."""
+        self.document_index[doc_id] = embedding
+
+    def semantic_search(self, query_embedding: np.ndarray,
+                        top_k: int = 100) -> list[tuple[str, float]]:
+        """Find documents semantically similar to query."""
+        results = []
+        for doc_id, doc_emb in self.document_index.items():
+            sim = np.dot(query_embedding, doc_emb) / (
+                np.linalg.norm(query_embedding) * np.linalg.norm(doc_emb)
+            )
+            results.append((doc_id, float(sim)))
+        return sorted(results, key=lambda x: -x[1])[:top_k]
+
+
+# Usage example
+print("=== Document Classification & Compliance ===")
+
+# Setup classifier with exemplars
+classifier = DocumentClassifier()
+for doc_type in ['contract', 'financial', 'hr_record', 'correspondence']:
+    for _ in range(5):  # 5 exemplars per class
+        classifier.add_exemplar(doc_type, np.random.randn(384))
+
+# Classify new document
+new_doc_embedding = np.random.randn(384)
+classifications = classifier.classify(new_doc_embedding)
+print(f"\nDocument classifications: {classifications[:2]}")
+
+# Apply compliance
+compliance = ComplianceEngine()
+doc = Document(doc_id="DOC001", content="...", doc_type=classifications[0][0])
+retention = compliance.apply_retention(doc)
+print(f"Retention policy: {retention['retention_years']} years")
+
+# Legal discovery
+discovery = LegalDiscovery(classifier)
+for i in range(100):
+    discovery.add_document(f"DOC{i:03d}", np.random.randn(384))
+query = np.random.randn(384)
+results = discovery.semantic_search(query, top_k=5)
+print(f"Discovery results: {len(results)} documents")
+```
+
+:::{.callout-tip}
+## Document Classification Best Practices
+
+**Classification:**
+
+- **Multi-label**: Documents often have multiple applicable classes
+- **Hierarchical**: Type → Subtype → Specific category
+- **Confidence thresholds**: Route low-confidence to human review
+- **Active learning**: Prioritize uncertain documents for labeling
+
+**Compliance:**
+
+- **Retention automation**: Apply policies based on classification
+- **Legal holds**: Suspend deletion for litigation-relevant documents
+- **Audit trails**: Track all classification and retention decisions
+- **Policy updates**: Reclassify when policies change
+
+**Discovery:**
+
+- **Semantic search**: Find relevant documents beyond keywords
+- **Concept clustering**: Group related documents for review
+- **Privilege detection**: Flag potentially privileged communications
+- **Deduplication**: Identify near-duplicates to reduce review volume
+
+**Scale Considerations:**
+
+- **Billions of documents**: Incremental processing, not batch
+- **Multi-format**: Email, Office docs, PDFs, images (OCR)
+- **Multi-language**: Global organizations need cross-lingual support
+- **Performance**: Classification must not slow document workflows
+:::
+
+### Industry Applications of Document Classification
+
+- **Financial Services** (@sec-financial-services): Regulatory filings, trading communications, audit documents
+- **Healthcare** (@sec-healthcare-life-sciences): Clinical documentation, HIPAA compliance, medical records retention
+- **Legal**: Case files, contracts, correspondence, privilege review
+- **Government**: FOIA requests, classification levels, records management
+
 ## Key Takeaways
 
 - **Cybersecurity threat hunting with embeddings detects zero-day attacks**: Unlike classifiers limited to known attack patterns, embedding-based systems identify "behavior unlike anything normal," enabling detection of novel threats without prior examples
@@ -357,9 +851,17 @@ Each industry applies embedding-driven rules differently:
 
 - **Explainability enables adoption**: High false positive rates create user friction and alert fatigue, requiring feature attribution to help analysts understand anomalies and progressive authentication to balance security and usability
 
+- **Customer support intelligence transforms unstructured interactions into actionable data**: Semantic routing matches tickets to agents based on meaning rather than keywords, while knowledge retrieval surfaces relevant solutions from historical resolutions and documentation
+
+- **Competitive intelligence scales through embedding-based monitoring**: Trend detection identifies emerging clusters in news and patent filings, while competitor tracking measures strategic shifts through embedding trajectory analysis across millions of documents
+
+- **Document classification enables automated compliance at scale**: Embedding similarity to labeled exemplars provides consistent classification across billions of documents, with automated retention policies and semantic search for e-discovery reducing legal risk and review costs
+
 ## Looking Ahead
 
-With cross-industry patterns established, the following chapters explore industry-specific applications:
+The next chapter, @sec-entity-resolution, covers a particularly important cross-industry challenge: identifying and linking records that refer to the same real-world entities across disparate data sources—a problem that scales to trillions of comparison pairs.
+
+Following entity resolution, the remaining chapters in Part V explore industry-specific applications:
 
 - @sec-financial-services applies these patterns to trading, credit risk, and regulatory compliance, adding fraud detection and risk scoring specific to financial services
 - @sec-healthcare-life-sciences addresses patient safety, clinical decision support, and medical data security
