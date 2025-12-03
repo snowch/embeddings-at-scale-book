@@ -71,12 +71,11 @@ generate_part_epub "III" "Production Engineering" \
 generate_part_epub "IV" "Advanced Applications" \
     chapters/ch19_rag_at_scale.qmd \
     chapters/ch20_semantic_search.qmd \
-    chapters/ch21_recommendation_systems.qmd \
-    chapters/ch22_anomaly_detection_security.qmd \
-    chapters/ch23_automated_decision_systems.qmd
+    chapters/ch21_recommendation_systems.qmd
 
 # Part V: Industry Applications
 generate_part_epub "V" "Industry Applications" \
+    chapters/ch22_cross_industry_patterns.qmd \
     chapters/ch24_financial_services.qmd \
     chapters/ch25_healthcare_life_sciences.qmd \
     chapters/ch26_retail_ecommerce.qmd \
