@@ -509,7 +509,7 @@ Now that we understand what embeddings are and their key properties, let's exami
 
 Understanding the embedding workflow is essential before we can appreciate why this approach is so powerful. The workflow has two distinct phases: **Index Time** (when we prepare our data) and **Query Time** (when we search).
 
-![The embedding workflow: data is encoded once at index time, then searched efficiently at query time](images/embedding-workflow.svg){#fig-embedding-workflow}
+![The embedding workflow: data is encoded once at index time, then searched efficiently at query time](images/embedding-workflow-only.svg){#fig-embedding-workflow}
 
 ### Index Time: Encode Once, Store Forever
 
@@ -606,7 +606,9 @@ Here's what makes embeddings powerful: **they separate the expensive neural netw
 
 Think of it this way: a classifier is like calling an expert for every question. An embedding is like having the expert write down their knowledge once, then you can consult those notes instantly, forever.
 
-As shown in @fig-embedding-workflow, the neural network runs once at index time to create embeddings, while query time uses only fast vector operations. The embedding *is* the neural network's understanding, frozen into a reusable vector. Once computed, comparing two embeddings is just a dot product—pure math that runs in microseconds, not milliseconds.
+![Comparing classification and embedding workflows: classification runs the neural network on every query, while embeddings encode data once and use fast vector search](images/embedding-workflow.svg){#fig-workflow-comparison}
+
+The embedding *is* the neural network's understanding, frozen into a reusable vector. Once computed, comparing two embeddings is just a dot product—pure math that runs in microseconds, not milliseconds.
 
 ::: {.callout-note}
 ## Why Is Similarity Search Orders of Magnitude Faster?
