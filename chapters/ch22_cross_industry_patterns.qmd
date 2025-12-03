@@ -1,4 +1,4 @@
-# Cross-Industry Patterns: Security and Automation {#sec-cross-industry-patterns}
+# Security and Automation {#sec-cross-industry-patterns}
 
 :::{.callout-note}
 ## Chapter Overview
