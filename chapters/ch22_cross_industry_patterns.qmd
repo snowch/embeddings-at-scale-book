@@ -1,0 +1,391 @@
+# Cross-Industry Patterns: Security and Automation {#sec-cross-industry-patterns}
+
+:::{.callout-note}
+## Chapter Overview
+Before diving into industry-specific applications, this chapter covers embedding patterns that apply universally across all industries. Every organization—regardless of sector—faces cybersecurity threats, must detect behavioral anomalies, and can benefit from embedding-driven decision systems. These cross-cutting patterns from Part IV's advanced applications form the foundation upon which industry-specific solutions are built. Financial services, healthcare, retail, manufacturing, and every other industry should apply these techniques alongside their domain-specific implementations.
+:::
+
+The application patterns covered in Part IV—RAG (@sec-rag-at-scale), semantic search (@sec-semantic-search), and recommendation systems (@sec-recommendation-systems)—provide powerful capabilities that organizations adopt based on their specific needs. However, some embedding applications are not optional: **every organization must address security threats and behavioral anomalies**, and **every organization can benefit from embedding-driven automation**.
+
+This chapter consolidates these universal patterns, providing a foundation that subsequent industry chapters build upon. When you read about financial services (@sec-financial-services), healthcare (@sec-healthcare-life-sciences), or manufacturing (@sec-manufacturing-industry40), assume these cross-industry patterns apply in addition to domain-specific techniques.
+
+## Cybersecurity Threat Hunting
+
+Cybersecurity teams hunt for threats—APTs, compromised accounts, insider threats—in massive logs. **Embedding-based threat hunting** learns behavioral embeddings of users, devices, and network entities, detecting anomalies that indicate compromise or malicious activity.
+
+### The Threat Hunting Challenge
+
+Traditional Security Information and Event Management (SIEM) systems use rules:
+
+- Rule: If user logs in from new country, alert
+- Rule: If outbound data transfer > 10GB, alert
+
+**Limitations:**
+
+- High false positives (legitimate travel, legitimate data transfers)
+- Evasion: Attackers split transfers, use slow exfiltration
+- Cannot detect novel attacks (zero-day exploits, new TTPs)
+
+**The Zero-Day Argument**: The most compelling case for embeddings in security is **zero-day detection**. A classifier can only recognize attack patterns present in its training data. An embedding system can detect "this behavior is unlike anything normal I've seen" without ever having seen that specific attack.
+
+```python
+# Classifier limitation: only knows trained attack types
+attack_types = ['sql_injection', 'xss', 'credential_stuffing']  # Fixed at training time
+
+# Embedding advantage: detects deviation from normal
+if distance_to_nearest_normal_cluster > threshold:
+    alert("Anomalous behavior detected")  # Works for novel attacks
+```
+
+**Embedding approach**: Learn normal behavior embeddings for each user/device. Anomalies = deviation from learned patterns. See @sec-custom-embedding-strategies for approaches to building behavioral embeddings, from fine-tuning pre-trained models to custom architectures.
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show User Behavior Anomaly Detection"
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+
+class UserBehaviorModel(nn.Module):
+    """Model user behavior as sequence of events."""
+    def __init__(self, event_dim: int = 64, hidden_dim: int = 128, num_event_types: int = 20):
+        super().__init__()
+        self.event_type_embedding = nn.Embedding(num_event_types, event_dim)
+        self.lstm = nn.LSTM(input_size=event_dim, hidden_size=hidden_dim,
+                            num_layers=2, batch_first=True)
+        self.attention = nn.Linear(hidden_dim, 1)
+        self.output_projection = nn.Linear(hidden_dim, event_dim)
+
+    def forward(self, event_sequences):
+        """Encode user behavior from event sequence."""
+        event_embs = self.event_type_embedding(event_sequences)
+        lstm_out, _ = self.lstm(event_embs)
+
+        # Attention mechanism
+        attn_weights = torch.softmax(self.attention(lstm_out), dim=1)
+        behavior_emb = (lstm_out * attn_weights).sum(dim=1)
+
+        behavior_emb = self.output_projection(behavior_emb)
+        return F.normalize(behavior_emb, p=2, dim=1)
+
+# Usage example
+model = UserBehaviorModel(event_dim=64, hidden_dim=128, num_event_types=20)
+
+# Normal behavior sequence
+normal_sequence = torch.tensor([[0, 2, 3, 2, 0]])  # login, file_read, etc.
+normal_emb = model(normal_sequence)
+
+# Anomalous behavior sequence
+anomalous_sequence = torch.tensor([[1, 4, 5, 4]])  # login_failure, file_delete, etc.
+anomalous_emb = model(anomalous_sequence)
+
+# Compare
+distance = torch.norm(normal_emb - anomalous_emb)
+print(f"Behavior distance: {distance.item():.4f}")
+```
+
+:::{.callout-tip}
+## Threat Hunting Best Practices
+
+**Baselines:**
+
+- **Per-user baselines**: Each user has unique normal behavior
+- **Per-device baselines**: Each device has characteristic patterns
+- **Time-aware**: Behavior varies by time of day, day of week
+- **Context-aware**: Location, VPN usage, remote vs office
+
+**Features:**
+
+- **Login patterns**: Time, location, device, success/failure rate
+- **File access**: Paths accessed, read/write/delete ratios
+- **Network activity**: Connections, data volumes, destinations
+- **Process execution**: Binaries run, arguments, parent processes
+
+**Detection:**
+
+- **Sequential anomalies**: Unusual sequence of events (login → sensitive file → large upload)
+- **Statistical anomalies**: Unusual frequency, volume, or timing
+- **Behavioral drift**: Gradual change in behavior (slow compromise)
+- **Peer group analysis**: Deviation from similar users (same role, department)
+
+**Production:**
+
+- **Low latency**: <1 second for real-time alerting
+- **Prioritization**: Rank alerts by severity (combine multiple signals)
+- **Investigation workflow**: Provide context for analysts (what's unusual, why)
+- **Feedback loop**: Incorporate analyst decisions (true positive, false positive)
+:::
+
+### Industry Applications of Threat Hunting
+
+While the core threat hunting techniques are universal, each industry has specific threat profiles:
+
+- **Financial Services** (@sec-financial-services): Focus on credential theft, payment fraud, insider trading
+- **Healthcare** (@sec-healthcare-life-sciences): PHI exfiltration, ransomware, medical device compromise
+- **Retail** (@sec-retail-ecommerce): POS malware, loyalty fraud, supply chain attacks
+- **Manufacturing** (@sec-manufacturing-industry40): Industrial espionage, OT/ICS attacks, IP theft
+- **Defense** (@sec-defense-intelligence): Nation-state APTs, classified data exfiltration
+
+## Behavioral Anomaly Detection
+
+User accounts can be compromised (phishing, credential stuffing) or misused (insider threats). **Behavioral anomaly detection** learns normal user behavior embeddings, flagging deviations that indicate account takeover or malicious activity.
+
+### The Behavioral Challenge
+
+Users exhibit consistent patterns:
+
+- Login times (weekdays 9-5)
+- Devices (laptop, phone)
+- Actions (emails, file access)
+
+**Account compromise changes behavior**:
+
+- Login from new location/device
+- Unusual actions (access sensitive files, bulk downloads)
+- Velocity changes (sudden spike in activity)
+
+**Challenge**: Detect deviations while adapting to legitimate behavior changes (new job, new phone).
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Behavioral Anomaly Detection Example"
+def behavioral_anomaly_example():
+    """Account takeover detection for web application."""
+    print("=== Account Takeover Detection ===")
+    print("\nNormal baseline:")
+    print("  Login time: Weekdays 9am-6pm")
+    print("  Location: San Francisco office")
+    print("  Device: MacBook Pro")
+    print("  Actions: View dashboard, edit documents")
+    print("  Velocity: 10-20 pages/session")
+
+    print("\n--- Legitimate Session ---")
+    print("Time: Tuesday 2pm")
+    print("Location: San Francisco office")
+    print("Device: MacBook Pro")
+    print("Actions: View dashboard, edit report, send email")
+    print("Velocity: 15 pages")
+    print("→ Anomaly score: 0.05 (NORMAL)")
+
+    print("\n--- Compromised Session ---")
+    print("Time: Saturday 3am")
+    print("Location: Unknown (Tor exit node)")
+    print("Device: Windows PC (new)")
+    print("Actions: Access admin panel, bulk export users, delete logs")
+    print("Velocity: 150 pages")
+    print("→ Anomaly score: 0.95 (ALERT: Possible account takeover)")
+
+    print("\n--- Legitimate Travel ---")
+    print("Time: Monday 10am")
+    print("Location: New York office (business trip)")
+    print("Device: MacBook Pro + iPhone")
+    print("Actions: View dashboard, edit documents")
+    print("Velocity: 12 pages")
+    print("→ Anomaly score: 0.25 (MONITOR: New location, but normal actions)")
+
+# Run example
+behavioral_anomaly_example()
+```
+
+:::{.callout-tip}
+## Behavioral Anomaly Best Practices
+
+**Features:**
+
+- **Temporal**: Time of day, day of week, session duration
+- **Spatial**: Location (IP geolocation), VPN usage
+- **Device**: Browser, OS, screen resolution (fingerprinting)
+- **Actions**: Pages visited, features used, API calls made
+- **Velocity**: Actions per minute, data transferred
+
+**Modeling:**
+
+- **Per-user baselines**: Each user has unique normal behavior
+- **LSTM**: Sequential modeling of user actions
+- **Autoencoder**: Reconstruct behavior, high error = anomaly
+- **Peer groups**: Compare to similar users (same role)
+
+**Production:**
+
+- **Real-time**: Flag suspicious sessions immediately
+- **Progressive authentication**: Challenge anomalous sessions (2FA, security questions)
+- **Adaptive baselines**: Update with confirmed normal behavior
+- **False positive management**: Avoid blocking legitimate users
+
+**Challenges:**
+
+- **Cold start**: New users have no baseline
+- **Concept drift**: Behavior changes over time (new role, new tools)
+- **Adversarial**: Attackers mimic normal behavior (slow compromise)
+:::
+
+## Embedding-Driven Business Rules
+
+Business rules encode domain knowledge: credit policies, pricing strategies, underwriting guidelines. **Embedding-driven business rules** replace rigid if-then logic with learned decision boundaries in embedding space, adapting to patterns that humans can't articulate and updating as business conditions change.
+
+### The Business Rules Challenge
+
+Traditional business rules face limitations:
+
+- **Brittleness**: Rules hardcode thresholds (credit score > 700) that don't generalize
+- **Maintenance burden**: Hundreds of rules accumulate, interact unpredictably
+- **Cold start**: No rules exist for new products, markets, situations
+- **Suboptimality**: Rules encode human intuition, miss non-linear patterns
+
+**Embedding approach**: Learn entity embeddings (customers, products, transactions) and decision boundaries from historical outcomes. New decisions query: "find similar past cases, what happened?" See @sec-custom-embedding-strategies for guidance on building these embeddings, and @sec-siamese-networks for similarity-based learning approaches.
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Case-Based Reasoning System"
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import numpy as np
+from dataclasses import dataclass
+from typing import Optional
+
+
+@dataclass
+class BusinessCase:
+    """Historical business decision case."""
+    case_id: str
+    entity_id: str
+    context: dict
+    decision: any
+    outcome: Optional[any] = None
+    embedding: Optional[np.ndarray] = None
+
+
+class EntityEncoder(nn.Module):
+    """Encode entities for decision making."""
+    def __init__(self, embedding_dim: int = 128,
+                 num_categorical: int = 10, num_numerical: int = 20):
+        super().__init__()
+        self.embedding_dim = embedding_dim
+        self.categorical_embeddings = nn.ModuleList(
+            [nn.Embedding(1000, 16) for _ in range(num_categorical)]
+        )
+        self.numerical_encoder = nn.Sequential(
+            nn.Linear(num_numerical, 64),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(64, 64)
+        )
+        feature_dim = num_categorical * 16 + 64
+        self.feature_encoder = nn.Sequential(
+            nn.Linear(feature_dim, 256),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(256, embedding_dim)
+        )
+
+    def forward(self, categorical_features, numerical_features):
+        """Encode entities to embeddings."""
+        cat_embs = [emb_layer(categorical_features[:, i])
+                    for i, emb_layer in enumerate(self.categorical_embeddings)]
+        cat_emb = torch.cat(cat_embs, dim=1)
+        num_emb = self.numerical_encoder(numerical_features)
+        combined = torch.cat([cat_emb, num_emb], dim=1)
+        entity_emb = self.feature_encoder(combined)
+        return F.normalize(entity_emb, p=2, dim=1)
+
+# Usage example
+encoder = EntityEncoder(embedding_dim=128, num_categorical=10, num_numerical=20)
+cat_features = torch.randint(0, 100, (1, 10))
+num_features = torch.randn(1, 20)
+embedding = encoder(cat_features, num_features)
+print(f"Entity embedding shape: {embedding.shape}")
+```
+
+:::{.callout-tip}
+## Embedding-Driven Business Rules Best Practices
+
+**Architecture:**
+
+- **Entity encoders**: Learn embeddings that predict outcomes
+- **Case-based reasoning**: Retrieve similar historical cases
+- **Hybrid systems**: Combine learned patterns + explicit rules
+- **Explainability**: Surface similar cases that influenced decision
+
+**Training:**
+
+- **Metric learning**: Entities with similar outcomes close in embedding space (see @sec-siamese-networks)
+- **Multi-task**: Predict multiple outcomes jointly (default, LTV, churn)
+- **Temporal**: Weight recent cases higher (concept drift)
+- **Fairness**: Constrain to prevent disparate impact
+
+**Production:**
+
+- **Low latency**: <100ms for real-time decisions (credit cards, pricing)
+- **Confidence thresholds**: Route low-confidence to humans
+- **Rule compliance**: Hard constraints for regulations
+- **Monitoring**: Track decision quality, fairness metrics
+- **Feedback loops**: Continuously add outcomes to case database
+
+**Challenges:**
+
+- **Cold start**: No historical cases for new scenarios
+- **Distribution shift**: Decisions change underlying distribution
+- **Adversarial**: Bad actors game the system
+- **Fairness**: Embeddings can encode bias from historical data
+:::
+
+### Industry Applications of Business Rules
+
+Each industry applies embedding-driven rules differently:
+
+- **Financial Services** (@sec-financial-services): Credit decisions, fraud rules, trading limits
+- **Healthcare** (@sec-healthcare-life-sciences): Treatment protocols, clinical decision support
+- **Retail** (@sec-retail-ecommerce): Pricing rules, promotion targeting, inventory allocation
+- **Manufacturing** (@sec-manufacturing-industry40): Quality gates, process parameters, maintenance scheduling
+
+## Key Takeaways
+
+- **Cybersecurity threat hunting with embeddings detects zero-day attacks**: Unlike classifiers limited to known attack patterns, embedding-based systems identify "behavior unlike anything normal," enabling detection of novel threats without prior examples
+
+- **Behavioral anomaly detection learns per-entity baselines**: Sequential models (LSTM, Transformer) over user/device event streams learn individual behavior patterns, flagging account compromise and insider threats through deviation from established patterns
+
+- **Embedding-driven business rules replace brittle if-then logic**: Case-based reasoning retrieves similar historical cases and applies their outcomes, adapting automatically as new cases arrive without retraining, while hybrid systems enforce hard regulatory constraints alongside learned patterns
+
+- **These patterns apply universally across all industries**: Every organization faces cyber threats, has users whose behavior should be monitored, and makes decisions that can benefit from embeddings—subsequent industry chapters build on these foundations
+
+- **Online learning is critical for production systems**: Attackers evolve tactics, user behavior changes, business conditions shift—systems must incrementally update embeddings and thresholds to avoid degrading accuracy over time
+
+- **Explainability enables adoption**: High false positive rates create user friction and alert fatigue, requiring feature attribution to help analysts understand anomalies and progressive authentication to balance security and usability
+
+## Looking Ahead
+
+With cross-industry patterns established, the following chapters explore industry-specific applications:
+
+- @sec-financial-services applies these patterns to trading, credit risk, and regulatory compliance, adding fraud detection and risk scoring specific to financial services
+- @sec-healthcare-life-sciences addresses patient safety, clinical decision support, and medical data security
+- @sec-retail-ecommerce covers dynamic pricing, inventory optimization, and customer journey analysis
+- @sec-manufacturing-industry40 explores quality control, predictive maintenance, and supply chain optimization
+
+## Further Reading
+
+### Cybersecurity and Threat Detection
+- Sommer, Robin, and Vern Paxson (2010). "Outside the Closed World: On Using Machine Learning for Network Intrusion Detection." IEEE S&P.
+- Tuor, Aaron, et al. (2017). "Deep Learning for Unsupervised Insider Threat Detection in Structured Cybersecurity Data Streams." AAAI Workshop.
+- Ding, Kaize, et al. (2019). "Deep Anomaly Detection on Attributed Networks." SDM.
+- Yuan, Shuhan, et al. (2019). "Insider Threat Detection with Deep Neural Network." CODASPY.
+
+### Behavioral Anomaly Detection
+- Xu, Ke, et al. (2018). "Show, Attend and Tell: Neural Image Caption Generation with Visual Attention Applied to Insider Threat Detection." Journal of Wireless Mobile Networks.
+- Das, Sanmitra, et al. (2019). "Online Multimodal Deep Similarity Learning with Application to Insider Threat Detection." ACM TOPS.
+- Legg, Philip A., et al. (2015). "Automated Insider Threat Detection System Using User and Role-Based Profile Assessment." IEEE Systems Journal.
+- Liu, Lin, et al. (2018). "GEM: Graph Embedding for Insider Threat Detection." IEEE BigData.
+
+### Automated Decision Systems
+- Brynjolfsson, Erik, and Andrew McAfee (2017). "The Business of Artificial Intelligence." Harvard Business Review.
+- Kleinberg, Jon, et al. (2018). "Human Decisions and Machine Predictions." Quarterly Journal of Economics.
+- Mullainathan, Sendhil, and Jann Spiess (2017). "Machine Learning: An Applied Econometric Approach." Journal of Economic Perspectives.
+
+### Explainability and Fairness
+- Lundberg, Scott M., and Su-In Lee (2017). "A Unified Approach to Interpreting Model Predictions." NeurIPS.
+- Ribeiro, Marco Tulio, Sameer Singh, and Carlos Guestrin (2016). "Why Should I Trust You? Explaining the Predictions of Any Classifier." KDD.
+- Mehrabi, Ninareh, et al. (2021). "A Survey on Bias and Fairness in Machine Learning." ACM Computing Surveys.

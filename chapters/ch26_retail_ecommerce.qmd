@@ -5,7 +5,7 @@
 Retail and e-commerce—from product discovery to inventory management to customer experience—operate on matching supply with demand, understanding customer preferences, and optimizing operational efficiency. This chapter applies embeddings to retail transformation: product discovery and matching using multi-modal embeddings that understand products from images, text descriptions, and behavioral signals to enable semantic search beyond keyword matching, visual search and style transfer with image embeddings that let customers find products by uploading photos or describing aesthetic preferences, inventory optimization through demand embeddings that forecast stockouts and overstock situations weeks in advance, customer journey analysis via sequential embeddings of touchpoints and interactions that identify friction points and conversion opportunities, and dynamic catalog management using embedding-based product relationships to automatically create collections, recommendations, and merchandising strategies. These techniques transform retail from static catalogs and rule-based recommendations to adaptive, learned representations that capture the full complexity of product semantics, customer preferences, and market dynamics.
 :::
 
-After transforming healthcare systems (@sec-healthcare-life-sciences), embeddings enable **retail and e-commerce innovation** at unprecedented scale. Traditional retail systems rely on keyword search (exact text matching), manual categorization (static taxonomies), demographic segments (age, gender, location), and rule-based recommendations (frequently bought together). **Embedding-based retail systems** represent products, customers, and sessions as vectors, enabling semantic product discovery that understands intent rather than keywords, visual similarity that transcends categorical boundaries, hyper-personalized recommendations based on implicit preference signals, and demand forecasting that learns seasonal patterns and trend dynamics—providing competitive advantages measured in conversion rates, average order values, and customer lifetime value.
+Building on the cross-industry patterns for security and automation (@sec-cross-industry-patterns), embeddings enable **retail and e-commerce innovation** at unprecedented scale. Traditional retail systems rely on keyword search (exact text matching), manual categorization (static taxonomies), demographic segments (age, gender, location), and rule-based recommendations (frequently bought together). **Embedding-based retail systems** represent products, customers, and sessions as vectors, enabling semantic product discovery that understands intent rather than keywords, visual similarity that transcends categorical boundaries, hyper-personalized recommendations based on implicit preference signals, and demand forecasting that learns seasonal patterns and trend dynamics—providing competitive advantages measured in conversion rates, average order values, and customer lifetime value.
 
 ## Product Discovery and Matching
 
@@ -798,6 +798,142 @@ class JourneyAnalyzer(nn.Module):
 - **Attribution**: Which touchpoints caused conversion?
 - **Privacy**: Balance personalization with data protection
 :::
+
+## Dynamic Pricing
+
+Pricing is complex: consider product attributes, customer willingness-to-pay, competitive positioning, inventory levels, time-of-day demand. **Embedding-based dynamic pricing** represents products and customers as vectors, enabling price optimization that considers hundreds of implicit factors.
+
+### The Dynamic Pricing Challenge
+
+Traditional pricing approaches:
+
+- **Cost-plus**: Price = cost × markup (ignores demand)
+- **Competitive**: Match competitor prices (race to bottom)
+- **Segmented**: Fixed tiers (doesn't capture individual WTP)
+- **Regression**: Linear models (misses non-linear patterns)
+
+**Embedding approach**: Learn product embeddings (quality, brand, features) and customer embeddings (purchase history, preferences). Price = f(product_emb, customer_emb, context). See @sec-custom-embedding-strategies for approaches to building these embeddings.
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Dynamic Pricing Engine"
+import torch
+import torch.nn as nn
+import numpy as np
+from dataclasses import dataclass
+from typing import Tuple
+
+
+@dataclass
+class Product:
+    """Product with pricing attributes."""
+    product_id: str
+    category: str
+    brand: str
+    cost: float
+    base_price: float
+    embedding: np.ndarray = None
+
+
+class DemandModel(nn.Module):
+    """Predict purchase probability as function of price."""
+    def __init__(self, embedding_dim: int = 128, context_dim: int = 10):
+        super().__init__()
+        input_dim = embedding_dim * 2 + 1 + context_dim
+        self.demand_predictor = nn.Sequential(
+            nn.Linear(input_dim, 256),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(128, 1),
+            nn.Sigmoid()
+        )
+
+    def forward(self, product_emb, customer_emb, price, context):
+        """Predict purchase probability."""
+        combined = torch.cat([product_emb, customer_emb, price, context], dim=1)
+        purchase_prob = self.demand_predictor(combined)
+        return purchase_prob
+
+
+class DynamicPricingEngine:
+    """Dynamic pricing using embeddings."""
+    def __init__(self, demand_model, min_margin: float = 0.2):
+        self.demand_model = demand_model
+        self.min_margin = min_margin
+
+    def optimize_price(self, product_emb, customer_emb, cost: float,
+                       base_price: float, num_price_points: int = 20) -> Tuple[float, float]:
+        """Optimize price for product-customer pair."""
+        min_price = cost * (1 + self.min_margin)
+        max_price = base_price * 1.2
+        prices = np.linspace(min_price, max_price, num_price_points)
+
+        best_price = None
+        best_profit = -float('inf')
+
+        with torch.no_grad():
+            for price in prices:
+                price_t = torch.tensor([[price]]).float()
+                context_t = torch.zeros(1, 10).float()
+                purchase_prob = self.demand_model(
+                    product_emb, customer_emb, price_t, context_t
+                ).item()
+
+                expected_profit = purchase_prob * (price - cost)
+                if expected_profit > best_profit:
+                    best_profit = expected_profit
+                    best_price = price
+
+        return best_price, best_profit
+
+# Usage example
+demand_model = DemandModel(embedding_dim=128)
+pricing_engine = DynamicPricingEngine(demand_model, min_margin=0.2)
+
+product_emb = torch.randn(1, 128)
+customer_emb = torch.randn(1, 128)
+optimal_price, expected_profit = pricing_engine.optimize_price(
+    product_emb, customer_emb, cost=50.0, base_price=100.0
+)
+print(f"Optimal price: ${optimal_price:.2f}, Expected profit: ${expected_profit:.2f}")
+```
+
+:::{.callout-tip}
+## Dynamic Pricing Best Practices
+
+**Demand modeling:**
+
+- **Price elasticity**: Encode in customer embedding (price sensitivity)
+- **Competitive response**: Monitor competitor prices, adjust accordingly
+- **Temporal patterns**: Time-of-day, day-of-week, seasonality
+- **Inventory pressure**: Increase discount as stock ages
+
+**Optimization:**
+
+- **Expected profit**: price × P(purchase | price) × (price - cost)
+- **Multi-objective**: Balance revenue, margin, market share
+- **Constraints**: Minimum margin, maximum discount, price stability
+- **A/B testing**: Randomized experiments to measure elasticity
+
+**Production:**
+
+- **Real-time**: Recompute prices as conditions change (hourly/daily)
+- **Personalization**: Different prices for different customer segments
+- **Fairness**: Avoid discriminatory pricing (same price for same features)
+- **Transparency**: Explain price changes to customers when asked
+
+**Challenges:**
+
+- **Strategic behavior**: Customers learn to wait for discounts
+- **Fairness**: Personalized pricing can seem unfair
+- **Complexity**: Many factors interact non-linearly
+- **Adverse selection**: Low prices attract low-value customers
+:::
+
 ## Dynamic Catalog Management
 
 Retail catalogs with millions of SKUs require constant curation: which products to feature, how to organize collections, what to cross-sell, which items to discontinue. **Embedding-based dynamic catalog management** automates merchandising decisions by learning product relationships, trend dynamics, and customer preferences to continuously optimize product presentation and inventory composition.

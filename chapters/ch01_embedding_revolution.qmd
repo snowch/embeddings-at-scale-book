@@ -546,7 +546,7 @@ if distance_to_nearest_known_cluster > threshold:
     flag("Novel item detected")  # Works for new product types, unusual behavior, etc.
 ```
 
-This principle applies across domains: detecting novel fraud patterns (@sec-anomaly-detection-security), identifying emerging product categories, flagging unusual user behavior, or discovering new scientific phenomena. The embedding captures "normal" as a geometric region—anything far from that region is worth investigating.
+This principle applies across domains: detecting novel fraud patterns (@sec-cross-industry-patterns), identifying emerging product categories, flagging unusual user behavior, or discovering new scientific phenomena. The embedding captures "normal" as a geometric region—anything far from that region is worth investigating.
 
 ### When Direct Classification Wins
 
@@ -578,7 +578,7 @@ def hybrid_detection(item):
     return "anomaly"  # Far from everything known
 ```
 
-This pattern—embeddings for fast filtering, classifiers for precise decisions—appears throughout this book in fraud detection (@sec-anomaly-detection-security), recommendation systems (@sec-recommendation-systems), and search (@sec-semantic-search).
+This pattern—embeddings for fast filtering, classifiers for precise decisions—appears throughout this book in fraud detection (@sec-financial-services), recommendation systems (@sec-recommendation-systems), and search (@sec-semantic-search).
 
 With this architectural choice clarified, let's explore why embeddings have become the foundation for competitive advantage in modern organizations.
 

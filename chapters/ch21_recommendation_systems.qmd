@@ -554,7 +554,7 @@ print(f"Cross-domain recommendations (movies → books): {recommended_books.toli
 
 ## Looking Ahead
 
-Part IV (Advanced Applications) continues with @sec-anomaly-detection-security, which applies embeddings to anomaly detection and security: fraud detection systems that identify unusual transaction patterns through embedding space outliers, cybersecurity threat hunting using behavioral embeddings of users and network entities, manufacturing quality control with product embeddings for defect detection, financial risk assessment via company and transaction embeddings, and behavioral anomaly detection that flags account compromises and insider threats through deviation from normal embedding patterns.
+Part V (Industry Applications) begins with @sec-cross-industry-patterns, which covers security and automation patterns that apply across all industries: cybersecurity threat hunting, behavioral anomaly detection, and embedding-driven business rules. These cross-cutting concerns form the foundation for the industry-specific chapters that follow.
 
 ## Further Reading
 

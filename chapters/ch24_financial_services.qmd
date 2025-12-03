@@ -5,7 +5,7 @@
 Financial services—from trading to lending to compliance—operate on information asymmetries, market timing, and risk assessment. This chapter applies embeddings to financial services disruption: trading signal generation using embeddings of securities, market conditions, and alternative data to identify opportunities before markets react, credit risk assessment with entity embeddings that encode creditworthiness from traditional and alternative data sources for more accurate underwriting, regulatory compliance automation through document and transaction embeddings that monitor policy adherence and detect violations, customer behavior analysis via embedding-based segmentation that enables personalized products and prevents churn, and market sentiment analysis extracting trading signals from news, social media, and earnings call embeddings. These techniques transform financial services from rule-based systems to learned representations that capture complex market dynamics and customer patterns.
 :::
 
-After building automated decision systems (@sec-automated-decision-systems), embeddings enable **financial services disruption** at scale. Traditional financial systems rely on handcrafted features (P/E ratio, debt-to-income), rigid rules (FICO score > 700), and human judgment (trader intuition, analyst reports). **Embedding-based financial systems** represent securities, customers, transactions, and market conditions as vectors, enabling discovery of non-obvious patterns, transfer learning across markets and products, and real-time adaptation to market regime changes—providing competitive advantages measured in basis points that compound to billions.
+Building on the cross-industry patterns for security and automation (@sec-cross-industry-patterns), embeddings enable **financial services disruption** at scale. Traditional financial systems rely on handcrafted features (P/E ratio, debt-to-income), rigid rules (FICO score > 700), and human judgment (trader intuition, analyst reports). **Embedding-based financial systems** represent securities, customers, transactions, and market conditions as vectors, enabling discovery of non-obvious patterns, transfer learning across markets and products, and real-time adaptation to market regime changes—providing competitive advantages measured in basis points that compound to billions.
 
 ## Trading Signal Generation
 
@@ -130,6 +130,118 @@ class TradingSignalGenerator(nn.Module):
 - **Data quality**: Corporate actions, survivorship bias, look-ahead bias
 - **Market impact**: Large orders move prices, eroding alpha
 - **Competition**: Other quants use similar techniques, alpha decays
+:::
+
+## Fraud Detection
+
+Financial fraud costs billions annually, with attackers constantly evolving tactics. **Embedding-based fraud detection** represents transactions, users, and merchants as vectors, identifying fraud as outliers in learned embedding spaces—detecting both known fraud patterns and novel attacks.
+
+### The Fraud Detection Challenge
+
+Traditional fraud detection faces limitations:
+
+- **Rule-based systems**: Brittle, high false positives, easy to circumvent
+- **Supervised learning**: Requires labeled fraud (rare, expensive), can't detect novel attacks
+- **Feature engineering**: Manual, domain-specific, doesn't capture complex patterns
+
+**Embedding approach**: Learn transaction embeddings capturing behavior patterns. Normal transactions cluster together; fraud transactions lie in sparse regions or form small, distinct clusters. See @sec-custom-embedding-strategies for guidance on building these embeddings.
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Transaction Autoencoder for Fraud Detection"
+import torch
+import torch.nn as nn
+
+
+class TransactionAutoencoder(nn.Module):
+    """Autoencoder for fraud detection via reconstruction error."""
+    def __init__(self, input_dim: int = 128, latent_dim: int = 32):
+        super().__init__()
+        # Encoder
+        self.encoder = nn.Sequential(
+            nn.Linear(input_dim, 64),
+            nn.ReLU(),
+            nn.Linear(64, latent_dim)
+        )
+        # Decoder
+        self.decoder = nn.Sequential(
+            nn.Linear(latent_dim, 64),
+            nn.ReLU(),
+            nn.Linear(64, input_dim)
+        )
+
+    def forward(self, x):
+        """Encode and decode."""
+        latent = self.encoder(x)
+        reconstructed = self.decoder(latent)
+        return latent, reconstructed
+
+    def compute_anomaly_score(self, x):
+        """Compute anomaly score (reconstruction error)."""
+        _, reconstructed = self.forward(x)
+        scores = ((x - reconstructed) ** 2).mean(dim=1)
+        return scores
+
+# Usage example
+model = TransactionAutoencoder(input_dim=128, latent_dim=32)
+
+# Normal transaction
+normal_txn = torch.randn(1, 128) * 0.1
+score_normal = model.compute_anomaly_score(normal_txn)
+print(f"Normal transaction anomaly score: {score_normal.item():.4f}")
+
+# Anomalous transaction
+anomalous_txn = torch.randn(1, 128) * 2.0
+score_anomalous = model.compute_anomaly_score(anomalous_txn)
+print(f"Anomalous transaction score: {score_anomalous.item():.4f}")
+```
+
+:::{.callout-tip}
+## Fraud Detection Best Practices
+
+**Architecture:**
+
+- **Autoencoder approach**: Train on normal transactions, high reconstruction error = fraud
+- **Entity embeddings**: Learn user/merchant representations (fraud users form distinct clusters)
+- **Sequential modeling**: LSTM over transaction history (flag deviations from normal sequence)
+- **Graph embeddings**: Capture money laundering rings (abnormal network patterns)
+
+**Training:**
+
+- **Clean training data**: Remove known fraud from training (autoencoders learn normal patterns only)
+- **Imbalanced data**: Expect 99%+ normal transactions
+- **Online learning**: Update embeddings daily with new normal transactions
+- **Hard negative mining**: Sample edge cases (high-value normal transactions)
+
+**Production:**
+
+- **Latency**: <50ms for real-time blocking
+- **Explainability**: SHAP values on features causing high score
+- **Threshold tuning**: Balance false positives (user friction) vs false negatives (fraud losses)
+- **A/B testing**: Measure impact on fraud reduction and user experience
+:::
+
+:::{.callout-warning}
+## False Positive Management
+
+Fraud detection faces extreme class imbalance (0.1% fraud rate). High false positive rates create user friction:
+
+- Block legitimate transaction → user frustration, lost sales
+- Alert user for verification → abandonment, support costs
+
+**Mitigation strategies:**
+
+- **Two-stage system**: High-recall first stage (flag suspicious), high-precision second stage (human review)
+- **Progressive friction**: Soft decline (ask for additional verification) before hard decline
+- **User whitelist**: Trust established users with consistent behavior
+- **Feedback loop**: Incorporate user feedback (approved flagged transactions)
+
+**Target metrics:**
+
+- Precision: 30-50% (of flagged transactions, 30-50% are actual fraud)
+- Recall: 70-90% (catch 70-90% of fraud)
+- False positive rate: <0.5% (flag <0.5% of normal transactions)
 :::
 
 ## Credit Risk Assessment
