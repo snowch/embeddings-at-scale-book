@@ -39,6 +39,38 @@ if distance_to_nearest_normal_cluster > threshold:
 
 **Embedding approach**: Learn normal behavior embeddings for each user/device. Anomalies = deviation from learned patterns. See @sec-custom-embedding-strategies for approaches to building behavioral embeddings, from fine-tuning pre-trained models to custom architectures.
 
+### Training the Behavioral Embedding Model
+
+Before we can establish baselines for individual users, we need a model that can encode behavioral sequences into meaningful embeddings. There are two distinct training phases:
+
+**Phase 1: Train the encoder model**
+
+The embedding model (like the `UserBehaviorModel` shown below) learns to encode sequences of events into dense vectors. This model is trained on *aggregate* behavioral data—not to detect anomalies, but to create useful representations:
+
+- **Self-supervised learning**: Train the model to predict the next event in a sequence, or to reconstruct masked events. This forces it to learn patterns in normal behavior.
+- **Contrastive learning**: Train the model so that similar behavior sequences (same user, same time period) have similar embeddings, while different behaviors are pushed apart.
+- **Transfer learning**: Start with a pre-trained sequence model and fine-tune on your security logs.
+
+```python
+# Example: Self-supervised training objective
+# Model learns to predict next event from previous events
+def train_step(model, event_sequence):
+    # Input: events 1 to N-1, Target: events 2 to N
+    input_events = event_sequence[:, :-1]
+    target_events = event_sequence[:, 1:]
+
+    # Model learns behavioral patterns by predicting sequences
+    predicted = model(input_events)
+    loss = cross_entropy(predicted, target_events)
+    return loss
+```
+
+The key insight: **the encoder doesn't need labeled attacks to train**. It learns the structure of behavior from unlabeled data. This is why embedding approaches work for zero-day detection—the model understands "normal" without being told what "malicious" looks like.
+
+**Phase 2: Establish per-user baselines**
+
+Once the encoder is trained, we use it to create embeddings for each user's behavior and establish what's normal *for that specific user*. This is where the cold start problem arises.
+
 :::{.callout-important}
 ## Establishing "Normal": The Cold Start Problem
 
