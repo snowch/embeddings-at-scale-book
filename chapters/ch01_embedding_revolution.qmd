@@ -1133,7 +1133,7 @@ Build flexibility into your architecture to exploit these emergent capabilities 
 
 ## ROI Framework for Embedding Investments
 
-How do you estimate ROI before deploying embeddings? Here's a practical framework.
+How do you estimate ROI before deploying embeddings? Here's an example framework.
 
 ### Quantifying Direct Benefits
 
