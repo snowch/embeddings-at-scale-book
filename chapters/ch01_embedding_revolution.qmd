@@ -640,16 +640,27 @@ When faced with a problem like fraud detection, anomaly detection, or semantic s
 
 This is an important architectural question. Both approaches use neural networks, but they solve problems in fundamentally different ways.
 
+![Comparing classification and embedding workflows: classification runs the neural network on every query, while embeddings encode data once and use fast vector search](images/embedding-workflow.svg){#fig-workflow-comparison}
+
 ### The Key Insight: Decoupling Representation from Decision
 
 Here's what makes embeddings powerful: **they separate the expensive neural network computation from the decision-making step**.
 
--   **Classification**: Neural network runs at decision time. Every query pays the full inference cost.
--   **Embeddings**: Neural network runs once at indexing time. Decisions use cheap vector math.
+-   **Classification**: Neural network runs at decision time. Every query pays the full inference cost. Results are limited to predefined categories (e.g., "cat", "dog", "car").
+-   **Embeddings**: Neural network runs once at indexing time. Decisions use cheap vector math. Results capture rich semantic relationships—how *similar* things are, not just what category they belong to.
+
+**Concrete examples:**
+
+| Task | Classification Approach | Embedding Approach |
+|------|------------------------|-------------------|
+| Product search | Categorize into "Electronics", "Clothing", etc., then filter | Find products semantically similar to "wireless headphones for running" |
+| Support tickets | Route to "Billing", "Technical", "Sales" department | Find similar past tickets and their resolutions |
+| Content moderation | Label as "Safe" or "Unsafe" | Measure similarity to known problematic content |
+| Fraud detection | Classify as "Fraud" or "Legitimate" | Find transactions similar to known fraud patterns |
+
+Classification answers "which bucket?" while embeddings answer "how similar?"—a much richer question.
 
 Think of it this way: a classifier is like calling an expert for every question. An embedding is like having the expert write down their knowledge once, then you can consult those notes instantly, forever.
-
-![Comparing classification and embedding workflows: classification runs the neural network on every query, while embeddings encode data once and use fast vector search](images/embedding-workflow.svg){#fig-workflow-comparison}
 
 The embedding *is* the neural network's understanding, frozen into a reusable vector. Once computed, comparing two embeddings is just a dot product—pure math that runs in microseconds, not milliseconds.
 
