@@ -14,6 +14,12 @@ Before we explore why embeddings are revolutionizing industries, let's establish
 
 At their most basic, **embeddings are numerical vectors that represent objects in a continuous multi-dimensional space**. Think of them as coordinates on a map, but instead of just two dimensions (latitude and longitude), embeddings typically use hundreds or thousands of dimensions to capture the nuances of complex objects like words, images, products, or users.
 
+::: {.callout-tip}
+## Terminology: Embeddings = Vectors
+
+The terms "embedding" and "vector" are used interchangeably throughout this book and in the industry. An embedding *is* a vector—a list of numbers like `[0.2, -0.5, 0.8, ...]`. We say "embedding" when emphasizing the semantic meaning captured by the numbers, and "vector" when emphasizing the mathematical operations we perform on them.
+:::
+
 Here's the key insight: in an embedding space, **similarity in meaning corresponds to proximity in geometric space**. Objects that are conceptually related end up close to each other, while unrelated objects are far apart.
 
 ```{python}
@@ -442,7 +448,7 @@ for i, word1 in enumerate(words):
 ::: callout-note
 ## Word Embeddings vs Chunk Embeddings
 
-Early embedding systems like Word2Vec [@mikolov2013efficient; see @sec-word2vec] created one vector per word. Modern RAG systems work differently: they embed **chunks of text**—sentences, paragraphs, or passages—where each chunk receives a single vector that captures its complete semantic meaning. A 512-token paragraph and a 5-word sentence both become 768-dimensional vectors, but the paragraph's vector encodes far richer context. This distinction matters for retrieval systems: you're not searching through word embeddings, you're searching through chunk embeddings. See @sec-text-chunking for detailed coverage of chunking strategies and their impact on retrieval quality.
+Early embedding systems like Word2Vec [@mikolov2013efficient] (see @sec-word2vec) created one vector per word. Modern RAG systems work differently: they embed **chunks of text**—sentences, paragraphs, or passages—where each chunk receives a single vector that captures its complete semantic meaning. A 512-token paragraph and a 5-word sentence both become 768-dimensional vectors, but the paragraph's vector encodes far richer context. This distinction matters for retrieval systems: you're not searching through word embeddings, you're searching through chunk embeddings. See @sec-text-chunking for detailed coverage of chunking strategies and their impact on retrieval quality.
 :::
 
 Now let's put these concepts together into a working system.
@@ -511,12 +517,14 @@ documents = [
     "Machine learning uses neural networks",
     "Cats and dogs are popular pets",
     "Deep learning is a subset of machine learning",
+    "The weather is nice today",
+    "Coffee helps me wake up in the morning",
 ]
 
 search_engine.add_documents(documents)
 
-# Search with semantic understanding
-results = search_engine.search("feline animals")
+# Search with semantic understanding - return top 3 of 8 documents
+results = search_engine.search("feline animals", top_k=3)
 
 # Expected: Cat-related documents rank highest, even though
 # the word "feline" doesn't appear in any document!
@@ -542,7 +550,7 @@ Now that we understand what embeddings are and their key properties, let's exami
 
 ## The Embedding Workflow
 
-Understanding the embedding workflow is essential before we can appreciate why this approach is so powerful. The workflow has two distinct phases: **Index Time** (when we prepare our data) and **Query Time** (when we search).
+Understanding the embedding workflow is essential before we can appreciate why this approach is so powerful. The workflow has two distinct phases: **Index Time** (when we prepare our data) and **Query Time** (when we search). This is exactly what @lst-simple-search-engine implements.
 
 ![The embedding workflow: data is encoded once at index time, then searched efficiently at query time](images/embedding-workflow-only.svg){#fig-embedding-workflow}
 
@@ -554,7 +562,7 @@ During the indexing phase, we process each piece of raw data (text, images, etc.
 
 2. **Encoder** (a neural network like BERT or CLIP) transforms the raw data into a dense vector—the embedding. This is the computationally expensive step, but it only happens once per item.
 
-3. **Embeddings** are stored in a **Vector Database** along with document IDs. The vector database builds an index structure (like HNSW) that enables fast similarity search.
+3. **Embeddings** are stored in a **Vector Database** along with document IDs. The vector database builds an index structure (like HNSW) that enables fast similarity search. See @sec-vector-database-fundamentals for details on how these indexes work.
 
 4. **Document Store** keeps the original content, indexed by the same document IDs. This separation is important: embeddings are for searching, but users want to see the original content.
 
@@ -585,7 +593,7 @@ When a user searches, the query follows a different path:
 
 2. **Encoder** (the same model used at index time) converts the query into an embedding. This ensures queries and documents live in the same vector space.
 
-3. **Query Vector** is compared against all stored embeddings using **ANN Search** (Approximate Nearest Neighbor). This is extremely fast—typically under 1 millisecond even for billions of vectors.
+3. **Search** finds the most similar embeddings to the query. For small datasets, brute-force search compares against every vector. At scale, Approximate Nearest Neighbor (ANN) algorithms find the closest vectors without checking every single one—typically under 1 millisecond even for billions of vectors.
 
 4. **Top-K IDs** are returned: the document IDs of the most similar items, along with their similarity scores.
 
