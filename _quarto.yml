@@ -42,6 +42,7 @@ book:
       chapters:
         - chapters/ch13_embedding_pipeline_engineering.qmd
         - chapters/ch14_scaling_embedding_training.qmd
+        - chapters/ch15_embedding_quality_evaluation.qmd
         - chapters/ch15_high_performance_vector_ops.qmd
         - chapters/ch16_data_engineering.qmd
         - chapters/ch17_text_chunking.qmd

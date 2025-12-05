@@ -393,6 +393,521 @@ print(f"Experiment results: {results}")
 Embeddings can show different effects across user segments. A model might improve recommendations for new users but degrade for power users. Always segment analysis by key user characteristics (tenure, engagement level, device type) to detect heterogeneous treatment effects.
 :::
 
+### Interleaving Experiments
+
+**Interleaving** provides a more sensitive alternative to A/B testing by showing results from both systems on the same result page and measuring user preferences directly. Where A/B tests require large sample sizes to detect small improvements, interleaving experiments can detect the same effect with 10-100x fewer users.
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Team Draft Interleaving implementation"
+import numpy as np
+from typing import List, Tuple
+from dataclasses import dataclass
+
+@dataclass
+class InterleavingResult:
+    """Result of an interleaving experiment."""
+    interleaved_list: List[str]
+    system_a_items: set
+    system_b_items: set
+    attribution: dict  # item_id -> system
+
+class TeamDraftInterleaving:
+    """
+    Team Draft Interleaving for comparing two ranking systems.
+
+    Alternates between systems picking items, like team captains
+    picking players. More sensitive than A/B testing for ranking
+    comparison.
+    """
+
+    def interleave(
+        self,
+        ranking_a: List[str],
+        ranking_b: List[str],
+        length: int = 10
+    ) -> InterleavingResult:
+        """
+        Create interleaved result list using Team Draft algorithm.
+
+        Args:
+            ranking_a: Ranked list from system A
+            ranking_b: Ranked list from system B
+            length: Maximum length of interleaved list
+        """
+        interleaved = []
+        team_a = set()
+        team_b = set()
+        attribution = {}
+
+        ptr_a = 0
+        ptr_b = 0
+
+        while len(interleaved) < length:
+            # Randomly decide which team picks first this round
+            if np.random.random() < 0.5:
+                teams = [('A', ranking_a, team_a), ('B', ranking_b, team_b)]
+            else:
+                teams = [('B', ranking_b, team_b), ('A', ranking_a, team_a)]
+
+            for team_name, ranking, team_set in teams:
+                if len(interleaved) >= length:
+                    break
+
+                # Find next item from this ranking not already in list
+                ptr = ptr_a if team_name == 'A' else ptr_b
+                while ptr < len(ranking) and ranking[ptr] in interleaved:
+                    ptr += 1
+
+                if ptr < len(ranking):
+                    item = ranking[ptr]
+                    interleaved.append(item)
+                    team_set.add(item)
+                    attribution[item] = team_name
+                    ptr += 1
+
+                if team_name == 'A':
+                    ptr_a = ptr
+                else:
+                    ptr_b = ptr
+
+        return InterleavingResult(
+            interleaved_list=interleaved,
+            system_a_items=team_a,
+            system_b_items=team_b,
+            attribution=attribution
+        )
+
+    def compute_preference(
+        self,
+        result: InterleavingResult,
+        clicked_items: List[str]
+    ) -> dict:
+        """
+        Compute system preference based on user clicks.
+
+        Returns which system the user preferred based on clicks.
+        """
+        a_clicks = sum(1 for item in clicked_items if item in result.system_a_items)
+        b_clicks = sum(1 for item in clicked_items if item in result.system_b_items)
+
+        if a_clicks > b_clicks:
+            winner = 'A'
+        elif b_clicks > a_clicks:
+            winner = 'B'
+        else:
+            winner = 'tie'
+
+        return {
+            "system_a_clicks": a_clicks,
+            "system_b_clicks": b_clicks,
+            "winner": winner,
+            "margin": abs(a_clicks - b_clicks)
+        }
+
+
+class InterleavingExperiment:
+    """Run and analyze interleaving experiments."""
+
+    def __init__(self, interleaver: TeamDraftInterleaving):
+        self.interleaver = interleaver
+        self.results = []
+
+    def record_impression(
+        self,
+        query_id: str,
+        ranking_a: List[str],
+        ranking_b: List[str],
+        clicks: List[str]
+    ):
+        """Record a single interleaving impression and clicks."""
+        interleaved = self.interleaver.interleave(ranking_a, ranking_b)
+        preference = self.interleaver.compute_preference(interleaved, clicks)
+
+        self.results.append({
+            "query_id": query_id,
+            "winner": preference["winner"],
+            "a_clicks": preference["system_a_clicks"],
+            "b_clicks": preference["system_b_clicks"]
+        })
+
+    def analyze(self, min_queries: int = 100) -> dict:
+        """Analyze experiment results."""
+        if len(self.results) < min_queries:
+            return {"error": f"Need at least {min_queries} queries"}
+
+        a_wins = sum(1 for r in self.results if r["winner"] == "A")
+        b_wins = sum(1 for r in self.results if r["winner"] == "B")
+        ties = sum(1 for r in self.results if r["winner"] == "tie")
+
+        total_decisive = a_wins + b_wins
+        if total_decisive == 0:
+            return {"error": "No decisive comparisons"}
+
+        # Delta: proportion of wins for B minus wins for A
+        delta = (b_wins - a_wins) / total_decisive
+
+        # Sign test for significance
+        from scipy import stats
+        p_value = stats.binom_test(b_wins, total_decisive, 0.5)
+
+        return {
+            "n_queries": len(self.results),
+            "a_wins": a_wins,
+            "b_wins": b_wins,
+            "ties": ties,
+            "delta": delta,  # Positive = B is better
+            "p_value": p_value,
+            "significant": p_value < 0.05,
+            "winner": "B" if delta > 0 and p_value < 0.05 else ("A" if delta < 0 and p_value < 0.05 else "inconclusive")
+        }
+
+
+# Example
+interleaver = TeamDraftInterleaving()
+
+# Compare two ranking systems
+ranking_a = ["doc_1", "doc_2", "doc_3", "doc_4", "doc_5"]
+ranking_b = ["doc_2", "doc_1", "doc_4", "doc_3", "doc_6"]
+
+result = interleaver.interleave(ranking_a, ranking_b, length=5)
+print(f"Interleaved list: {result.interleaved_list}")
+print(f"System A items: {result.system_a_items}")
+print(f"System B items: {result.system_b_items}")
+
+# Simulate user clicking on doc_2 and doc_4
+clicks = ["doc_2", "doc_4"]
+preference = interleaver.compute_preference(result, clicks)
+print(f"User preference: {preference}")
+```
+
+:::{.callout-tip}
+## When to Use Interleaving vs A/B Testing
+
+**Use interleaving when:**
+
+- Comparing ranking quality of two systems
+- You need faster results (10-100x fewer impressions required)
+- Systems are similar in quality (detecting small differences)
+- User-level randomization isn't critical
+
+**Use A/B testing when:**
+
+- Measuring absolute metrics (conversion rate, revenue)
+- Testing UI changes alongside embedding changes
+- You need user-level consistency for business metrics
+- Testing fundamentally different experiences
+
+**Best practice**: Use interleaving to quickly identify promising embedding models, then validate winners with A/B tests before full deployment.
+:::
+
+### Multi-Armed Bandits for Embedding Selection
+
+**Multi-armed bandits (MABs)** dynamically allocate traffic to better-performing embedding variants during an experiment, reducing the cost of testing inferior models. Unlike A/B tests with fixed allocation, bandits learn and adapt.
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Thompson Sampling Bandit"
+import numpy as np
+from typing import Dict, List
+from dataclasses import dataclass, field
+
+@dataclass
+class BetaArm:
+    """Arm with Beta distribution prior for binary outcomes (clicks)."""
+    successes: int = 1  # Prior: Beta(1,1) = uniform
+    failures: int = 1
+
+    def sample(self) -> float:
+        """Sample from posterior."""
+        return np.random.beta(self.successes, self.failures)
+
+    def update(self, reward: float):
+        """Update posterior with observed reward."""
+        if reward > 0:
+            self.successes += 1
+        else:
+            self.failures += 1
+
+    @property
+    def mean(self) -> float:
+        """Posterior mean."""
+        return self.successes / (self.successes + self.failures)
+
+
+class ThompsonSamplingBandit:
+    """
+    Thompson Sampling for embedding model selection.
+
+    Balances exploration (trying uncertain models) with exploitation
+    (using known-good models) to minimize regret during experimentation.
+    """
+
+    def __init__(self, model_ids: List[str]):
+        self.arms: Dict[str, BetaArm] = {
+            model_id: BetaArm() for model_id in model_ids
+        }
+        self.selection_history = []
+
+    def select_model(self) -> str:
+        """Select model using Thompson Sampling."""
+        samples = {
+            model_id: arm.sample()
+            for model_id, arm in self.arms.items()
+        }
+        selected = max(samples, key=samples.get)
+        self.selection_history.append(selected)
+        return selected
+
+    def record_outcome(self, model_id: str, success: bool):
+        """Record outcome for selected model."""
+        self.arms[model_id].update(1.0 if success else 0.0)
+
+    def get_statistics(self) -> dict:
+        """Get current statistics for all arms."""
+        return {
+            model_id: {
+                "mean": arm.mean,
+                "successes": arm.successes,
+                "failures": arm.failures,
+                "total": arm.successes + arm.failures - 2,  # Subtract prior
+                "selection_rate": self.selection_history.count(model_id) / len(self.selection_history) if self.selection_history else 0
+            }
+            for model_id, arm in self.arms.items()
+        }
+
+    def get_best_model(self) -> str:
+        """Return model with highest posterior mean."""
+        return max(self.arms, key=lambda m: self.arms[m].mean)
+
+
+class UCBBandit:
+    """
+    Upper Confidence Bound (UCB) bandit for embedding selection.
+
+    More deterministic than Thompson Sampling, good for
+    settings where reproducibility matters.
+    """
+
+    def __init__(self, model_ids: List[str], exploration_weight: float = 2.0):
+        self.model_ids = model_ids
+        self.exploration_weight = exploration_weight
+        self.successes = {m: 0 for m in model_ids}
+        self.trials = {m: 0 for m in model_ids}
+        self.total_trials = 0
+
+    def select_model(self) -> str:
+        """Select model using UCB algorithm."""
+        # Ensure each model is tried at least once
+        for model_id in self.model_ids:
+            if self.trials[model_id] == 0:
+                return model_id
+
+        ucb_values = {}
+        for model_id in self.model_ids:
+            mean = self.successes[model_id] / self.trials[model_id]
+            exploration_bonus = np.sqrt(
+                self.exploration_weight * np.log(self.total_trials) / self.trials[model_id]
+            )
+            ucb_values[model_id] = mean + exploration_bonus
+
+        return max(ucb_values, key=ucb_values.get)
+
+    def record_outcome(self, model_id: str, success: bool):
+        """Record outcome."""
+        self.trials[model_id] += 1
+        self.total_trials += 1
+        if success:
+            self.successes[model_id] += 1
+
+    def get_statistics(self) -> dict:
+        return {
+            model_id: {
+                "mean": self.successes[model_id] / max(self.trials[model_id], 1),
+                "trials": self.trials[model_id],
+                "successes": self.successes[model_id]
+            }
+            for model_id in self.model_ids
+        }
+
+
+# Example: Compare embedding models with Thompson Sampling
+np.random.seed(42)
+
+models = ["emb_v1", "emb_v2", "emb_v3"]
+# True click rates (unknown to bandit)
+true_rates = {"emb_v1": 0.10, "emb_v2": 0.12, "emb_v3": 0.11}
+
+bandit = ThompsonSamplingBandit(models)
+
+# Simulate 1000 requests
+for _ in range(1000):
+    selected = bandit.select_model()
+    # Simulate click based on true rate
+    clicked = np.random.random() < true_rates[selected]
+    bandit.record_outcome(selected, clicked)
+
+print("Thompson Sampling Results after 1000 requests:")
+stats = bandit.get_statistics()
+for model_id, s in stats.items():
+    print(f"  {model_id}: mean={s['mean']:.3f}, selected {s['selection_rate']:.1%}, n={s['total']}")
+print(f"Best model: {bandit.get_best_model()}")
+```
+
+:::{.callout-warning}
+## Bandit Caveats for Embedding Experiments
+
+**Delayed rewards**: Embedding quality may not show immediate effects (e.g., conversion happens days after search). Use appropriate attribution windows.
+
+**Non-stationarity**: If embedding quality changes over time (model degradation, seasonal effects), standard bandits may not adapt correctly. Consider windowed or discounted bandits.
+
+**Context matters**: User segments may prefer different embeddings. Consider contextual bandits that condition on user features.
+
+**Compliance**: Some regulatory contexts require fixed allocation (clinical trials). Bandits may not be appropriate for all experiments.
+:::
+
+### Online Learning from Implicit Feedback
+
+Production embedding systems can learn from user interactions continuously, adapting to changing preferences without full retraining.
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show position bias correction"
+import numpy as np
+from typing import List, Tuple
+
+class PositionBiasCorrector:
+    """
+    Correct for position bias in click data.
+
+    Users are more likely to click higher-ranked results regardless
+    of relevance. This class estimates and corrects for position bias
+    to get unbiased relevance signals.
+    """
+
+    def __init__(self, n_positions: int = 10):
+        self.n_positions = n_positions
+        # Initialize position bias estimates (examination probabilities)
+        self.examination_prob = np.ones(n_positions)
+        self.position_clicks = np.zeros(n_positions)
+        self.position_impressions = np.zeros(n_positions)
+
+    def estimate_examination_probability(
+        self,
+        click_data: List[Tuple[int, bool]]  # (position, clicked)
+    ):
+        """
+        Estimate examination probability per position.
+
+        Uses result randomization or swap experiments to estimate
+        how likely users are to examine each position.
+        """
+        for position, clicked in click_data:
+            if position < self.n_positions:
+                self.position_impressions[position] += 1
+                if clicked:
+                    self.position_clicks[position] += 1
+
+        # Simple estimate: CTR at position / max CTR
+        ctrs = np.divide(
+            self.position_clicks,
+            self.position_impressions,
+            where=self.position_impressions > 0,
+            out=np.zeros(self.n_positions)
+        )
+        max_ctr = ctrs.max() if ctrs.max() > 0 else 1
+        self.examination_prob = ctrs / max_ctr
+        self.examination_prob = np.clip(self.examination_prob, 0.01, 1.0)
+
+    def correct_click(
+        self,
+        position: int,
+        clicked: bool
+    ) -> float:
+        """
+        Return position-bias-corrected relevance signal.
+
+        Uses Inverse Propensity Scoring (IPS) to debias clicks.
+        """
+        if position >= self.n_positions:
+            return 0.0
+
+        exam_prob = self.examination_prob[position]
+
+        if clicked:
+            # IPS: upweight clicks at low-examination positions
+            return 1.0 / exam_prob
+        else:
+            # For non-clicks, we can't distinguish "not examined" from
+            # "examined but not relevant". Return 0 for simplicity.
+            return 0.0
+
+    def get_unbiased_relevance_estimates(
+        self,
+        impressions: List[dict]  # [{position, clicked, item_id}, ...]
+    ) -> dict:
+        """
+        Get unbiased relevance estimates per item.
+        """
+        item_relevance = {}
+        item_counts = {}
+
+        for imp in impressions:
+            item_id = imp["item_id"]
+            corrected = self.correct_click(imp["position"], imp["clicked"])
+
+            if item_id not in item_relevance:
+                item_relevance[item_id] = 0
+                item_counts[item_id] = 0
+
+            item_relevance[item_id] += corrected
+            item_counts[item_id] += 1
+
+        # Average corrected relevance
+        return {
+            item_id: item_relevance[item_id] / item_counts[item_id]
+            for item_id in item_relevance
+        }
+
+
+# Example
+np.random.seed(42)
+corrector = PositionBiasCorrector(n_positions=10)
+
+# Simulate click data with position bias
+click_data = []
+for _ in range(10000):
+    position = np.random.randint(0, 10)
+    # Click probability decreases with position
+    true_exam_prob = 1.0 / (1 + position * 0.3)
+    clicked = np.random.random() < true_exam_prob * 0.3  # 30% base CTR if examined
+    click_data.append((position, clicked))
+
+corrector.estimate_examination_probability(click_data)
+print("Estimated examination probabilities:")
+for i, prob in enumerate(corrector.examination_prob):
+    print(f"  Position {i}: {prob:.3f}")
+
+# Correct a click at position 5
+raw_click = 1.0
+corrected = corrector.correct_click(position=5, clicked=True)
+print(f"\nRaw click at position 5: {raw_click}")
+print(f"Corrected (IPS) relevance: {corrected:.2f}")
+```
+
+:::{.callout-tip}
+## Implicit Feedback Best Practices
+
+**Combine multiple signals**: Clicks alone are noisy. Combine with dwell time, add-to-cart, purchases, and returns for robust relevance estimates.
+
+**Use counterfactual evaluation**: Before deploying models trained on biased data, use off-policy evaluation to estimate their true performance.
+
+**Monitor feedback loops**: Models trained on their own predictions can amplify biases. Track diversity metrics and inject exploration to prevent filter bubbles.
+:::
+
 ## Monitoring Embedding Drift and Degradation
 
 Embedding quality degrades over time even without model changes. Data distribution shifts, user behavior evolves, and the corpus grows. **Continuous monitoring** detects degradation before it impacts users, enabling proactive retraining and updates.
@@ -528,6 +1043,8 @@ Embedding quality can degrade gradually without triggering alerts. Complement th
 - **Trend analysis**: Detect slow downward trends even within thresholds
 - **Comparative baselines**: Compare against historical best, not just initial baseline
 - **Canary queries**: Maintain set of "golden queries" that should always perform well
+
+For comprehensive evaluation metrics including intrinsic quality (isotropy, uniformity), retrieval metrics (MAP, NDCG, MRR), human evaluation frameworks, and domain-specific metrics, see @sec-embedding-quality-evaluation.
 :::
 
 ## Key Takeaways

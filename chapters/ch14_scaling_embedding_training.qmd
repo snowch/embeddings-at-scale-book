@@ -732,7 +732,7 @@ print("Spot instance training: 50-90% cost savings with checkpointing")
 
 ## Looking Ahead
 
-This chapter covered the computational techniques for training embedding models at scale. @sec-high-performance-vector-ops shifts focus from training to inference, exploring high-performance vector operations for serving embeddings in production: optimized similarity search algorithms, approximate nearest neighbor (ANN) methods, GPU acceleration for vector operations, memory-mapped storage strategies, and parallel query processing that enables sub-millisecond similarity search across billion-vector indices.
+This chapter covered the computational techniques for training embedding models at scale. @sec-embedding-quality-evaluation addresses a critical question: how do you know if your embeddings are good? We explore intrinsic quality metrics (isotropy, uniformity, alignment), comprehensive retrieval metrics (Recall@K, MAP, NDCG, MRR), human evaluation frameworks, domain-specific metrics, and statistical rigor—providing the measurement foundation for continuous improvement.
 
 ## Further Reading
 

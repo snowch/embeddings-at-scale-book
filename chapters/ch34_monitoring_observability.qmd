@@ -112,6 +112,7 @@ print(f"Quality Report: coherence={report.coherence_score:.3f}, dims_used={repor
 - Over-sample rare but important segments (tail embeddings)
 - Compute expensive metrics on samples, cheap metrics on full data
 - Refresh samples periodically to detect seasonal effects
+- See @sec-evaluation-at-scale for detailed stratified sampling implementations and efficient metric computation at trillion-row scale
 :::
 
 ## Performance Monitoring Dashboards
