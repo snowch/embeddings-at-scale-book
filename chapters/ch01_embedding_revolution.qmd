@@ -182,6 +182,8 @@ Traditional computer systems represent objects discretely. Consider how we might
 **One-hot encoding** (traditional approach):
 
 ```{python}
+#| label: lst-one-hot-encoding
+#| lst-cap: "One-hot encoding treats every word as equally different from every other"
 #| output: false
 #| code-fold: false
 
@@ -203,6 +205,8 @@ one_hot = {
 **Embedding representation** (modern approach):
 
 ```{python}
+#| label: lst-embedding-representation
+#| lst-cap: "Embeddings place similar concepts close together in vector space"
 #| output: false
 #| code-fold: false
 
@@ -233,6 +237,8 @@ This shift from discrete to continuous representations is profound:
 The geometric distance between embeddings reflects semantic similarity:
 
 ```{python}
+#| label: lst-semantic-distance
+#| lst-cap: "Cosine distance measures semantic similarity between embeddings"
 #| code-fold: false
 
 from scipy.spatial.distance import cosine
@@ -261,6 +267,8 @@ This property enables **similarity search**: given a query object, find all simi
 Perhaps the most remarkable property of embeddings is that mathematical operations on vectors correspond to semantic operations on concepts:
 
 ```{python}
+#| label: lst-vector-analogy
+#| lst-cap: "Vector arithmetic on embeddings captures semantic relationships"
 #| code-fold: false
 
 import numpy as np
@@ -310,6 +318,8 @@ This property emerges naturally from how embeddings are trained and enables powe
 Embeddings compress information into dense vectors. A typical embedding uses 768-1024 dimensions to represent complex semantic content. Compare this to one-hot encoding, which requires vocabulary_size dimensions (often 50,000+).
 
 ```{python}
+#| label: lst-dimensionality-comparison
+#| lst-cap: "Embeddings compress information into far fewer dimensions than one-hot encoding"
 #| code-fold: false
 
 # Information density comparison
@@ -383,15 +393,11 @@ We explore each foundational type in depth in @sec-foundational-embedding-types.
 
 **Word Embeddings**
 
-In @lst-word-embedding-basics we used hand-crafted values to illustrate the concept. Here we use a pre-trained sentence transformer model to create real embeddings—we explain how these models learn in @sec-embedding-model-fundamentals:
-
-::: callout-note
-## Word Embeddings vs Chunk Embeddings
-
-Early embedding systems like Word2Vec (2013) created one vector per word. Modern RAG systems work differently: they embed **chunks of text**—sentences, paragraphs, or passages—where each chunk receives a single vector that captures its complete semantic meaning. A 512-token paragraph and a 5-word sentence both become 768-dimensional vectors, but the paragraph's vector encodes far richer context. This distinction matters for retrieval systems: you're not searching through word embeddings, you're searching through chunk embeddings. See @sec-text-chunking for detailed coverage of chunking strategies and their impact on retrieval quality.
-:::
+In @lst-word-embedding-basics we used hand-crafted values to illustrate the concept. Here we use a pre-trained sentence transformer model (`all-MiniLM-L6-v2`) to create real embeddings—we explain how these models learn in @sec-embedding-model-fundamentals:
 
 ```{python}
+#| label: lst-sentence-transformer-words
+#| lst-cap: "Using a pre-trained sentence transformer to create word embeddings"
 #| code-fold: false
 
 """
@@ -427,6 +433,12 @@ for i, word1 in enumerate(words):
             print(f"{word1} ↔ {word2}: {similarities[i][j]:.3f}")
 ```
 
+::: callout-note
+## Word Embeddings vs Chunk Embeddings
+
+Early embedding systems like Word2Vec (2013) created one vector per word. Modern RAG systems work differently: they embed **chunks of text**—sentences, paragraphs, or passages—where each chunk receives a single vector that captures its complete semantic meaning. A 512-token paragraph and a 5-word sentence both become 768-dimensional vectors, but the paragraph's vector encodes far richer context. This distinction matters for retrieval systems: you're not searching through word embeddings, you're searching through chunk embeddings. See @sec-text-chunking for detailed coverage of chunking strategies and their impact on retrieval quality.
+:::
+
 Now let's put these concepts together into a working system.
 
 ### Your First Embedding System
@@ -434,6 +446,8 @@ Now let's put these concepts together into a working system.
 Let's build a simple but complete embedding-based search system:
 
 ```{python}
+#| label: lst-simple-search-engine
+#| lst-cap: "A complete embedding-based semantic search system"
 #| code-fold: false
 
 """
