@@ -904,7 +904,7 @@ This enabled finding documents about similar topics even without shared keywords
 
 **Stage 4: Neural Embeddings (2013-2020)**
 
-Word2Vec (2013) changed everything [@mikolov2013efficient]. Instead of hand-crafted features or statistical correlations, neural networks learned dense vector representations where semantic similarity corresponded to geometric proximity:
+Word2Vec (2013) changed everything [@mikolov2013efficient] (see @sec-word2vec). Instead of hand-crafted features or statistical correlations, neural networks learned dense vector representations where semantic similarity corresponded to geometric proximity:
 
 ``` python
 from gensim.models import Word2Vec
