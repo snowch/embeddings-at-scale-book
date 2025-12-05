@@ -10,13 +10,15 @@ This chapter begins with the fundamentals of what embeddings are and their key p
 
 Before we explore why embeddings are revolutionizing industries, let's establish what embeddings actually are and why they represent such a fundamental shift in how we represent and process information.
 
-### The Core Concept
+### The Core Concept {#sec-core-concept}
 
 At their most basic, **embeddings are numerical vectors that represent objects in a continuous multi-dimensional space**. Think of them as coordinates on a map, but instead of just two dimensions (latitude and longitude), embeddings typically use hundreds or thousands of dimensions to capture the nuances of complex objects like words, images, products, or users.
 
 Here's the key insight: in an embedding space, **similarity in meaning corresponds to proximity in geometric space**. Objects that are conceptually related end up close to each other, while unrelated objects are far apart.
 
 ```{python}
+#| label: lst-word-embedding-basics
+#| lst-cap: "Word embeddings map words to vectors where similar meanings are close together"
 #| echo: true
 #| code-fold: false
 
@@ -332,17 +334,24 @@ This compression is possible because embeddings learn the **intrinsic dimensiona
 
 **4. Learned Representations**
 
-Unlike hand-crafted features, embeddings are **learned from data** using machine learning. The learning process discovers patterns that might not be obvious to humans, automatically capturing the relationships that matter for your specific application.
+Embeddings are **learned from data** using neural networks—you don't manually define what each dimension means. The learning process discovers patterns that might not be obvious to humans, automatically capturing the relationships that matter for your specific application.
 
 ### How Embeddings Are Created
 
-In practice, you have three options for obtaining embeddings:
+Embedding models fall into two architectural categories:
+
+- **Repurposed task models**: Train a neural network for a task (classification, regression, etc.), then remove the final output layer. The second-to-last layer's outputs become embeddings—the network's learned understanding before it produces a result.
+- **Purpose-built embedding models**: Train networks specifically to produce embeddings, using techniques like contrastive learning (CLIP, SimCLR) or autoencoders. These models are designed from the start to output useful representations.
+
+In practice, you have three options for obtaining these models:
 
 - **Pre-trained models** are available for common data types—text, images, audio—and work well out of the box for general purposes.
 - **Fine-tuning** adapts a pre-trained model to your specific domain using your data, improving quality for specialized use cases.
 - **Custom training** builds models from scratch when your data or requirements don't match existing approaches.
 
-Most teams start with pre-trained models and progress to fine-tuning as needs grow. We explore foundational embedding types in @sec-foundational-embedding-types, advanced production patterns in @sec-advanced-embedding-patterns, and the underlying model architectures in @sec-embedding-model-fundamentals.
+Most teams start with pre-trained models and progress to fine-tuning as needs grow.
+
+For deeper coverage: @sec-foundational-embedding-types covers the different data types you can embed (text, images, audio, etc.), @sec-advanced-embedding-patterns covers advanced types like hybrid embeddings and multi-vector representations, and @sec-embedding-model-fundamentals explains the underlying neural network architectures.
 
 ### Types of Embeddings
 
@@ -374,7 +383,7 @@ We explore each foundational type in depth in @sec-foundational-embedding-types.
 
 **Word Embeddings**
 
-Word embeddings map words to vectors, capturing semantic and syntactic relationships. Here we use a pre-trained sentence transformer model—we explain how these models learn in @sec-embedding-model-fundamentals:
+In @lst-word-embedding-basics we used hand-crafted values to illustrate the concept. Here we use a pre-trained sentence transformer model to create real embeddings—we explain how these models learn in @sec-embedding-model-fundamentals:
 
 ::: callout-note
 ## Word Embeddings vs Chunk Embeddings

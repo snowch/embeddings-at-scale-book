@@ -1,4 +1,4 @@
-# Advanced Embedding Patterns {#sec-advanced-embedding-patterns}
+# Advanced Embedding Types {#sec-advanced-embedding-patterns}
 
 ::: callout-note
 ## Chapter Overview
