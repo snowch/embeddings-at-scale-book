@@ -380,7 +380,7 @@ Embeddings can represent virtually any type of data. Here's a landscape of the f
 
 : Foundational embedding types and their applications {.striped}
 
-Each type requires different model architectures and training approaches:
+Each type requires different model architectures and training approaches, for example:
 
 - **Text embeddings** use transformer models (BERT, GPT) trained on language patterns
 - **Image embeddings** use CNNs (ResNet) or Vision Transformers (ViT) trained on visual features
