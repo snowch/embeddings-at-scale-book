@@ -560,11 +560,11 @@ During the indexing phase, we process each piece of raw data (text, images, etc.
 
 1. **Raw Data** enters the system—this could be documents, product descriptions, images, or any content you want to make searchable.
 
-2. **Encoder** (a neural network like BERT or CLIP) transforms the raw data into a dense vector—the embedding. This is the computationally expensive step, but it only happens once per item.
+2. **Encoder** (a neural network like [all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2) or CLIP) transforms the raw data into a dense vector—the embedding. This is the computationally expensive step, but it only happens once per item.
 
 3. **Embeddings** are stored in a **Vector Database** along with document IDs. The vector database builds an index structure (like HNSW) that enables fast similarity search. See @sec-vector-database-fundamentals for details on how these indexes work.
 
-4. **Document Store** keeps the original content, indexed by the same document IDs. This separation is important: embeddings are for searching, but users want to see the original content.
+4. **Document Store** keeps the original content, indexed by the same document IDs. This could be PostgreSQL, MongoDB, S3, a file system, or VAST DataBase. This separation is important: embeddings are for searching, but users want to see the original content.
 
 ```python
 # Index time: runs once per document
