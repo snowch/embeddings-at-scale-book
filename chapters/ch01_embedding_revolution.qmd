@@ -387,13 +387,13 @@ Each type requires different model architectures and training approaches, for ex
 - **Multi-modal embeddings** (like CLIP) align text and images in a shared space
 - **Graph embeddings** use message-passing networks that aggregate neighborhood information
 
-We explore each foundational type in depth in @sec-foundational-embedding-types. Production systems often combine and extend these foundations using advanced patterns—hybrid vectors, multi-vector representations, learned sparse embeddings, and more—which we cover in @sec-advanced-embedding-patterns. The underlying model architectures are explained in @sec-embedding-model-fundamentals.
+We explore each foundational type in depth in @sec-foundational-embedding-types. Production systems often combine and extend these foundations using advanced patterns—hybrid vectors, multi-vector representations, learned sparse embeddings, and more—which we cover in @sec-advanced-embedding-patterns. How embedding models learn these representations is explained in @sec-embedding-model-fundamentals.
 
 ### Embeddings in Action: Concrete Examples
 
 **Word Embeddings**
 
-In @lst-word-embedding-basics we used hand-crafted values to illustrate the concept. Here we use a pre-trained sentence transformer model (`all-MiniLM-L6-v2`) to create real embeddings—we explain how these models learn in @sec-embedding-model-fundamentals:
+In @lst-word-embedding-basics we used hand-crafted values to illustrate the concept. Here we use a pre-trained sentence transformer model ([all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2)) to create real embeddings—we explain how these models learn in @sec-embedding-model-fundamentals:
 
 ```{python}
 #| label: lst-sentence-transformer-words
@@ -421,12 +421,18 @@ model = SentenceTransformer("all-MiniLM-L6-v2")
 words = ["cat", "dog", "puppy", "kitten", "automobile", "car"]
 embeddings = model.encode(words)
 
+# Show what embeddings look like
+print(f"Each embedding has {embeddings.shape[1]} dimensions. Here are the first few:")
+print("(These are latent dimensions - the values won't be human-interpretable)\n")
+for word, emb in zip(words, embeddings):
+    print(f"{word:12} [{emb[0]:+.3f}, {emb[1]:+.3f}, {emb[2]:+.3f}, {emb[3]:+.3f}, {emb[4]:+.3f}, ...]")
+
 # Find similar words
 similarities = cosine_similarity(embeddings)
 
 # 'cat' is most similar to 'kitten'
 # 'automobile' is most similar to 'car'
-print("Similarity matrix:")
+print("\nSimilarity scores:\n")
 for i, word1 in enumerate(words):
     for j, word2 in enumerate(words):
         if i < j:
