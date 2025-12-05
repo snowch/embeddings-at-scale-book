@@ -442,12 +442,12 @@ for i, word1 in enumerate(words):
 ::: callout-note
 ## Word Embeddings vs Chunk Embeddings
 
-Early embedding systems like Word2Vec (2013) created one vector per word. Modern RAG systems work differently: they embed **chunks of text**—sentences, paragraphs, or passages—where each chunk receives a single vector that captures its complete semantic meaning. A 512-token paragraph and a 5-word sentence both become 768-dimensional vectors, but the paragraph's vector encodes far richer context. This distinction matters for retrieval systems: you're not searching through word embeddings, you're searching through chunk embeddings. See @sec-text-chunking for detailed coverage of chunking strategies and their impact on retrieval quality.
+Early embedding systems like Word2Vec [@mikolov2013efficient; see @sec-word2vec] created one vector per word. Modern RAG systems work differently: they embed **chunks of text**—sentences, paragraphs, or passages—where each chunk receives a single vector that captures its complete semantic meaning. A 512-token paragraph and a 5-word sentence both become 768-dimensional vectors, but the paragraph's vector encodes far richer context. This distinction matters for retrieval systems: you're not searching through word embeddings, you're searching through chunk embeddings. See @sec-text-chunking for detailed coverage of chunking strategies and their impact on retrieval quality.
 :::
 
 Now let's put these concepts together into a working system.
 
-### Your First Embedding System
+### A Simple Semantic Search System
 
 Let's build a simple but complete embedding-based search system:
 
