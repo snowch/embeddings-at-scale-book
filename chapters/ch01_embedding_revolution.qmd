@@ -931,11 +931,11 @@ This was revolutionary. Suddenly:
 -   Transfer learning became possible
 -   Semantic relationships were learned, not programmed
 
-The progression from word embeddings (Word2Vec, GloVe) to sentence embeddings (Skip-Thought, InferSent) to document embeddings (Doc2Vec, Universal Sentence Encoder) expanded the scope from words to arbitrarily long text.
+The progression from word embeddings (Word2Vec, GloVe), then later to sentence embeddings (Skip-Thought, InferSent) and document embeddings (Doc2Vec, Universal Sentence Encoder) expanded the scope from words to arbitrarily long text.
 
 **Stage 5: Transformer-Based Contextual Embeddings (2018-Present)**
 
-BERT [@devlin2018bert], GPT, and their descendants brought contextual embeddings—the same word gets different embeddings based on context:
+BERT [@devlin2018bert] (see @sec-transformers-bert) and other transformer models like GPT brought contextual embeddings—the same word gets different embeddings based on context:
 
 ``` python
 from sentence_transformers import SentenceTransformer
@@ -1031,50 +1031,18 @@ Embedding systems exhibit phase transitions at specific scale points:
 
 This specific number appears frequently in next-generation embedding systems. Why?
 
-**Entity Coverage at Global Scale**:
+**Entity Coverage at Global Scale** (illustrative examples):
 
--   8 billion people × 10,000 behavioral vectors each = 80 trillion
--   500 million businesses × 1,000 product/service vectors each = 500 billion
--   100 billion web pages × 100 passage embeddings each = 10 trillion
--   1 trillion images × 10 crop/augmentation embeddings each = 10 trillion
--   100 billion IoT devices × 1,000 time-series snapshots each = 100 trillion
+| Entity Type | Count | Embeddings per Entity | Total |
+|-------------|-------|----------------------|-------|
+| People | 8 billion | 10,000 behavioral vectors | 80 trillion |
+| Businesses | 500 million | 1,000 product/service vectors | 0.5 trillion |
+| Web pages | 100 billion | 100 passage embeddings | 10 trillion |
+| Images | 1 trillion | 10 crop/augmentation embeddings | 10 trillion |
+| IoT devices | 100 billion | 1,000 time-series snapshots | 100 trillion |
+| **Total** | | | **~200 trillion** |
 
-Sum: \~200 trillion potential embeddings for a complete representation of commercial activity globally. 256 trillion (2\^48 rows) is a practical target that provides headroom for growth.
-
-**Storage and Compute Economics**:
-
-*Coming Soon*
-
-**Computational Feasibility**:
-
-Modern vector databases can handle this scale:
-
-``` python
-# Query performance at 256T scale with proper indexing
-index_type = "HNSW"  # Hierarchical Navigable Small World
-num_embeddings = 256 * 10**12
-embedding_dim = 768
-
-# Theoretical complexity
-# HNSW: O(log(N)) for insert and search
-import math
-
-avg_hops = math.log2(num_embeddings)  # ~48 hops
-
-# Practical performance with distributed architecture:
-num_shards = 1000  # Distribute across 1000 nodes
-embeddings_per_shard = num_embeddings / num_shards  # 256B per shard
-shards_to_search = 10  # Parallel search across 10 shards
-
-# Query latency budget (p50, warm cache):
-# - Shard selection: 5ms
-# - Parallel shard search (10 shards): 50ms
-# - Result aggregation: 5ms
-# Total: ~60ms p50 latency
-# Note: p99 latency typically 200-500ms due to network variability and cold cache
-```
-
-With proper distributed architecture, searching 256 trillion embeddings takes milliseconds, not minutes.
+This represents a complete representation of commercial activity globally. 256 trillion (2^48 rows) is a practical target that provides headroom for growth.
 
 ### Strategic Implications
 
@@ -1084,7 +1052,7 @@ Organizations building toward trillion-row scale should think differently:
 
 Don't build for your current 10M embeddings. Build for 10B. The architecture is different:
 
-Wrong: Single-node architecture
+**Wrong:** Single-node architecture
 
 ``` python
 import faiss
@@ -1096,7 +1064,7 @@ index = faiss.IndexFlatL2(dim)  # In-memory only
 index.add(embeddings)
 ```
 
-Right: Distributed-first architecture
+**Right:** Distributed-first architecture
 
 ``` python
 import pyarrow as pa
@@ -1133,15 +1101,16 @@ with session.transaction() as tx:
 
 **2. Invest in Data Infrastructure**
 
-At trillion-row scale, data engineering dominates algorithm choice:
+At trillion-row scale, data engineering and data platform choice dominate algorithm choice:
 
 -   **Data quality**: 1% error rate on 1M embeddings = 10K bad embeddings (manageable). 1% on 1T embeddings = 10B bad embeddings (catastrophic).
 -   **Data lineage**: When an embedding is wrong, you need to trace back to source data, transformation pipeline, model version, training run. At scale, this requires production-grade data infrastructure.
 -   **Data evolution**: Embedding models improve. You need to version, migrate, and AB test new embeddings against old while serving trillion-row production traffic.
+-   **Data platform**: The underlying platform must handle trillion-row vector storage, sub-second similarity search, and seamless scaling—capabilities that define what's possible at this scale.
 
 **3. Build Moats Defensively**
 
-At trillion-row scale, the moat isn't just data volume—it's:
+At trillion-row scale, the moat isn't just data volume and platform—it's:
 
 -   **Validated quality**: Every embedding verified correct
 -   **Operational excellence**: 99.99% uptime at scale
