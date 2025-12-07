@@ -100,6 +100,7 @@ format:
     code-copy: true
     code-overflow: wrap
     code-fold: true
+    anchor-sections: true
     include-after-body: footer.html
 
   pdf:
