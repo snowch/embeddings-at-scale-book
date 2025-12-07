@@ -2,23 +2,3 @@
 .sidebar-title {
   display: none !important;
 }
-
-/* Stable anchor links for h1 chapter headings (uses {#sec-xxx} ids) */
-h1.has-stable-anchor .stable-anchor {
-  opacity: 0;
-  margin-left: 0.5em;
-  text-decoration: none;
-  transition: opacity 0.2s ease;
-}
-
-h1.has-stable-anchor:hover .stable-anchor,
-h1.has-stable-anchor:focus-within .stable-anchor {
-  opacity: 1;
-}
-
-/* Touch device support */
-@media (hover: none) {
-  h1.has-stable-anchor:active .stable-anchor {
-    opacity: 1;
-  }
-}
