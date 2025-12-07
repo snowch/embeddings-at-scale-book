@@ -3,16 +3,22 @@
   display: none !important;
 }
 
-/* Show anchor links on chapter headings (h1) like section headings */
-h1.title .anchor-section-link,
-h1:not(.title) .anchor-section-link,
-.chapter-title .anchor-section-link {
+/* Ensure h1.anchored uses the same anchor link styles as h2+ headings */
+/* The .anchored class is added by our JS to match Quarto's h2+ behavior */
+h1.anchored .anchor-section-link {
   opacity: 0;
   transition: opacity 0.2s ease;
 }
 
-h1.title:hover .anchor-section-link,
-h1:not(.title):hover .anchor-section-link,
-.chapter-title:hover .anchor-section-link {
+h1.anchored:hover .anchor-section-link,
+h1.anchored:focus .anchor-section-link,
+h1.anchored:focus-within .anchor-section-link {
   opacity: 1;
+}
+
+/* On touch devices, show anchor on tap (same as h2+ behavior) */
+@media (hover: none) {
+  h1.anchored:active .anchor-section-link {
+    opacity: 1;
+  }
 }
