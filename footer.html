@@ -12,20 +12,27 @@ document.addEventListener('DOMContentLoaded', function() {
   var h1Elements = document.querySelectorAll('h1');
 
   h1Elements.forEach(function(h1) {
+    // Skip if already has anchored class (like Preface) - Quarto already handles these
+    if (h1.classList.contains('anchored')) {
+      return;
+    }
+
     // Skip if already has an anchor link
     if (h1.querySelector('.anchor-section-link')) {
       return;
     }
 
-    // Try to find an id from multiple sources:
-    // 1. h1 itself
-    // 2. h1's data-anchor-id attribute
-    // 3. Parent section's id
-    // 4. Closest section with id
-    var id = h1.id ||
-             h1.getAttribute('data-anchor-id') ||
-             (h1.parentElement && h1.parentElement.id) ||
-             (h1.closest('section[id]') && h1.closest('section[id]').id);
+    // For chapter pages, the id is on a child span.quarto-section-identifier
+    var sectionIdSpan = h1.querySelector('.quarto-section-identifier[id]');
+    var id = sectionIdSpan ? sectionIdSpan.id : null;
+
+    // Fallback: check other sources
+    if (!id) {
+      id = h1.id ||
+           h1.getAttribute('data-anchor-id') ||
+           (h1.parentElement && h1.parentElement.id) ||
+           (h1.closest('section[id]') && h1.closest('section[id]').id);
+    }
 
     if (id) {
       // Add 'anchored' class to h1 to match Quarto's h2+ behavior
