@@ -7,22 +7,26 @@
 
 <script>
 // Add anchor links to h1 chapter headings (Quarto only adds them to h2+ by default)
-// In Quarto, the id is on the parent <section>, not the <h1> itself:
-// <section id="sec-xxx" class="level1"><h1>Title</h1>...</section>
 document.addEventListener('DOMContentLoaded', function() {
-  // Find all h1 elements inside sections with an id (Quarto's structure)
-  var sections = document.querySelectorAll('section[id].level1');
+  // Find all h1 elements
+  var h1Elements = document.querySelectorAll('h1');
 
-  sections.forEach(function(section) {
-    var h1 = section.querySelector('h1');
-    if (!h1) return;
-
+  h1Elements.forEach(function(h1) {
     // Skip if already has an anchor link
     if (h1.querySelector('.anchor-section-link')) {
       return;
     }
 
-    var id = section.getAttribute('id');
+    // Try to find an id from multiple sources:
+    // 1. h1 itself
+    // 2. h1's data-anchor-id attribute
+    // 3. Parent section's id
+    // 4. Closest section with id
+    var id = h1.id ||
+             h1.getAttribute('data-anchor-id') ||
+             (h1.parentElement && h1.parentElement.id) ||
+             (h1.closest('section[id]') && h1.closest('section[id]').id);
+
     if (id) {
       // Add 'anchored' class to h1 to match Quarto's h2+ behavior
       h1.classList.add('anchored');

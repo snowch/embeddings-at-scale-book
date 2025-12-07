@@ -54,59 +54,14 @@ jobs:
       - name: Install librsvg for SVG to PDF conversion
         run: sudo apt-get update && sudo apt-get install -y librsvg2-bin
 
-      - name: Get commit hash and create footer
+      - name: Get commit hash and update footer
         id: git_commit
         run: |
           COMMIT_HASH=$(git rev-parse --short HEAD)
           echo "GIT_COMMIT_HASH=$COMMIT_HASH" >> $GITHUB_ENV
           echo "COMMIT_HASH=$COMMIT_HASH" >> $GITHUB_OUTPUT
-          # Create footer HTML file with anchor link script for h1 headings
-          cat > footer.html << 'FOOTEREOF'
-          <footer class="book-footer" style="margin-top: 2rem; padding: 1rem 0; border-top: 1px solid #dee2e6; font-size: 0.875rem; color: #6c757d;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <div>Built from commit: <code>COMMIT_PLACEHOLDER</code></div>
-              <div>© 2025 Chris Snow</div>
-            </div>
-          </footer>
-
-          <script>
-          // Add anchor links to h1 chapter headings (Quarto only adds them to h2+ by default)
-          // In Quarto, the id is on the parent <section>, not the <h1> itself:
-          // <section id="sec-xxx" class="level1"><h1>Title</h1>...</section>
-          document.addEventListener('DOMContentLoaded', function() {
-            // Find all h1 elements inside sections with an id (Quarto's structure)
-            var sections = document.querySelectorAll('section[id].level1');
-
-            sections.forEach(function(section) {
-              var h1 = section.querySelector('h1');
-              if (!h1) return;
-
-              // Skip if already has an anchor link
-              if (h1.querySelector('.anchor-section-link')) {
-                return;
-              }
-
-              var id = section.getAttribute('id');
-              if (id) {
-                // Add 'anchored' class to h1 to match Quarto's h2+ behavior
-                h1.classList.add('anchored');
-
-                // Create the anchor link element matching Quarto's structure
-                var anchor = document.createElement('a');
-                anchor.href = '#' + id;
-                anchor.className = 'anchor-section-link';
-                anchor.setAttribute('aria-label', 'Anchor');
-                anchor.innerHTML = '&#128279;'; // Unicode link symbol
-
-                // Append the anchor to the h1
-                h1.appendChild(anchor);
-              }
-            });
-          });
-          </script>
-          FOOTEREOF
-          # Replace placeholder with actual commit hash
-          sed -i "s/COMMIT_PLACEHOLDER/$COMMIT_HASH/g" footer.html
+          # Update footer.html with actual commit hash (footer.html is in repo with script)
+          sed -i "s/\\\$git-commit\\\$/$COMMIT_HASH/g" footer.html
 
       - name: Render Book (all formats)
         env:
