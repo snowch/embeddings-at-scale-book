@@ -24,6 +24,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     var id = section.getAttribute('id');
     if (id) {
+      // Add 'anchored' class to h1 to match Quarto's h2+ behavior
+      h1.classList.add('anchored');
+
       // Create the anchor link element matching Quarto's structure
       var anchor = document.createElement('a');
       anchor.href = '#' + id;
