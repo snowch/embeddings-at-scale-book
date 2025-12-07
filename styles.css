@@ -3,7 +3,3 @@
   display: none !important;
 }
 
-/* Make h1 anchor links always visible (no hover required) */
-h1.anchored .anchor-section-link {
-  opacity: 1;
-}
