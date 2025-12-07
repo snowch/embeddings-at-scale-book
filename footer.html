@@ -4,3 +4,31 @@
     <div>© 2025 Chris Snow</div>
   </div>
 </footer>
+
+<script>
+// Add anchor links to h1 chapter headings (Quarto only adds them to h2+ by default)
+document.addEventListener('DOMContentLoaded', function() {
+  // Find all h1 elements with an id that don't already have an anchor link
+  const h1Elements = document.querySelectorAll('h1[id]');
+
+  h1Elements.forEach(function(h1) {
+    // Skip if already has an anchor link
+    if (h1.querySelector('.anchor-section-link')) {
+      return;
+    }
+
+    const id = h1.getAttribute('id');
+    if (id) {
+      // Create the anchor link element matching Quarto's structure
+      const anchor = document.createElement('a');
+      anchor.href = '#' + id;
+      anchor.className = 'anchor-section-link';
+      anchor.setAttribute('aria-label', 'Anchor');
+      anchor.innerHTML = '&#128279;'; // Unicode link symbol (same as Quarto uses)
+
+      // Append the anchor to the h1
+      h1.appendChild(anchor);
+    }
+  });
+});
+</script>
