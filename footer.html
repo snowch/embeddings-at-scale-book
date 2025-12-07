@@ -4,3 +4,53 @@
     <div>© 2025 Chris Snow</div>
   </div>
 </footer>
+
+<script>
+// Add anchor links to h1 chapter headings (Quarto only adds them to h2+ by default)
+// Uses the stable {#sec-xxx} ids from source, matching AnchorJS styling
+document.addEventListener('DOMContentLoaded', function() {
+  var h1Elements = document.querySelectorAll('h1');
+
+  h1Elements.forEach(function(h1) {
+    // Skip if already has anchored class (Quarto already handles these)
+    if (h1.classList.contains('anchored')) {
+      return;
+    }
+
+    // Skip if already has an anchor link
+    if (h1.querySelector('.anchorjs-link')) {
+      return;
+    }
+
+    // For chapter pages, the id is on a child span.quarto-section-identifier
+    // This is the STABLE id from {#sec-xxx} in the source
+    var sectionIdSpan = h1.querySelector('.quarto-section-identifier[id]');
+    var id = sectionIdSpan ? sectionIdSpan.id : null;
+
+    // Fallback: check other sources
+    if (!id) {
+      id = h1.id ||
+           h1.getAttribute('data-anchor-id') ||
+           (h1.parentElement && h1.parentElement.id) ||
+           (h1.closest('section[id]') && h1.closest('section[id]').id);
+    }
+
+    if (id) {
+      // Add 'anchored' class to enable hover behavior matching h2/h3
+      h1.classList.add('anchored');
+      h1.setAttribute('data-anchor-id', id);
+
+      // Create anchor link matching AnchorJS structure exactly
+      var anchor = document.createElement('a');
+      anchor.href = '#' + id;
+      anchor.className = 'anchorjs-link';
+      anchor.setAttribute('aria-label', 'Anchor');
+      anchor.setAttribute('data-anchorjs-icon', '');
+      anchor.style.cssText = 'font: 1em / 1 anchorjs-icons; margin-left: 0.1875em; padding-right: 0.1875em; padding-left: 0.1875em;';
+
+      // Append the anchor to the h1
+      h1.appendChild(anchor);
+    }
+  });
+});
+</script>
