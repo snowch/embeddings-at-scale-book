@@ -2,3 +2,17 @@
 .sidebar-title {
   display: none !important;
 }
+
+/* Show anchor links on chapter headings (h1) like section headings */
+h1.title .anchor-section-link,
+h1:not(.title) .anchor-section-link,
+.chapter-title .anchor-section-link {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+h1.title:hover .anchor-section-link,
+h1:not(.title):hover .anchor-section-link,
+.chapter-title:hover .anchor-section-link {
+  opacity: 1;
+}
