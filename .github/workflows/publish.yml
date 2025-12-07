@@ -87,6 +87,11 @@ jobs:
       - name: Ensure .nojekyll exists
         run: touch _book/.nojekyll
 
+      - name: Generate section ID map and redirect page
+        run: |
+          ./scripts/generate-section-map.sh _book/section-map.json
+          cp go.html _book/go.html
+
       - name: Convert chapters to Jupyter notebooks
         run: |
           ./scripts/convert-to-notebooks.sh
