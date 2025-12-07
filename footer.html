@@ -47,6 +47,8 @@ document.addEventListener('DOMContentLoaded', function() {
       anchor.setAttribute('aria-label', 'Anchor');
       anchor.setAttribute('data-anchorjs-icon', '');
       anchor.style.cssText = 'font: 1em / 1 anchorjs-icons; margin-left: 0.1875em; padding-right: 0.1875em; padding-left: 0.1875em;';
+      // Add the AnchorJS icon character (U+E001 in anchorjs-icons font = link icon)
+      anchor.textContent = '\uE001';
 
       // Append the anchor to the h1
       h1.appendChild(anchor);
