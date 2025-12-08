@@ -137,7 +137,7 @@ print(f"  Sentence 1 ↔ 3: {cosine_similarity([embeddings[0]], [embeddings[2]])
 
 : Popular text embedding models {.striped}
 
-The sentence-transformers models are built on Sentence-BERT [@reimers2019sentencebert], which adapts BERT for efficient sentence embeddings using siamese networks. MiniLM [@wang2020minilm] uses knowledge distillation for a smaller, faster model, while MPNet [@song2020mpnet] combines masked and permuted language modeling for improved representations.
+See @sec-sentence-transformers for details on how these models are trained.
 
 ### Classification, Clustering, and Sentiment Analysis {#sec-text-classification-clustering}
 
