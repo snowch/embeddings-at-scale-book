@@ -118,7 +118,7 @@ print(f"  Sentence 1 ↔ 3: {cosine_similarity([embeddings[0]], [embeddings[2]])
 - Question answering and RAG systems (see @sec-rag-at-scale)
 - Recommendation systems—content-based filtering (see @sec-recommendation-systems)
 - Chatbots and conversational AI—intent matching, response selection (see @sec-conversational-ai)
-- Text classification, clustering, and sentiment analysis
+- Text classification, clustering, and sentiment analysis (see @sec-text-classification-clustering)
 - Duplicate and near-duplicate detection (see @sec-entity-resolution)
 - Entity resolution—matching names and descriptions (see @sec-entity-resolution)
 - Content moderation—detecting similar problematic content (see @sec-content-moderation)
@@ -136,6 +136,225 @@ print(f"  Sentence 1 ↔ 3: {cosine_similarity([embeddings[0]], [embeddings[2]])
 | text-embedding-3-large | 3072 | API | Best | Maximum quality |
 
 : Popular text embedding models {.striped}
+
+### Classification, Clustering, and Sentiment Analysis {#sec-text-classification-clustering}
+
+Once you have text embeddings, three foundational tasks become straightforward: **classification** (assigning labels), **clustering** (discovering groups), and **sentiment analysis** (a special case of classification). All three leverage the same principle—similar texts have similar embeddings.
+
+**Classification with embeddings:**
+
+Train a simple classifier on top of frozen embeddings, or use nearest-neighbor approaches:
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Text Classifier"
+import numpy as np
+from collections import Counter
+
+
+class EmbeddingClassifier:
+    """Simple k-NN classifier using embeddings."""
+
+    def __init__(self, encoder, k: int = 5):
+        self.encoder = encoder
+        self.k = k
+        self.embeddings = []
+        self.labels = []
+
+    def fit(self, texts: list, labels: list):
+        """Store training examples."""
+        self.embeddings = [self.encoder.encode(text) for text in texts]
+        self.labels = labels
+
+    def predict(self, text: str) -> str:
+        """Predict label using k-NN."""
+        query_emb = self.encoder.encode(text)
+
+        # Calculate distances to all training examples
+        distances = []
+        for i, emb in enumerate(self.embeddings):
+            dist = np.dot(query_emb, emb) / (np.linalg.norm(query_emb) * np.linalg.norm(emb))
+            distances.append((dist, self.labels[i]))
+
+        # Get k nearest neighbors
+        distances.sort(reverse=True)
+        k_nearest = [label for _, label in distances[: self.k]]
+
+        # Return most common label
+        return Counter(k_nearest).most_common(1)[0][0]
+
+
+# Example: Sentiment classification
+class MockEncoder:
+    def encode(self, text):
+        np.random.seed(hash(text) % 2**32)
+        return np.random.randn(384)
+
+
+classifier = EmbeddingClassifier(MockEncoder(), k=3)
+classifier.fit(
+    texts=["Great product!", "Loved it", "Terrible", "Waste of money", "Amazing quality"],
+    labels=["positive", "positive", "negative", "negative", "positive"],
+)
+print(f"Prediction: {classifier.predict('This is wonderful!')}")
+```
+
+**Clustering with embeddings:**
+
+Discover natural groups in your data using standard clustering algorithms:
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Text Clustering"
+import numpy as np
+from typing import List, Dict
+
+
+class EmbeddingClusterer:
+    """K-means clustering on text embeddings."""
+
+    def __init__(self, encoder, n_clusters: int = 3):
+        self.encoder = encoder
+        self.n_clusters = n_clusters
+        self.centroids = None
+
+    def fit(self, texts: List[str], max_iters: int = 100):
+        """Cluster texts and return assignments."""
+        embeddings = np.array([self.encoder.encode(text) for text in texts])
+
+        # Initialize centroids randomly
+        indices = np.random.choice(len(embeddings), self.n_clusters, replace=False)
+        self.centroids = embeddings[indices].copy()
+
+        for _ in range(max_iters):
+            # Assign points to nearest centroid
+            assignments = []
+            for emb in embeddings:
+                distances = [np.linalg.norm(emb - c) for c in self.centroids]
+                assignments.append(np.argmin(distances))
+
+            # Update centroids
+            new_centroids = []
+            for i in range(self.n_clusters):
+                cluster_points = embeddings[np.array(assignments) == i]
+                if len(cluster_points) > 0:
+                    new_centroids.append(cluster_points.mean(axis=0))
+                else:
+                    new_centroids.append(self.centroids[i])
+
+            self.centroids = np.array(new_centroids)
+
+        return assignments
+
+    def get_cluster_examples(self, texts: List[str], assignments: List[int]) -> Dict[int, List[str]]:
+        """Group texts by cluster."""
+        clusters = {i: [] for i in range(self.n_clusters)}
+        for text, cluster_id in zip(texts, assignments):
+            clusters[cluster_id].append(text)
+        return clusters
+
+
+# Example: Topic discovery
+texts = [
+    "The stock market rose today",
+    "Investors are optimistic about tech",
+    "The basketball game was exciting",
+    "Football season starts next week",
+    "New AI model breaks records",
+    "Machine learning advances continue",
+]
+
+clusterer = EmbeddingClusterer(MockEncoder(), n_clusters=3)
+assignments = clusterer.fit(texts)
+clusters = clusterer.get_cluster_examples(texts, assignments)
+for cluster_id, examples in clusters.items():
+    print(f"Cluster {cluster_id}: {examples[:2]}")
+```
+
+**Sentiment analysis:**
+
+Sentiment is classification with polarity labels. For nuanced analysis, use the embedding's position relative to sentiment anchors:
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Sentiment Analyzer"
+import numpy as np
+from typing import Tuple
+
+
+class SentimentAnalyzer:
+    """Embedding-based sentiment analysis using anchor texts."""
+
+    def __init__(self, encoder):
+        self.encoder = encoder
+        # Anchor texts define the sentiment space
+        positive_anchors = ["excellent", "amazing", "wonderful", "fantastic", "love it"]
+        negative_anchors = ["terrible", "awful", "horrible", "hate it", "worst ever"]
+
+        # Compute anchor centroids
+        self.positive_centroid = np.mean(
+            [encoder.encode(t) for t in positive_anchors], axis=0
+        )
+        self.negative_centroid = np.mean(
+            [encoder.encode(t) for t in negative_anchors], axis=0
+        )
+
+    def analyze(self, text: str) -> Tuple[str, float]:
+        """
+        Return sentiment label and confidence score.
+        Score ranges from -1 (negative) to +1 (positive).
+        """
+        emb = self.encoder.encode(text)
+
+        # Cosine similarity to each centroid
+        pos_sim = np.dot(emb, self.positive_centroid) / (
+            np.linalg.norm(emb) * np.linalg.norm(self.positive_centroid)
+        )
+        neg_sim = np.dot(emb, self.negative_centroid) / (
+            np.linalg.norm(emb) * np.linalg.norm(self.negative_centroid)
+        )
+
+        # Score: positive if closer to positive centroid
+        score = pos_sim - neg_sim
+        label = "positive" if score > 0 else "negative"
+        confidence = abs(score)
+
+        return label, confidence
+
+
+# Example usage
+analyzer = SentimentAnalyzer(MockEncoder())
+for text in ["This product exceeded expectations!", "Complete waste of money"]:
+    label, conf = analyzer.analyze(text)
+    print(f"'{text[:30]}...' -> {label} ({conf:.2f})")
+```
+
+:::{.callout-tip}
+## Classification and Clustering Best Practices
+
+**For classification:**
+
+- **Few-shot is often enough**: With good embeddings, 10-50 examples per class often suffices
+- **k-NN for simplicity**: No training required, just store examples
+- **Logistic regression for speed**: Train a simple linear classifier on embeddings
+- **Fine-tune for best quality**: When you have thousands of examples, fine-tune the embedding model itself (see @sec-custom-embedding-strategies)
+
+**For clustering:**
+
+- **Choose k carefully**: Use elbow method or silhouette scores to find optimal cluster count
+- **HDBSCAN for unknown k**: Automatically determines cluster count and handles outliers
+- **Reduce dimensions first**: For visualization, use UMAP or t-SNE on embeddings
+- **Label clusters post-hoc**: Examine cluster members to assign meaningful names
+
+**For sentiment:**
+
+- **Domain matters**: Financial sentiment differs from product reviews—use domain-specific anchors
+- **Beyond binary**: Use multiple anchors (joy, anger, sadness) for fine-grained emotion detection
+- **Aspect-based**: Extract aspects first ("battery life", "screen quality"), then analyze sentiment per aspect
+:::
 
 ## Image Embeddings {#sec-image-embedding-types}
 
