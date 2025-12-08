@@ -145,7 +145,7 @@ Once you have text embeddings, three foundational tasks become straightforward: 
 
 **Classification with embeddings:**
 
-Train a simple classifier on top of frozen embeddings, or use nearest-neighbor approaches:
+Train a simple classifier on top of frozen embeddings, or use nearest-neighbor approaches. The k-NN (k-nearest neighbors) method shown below works as follows: during training, embed each text and store the embedding alongside its label. To predict a new text's label, embed it, find the k training embeddings most similar to it (using cosine similarity), and return the most common label among those neighbors.
 
 ```{python}
 #| echo: true
