@@ -114,17 +114,17 @@ print(f"  Sentence 1 ↔ 3: {cosine_similarity([embeddings[0]], [embeddings[2]])
 
 **When to use text embeddings:**
 
-- Semantic search—finding documents by meaning (see @sec-semantic-search)
-- Question answering and RAG systems (see @sec-rag-at-scale)
-- Recommendation systems—content-based filtering (see @sec-recommendation-systems)
-- Chatbots and conversational AI—intent matching, response selection (see @sec-conversational-ai)
 - Text classification, clustering, and sentiment analysis (see @sec-text-classification-clustering)
+- Question answering and RAG systems (see @sec-rag-at-scale)
+- Chatbots and conversational AI—intent matching, response selection (see @sec-conversational-ai)
+- Summarization—finding representative sentences (see @sec-embedding-summarization)
+- Semantic search—finding documents by meaning (see @sec-semantic-search)
+- Recommendation systems—content-based filtering (see @sec-recommendation-systems)
+- Customer support—ticket routing, finding similar issues (see @sec-cross-industry-patterns)
+- Content moderation—detecting similar problematic content (see @sec-content-moderation)
 - Duplicate and near-duplicate detection (see @sec-entity-resolution)
 - Entity resolution—matching names and descriptions (see @sec-entity-resolution)
-- Content moderation—detecting similar problematic content (see @sec-content-moderation)
-- Customer support—ticket routing, finding similar issues (see @sec-cross-industry-patterns)
 - Machine translation—cross-lingual embeddings (see @sec-defense-intelligence)
-- Summarization—finding representative sentences (see @sec-embedding-summarization)
 
 **Popular models:**
 
