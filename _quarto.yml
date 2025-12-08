@@ -10,7 +10,9 @@ lang: en
 book:
   title: "Embeddings at Scale"
   subtitle: "A Comprehensive Tutorial for Disruptive Organizations"
-  author: "Chris Snow"
+  author:
+    name: "Chris Snow"
+    url: "https://snowch.github.io/"
   date: today
   sidebar:
     style: docked
