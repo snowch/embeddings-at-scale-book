@@ -919,6 +919,375 @@ print(f"Discovery results: {len(results)} documents")
 - **Legal**: Case files, contracts, correspondence, privilege review
 - **Government**: FOIA requests, classification levels, records management
 
+## Content Moderation {#sec-content-moderation}
+
+Every platform with user-generated content faces moderation challenges—detecting harmful content at scale while minimizing false positives that frustrate legitimate users. **Embedding-based content moderation** learns semantic patterns rather than relying on keyword blocklists, catching variations and novel violations that rule-based systems miss.
+
+### The Content Moderation Challenge
+
+Traditional moderation relies on keyword lists and explicit rules:
+
+```python
+# Rule-based moderation: brittle and easily evaded
+blocked_words = ['spam', 'scam', 'buy now']
+
+def simple_filter(text):
+    text_lower = text.lower()
+    for word in blocked_words:
+        if word in text_lower:
+            return "blocked"
+    return "allowed"
+
+# Easily evaded
+print(simple_filter("Buy n0w for great deals!"))  # "allowed" - evades filter
+print(simple_filter("B.u" + ".y" + " now!!!"))    # "allowed" - evades filter
+```
+
+**Limitations of rule-based systems:**
+
+- **Evasion**: Users substitute characters ("s.p" + ".a.m"), use synonyms, or encode meaning in images
+- **Context blindness**: "Kill it!" means something different in gaming vs threats
+- **Scale**: Cannot manually create rules for all harmful content variations
+- **False positives**: Overly broad rules block legitimate content (the "Scunthorpe problem")
+
+**Embedding advantage**: Learn semantic meaning, not surface patterns. Similar harmful content maps to similar vectors regardless of spelling variations or phrasing.
+
+### Semantic Similarity-Based Moderation
+
+Embed known violations and flag content semantically similar to them:
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Content Moderator"
+import numpy as np
+from dataclasses import dataclass
+from typing import List, Tuple, Optional
+
+
+@dataclass
+class ViolationExample:
+    """Known content violation for similarity matching."""
+    text: str
+    category: str  # spam, hate, harassment, etc.
+    severity: str  # low, medium, high
+    embedding: Optional[np.ndarray] = None
+
+
+class ContentModerator:
+    """Embedding-based content moderation system."""
+
+    def __init__(self, encoder, violation_examples: List[ViolationExample]):
+        self.encoder = encoder
+        self.examples = violation_examples
+        self._compute_embeddings()
+
+    def _compute_embeddings(self):
+        """Pre-compute embeddings for all violation examples."""
+        for example in self.examples:
+            example.embedding = self.encoder.encode(example.text)
+
+    def moderate(self, content: str, threshold: float = 0.75) -> Tuple[str, Optional[str], float]:
+        """
+        Check content against known violations.
+
+        Returns: (decision, category, confidence)
+        - decision: 'allow', 'review', 'block'
+        - category: violation category if flagged
+        - confidence: similarity score
+        """
+        content_embedding = self.encoder.encode(content)
+
+        best_match = None
+        best_score = -1
+
+        for example in self.examples:
+            if example.embedding is not None:
+                # Cosine similarity
+                score = np.dot(content_embedding, example.embedding) / (
+                    np.linalg.norm(content_embedding) * np.linalg.norm(example.embedding)
+                )
+                if score > best_score:
+                    best_score = score
+                    best_match = example
+
+        # Decision thresholds
+        if best_score >= threshold:
+            if best_match.severity == 'high':
+                return 'block', best_match.category, best_score
+            else:
+                return 'review', best_match.category, best_score
+        elif best_score >= threshold - 0.15:  # Gray zone
+            return 'review', best_match.category if best_match else None, best_score
+        else:
+            return 'allow', None, best_score
+
+    def find_similar_violations(self, content: str, k: int = 3) -> List[Tuple[ViolationExample, float]]:
+        """Find most similar known violations for human review."""
+        content_embedding = self.encoder.encode(content)
+
+        scored = []
+        for example in self.examples:
+            if example.embedding is not None:
+                score = np.dot(content_embedding, example.embedding) / (
+                    np.linalg.norm(content_embedding) * np.linalg.norm(example.embedding)
+                )
+                scored.append((example, score))
+
+        scored.sort(key=lambda x: x[1], reverse=True)
+        return scored[:k]
+
+
+# Example usage with mock encoder
+class MockEncoder:
+    def encode(self, text):
+        np.random.seed(hash(text) % 2**32)
+        return np.random.randn(384)
+
+encoder = MockEncoder()
+violations = [
+    ViolationExample("Buy now! Limited time offer! Click here!", "spam", "medium"),
+    ViolationExample("You're an idiot and I hate you", "harassment", "high"),
+    ViolationExample("Send me your password and credit card", "phishing", "high"),
+    ViolationExample("This product is amazing! 5 stars! Buy it!", "fake_review", "low"),
+]
+
+moderator = ContentModerator(encoder, violations)
+decision, category, confidence = moderator.moderate("Click here for amazing deals!")
+print(f"Decision: {decision}, Category: {category}, Confidence: {confidence:.3f}")
+```
+
+### Multi-Category Classification
+
+For comprehensive moderation, classify content into multiple harm categories:
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Multi-Category Classifier"
+from dataclasses import dataclass, field
+from typing import List, Dict, Optional
+import numpy as np
+
+
+@dataclass
+class ModerationCategory:
+    """Content moderation category with policy examples."""
+    name: str
+    description: str
+    examples: List[str]
+    action: str  # 'block', 'warn', 'label'
+    centroid: Optional[np.ndarray] = None
+
+
+class MultiCategoryModerator:
+    """Classify content into multiple harm categories."""
+
+    def __init__(self, encoder, categories: List[ModerationCategory]):
+        self.encoder = encoder
+        self.categories = categories
+        self._compute_centroids()
+
+    def _compute_centroids(self):
+        """Compute centroid embedding for each category."""
+        for category in self.categories:
+            if category.examples:
+                embeddings = [self.encoder.encode(ex) for ex in category.examples]
+                category.centroid = np.mean(embeddings, axis=0)
+
+    def classify(self, content: str) -> Dict[str, float]:
+        """
+        Return probability scores for each harm category.
+        """
+        content_embedding = self.encoder.encode(content)
+        scores = {}
+
+        for category in self.categories:
+            if category.centroid is not None:
+                # Cosine similarity as "probability"
+                score = np.dot(content_embedding, category.centroid) / (
+                    np.linalg.norm(content_embedding) * np.linalg.norm(category.centroid)
+                )
+                # Normalize to 0-1 range
+                scores[category.name] = max(0, (score + 1) / 2)
+
+        return scores
+
+    def get_action(self, content: str, threshold: float = 0.7) -> Tuple[str, List[str]]:
+        """
+        Determine moderation action based on category scores.
+
+        Returns: (action, flagged_categories)
+        """
+        scores = self.classify(content)
+        flagged = []
+        max_action = 'allow'
+
+        action_priority = {'allow': 0, 'label': 1, 'warn': 2, 'block': 3}
+
+        for category in self.categories:
+            if scores.get(category.name, 0) >= threshold:
+                flagged.append(category.name)
+                if action_priority[category.action] > action_priority[max_action]:
+                    max_action = category.action
+
+        return max_action, flagged
+
+
+# Example usage
+categories = [
+    ModerationCategory(
+        "spam", "Commercial spam and promotional content",
+        ["Buy now! Limited offer!", "Click here for free money!", "You won a prize!"],
+        "label"
+    ),
+    ModerationCategory(
+        "hate_speech", "Content targeting protected groups",
+        ["I hate all [group]", "[Group] should be eliminated", "[Group] are subhuman"],
+        "block"
+    ),
+    ModerationCategory(
+        "harassment", "Personal attacks and bullying",
+        ["You're worthless", "Nobody likes you", "Go away loser"],
+        "warn"
+    ),
+    ModerationCategory(
+        "misinformation", "False health or safety claims",
+        ["Vaccines cause autism", "5G causes COVID", "Drink bleach to cure disease"],
+        "label"
+    ),
+]
+
+multi_moderator = MultiCategoryModerator(encoder, categories)
+action, flagged = multi_moderator.get_action("Amazing offer! Click now for free prizes!")
+print(f"Action: {action}, Flagged categories: {flagged}")
+```
+
+### Context-Aware Moderation
+
+The same words mean different things in different contexts. Embedding-based systems can incorporate context:
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Context-Aware Moderator"
+from dataclasses import dataclass
+from typing import Optional, Tuple
+import numpy as np
+
+
+@dataclass
+class ContentContext:
+    """Context for content being moderated."""
+    platform: str  # 'gaming', 'professional', 'kids', etc.
+    content_type: str  # 'chat', 'post', 'comment', 'review'
+    user_history_score: float  # 0-1, prior violations
+    thread_topic: Optional[str] = None
+
+
+class ContextAwareModerator:
+    """Moderation that considers context."""
+
+    def __init__(self, encoder, base_moderator):
+        self.encoder = encoder
+        self.base_moderator = base_moderator
+
+        # Context-specific thresholds
+        self.platform_thresholds = {
+            'kids': 0.5,       # Very strict
+            'professional': 0.6,
+            'general': 0.7,
+            'gaming': 0.8,     # More lenient for competitive language
+            'adult': 0.85,
+        }
+
+    def moderate_with_context(self, content: str, context: ContentContext) -> Tuple[str, float, str]:
+        """
+        Moderate content considering context.
+
+        Returns: (decision, confidence, explanation)
+        """
+        # Get base moderation score
+        base_decision, category, confidence = self.base_moderator.moderate(content, threshold=0.5)
+
+        # Adjust threshold based on platform
+        threshold = self.platform_thresholds.get(context.platform, 0.7)
+
+        # Stricter for users with violation history
+        if context.user_history_score > 0.5:
+            threshold -= 0.1
+
+        # More lenient for certain content types
+        if context.content_type == 'review' and category == 'spam':
+            threshold += 0.1  # Reviews often have promotional language
+
+        # Make decision with adjusted threshold
+        if confidence >= threshold:
+            decision = 'block' if confidence > threshold + 0.15 else 'review'
+            explanation = f"Flagged as {category} (score: {confidence:.2f}, threshold: {threshold:.2f})"
+        else:
+            decision = 'allow'
+            explanation = f"Below threshold (score: {confidence:.2f}, threshold: {threshold:.2f})"
+
+        return decision, confidence, explanation
+
+
+# Example usage
+context_moderator = ContextAwareModerator(encoder, moderator)
+
+# Same content, different contexts
+content = "You're going down! I'll destroy you!"
+
+gaming_context = ContentContext(platform='gaming', content_type='chat', user_history_score=0.0)
+kids_context = ContentContext(platform='kids', content_type='chat', user_history_score=0.0)
+
+gaming_result = context_moderator.moderate_with_context(content, gaming_context)
+kids_result = context_moderator.moderate_with_context(content, kids_context)
+
+print(f"Gaming platform: {gaming_result[0]} - {gaming_result[2]}")
+print(f"Kids platform: {kids_result[0]} - {kids_result[2]}")
+```
+
+:::{.callout-tip}
+## Content Moderation Best Practices
+
+**System Design:**
+
+- **Layered approach**: Fast embedding filter → detailed classifier → human review queue
+- **Category-specific models**: Train separate models for spam, hate speech, harassment, etc.
+- **Continuous updates**: Add new violation examples as patterns evolve
+- **Appeal workflows**: Allow users to contest decisions with human review
+
+**Threshold Tuning:**
+
+- **Context-aware thresholds**: Stricter for kids platforms, more lenient for adult spaces
+- **User reputation**: Lower thresholds for repeat offenders
+- **Content type**: Reviews vs chats vs posts have different norms
+- **A/B testing**: Measure impact of threshold changes on false positive/negative rates
+
+**Scale Considerations:**
+
+- **Pre-filter with fast models**: Use lightweight embeddings for initial screening
+- **Batch processing**: Embed content in batches for throughput
+- **Caching**: Cache embeddings for frequently reported content
+- **Distributed review**: Route flagged content to appropriate review teams
+
+**Avoiding Bias:**
+
+- **Diverse training data**: Ensure examples cover different dialects, languages, cultures
+- **Regular audits**: Check for disparate impact across user demographics
+- **False positive analysis**: Track which groups are disproportionately affected
+- **Human-in-the-loop**: Human review for edge cases prevents systematic errors
+:::
+
+### Industry Applications of Content Moderation
+
+- **Social Media**: Post and comment moderation, hate speech detection, misinformation labeling
+- **E-commerce** (@sec-retail-ecommerce): Fake review detection, prohibited item listings, seller fraud
+- **Gaming**: Chat moderation, toxic behavior detection, cheating communication
+- **Enterprise**: Internal communications compliance, data loss prevention, policy violations
+- **Education**: Student safety, bullying detection, inappropriate content in learning platforms
+
 ## Key Takeaways
 
 - **Cybersecurity threat hunting with embeddings detects zero-day attacks**: Unlike classifiers limited to known attack patterns, embedding-based systems identify "behavior unlike anything normal," enabling detection of novel threats without prior examples
@@ -938,6 +1307,8 @@ print(f"Discovery results: {len(results)} documents")
 - **Competitive intelligence scales through embedding-based monitoring**: Trend detection identifies emerging clusters in news and patent filings, while competitor tracking measures strategic shifts through embedding trajectory analysis across millions of documents
 
 - **Document classification enables automated compliance at scale**: Embedding similarity to labeled exemplars provides consistent classification across billions of documents, with automated retention policies and semantic search for e-discovery reducing legal risk and review costs
+
+- **Content moderation with embeddings catches semantic violations that keywords miss**: Similarity-based detection flags harmful content regardless of spelling variations or phrasing, while context-aware thresholds balance user experience across different platforms and content types
 
 ## Looking Ahead
 

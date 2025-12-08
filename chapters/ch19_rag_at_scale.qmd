@@ -580,6 +580,573 @@ print(f"Query routed and retrieved {len(results)} documents")
 - Solution: Use semantic contradiction detection, not just exact mismatches
 :::
 
+## Conversational AI and Chatbots {#sec-conversational-ai}
+
+RAG powers modern conversational AI systems—customer service bots, internal assistants, and domain-specific copilots. **Embedding-based chatbots** move beyond scripted responses to semantic understanding: matching user intent to relevant knowledge, maintaining conversation context, and generating grounded responses.
+
+### Intent Classification with Embeddings
+
+Traditional chatbots use keyword matching or rule-based intent classification. Embedding-based systems understand semantic intent:
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Intent Classifier"
+import numpy as np
+from dataclasses import dataclass
+from typing import List, Tuple
+
+
+@dataclass
+class Intent:
+    """Chatbot intent with example utterances."""
+    name: str
+    description: str
+    examples: List[str]
+    embedding: np.ndarray = None  # Centroid of example embeddings
+
+
+class IntentClassifier:
+    """Embedding-based intent classification for chatbots."""
+
+    def __init__(self, intents: List[Intent], encoder):
+        self.intents = intents
+        self.encoder = encoder
+        self._compute_intent_embeddings()
+
+    def _compute_intent_embeddings(self):
+        """Compute centroid embedding for each intent from examples."""
+        for intent in self.intents:
+            if intent.examples:
+                example_embeddings = [self.encoder.encode(ex) for ex in intent.examples]
+                intent.embedding = np.mean(example_embeddings, axis=0)
+
+    def classify(self, user_message: str, threshold: float = 0.5) -> Tuple[str, float]:
+        """Classify user message into intent with confidence score."""
+        message_embedding = self.encoder.encode(user_message)
+
+        best_intent = None
+        best_score = -1
+
+        for intent in self.intents:
+            if intent.embedding is not None:
+                # Cosine similarity
+                score = np.dot(message_embedding, intent.embedding) / (
+                    np.linalg.norm(message_embedding) * np.linalg.norm(intent.embedding)
+                )
+                if score > best_score:
+                    best_score = score
+                    best_intent = intent.name
+
+        if best_score < threshold:
+            return "unknown", best_score
+
+        return best_intent, best_score
+
+    def get_similar_examples(self, user_message: str, k: int = 3) -> List[Tuple[str, str, float]]:
+        """Find most similar training examples for few-shot prompting."""
+        message_embedding = self.encoder.encode(user_message)
+
+        all_examples = []
+        for intent in self.intents:
+            for example in intent.examples:
+                example_embedding = self.encoder.encode(example)
+                score = np.dot(message_embedding, example_embedding) / (
+                    np.linalg.norm(message_embedding) * np.linalg.norm(example_embedding)
+                )
+                all_examples.append((intent.name, example, score))
+
+        all_examples.sort(key=lambda x: x[2], reverse=True)
+        return all_examples[:k]
+
+
+# Example usage with mock encoder
+class MockEncoder:
+    def encode(self, text):
+        # In production, use sentence-transformers or similar
+        np.random.seed(hash(text) % 2**32)
+        return np.random.randn(384)
+
+encoder = MockEncoder()
+intents = [
+    Intent("order_status", "Check order status", ["Where is my order?", "Track my package", "Order status"]),
+    Intent("return_request", "Request a return", ["I want to return this", "How do I return?", "Return policy"]),
+    Intent("product_info", "Product information", ["Tell me about this product", "Product specs", "Features"]),
+]
+
+classifier = IntentClassifier(intents, encoder)
+intent, confidence = classifier.classify("When will my package arrive?")
+print(f"Intent: {intent}, Confidence: {confidence:.3f}")
+```
+
+### Conversation Context Management
+
+Chatbots must maintain context across conversation turns. Embeddings enable **semantic context windows** that retrieve relevant conversation history:
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Conversation Manager"
+from dataclasses import dataclass, field
+from typing import List, Optional
+import numpy as np
+
+
+@dataclass
+class ConversationTurn:
+    """Single turn in conversation."""
+    role: str  # "user" or "assistant"
+    content: str
+    embedding: Optional[np.ndarray] = None
+    timestamp: float = 0.0
+
+
+@dataclass
+class ConversationContext:
+    """Manages conversation history with semantic retrieval."""
+    turns: List[ConversationTurn] = field(default_factory=list)
+    max_turns: int = 50
+
+    def add_turn(self, role: str, content: str, encoder, timestamp: float = 0.0):
+        """Add a turn to conversation history."""
+        embedding = encoder.encode(content)
+        turn = ConversationTurn(role=role, content=content, embedding=embedding, timestamp=timestamp)
+        self.turns.append(turn)
+
+        # Trim old turns if needed
+        if len(self.turns) > self.max_turns:
+            self.turns = self.turns[-self.max_turns:]
+
+    def get_relevant_context(self, current_query: str, encoder, k: int = 5) -> List[ConversationTurn]:
+        """Retrieve most relevant previous turns for current query."""
+        if not self.turns:
+            return []
+
+        query_embedding = encoder.encode(current_query)
+
+        # Score each turn by relevance
+        scored_turns = []
+        for i, turn in enumerate(self.turns[:-1]):  # Exclude current turn
+            if turn.embedding is not None:
+                similarity = np.dot(query_embedding, turn.embedding) / (
+                    np.linalg.norm(query_embedding) * np.linalg.norm(turn.embedding)
+                )
+                # Boost recent turns slightly
+                recency_boost = 0.1 * (i / len(self.turns))
+                scored_turns.append((turn, similarity + recency_boost))
+
+        # Sort by score and return top-k
+        scored_turns.sort(key=lambda x: x[1], reverse=True)
+        return [turn for turn, score in scored_turns[:k]]
+
+    def build_context_prompt(self, current_query: str, encoder, max_tokens: int = 2000) -> str:
+        """Build context string for LLM prompt."""
+        relevant = self.get_relevant_context(current_query, encoder)
+
+        context_parts = []
+        token_estimate = 0
+
+        for turn in relevant:
+            turn_text = f"{turn.role}: {turn.content}"
+            turn_tokens = len(turn_text.split()) * 1.3  # Rough token estimate
+
+            if token_estimate + turn_tokens > max_tokens:
+                break
+
+            context_parts.append(turn_text)
+            token_estimate += turn_tokens
+
+        return "\n".join(context_parts)
+
+
+# Example usage
+context = ConversationContext()
+encoder = MockEncoder()
+
+context.add_turn("user", "I ordered a laptop last week", encoder)
+context.add_turn("assistant", "I can help you track your laptop order. What's your order number?", encoder)
+context.add_turn("user", "It's ORDER-12345", encoder)
+context.add_turn("assistant", "Order ORDER-12345 shipped yesterday and should arrive Friday.", encoder)
+context.add_turn("user", "What about the warranty?", encoder)
+
+# Retrieve relevant context for warranty question
+relevant = context.get_relevant_context("What about the warranty?", encoder, k=3)
+print(f"Retrieved {len(relevant)} relevant turns for warranty question")
+```
+
+### Response Selection vs Generation
+
+Chatbots can either **select** from pre-written responses or **generate** new ones. Embeddings enable hybrid approaches:
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Hybrid Response System"
+from dataclasses import dataclass
+from typing import List, Optional, Tuple
+import numpy as np
+
+
+@dataclass
+class CannedResponse:
+    """Pre-written response for common queries."""
+    id: str
+    intent: str
+    response: str
+    embedding: Optional[np.ndarray] = None
+
+
+class HybridResponseSystem:
+    """Combines response selection with RAG-based generation."""
+
+    def __init__(self, canned_responses: List[CannedResponse], encoder,
+                 selection_threshold: float = 0.85):
+        self.responses = canned_responses
+        self.encoder = encoder
+        self.selection_threshold = selection_threshold
+        self._compute_response_embeddings()
+
+    def _compute_response_embeddings(self):
+        """Pre-compute embeddings for canned responses."""
+        for response in self.responses:
+            response.embedding = self.encoder.encode(response.response)
+
+    def get_response(self, user_query: str, intent: str) -> Tuple[str, str]:
+        """
+        Get response for user query.
+        Returns (response_text, method) where method is 'selected' or 'generated'.
+        """
+        query_embedding = self.encoder.encode(user_query)
+
+        # Find best matching canned response for this intent
+        best_response = None
+        best_score = -1
+
+        for response in self.responses:
+            if response.intent == intent and response.embedding is not None:
+                score = np.dot(query_embedding, response.embedding) / (
+                    np.linalg.norm(query_embedding) * np.linalg.norm(response.embedding)
+                )
+                if score > best_score:
+                    best_score = score
+                    best_response = response
+
+        # If high confidence match, use canned response
+        if best_score >= self.selection_threshold and best_response:
+            return best_response.response, "selected"
+
+        # Otherwise, would trigger RAG generation (placeholder)
+        return f"[Generated response for: {user_query}]", "generated"
+
+
+# Example usage
+responses = [
+    CannedResponse("r1", "order_status", "You can track your order at example.com/track"),
+    CannedResponse("r2", "return_request", "Returns are accepted within 30 days. Visit example.com/returns"),
+    CannedResponse("r3", "product_info", "Our products come with a 1-year warranty."),
+]
+
+system = HybridResponseSystem(responses, MockEncoder())
+response, method = system.get_response("How do I track my package?", "order_status")
+print(f"Response ({method}): {response}")
+```
+
+:::{.callout-tip}
+## Conversational AI Best Practices
+
+**Intent Classification:**
+
+- **Few-shot examples**: 5-10 examples per intent is often sufficient with good embeddings
+- **Hierarchical intents**: Parent → child classification for complex domains
+- **Fallback handling**: Route low-confidence queries to human agents or clarification
+- **Active learning**: Log low-confidence queries for labeling and model improvement
+
+**Context Management:**
+
+- **Semantic retrieval**: Don't just use last N turns—retrieve semantically relevant history
+- **Entity tracking**: Maintain extracted entities (order numbers, product names) across turns
+- **Session boundaries**: Clear context appropriately between sessions
+- **Privacy**: Exclude sensitive information from context retrieval
+
+**Response Strategy:**
+
+- **Canned for compliance**: Use pre-written responses for legal, safety, policy questions
+- **Generated for flexibility**: Use RAG for complex, context-dependent queries
+- **Hybrid routing**: Classify query type to select response strategy
+- **Guardrails**: Always validate generated responses before sending
+:::
+
+## Embedding-Based Summarization {#sec-embedding-summarization}
+
+Summarization with embeddings identifies **representative content**—selecting sentences or passages that best capture document meaning. Unlike generative summarization, embedding-based approaches are extractive, selecting existing text rather than generating new text.
+
+### Representative Sentence Selection
+
+The core idea: sentences with embeddings closest to the document centroid are most representative:
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Extractive Summarizer"
+from dataclasses import dataclass
+from typing import List
+import numpy as np
+
+
+@dataclass
+class Sentence:
+    """Sentence with embedding."""
+    text: str
+    embedding: np.ndarray
+    position: int  # Position in original document
+
+
+class ExtractiveSummarizer:
+    """Embedding-based extractive summarization."""
+
+    def __init__(self, encoder):
+        self.encoder = encoder
+
+    def summarize(self, document: str, num_sentences: int = 3,
+                  diversity_weight: float = 0.3) -> List[str]:
+        """
+        Extract representative sentences from document.
+
+        Args:
+            document: Input text
+            num_sentences: Number of sentences to extract
+            diversity_weight: Balance between relevance (0) and diversity (1)
+        """
+        # Split into sentences (simplified)
+        raw_sentences = [s.strip() for s in document.replace('!', '.').replace('?', '.').split('.') if s.strip()]
+
+        if len(raw_sentences) <= num_sentences:
+            return raw_sentences
+
+        # Compute embeddings
+        sentences = []
+        for i, text in enumerate(raw_sentences):
+            embedding = self.encoder.encode(text)
+            sentences.append(Sentence(text=text, embedding=embedding, position=i))
+
+        # Compute document centroid
+        all_embeddings = np.array([s.embedding for s in sentences])
+        centroid = np.mean(all_embeddings, axis=0)
+
+        # Select sentences using MMR (Maximal Marginal Relevance)
+        selected = []
+        remaining = sentences.copy()
+
+        for _ in range(num_sentences):
+            best_sentence = None
+            best_score = -float('inf')
+
+            for sentence in remaining:
+                # Relevance: similarity to centroid
+                relevance = np.dot(sentence.embedding, centroid) / (
+                    np.linalg.norm(sentence.embedding) * np.linalg.norm(centroid)
+                )
+
+                # Diversity: dissimilarity to already selected sentences
+                if selected:
+                    max_sim_to_selected = max(
+                        np.dot(sentence.embedding, s.embedding) / (
+                            np.linalg.norm(sentence.embedding) * np.linalg.norm(s.embedding)
+                        )
+                        for s in selected
+                    )
+                    diversity = 1 - max_sim_to_selected
+                else:
+                    diversity = 1
+
+                # MMR score
+                score = (1 - diversity_weight) * relevance + diversity_weight * diversity
+
+                if score > best_score:
+                    best_score = score
+                    best_sentence = sentence
+
+            if best_sentence:
+                selected.append(best_sentence)
+                remaining.remove(best_sentence)
+
+        # Return in original document order
+        selected.sort(key=lambda s: s.position)
+        return [s.text for s in selected]
+
+    def summarize_multi_document(self, documents: List[str], num_sentences: int = 5) -> List[str]:
+        """Summarize multiple documents by finding representative sentences across all."""
+        all_sentences = []
+
+        for doc_idx, document in enumerate(documents):
+            raw_sentences = [s.strip() for s in document.replace('!', '.').replace('?', '.').split('.') if s.strip()]
+            for i, text in enumerate(raw_sentences):
+                embedding = self.encoder.encode(text)
+                all_sentences.append(Sentence(text=text, embedding=embedding, position=i + doc_idx * 1000))
+
+        if len(all_sentences) <= num_sentences:
+            return [s.text for s in all_sentences]
+
+        # Compute global centroid
+        all_embeddings = np.array([s.embedding for s in all_sentences])
+        centroid = np.mean(all_embeddings, axis=0)
+
+        # Score by distance to centroid
+        scores = []
+        for sentence in all_sentences:
+            score = np.dot(sentence.embedding, centroid) / (
+                np.linalg.norm(sentence.embedding) * np.linalg.norm(centroid)
+            )
+            scores.append((sentence, score))
+
+        scores.sort(key=lambda x: x[1], reverse=True)
+        return [s.text for s, _ in scores[:num_sentences]]
+
+
+# Example usage
+summarizer = ExtractiveSummarizer(MockEncoder())
+document = """
+Machine learning has transformed how we process data.
+Deep learning models can recognize patterns in images and text.
+Neural networks require large amounts of training data.
+Transfer learning allows models to leverage pre-trained knowledge.
+Embeddings represent data as dense vectors for similarity computation.
+"""
+summary = summarizer.summarize(document, num_sentences=2)
+print(f"Summary ({len(summary)} sentences):")
+for s in summary:
+    print(f"  - {s}")
+```
+
+### Cluster-Based Summarization
+
+For longer documents, cluster sentences first, then select representatives from each cluster:
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Cluster-Based Summarizer"
+from typing import List, Dict
+import numpy as np
+
+
+class ClusterSummarizer:
+    """Cluster-based summarization for long documents."""
+
+    def __init__(self, encoder):
+        self.encoder = encoder
+
+    def summarize(self, document: str, num_clusters: int = 3) -> List[str]:
+        """
+        Summarize by clustering sentences and selecting cluster representatives.
+        """
+        # Split and embed sentences
+        raw_sentences = [s.strip() for s in document.replace('!', '.').replace('?', '.').split('.') if s.strip()]
+
+        if len(raw_sentences) <= num_clusters:
+            return raw_sentences
+
+        embeddings = np.array([self.encoder.encode(s) for s in raw_sentences])
+
+        # Simple k-means clustering
+        centroids = self._kmeans(embeddings, num_clusters)
+
+        # Assign sentences to clusters
+        clusters: Dict[int, List[tuple]] = {i: [] for i in range(num_clusters)}
+        for i, (sentence, embedding) in enumerate(zip(raw_sentences, embeddings)):
+            distances = [np.linalg.norm(embedding - c) for c in centroids]
+            cluster_id = np.argmin(distances)
+            clusters[cluster_id].append((sentence, embedding, i))
+
+        # Select representative from each cluster (closest to centroid)
+        representatives = []
+        for cluster_id, members in clusters.items():
+            if not members:
+                continue
+
+            centroid = centroids[cluster_id]
+            best_sentence = min(
+                members,
+                key=lambda x: np.linalg.norm(x[1] - centroid)
+            )
+            representatives.append((best_sentence[0], best_sentence[2]))  # text, position
+
+        # Return in document order
+        representatives.sort(key=lambda x: x[1])
+        return [text for text, _ in representatives]
+
+    def _kmeans(self, embeddings: np.ndarray, k: int, max_iters: int = 100) -> np.ndarray:
+        """Simple k-means clustering."""
+        # Initialize centroids randomly
+        indices = np.random.choice(len(embeddings), k, replace=False)
+        centroids = embeddings[indices].copy()
+
+        for _ in range(max_iters):
+            # Assign points to nearest centroid
+            assignments = []
+            for emb in embeddings:
+                distances = [np.linalg.norm(emb - c) for c in centroids]
+                assignments.append(np.argmin(distances))
+
+            # Update centroids
+            new_centroids = []
+            for i in range(k):
+                cluster_points = embeddings[np.array(assignments) == i]
+                if len(cluster_points) > 0:
+                    new_centroids.append(cluster_points.mean(axis=0))
+                else:
+                    new_centroids.append(centroids[i])
+
+            new_centroids = np.array(new_centroids)
+
+            # Check convergence
+            if np.allclose(centroids, new_centroids):
+                break
+
+            centroids = new_centroids
+
+        return centroids
+
+
+# Example
+cluster_summarizer = ClusterSummarizer(MockEncoder())
+long_doc = """
+The economy grew by 3% this quarter. Employment rates improved significantly.
+New technology startups raised record funding. AI companies led the investment surge.
+Climate change policies face opposition. Environmental groups demand stronger action.
+Sports teams prepare for the championship. Fans eagerly await the final matches.
+"""
+summary = cluster_summarizer.summarize(long_doc, num_clusters=3)
+print(f"Cluster-based summary:")
+for s in summary:
+    print(f"  - {s}")
+```
+
+:::{.callout-tip}
+## Summarization Best Practices
+
+**Extraction Strategy:**
+
+- **MMR for diversity**: Avoid selecting redundant sentences
+- **Position bias**: First/last sentences often contain key information
+- **Length normalization**: Don't over-favor short or long sentences
+- **Cluster-based**: For long documents, cluster then select representatives
+
+**Quality Considerations:**
+
+- **Coherence**: Selected sentences should flow logically
+- **Coverage**: Summary should cover main topics, not just one aspect
+- **Redundancy**: Remove near-duplicate information
+- **Context preservation**: Include enough context for sentences to be understandable
+
+**Scale Considerations:**
+
+- **Pre-compute embeddings**: For document collections, embed once and reuse
+- **Hierarchical summarization**: Summarize sections, then summarize summaries
+- **Incremental updates**: For streaming documents, maintain running summaries
+- **Caching**: Cache summaries for frequently accessed documents
+:::
+
 ## Key Takeaways
 
 - **RAG combines retrieval and generation for grounded LLM responses**: Retrieving relevant context from vector databases enables accurate answers over billion-document corpora while maintaining attribution and enabling real-time knowledge updates
@@ -595,6 +1162,10 @@ print(f"Query routed and retrieved {len(results)} documents")
 - **Contradiction handling enables navigating disagreements in knowledge bases**: Temporal resolution (prefer recent), source authority weighting (prefer credible), and multi-perspective presentation handle conflicts when sources disagree
 
 - **Production RAG demands comprehensive engineering**: Caching, batching, circuit breakers, monitoring, A/B testing, and continuous evaluation separate research prototypes from production systems serving millions of users
+
+- **Conversational AI leverages embeddings for semantic intent matching**: Embedding-based chatbots classify user intent from examples, retrieve semantically relevant conversation history, and combine canned responses with generated content for appropriate flexibility and compliance
+
+- **Embedding-based summarization extracts representative content**: Centroid-based selection and MMR diversity ensure summaries capture key information without redundancy, while cluster-based approaches handle long documents by selecting representatives from each topic cluster
 
 ## Looking Ahead
 

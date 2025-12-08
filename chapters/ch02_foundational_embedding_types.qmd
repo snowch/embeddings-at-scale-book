@@ -10,12 +10,16 @@ This chapter provides a comprehensive tour of foundational embedding types acros
 
 Every type of data can be converted to embeddings, but different data types require different approaches. The key insight is that **the embedding architecture must match the structure of your data**:
 
-- Sequential data (text, audio, time-series) needs models that capture ordering
-- Spatial data (images, video) needs models that capture local patterns
-- Relational data (graphs) needs models that aggregate neighborhood information
-- Multi-modal data needs models that align different representations
+- **Text** (words, sentences, documents): Transformer models capture context and semantic meaning
+- **Images**: CNNs and Vision Transformers capture spatial patterns and visual features
+- **Audio** (speech, music, sounds): Spectral models process frequency patterns over time
+- **Video**: Temporal models combine frame-level features with motion understanding
+- **Multi-modal** (text + images): Alignment models map different modalities to a shared space
+- **Graphs** (networks, relationships): Message-passing models aggregate neighborhood information
+- **Time-series** (sensors, sequences): Recurrent and convolutional models capture temporal patterns
+- **Code** (programs, functions): Specialized models understand syntax and program semantics
 
-Let's explore each major embedding type in depth.
+Let's explore each embedding type in depth.
 
 ## Text Embeddings {#sec-text-embedding-types}
 
@@ -110,11 +114,17 @@ print(f"  Sentence 1 ↔ 3: {cosine_similarity([embeddings[0]], [embeddings[2]])
 
 **When to use text embeddings:**
 
-- Semantic search (finding documents by meaning)
-- Question answering and RAG systems
-- Text classification and clustering
-- Duplicate detection
-- Sentiment analysis
+- Semantic search—finding documents by meaning (see @sec-semantic-search)
+- Question answering and RAG systems (see @sec-rag-at-scale)
+- Recommendation systems—content-based filtering (see @sec-recommendation-systems)
+- Chatbots and conversational AI—intent matching, response selection (see @sec-conversational-ai)
+- Text classification, clustering, and sentiment analysis
+- Duplicate and near-duplicate detection (see @sec-entity-resolution)
+- Entity resolution—matching names and descriptions (see @sec-entity-resolution)
+- Content moderation—detecting similar problematic content (see @sec-content-moderation)
+- Customer support—ticket routing, finding similar issues (see @sec-cross-industry-patterns)
+- Machine translation—cross-lingual embeddings (see @sec-defense-intelligence)
+- Summarization—finding representative sentences (see @sec-embedding-summarization)
 
 **Popular models:**
 
