@@ -173,7 +173,7 @@ class EmbeddingClassifier:
         """Predict label using k-NN."""
         query_emb = self.encoder.encode(text)
 
-        # Calculate distances to all training examples
+        # Cosine similarity: (A · B) / (||A|| × ||B||)
         distances = []
         for i, emb in enumerate(self.embeddings):
             dist = np.dot(query_emb, emb) / (np.linalg.norm(query_emb) * np.linalg.norm(emb))
@@ -201,7 +201,43 @@ print(f"Prediction: {classifier.predict('This is wonderful!')}")
 
 **Clustering with embeddings:**
 
-Discover natural groups in your data using standard clustering algorithms:
+Clustering discovers natural groups in your data without predefined labels. Since similar texts have similar embeddings, texts on the same topic will cluster together in embedding space.
+
+K-means is a popular clustering algorithm. You specify k (the number of clusters), and the algorithm finds k groups by positioning a *centroid* (center point) for each cluster. Each text belongs to the cluster whose centroid is closest to its embedding.
+
+The algorithm works as follows: first, embed all texts. Then pick k random embeddings as initial centroids—the algorithm needs starting points before it can begin refining. Next, iterate until convergence: (1) assign each embedding to its nearest centroid (measured by Euclidean distance), and (2) update each centroid to be the mean of its assigned embeddings. The algorithm converges when assignments stop changing.
+
+```{python}
+#| echo: false
+#| label: fig-kmeans-clustering
+#| fig-cap: "K-means clustering in 2D embedding space. Points are colored by cluster assignment, with centroids marked as X."
+import matplotlib.pyplot as plt
+import numpy as np
+
+np.random.seed(42)
+
+# Generate sample clusters
+cluster1 = np.random.randn(15, 2) * 0.5 + [2, 2]
+cluster2 = np.random.randn(15, 2) * 0.5 + [-1, -1]
+cluster3 = np.random.randn(15, 2) * 0.5 + [2, -1.5]
+points = np.vstack([cluster1, cluster2, cluster3])
+
+# Compute centroids
+centroids = np.array([cluster1.mean(axis=0), cluster2.mean(axis=0), cluster3.mean(axis=0)])
+
+# Assign colors
+colors = ['#4C72B0'] * 15 + ['#DD8452'] * 15 + ['#55A868'] * 15
+
+fig, ax = plt.subplots(figsize=(6, 5))
+ax.scatter(points[:, 0], points[:, 1], c=colors, s=60, alpha=0.7)
+ax.scatter(centroids[:, 0], centroids[:, 1], c=['#4C72B0', '#DD8452', '#55A868'],
+           s=200, marker='X', edgecolors='black', linewidths=2)
+ax.set_xlabel('Embedding dimension 1')
+ax.set_ylabel('Embedding dimension 2')
+ax.set_title('K-means: 3 clusters with centroids')
+plt.tight_layout()
+plt.show()
+```
 
 ```{python}
 #| echo: true
@@ -223,7 +259,7 @@ class EmbeddingClusterer:
         """Cluster texts and return assignments."""
         embeddings = np.array([self.encoder.encode(text) for text in texts])
 
-        # Initialize centroids randomly
+        # Initialize centroids by picking k random embeddings as starting points
         indices = np.random.choice(len(embeddings), self.n_clusters, replace=False)
         self.centroids = embeddings[indices].copy()
 
@@ -257,24 +293,90 @@ class EmbeddingClusterer:
 
 # Example: Topic discovery
 texts = [
-    "The stock market rose today",
-    "Investors are optimistic about tech",
-    "The basketball game was exciting",
-    "Football season starts next week",
-    "New AI model breaks records",
-    "Machine learning advances continue",
+    # Cooking
+    "Chop the onions and garlic finely",
+    "Simmer the sauce for twenty minutes",
+    "Season with salt and pepper to taste",
+    "Preheat the oven to 350 degrees",
+    # Space
+    "The telescope discovered a new exoplanet",
+    "Astronauts completed their spacewalk today",
+    "The Mars rover collected soil samples",
+    "A new comet is visible this month",
+    # Weather
+    "Heavy rain expected throughout the weekend",
+    "Temperatures will drop below freezing tonight",
+    "A warm front is moving in from the south",
+    "Clear skies and sunshine forecast for Monday",
 ]
 
+np.random.seed(42)  # For reproducible results
 clusterer = EmbeddingClusterer(encoder, n_clusters=3)
 assignments = clusterer.fit(texts)
 clusters = clusterer.get_cluster_examples(texts, assignments)
 for cluster_id, examples in clusters.items():
-    print(f"Cluster {cluster_id}: {examples[:2]}")
+    print(f"\nCluster {cluster_id}:")
+    for text in examples:
+        print(f"  - {text}")
 ```
+
+Notice that some items may appear in unexpected clusters. Embeddings capture semantic similarity that doesn't always match our intuitive topic categories—"Preheat the oven to 350 degrees" mentions temperature, which may pull it toward weather texts, while "A warm front is moving in" uses directional language similar to space descriptions. This is a feature, not a bug: embeddings capture meaning patterns that humans might overlook.
 
 **Sentiment analysis:**
 
-Sentiment is classification with polarity labels. For nuanced analysis, use the embedding's position relative to sentiment anchors:
+Sentiment analysis determines whether text expresses positive, negative, or neutral opinions. While you could treat this as classification (train on labeled examples), an elegant alternative uses *anchor texts*—words or phrases with known sentiment.
+
+The approach works as follows: embed a set of clearly positive words ("excellent", "amazing", "love it") and compute their centroid. Do the same for negative words. To analyze new text, embed it and measure which centroid it's closer to. The difference in distances gives both a label and a confidence score—text much closer to the positive centroid is strongly positive.
+
+```{python}
+#| echo: false
+#| label: fig-sentiment-anchors
+#| fig-cap: "Sentiment analysis using anchor texts. Positive and negative anchor words form centroids. New text is classified by which centroid it's closer to."
+import matplotlib.pyplot as plt
+import numpy as np
+
+np.random.seed(123)
+
+# Positive anchors (right side)
+pos_anchors = np.random.randn(5, 2) * 0.3 + [2, 0.5]
+pos_centroid = pos_anchors.mean(axis=0)
+
+# Negative anchors (left side)
+neg_anchors = np.random.randn(5, 2) * 0.3 + [-2, 0.5]
+neg_centroid = neg_anchors.mean(axis=0)
+
+# New text to classify (closer to positive)
+new_text = np.array([0.8, 0.3])
+
+fig, ax = plt.subplots(figsize=(8, 5))
+
+# Plot anchors
+ax.scatter(pos_anchors[:, 0], pos_anchors[:, 1], c='#55A868', s=80, alpha=0.6, label='Positive anchors')
+ax.scatter(neg_anchors[:, 0], neg_anchors[:, 1], c='#C44E52', s=80, alpha=0.6, label='Negative anchors')
+
+# Plot centroids
+ax.scatter(*pos_centroid, c='#55A868', s=250, marker='X', edgecolors='black', linewidths=2, zorder=5)
+ax.scatter(*neg_centroid, c='#C44E52', s=250, marker='X', edgecolors='black', linewidths=2, zorder=5)
+
+# Plot new text
+ax.scatter(*new_text, c='#4C72B0', s=150, marker='s', edgecolors='black', linewidths=2, label='New text', zorder=5)
+
+# Draw distance lines
+ax.plot([new_text[0], pos_centroid[0]], [new_text[1], pos_centroid[1]], 'g--', alpha=0.7, linewidth=2)
+ax.plot([new_text[0], neg_centroid[0]], [new_text[1], neg_centroid[1]], 'r--', alpha=0.7, linewidth=2)
+
+# Labels
+ax.annotate('Positive\ncentroid', pos_centroid + [0.1, 0.4], fontsize=10, ha='center')
+ax.annotate('Negative\ncentroid', neg_centroid + [0.1, 0.4], fontsize=10, ha='center')
+ax.annotate('"Great product!"', new_text + [0, -0.4], fontsize=10, ha='center', style='italic')
+
+ax.set_xlabel('Embedding dimension 1')
+ax.set_ylabel('Embedding dimension 2')
+ax.set_title('Sentiment: closer to positive centroid → positive sentiment')
+ax.legend(loc='upper right')
+plt.tight_layout()
+plt.show()
+```
 
 ```{python}
 #| echo: true
@@ -308,7 +410,7 @@ class SentimentAnalyzer:
         """
         emb = self.encoder.encode(text)
 
-        # Cosine similarity to each centroid
+        # Cosine similarity: (A · B) / (||A|| × ||B||)
         pos_sim = np.dot(emb, self.positive_centroid) / (
             np.linalg.norm(emb) * np.linalg.norm(self.positive_centroid)
         )
@@ -325,18 +427,21 @@ class SentimentAnalyzer:
 
 
 # Example usage
+np.random.seed(42)
 analyzer = SentimentAnalyzer(encoder)
 for text in ["This product exceeded expectations!", "Complete waste of money"]:
     label, conf = analyzer.analyze(text)
     print(f"'{text[:30]}...' -> {label} ({conf:.2f})")
 ```
 
+The number in parentheses is the confidence score—the difference between cosine similarities to the positive and negative centroids. These values appear low because general-purpose embeddings capture broad semantics, not just sentiment. The key insight is that the *relative* scores still correctly distinguish positive from negative text, even when absolute differences are small. For production sentiment analysis, you'd typically fine-tune embeddings on sentiment-labeled data (see @sec-custom-embedding-strategies).
+
 :::{.callout-tip}
 ## Classification and Clustering Best Practices
 
 **For classification:**
 
-- **Few-shot is often enough**: With good embeddings, 10-50 examples per class often suffices
+- **Few-shot is often enough**: With good embeddings, 10-50 examples per class often suffices (see @sec-siamese-networks for few-shot techniques)
 - **k-NN for simplicity**: No training required, just store examples
 - **Logistic regression for speed**: Train a simple linear classifier on embeddings
 - **Fine-tune for best quality**: When you have thousands of examples, fine-tune the embedding model itself (see @sec-custom-embedding-strategies)
@@ -344,15 +449,15 @@ for text in ["This product exceeded expectations!", "Complete waste of money"]:
 **For clustering:**
 
 - **Choose k carefully**: Use elbow method or silhouette scores to find optimal cluster count
-- **HDBSCAN for unknown k**: Automatically determines cluster count and handles outliers
+- **[HDBSCAN](https://hdbscan.readthedocs.io/) for unknown k**: Unlike k-means, HDBSCAN doesn't require specifying cluster count upfront—it discovers clusters based on density and labels sparse points as outliers rather than forcing them into clusters
 - **Reduce dimensions first**: For visualization, use UMAP or t-SNE on embeddings
 - **Label clusters post-hoc**: Examine cluster members to assign meaningful names
 
 **For sentiment:**
 
-- **Domain matters**: Financial sentiment differs from product reviews—use domain-specific anchors
-- **Beyond binary**: Use multiple anchors (joy, anger, sadness) for fine-grained emotion detection
-- **Aspect-based**: Extract aspects first ("battery life", "screen quality"), then analyze sentiment per aspect
+- **Domain matters**: Financial sentiment differs from product reviews—use domain-specific anchors (see @sec-financial-services for financial sentiment)
+- **Beyond binary**: Instead of just positive/negative centroids, create centroids for multiple emotions (joy, anger, sadness, fear, surprise). Measure distance to each and return the closest emotion, or return a distribution across all emotions for nuanced analysis.
+- **Aspect-based**: Reviews often mix sentiment across topics ("great battery, terrible screen"). First extract aspects (product features, service elements), then run sentiment analysis on each aspect separately to understand what users love and hate.
 :::
 
 ## Image Embeddings {#sec-image-embedding-types}
