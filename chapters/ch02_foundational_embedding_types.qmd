@@ -165,7 +165,7 @@ class EmbeddingClassifier:
         self.labels = []
 
     def fit(self, texts: list, labels: list):
-        """Store training examples."""
+        """Embed texts and store with their labels."""
         self.embeddings = [self.encoder.encode(text) for text in texts]
         self.labels = labels
 
