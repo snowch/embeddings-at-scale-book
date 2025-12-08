@@ -188,13 +188,10 @@ class EmbeddingClassifier:
 
 
 # Example: Sentiment classification
-class MockEncoder:
-    def encode(self, text):
-        np.random.seed(hash(text) % 2**32)
-        return np.random.randn(384)
+from sentence_transformers import SentenceTransformer
+encoder = SentenceTransformer('all-MiniLM-L6-v2')
 
-
-classifier = EmbeddingClassifier(MockEncoder(), k=3)
+classifier = EmbeddingClassifier(encoder, k=3)
 classifier.fit(
     texts=["Great product!", "Loved it", "Terrible", "Waste of money", "Amazing quality"],
     labels=["positive", "positive", "negative", "negative", "positive"],
@@ -268,7 +265,7 @@ texts = [
     "Machine learning advances continue",
 ]
 
-clusterer = EmbeddingClusterer(MockEncoder(), n_clusters=3)
+clusterer = EmbeddingClusterer(encoder, n_clusters=3)
 assignments = clusterer.fit(texts)
 clusters = clusterer.get_cluster_examples(texts, assignments)
 for cluster_id, examples in clusters.items():
@@ -328,7 +325,7 @@ class SentimentAnalyzer:
 
 
 # Example usage
-analyzer = SentimentAnalyzer(MockEncoder())
+analyzer = SentimentAnalyzer(encoder)
 for text in ["This product exceeded expectations!", "Complete waste of money"]:
     label, conf = analyzer.analyze(text)
     print(f"'{text[:30]}...' -> {label} ({conf:.2f})")
