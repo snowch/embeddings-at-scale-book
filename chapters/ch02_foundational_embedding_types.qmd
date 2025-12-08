@@ -130,12 +130,14 @@ print(f"  Sentence 1 ↔ 3: {cosine_similarity([embeddings[0]], [embeddings[2]])
 
 | Model | Dimensions | Speed | Quality | Best For |
 |-------|-----------|-------|---------|----------|
-| all-MiniLM-L6-v2 | 384 | Fast | Good | General purpose |
-| all-mpnet-base-v2 | 768 | Medium | Better | Higher quality needs |
-| text-embedding-3-small | 1536 | API | Excellent | Production systems |
-| text-embedding-3-large | 3072 | API | Best | Maximum quality |
+| [all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2) | 384 | Fast | Good | General purpose |
+| [all-mpnet-base-v2](https://huggingface.co/sentence-transformers/all-mpnet-base-v2) | 768 | Medium | Better | Higher quality needs |
+| [text-embedding-3-small](https://platform.openai.com/docs/guides/embeddings) | 1536 | API | Excellent | Production systems |
+| [text-embedding-3-large](https://platform.openai.com/docs/guides/embeddings) | 3072 | API | Best | Maximum quality |
 
 : Popular text embedding models {.striped}
+
+The sentence-transformers models are built on Sentence-BERT [@reimers2019sentencebert], which adapts BERT for efficient sentence embeddings using siamese networks. MiniLM [@wang2020minilm] uses knowledge distillation for a smaller, faster model, while MPNet [@song2020mpnet] combines masked and permuted language modeling for improved representations.
 
 ### Classification, Clustering, and Sentiment Analysis {#sec-text-classification-clustering}
 
