@@ -618,16 +618,16 @@ We extract 20 values per time frame, called *coefficients*—each describes a di
 import matplotlib.pyplot as plt
 from matplotlib.patches import FancyBboxPatch
 
-fig, ax = plt.subplots(figsize=(10, 7))
+fig, ax = plt.subplots(figsize=(10, 5))
 ax.set_xlim(0, 10)
-ax.set_ylim(0, 8)
+ax.set_ylim(0.5, 7.5)
 ax.axis('off')
 
 # Consistent spacing: boxes are 0.8 tall, gaps are 0.6, arrows span the gaps
 box_height = 0.8
 gap = 0.6
 
-# Box 1: Audio waveform (y = 6.4 to 7.2)
+# Box 1: Audio file
 y1 = 6.4
 box1 = FancyBboxPatch((3.5, y1), 3, box_height, boxstyle="round,pad=0.05",
                        facecolor='#E8F4FD', edgecolor='#2196F3', linewidth=2)
@@ -752,75 +752,181 @@ See @sec-embedding-model-fundamentals for details on how text and image embeddin
 
 ## Video Embeddings {#sec-video-embedding-types}
 
-Video embeddings must capture both spatial (visual) and temporal (motion) information:
+Video embeddings convert video clips into vectors that capture both visual content and temporal dynamics—actions, motion patterns, scene transitions, and narrative flow. Unlike image embeddings that capture a single moment, video embeddings understand that "a person sitting down" and "a person standing up" are different actions even though individual frames might look similar.
+
+The challenge with video is combining spatial information (what's in each frame) with temporal information (how things change over time). The simplest approach extracts image embeddings from sampled frames and aggregates them. More sophisticated models process multiple frames together to capture motion directly.
+
+The example below demonstrates the frame sampling approach: we extract image embeddings from frames sampled throughout a video, then average them to create a single video embedding. Since videos vary in length, aggregation (like we saw with audio) produces a fixed-size embedding regardless of duration.
+
+```{python}
+#| echo: false
+#| label: fig-video-aggregation
+#| fig-cap: "Video embedding via frame sampling: extract image embeddings from sampled frames, then aggregate into a single video embedding."
+import matplotlib.pyplot as plt
+from matplotlib.patches import FancyBboxPatch
+
+fig, ax = plt.subplots(figsize=(10, 5.5))
+ax.set_xlim(0, 10)
+ax.set_ylim(0, 7.5)
+ax.axis('off')
+
+# Consistent spacing
+box_height = 0.8
+gap = 0.6
+
+# Box 1: Video file
+y1 = 6.4
+box1 = FancyBboxPatch((3, y1), 4, box_height, boxstyle="round,pad=0.05",
+                       facecolor='#E8F4FD', edgecolor='#2196F3', linewidth=2)
+ax.add_patch(box1)
+ax.text(5, y1 + box_height/2, 'Video file (e.g. mp4, avi)', ha='center', va='center', fontsize=11, fontweight='bold')
+
+# Arrow 1
+ax.annotate('', xy=(5, y1 - gap + 0.1), xytext=(5, y1 - 0.1), arrowprops=dict(arrowstyle='->', color='gray', lw=2))
+ax.text(5.8, y1 - gap/2, 'sample frames (e.g. 1 per second)', ha='left', va='center', fontsize=9, style='italic', color='#666')
+
+# Box 2: Frames
+y2 = y1 - gap - box_height - 0.2
+box2 = FancyBboxPatch((1, y2), 8, box_height + 0.2, boxstyle="round,pad=0.05",
+                       facecolor='#FFF3E0', edgecolor='#FF9800', linewidth=2)
+ax.add_patch(box2)
+ax.text(1.8, y2 + 0.5, 'Frame 1', ha='center', va='center', fontsize=9)
+ax.text(3.6, y2 + 0.5, 'Frame 2', ha='center', va='center', fontsize=9)
+ax.text(5.4, y2 + 0.5, 'Frame 3', ha='center', va='center', fontsize=9)
+ax.text(6.6, y2 + 0.5, '...', ha='center', va='center', fontsize=12)
+ax.text(8, y2 + 0.5, 'Frame N', ha='center', va='center', fontsize=9)
+
+# Arrow 2
+ax.annotate('', xy=(5, y2 - gap + 0.1), xytext=(5, y2 - 0.1), arrowprops=dict(arrowstyle='->', color='gray', lw=2))
+ax.text(5.8, y2 - gap/2, 'embed each frame (e.g. ResNet)', ha='left', va='center', fontsize=9, style='italic', color='#666')
+
+# Box 3: Frame embeddings
+y3 = y2 - gap - box_height - 0.2
+box3 = FancyBboxPatch((1, y3), 8, box_height + 0.2, boxstyle="round,pad=0.05",
+                       facecolor='#E8F5E9', edgecolor='#4CAF50', linewidth=2)
+ax.add_patch(box3)
+ax.text(1.8, y3 + 0.5, '[2048 vals]', ha='center', va='center', fontsize=9)
+ax.text(3.6, y3 + 0.5, '[2048 vals]', ha='center', va='center', fontsize=9)
+ax.text(5.4, y3 + 0.5, '[2048 vals]', ha='center', va='center', fontsize=9)
+ax.text(6.6, y3 + 0.5, '...', ha='center', va='center', fontsize=12)
+ax.text(8, y3 + 0.5, '[2048 vals]', ha='center', va='center', fontsize=9)
+
+# Arrow 3
+ax.annotate('', xy=(5, y3 - gap + 0.1), xytext=(5, y3 - 0.1), arrowprops=dict(arrowstyle='->', color='gray', lw=2))
+ax.text(5.8, y3 - gap/2, 'aggregate (mean across frames)', ha='left', va='center', fontsize=9, style='italic', color='#666')
+
+# Box 4: Video embedding
+y4 = y3 - gap - box_height
+box4 = FancyBboxPatch((2.5, y4), 5, box_height, boxstyle="round,pad=0.05",
+                       facecolor='#F3E5F5', edgecolor='#9C27B0', linewidth=2)
+ax.add_patch(box4)
+ax.text(5, y4 + box_height/2, 'Video embedding: [2048 values]', ha='center', va='center', fontsize=11, fontweight='bold')
+
+plt.tight_layout()
+plt.show()
+```
 
 ```{python}
 #| code-fold: false
 
 """
-Video Embeddings: Motion and Time
-
-Video embeddings extend image embeddings to capture temporal dynamics:
-actions, transitions, and narrative flow.
-
-Approaches:
-1. Frame-level: Embed individual frames, aggregate (mean, max, attention)
-2. Clip-level: Models like X3D, SlowFast process multiple frames together
-3. Two-stream: Separate spatial (RGB) and temporal (optical flow) processing
+Video Embeddings: From Clips to Vectors
 """
 
+import torch
 import numpy as np
+from torchvision import models, transforms
+from torchvision.models import ResNet50_Weights
 from sklearn.metrics.pairwise import cosine_similarity
 
-# Simulated video embeddings capturing action types
-np.random.seed(42)
+# Suppress download messages
+import logging
+logging.getLogger('torch').setLevel(logging.ERROR)
 
-video_embeddings = {
-    'running_outdoor': np.random.randn(512) + np.array([1, 0, 0] + [0]*509),
-    'jogging_park': np.random.randn(512) + np.array([0.9, 0.1, 0] + [0]*509),
-    'cooking_kitchen': np.random.randn(512) + np.array([0, 1, 0] + [0]*509),
-    'baking_cake': np.random.randn(512) + np.array([0.1, 0.9, 0.2] + [0]*509),
-    'cat_playing': np.random.randn(512) + np.array([0, 0, 1] + [0]*509),
+# Load pretrained ResNet50 as frame feature extractor
+weights = ResNet50_Weights.IMAGENET1K_V1
+model = models.resnet50(weights=None)
+model.load_state_dict(weights.get_state_dict(progress=False))
+model.eval()
+feature_extractor = torch.nn.Sequential(*list(model.children())[:-1])
+
+preprocess = transforms.Compose([
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+])
+
+def frames_to_video_embedding(frames):
+    """Convert a list of frames (as numpy arrays) to a video embedding."""
+    frame_embeddings = []
+    for frame in frames:
+        # Convert numpy array to tensor and preprocess
+        if frame.dtype == np.uint8:
+            frame = frame.astype(np.float32) / 255.0
+        tensor = preprocess(frame).unsqueeze(0)
+        with torch.no_grad():
+            emb = feature_extractor(tensor).squeeze().numpy()
+        frame_embeddings.append(emb)
+    # Aggregate: mean across all frames
+    return np.mean(frame_embeddings, axis=0)
+
+# Simulate video frames as colored images (224x224 RGB)
+# "Running video": frames transition from green (grass) to blue (sky) - outdoor motion
+running_frames = [
+    np.full((224, 224, 3), [0.2, 0.6 + i*0.05, 0.2], dtype=np.float32)  # Green to lighter
+    for i in range(5)
+]
+
+# "Cooking video": frames stay warm orange/red tones - kitchen scene
+cooking_frames = [
+    np.full((224, 224, 3), [0.8, 0.4 + i*0.02, 0.1], dtype=np.float32)  # Warm tones
+    for i in range(5)
+]
+
+# "Jogging video": similar to running - outdoor greens and blues
+jogging_frames = [
+    np.full((224, 224, 3), [0.25, 0.55 + i*0.05, 0.25], dtype=np.float32)  # Similar greens
+    for i in range(5)
+]
+
+# Generate video embeddings
+embeddings = {
+    'running': frames_to_video_embedding(running_frames),
+    'cooking': frames_to_video_embedding(cooking_frames),
+    'jogging': frames_to_video_embedding(jogging_frames),
 }
 
-print("Simulated video embedding similarities:\n")
-print("Similar actions cluster together:")
-run_jog = cosine_similarity(
-    [video_embeddings['running_outdoor']],
-    [video_embeddings['jogging_park']]
-)[0][0]
-cook_bake = cosine_similarity(
-    [video_embeddings['cooking_kitchen']],
-    [video_embeddings['baking_cake']]
-)[0][0]
-run_cook = cosine_similarity(
-    [video_embeddings['running_outdoor']],
-    [video_embeddings['cooking_kitchen']]
-)[0][0]
+print(f"Video embedding dimension: {len(embeddings['running'])}\n")
+print("Video embedding similarities:")
 
-print(f"  Running ↔ Jogging: {run_jog:.3f}")
-print(f"  Cooking ↔ Baking:  {cook_bake:.3f}")
-print(f"  Running ↔ Cooking: {run_cook:.3f}")
+run_jog = cosine_similarity([embeddings['running']], [embeddings['jogging']])[0][0]
+run_cook = cosine_similarity([embeddings['running']], [embeddings['cooking']])[0][0]
+jog_cook = cosine_similarity([embeddings['jogging']], [embeddings['cooking']])[0][0]
+
+print(f"  Running ↔ Jogging: {run_jog:.3f}  (similar outdoor scenes)")
+print(f"  Running ↔ Cooking: {run_cook:.3f}  (different scenes)")
+print(f"  Jogging ↔ Cooking: {jog_cook:.3f}  (different scenes)")
 ```
 
-**Video embedding strategies:**
+When comparing video embeddings, similar activities and scenes cluster together. Running and jogging videos both contain outdoor scenes with similar color palettes (greens, blues), so their embeddings are close. Cooking videos have warm indoor tones (oranges, reds) that differ significantly from outdoor activities.
 
-| Approach | Description | Pros | Cons |
-|----------|-------------|------|------|
-| Frame sampling | Embed N frames, average | Simple, fast | Misses motion |
-| 3D CNNs | Process frame volumes | Captures motion | Computationally heavy |
-| Two-stream | RGB + optical flow | Best accuracy | Complex pipeline |
-| Video transformers | Attention over frames | State-of-the-art | Very expensive |
+The frame sampling approach shown above is simple but misses motion information—it can't distinguish "sitting down" from "standing up" since both might have similar individual frames. More advanced approaches process frames together.
 
-: Video embedding approaches {.striped}
+**When to use video embeddings:** Action recognition and search, video recommendation, content moderation, surveillance and anomaly detection, video summarization, sports analytics, and gesture recognition.
 
-**When to use video embeddings:**
+This book covers video surveillance applications in @sec-video-surveillance. If you'd like to see other video applications covered in future editions, reach out to the author.
 
-- Action recognition and search
-- Video recommendation
-- Content moderation
-- Surveillance and anomaly detection
-- Video summarization
+**Popular architectures:**
+
+| Architecture | Type | Strengths | Use Cases |
+|-------------|------|-----------|-----------|
+| Frame sampling + CNN | Aggregated frames | Simple, fast | Scene classification |
+| [SlowFast](https://github.com/facebookresearch/SlowFast) | Two-pathway 3D CNN | Captures fast and slow motion | Action recognition |
+| [X3D](https://github.com/facebookresearch/SlowFast) | Efficient 3D CNN | Mobile-friendly | Real-time applications |
+| [Video Swin](https://github.com/SwinTransformer/Video-Swin-Transformer) | Video transformer | State-of-the-art accuracy | High-quality requirements |
+
+: Video embedding architectures {.striped}
+
+See @sec-embedding-model-fundamentals for details on how text and image embedding models work. For video models, the linked documentation above provides architecture details.
 
 ## Multi-Modal Embeddings {#sec-multimodal-embedding-types}
 
