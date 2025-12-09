@@ -471,6 +471,53 @@ Image embeddings convert visual content into vectors that capture visual semanti
 
 The example below uses ResNet50 [@he2016resnet], a CNN pre-trained on ImageNet's 1.4 million images. ResNet learns hierarchical visual features—early layers detect edges and textures, middle layers recognize shapes and parts, and deep layers understand objects and scenes. We remove the final classification layer to extract the 2048-dimensional feature vector as our embedding.
 
+Digital images are stored as 3D arrays with shape (height, width, 3)—the third dimension holds Red, Green, and Blue color intensities for each pixel:
+
+```{python}
+#| echo: false
+#| label: fig-image-rgb-cube
+#| fig-cap: "An image is a 3D array: height × width × 3 color channels (Red, Green, Blue). Each pixel has three values (0-255)."
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+import numpy as np
+
+fig = plt.figure(figsize=(8, 5))
+ax = fig.add_subplot(111, projection='3d')
+
+w, h, c = 224, 224, 3
+scale = 1/224
+sw, sh, sc = w * scale, h * scale, c * 0.3
+
+vertices = [
+    [0, 0, 0], [sw, 0, 0], [sw, sh, 0], [0, sh, 0],
+    [0, 0, sc], [sw, 0, sc], [sw, sh, sc], [0, sh, sc]
+]
+
+colors = ['#FF6B6B', '#6BCB77', '#4D96FF']
+labels = ['Red channel', 'Green channel', 'Blue channel']
+
+for i, (color, label) in enumerate(zip(colors, labels)):
+    z = i * sc / 3 + sc / 6
+    slice_verts = [[0, 0, z], [sw, 0, z], [sw, sh, z], [0, sh, z]]
+    ax.add_collection3d(Poly3DCollection([slice_verts], alpha=0.7, facecolor=color, edgecolor='black', linewidth=1))
+    ax.text(sw + 0.1, sh/2, z, label, fontsize=9)
+
+for i, j in [(0,1), (1,2), (2,3), (3,0), (4,5), (5,6), (6,7), (7,4), (0,4), (1,5), (2,6), (3,7)]:
+    ax.plot3D(*zip(vertices[i], vertices[j]), 'k-', alpha=0.3, linewidth=0.5)
+
+ax.set_xlabel('Width (224 px)', fontsize=10)
+ax.set_ylabel('Height (224 px)', fontsize=10)
+ax.set_zlabel('Channels', fontsize=10)
+ax.set_title('Image as a 3D array: (224, 224, 3)', fontsize=11, fontweight='bold')
+ax.view_init(elev=20, azim=45)
+ax.set_box_aspect([1, 1, 0.3])
+ax.set_xticks([])
+ax.set_yticks([])
+ax.set_zticks([])
+plt.tight_layout()
+plt.show()
+```
+
 ```{python}
 #| code-fold: false
 
@@ -515,6 +562,8 @@ def get_image_embedding(image):
     return embedding.squeeze().numpy()
 
 # Create synthetic test images with different color patterns
+# np.random.randint([low_r, low_g, low_b], [high_r, high_g, high_b], shape)
+# generates random RGB values within the specified range for each pixel
 np.random.seed(42)
 images = {
     'red_pattern': Image.fromarray(
@@ -539,41 +588,72 @@ print(f"  red ↔ orange: {red_orange:.3f}")
 print(f"  red ↔ blue:   {red_blue:.3f}")
 ```
 
-When comparing image embeddings, we use cosine similarity just like with text. Images with similar visual features—colors, textures, shapes, or objects—will have embeddings that point in similar directions, yielding high similarity scores. The red and orange patterns share warm color features, so their embeddings are closer together than red and blue. In practice, this means a photo of a red dress will be more similar to an orange dress than a blue one, even though all three are "dresses."
-
-How does the model "understand" colors? Images are input as RGB values (three numbers per pixel). Early CNN layers learn filters that activate for specific color combinations—some filters respond to warm tones (high red, medium green, low blue), others to cool tones. As layers get deeper, the network combines color with texture and shape information. By training on millions of labeled images, the model learns that red and orange often appear together (sunsets, autumn leaves, fire) more frequently than red and blue, encoding this statistical relationship in the embedding space.
-
 ```{python}
-#| echo: false
-#| label: fig-image-embedding-space
-#| fig-cap: "Image embeddings in 2D space. Similar colors cluster together—red and orange are close, while blue is distant."
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show RGB channel visualization code"
+#| label: fig-rgb-channels
+#| fig-cap: "Each image is a 3D array (224 × 224 × 3). The combined color equals the sum of Red, Green, and Blue channel intensities."
 import matplotlib.pyplot as plt
-from sklearn.decomposition import PCA
+import matplotlib.gridspec as gridspec
 
-# Reduce to 2D for visualization
-embedding_matrix = np.array([embeddings['red_pattern'], embeddings['orange_pattern'], embeddings['blue_pattern']])
-pca = PCA(n_components=2)
-coords = pca.fit_transform(embedding_matrix)
+fig = plt.figure(figsize=(12, 4))
+gs = gridspec.GridSpec(3, 7, width_ratios=[3, 0.5, 3, 0.5, 3, 0.5, 3], hspace=0.1, wspace=0.05)
 
-fig, ax = plt.subplots(figsize=(7, 5))
+for row, (name, img) in enumerate(images.items()):
+    img_array = np.array(img)
+    label = name.replace("_pattern", "").title()
 
-# Plot each image as a colored point
-colors = ['#C44E52', '#DD8452', '#4C72B0']  # red, orange, blue
-labels = ['Red pattern', 'Orange pattern', 'Blue pattern']
-for i, (label, color) in enumerate(zip(labels, colors)):
-    ax.scatter(coords[i, 0], coords[i, 1], c=color, s=200, label=label, edgecolors='black', linewidths=2)
+    ax = fig.add_subplot(gs[row, 0])
+    ax.imshow(img)
+    if row == 0:
+        ax.set_title(label, fontsize=10)
+    ax.axis('off')
 
-# Draw lines showing distances
-ax.plot([coords[0, 0], coords[1, 0]], [coords[0, 1], coords[1, 1]], 'g--', alpha=0.6, linewidth=2, label='Close (red-orange)')
-ax.plot([coords[0, 0], coords[2, 0]], [coords[0, 1], coords[2, 1]], 'r--', alpha=0.6, linewidth=2, label='Far (red-blue)')
+    ax = fig.add_subplot(gs[row, 1])
+    ax.text(0.5, 0.5, '=', fontsize=16, ha='center', va='center', fontweight='bold')
+    ax.axis('off')
 
-ax.set_xlabel('PCA dimension 1')
-ax.set_ylabel('PCA dimension 2')
-ax.set_title('Image embeddings: similar colors cluster together')
-ax.legend(loc='best')
-plt.tight_layout()
+    ax = fig.add_subplot(gs[row, 2])
+    ax.imshow(img_array[:,:,0], cmap='Reds', vmin=0, vmax=255)
+    if row == 0:
+        ax.set_title('R', fontsize=10)
+    ax.axis('off')
+
+    ax = fig.add_subplot(gs[row, 3])
+    ax.text(0.5, 0.5, '+', fontsize=16, ha='center', va='center', fontweight='bold')
+    ax.axis('off')
+
+    ax = fig.add_subplot(gs[row, 4])
+    ax.imshow(img_array[:,:,1], cmap='Greens', vmin=0, vmax=255)
+    if row == 0:
+        ax.set_title('G', fontsize=10)
+    ax.axis('off')
+
+    ax = fig.add_subplot(gs[row, 5])
+    ax.text(0.5, 0.5, '+', fontsize=16, ha='center', va='center', fontweight='bold')
+    ax.axis('off')
+
+    ax = fig.add_subplot(gs[row, 6])
+    ax.imshow(img_array[:,:,2], cmap='Blues', vmin=0, vmax=255)
+    if row == 0:
+        ax.set_title('B', fontsize=10)
+    ax.axis('off')
+
+plt.suptitle('RGB: Three 2D channels combine to create color images', fontsize=11, fontweight='bold', y=0.98)
 plt.show()
 ```
+
+When comparing image embeddings, we use cosine similarity just like with text. Images with similar visual features—colors, textures, shapes, or objects—will have embeddings that point in similar directions, yielding high similarity scores. The red and orange patterns share warm color features, so their embeddings are closer together than red and blue. In practice, this means a photo of a red dress will be more similar to an orange dress than a blue one, even though all three are "dresses."
+
+How does the model "understand" colors? As @fig-rgb-channels shows, each image is stored as three 2D arrays—one for Red, Green, and Blue intensity. The red pattern has high values in the R channel and low values in G and B. Orange combines high R with medium G (red + green = orange).
+
+::: {.callout-note}
+## RGB Input ≠ Embedding Output
+Don't confuse the 3-channel RGB input with the embedding output. ResNet50 takes the 3 RGB channels as input but produces a **2048-dimensional** embedding vector that captures far more than color: edges, textures, shapes, and high-level visual concepts learned from millions of images.
+:::
+
+The model receives the three RGB channels as input, and early CNN layers learn filters that activate for specific patterns—some respond to warm tones, others to edges or textures. As layers get deeper, the network combines these low-level features into increasingly abstract representations. By training on millions of labeled images, the model learns that red and orange often appear together (sunsets, autumn leaves, fire) more frequently than red and blue, encoding this statistical relationship across all 2048 dimensions.
 
 Beyond colors, early CNN layers also learn edge detectors—filters that respond to boundaries between light and dark regions. For a hands-on introduction to how a single neuron learns to detect edges, see [How Neural Networks Learn to See](https://snowch.github.io/nn_edge_detector_blog.html).
 
@@ -919,7 +999,7 @@ This book covers video surveillance applications in @sec-video-surveillance. If 
 
 | Architecture | Type | Strengths | Use Cases |
 |-------------|------|-----------|-----------|
-| Frame sampling + CNN | Aggregated frames | Simple, fast | Scene classification |
+| Frame sampling + CNN | Aggregated image embeddings | Simple, fast (no motion) | Scene classification |
 | [SlowFast](https://github.com/facebookresearch/SlowFast) | Two-pathway 3D CNN | Captures fast and slow motion | Action recognition |
 | [X3D](https://github.com/facebookresearch/SlowFast) | Efficient 3D CNN | Mobile-friendly | Real-time applications |
 | [Video Swin](https://github.com/SwinTransformer/Video-Swin-Transformer) | Video transformer | State-of-the-art accuracy | High-quality requirements |
