@@ -395,7 +395,9 @@ class SentimentAnalyzer:
         positive_anchors = ["excellent", "amazing", "wonderful", "fantastic", "love it"]
         negative_anchors = ["terrible", "awful", "horrible", "hate it", "worst ever"]
 
-        # Compute anchor centroids
+        # Compute anchor centroids: average the embeddings of all anchor words
+        # to find the "center" of positive/negative regions in embedding space.
+        # Using multiple anchors makes the centroid more robust than any single word.
         self.positive_centroid = np.mean(
             [encoder.encode(t) for t in positive_anchors], axis=0
         )
@@ -462,16 +464,15 @@ The number in parentheses is the confidence score—the difference between cosin
 
 ## Image Embeddings {#sec-image-embedding-types}
 
-Image embeddings convert visual content into vectors that capture visual semantics:
+Image embeddings convert visual content into vectors that capture visual semantics—shapes, colors, textures, objects, and spatial relationships. Unlike pixel-by-pixel comparison, embeddings understand that two photos of the same cat are similar even if taken from different angles or lighting conditions.
+
+The example below uses ResNet50 [@he2016resnet], a CNN pre-trained on ImageNet's 1.4 million images. ResNet learns hierarchical visual features—early layers detect edges and textures, middle layers recognize shapes and parts, and deep layers understand objects and scenes. We remove the final classification layer to extract the 2048-dimensional feature vector as our embedding.
 
 ```{python}
 #| code-fold: false
 
 """
 Image Embeddings: Visual Content as Vectors
-
-Image embeddings capture visual features like shapes, colors, textures,
-and objects, enabling visual similarity search.
 """
 
 import torch
@@ -535,24 +536,69 @@ print(f"  red ↔ orange: {red_orange:.3f}")
 print(f"  red ↔ blue:   {red_blue:.3f}")
 ```
 
-**Image embedding architectures:**
+When comparing image embeddings, we use cosine similarity just like with text. Images with similar visual features—colors, textures, shapes, or objects—will have embeddings that point in similar directions, yielding high similarity scores. The red and orange patterns share warm color features, so their embeddings are closer together than red and blue. In practice, this means a photo of a red dress will be more similar to an orange dress than a blue one, even though all three are "dresses."
 
-| Architecture | Type | Strengths | Use Cases |
-|-------------|------|-----------|-----------|
-| ResNet | CNN | Fast, proven | General visual search |
-| EfficientNet | CNN | Efficient, accurate | Mobile/edge deployment |
-| ViT | Transformer | Best accuracy | High-quality requirements |
-| CLIP | Multi-modal | Text-image alignment | Zero-shot classification |
+How does the model "understand" colors? Images are input as RGB values (three numbers per pixel). Early CNN layers learn filters that activate for specific color combinations—some filters respond to warm tones (high red, medium green, low blue), others to cool tones. As layers get deeper, the network combines color with texture and shape information. By training on millions of labeled images, the model learns that red and orange often appear together (sunsets, autumn leaves, fire) more frequently than red and blue, encoding this statistical relationship in the embedding space.
 
-: Image embedding architectures {.striped}
+```{python}
+#| echo: false
+#| label: fig-image-embedding-space
+#| fig-cap: "Image embeddings in 2D space. Similar colors cluster together—red and orange are close, while blue is distant."
+import matplotlib.pyplot as plt
+from sklearn.decomposition import PCA
+
+# Reduce to 2D for visualization
+embedding_matrix = np.array([embeddings['red_pattern'], embeddings['orange_pattern'], embeddings['blue_pattern']])
+pca = PCA(n_components=2)
+coords = pca.fit_transform(embedding_matrix)
+
+fig, ax = plt.subplots(figsize=(7, 5))
+
+# Plot each image as a colored point
+colors = ['#C44E52', '#DD8452', '#4C72B0']  # red, orange, blue
+labels = ['Red pattern', 'Orange pattern', 'Blue pattern']
+for i, (label, color) in enumerate(zip(labels, colors)):
+    ax.scatter(coords[i, 0], coords[i, 1], c=color, s=200, label=label, edgecolors='black', linewidths=2)
+
+# Draw lines showing distances
+ax.plot([coords[0, 0], coords[1, 0]], [coords[0, 1], coords[1, 1]], 'g--', alpha=0.6, linewidth=2, label='Close (red-orange)')
+ax.plot([coords[0, 0], coords[2, 0]], [coords[0, 1], coords[2, 1]], 'r--', alpha=0.6, linewidth=2, label='Far (red-blue)')
+
+ax.set_xlabel('PCA dimension 1')
+ax.set_ylabel('PCA dimension 2')
+ax.set_title('Image embeddings: similar colors cluster together')
+ax.legend(loc='best')
+plt.tight_layout()
+plt.show()
+```
+
+Beyond colors, early CNN layers also learn edge detectors—filters that respond to boundaries between light and dark regions. For a hands-on introduction to how a single neuron learns to detect edges, see [How Neural Networks Learn to See](https://snowch.github.io/nn_edge_detector_blog.html).
 
 **When to use image embeddings:**
 
-- Visual similarity search (find similar products)
-- Duplicate/near-duplicate detection
-- Content-based image retrieval
-- Visual clustering and organization
-- Reverse image search
+- Visual recommendation systems—suggest visually similar items (see @sec-recommendation-systems)
+- Content moderation—detect variations of prohibited images (see @sec-content-moderation)
+- Forensic video search—find specific people or objects in footage (see @sec-video-surveillance) *(reverse image lookup)*
+- Duplicate and near-duplicate detection—identify copied or modified images (see @sec-entity-resolution) *(reverse image lookup)*
+- Medical imaging—find similar X-rays, scans, or pathology slides (see @sec-healthcare-life-sciences)
+- Visual product search—find products similar to a photo (see @sec-retail-ecommerce) *(reverse image lookup)*
+- Quality control—detect defects by comparing to reference images (see @sec-manufacturing-industry40)
+- Face recognition—identify or verify individuals from photos (see @sec-video-surveillance)
+
+There are dozens of other applications including art style matching, stock photo search, image classification, trademark and logo detection, scene recognition, wildlife identification, satellite imagery analysis, document scanning, and autonomous vehicle perception.
+
+**Popular architectures:**
+
+| Architecture | Type | Strengths | Use Cases |
+|-------------|------|-----------|-----------|
+| [ResNet](https://pytorch.org/vision/main/models/resnet.html) | CNN | Fast, proven | General visual search |
+| [EfficientNet](https://pytorch.org/vision/main/models/efficientnet.html) | CNN | Efficient, accurate | Mobile/edge deployment |
+| [ViT](https://pytorch.org/vision/main/models/vision_transformer.html) | Transformer | Best accuracy | High-quality requirements |
+| [CLIP](https://github.com/openai/CLIP) | Multi-modal | Text-image alignment | Zero-shot classification |
+
+: Image embedding architectures {.striped}
+
+See @sec-image-embedding-models for details on how these architectures work.
 
 ## Audio Embeddings {#sec-audio-embedding-types}
 
