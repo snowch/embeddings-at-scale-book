@@ -40,68 +40,76 @@ generate_part_epub() {
     echo "    Created: $output_file"
 }
 
-# Part I: Foundation & Strategy
-generate_part_epub "I" "Foundation and Strategy" \
+# Part I: Foundations
+generate_part_epub "I" "Foundations" \
     chapters/ch01_embedding_revolution.qmd \
-    chapters/ch02_foundational_embedding_types.qmd \
-    chapters/ch03_advanced_embedding_patterns.qmd \
-    chapters/ch04_strategic_architecture.qmd \
-    chapters/ch05_similarity_distance_metrics.qmd \
-    chapters/ch06_vector_database_fundamentals.qmd \
-    chapters/ch07_embedding_model_fundamentals.qmd
+    chapters/ch02_similarity_distance_metrics.qmd \
+    chapters/ch03_vector_database_fundamentals.qmd
 
-# Part II: Custom Embedding Development
-generate_part_epub "II" "Custom Embedding Development" \
-    chapters/ch08_custom_embedding_strategies.qmd \
-    chapters/ch09_contrastive_learning.qmd \
-    chapters/ch10_siamese_networks.qmd \
-    chapters/ch11_self_supervised_learning.qmd \
-    chapters/ch12_advanced_embedding_techniques.qmd
+# Part II: Embedding Types
+generate_part_epub "II" "Embedding Types" \
+    chapters/ch04_text_embeddings.qmd \
+    chapters/ch05_image_video_embeddings.qmd \
+    chapters/ch06_multimodal_embeddings.qmd \
+    chapters/ch07_graph_embeddings.qmd \
+    chapters/ch08_timeseries_embeddings.qmd \
+    chapters/ch09_code_embeddings.qmd \
+    chapters/ch10_advanced_embedding_patterns.qmd
 
-# Part III: Production Engineering
-generate_part_epub "III" "Production Engineering" \
-    chapters/ch13_embedding_pipeline_engineering.qmd \
-    chapters/ch14_scaling_embedding_training.qmd \
-    chapters/ch15_high_performance_vector_ops.qmd \
-    chapters/ch16_data_engineering.qmd \
-    chapters/ch17_text_chunking.qmd \
-    chapters/ch18_image_preparation.qmd
+# Part III: Core Applications
+generate_part_epub "III" "Core Applications" \
+    chapters/ch11_rag_at_scale.qmd \
+    chapters/ch12_semantic_search.qmd \
+    chapters/ch13_recommendation_systems.qmd
 
-# Part IV: Core Application Patterns
-generate_part_epub "IV" "Core Application Patterns" \
-    chapters/ch19_rag_at_scale.qmd \
-    chapters/ch20_semantic_search.qmd \
-    chapters/ch21_recommendation_systems.qmd
+# Part IV: Custom Embedding Development
+generate_part_epub "IV" "Custom Embedding Development" \
+    chapters/ch14_custom_embedding_strategies.qmd \
+    chapters/ch15_contrastive_learning.qmd \
+    chapters/ch16_siamese_networks.qmd \
+    chapters/ch17_self_supervised_learning.qmd \
+    chapters/ch18_advanced_embedding_techniques.qmd
 
-# Part V: Cross-Industry Applications
-generate_part_epub "V" "Cross-Industry Applications" \
-    chapters/ch22_cross_industry_patterns.qmd \
-    chapters/ch23_video_surveillance_analytics.qmd \
-    chapters/ch24_entity_resolution.qmd
+# Part V: Production Engineering
+generate_part_epub "V" "Production Engineering" \
+    chapters/ch19_embedding_pipeline_engineering.qmd \
+    chapters/ch20_scaling_embedding_training.qmd \
+    chapters/ch21_embedding_quality_evaluation.qmd \
+    chapters/ch22_high_performance_vector_ops.qmd \
+    chapters/ch23_data_engineering.qmd \
+    chapters/ch24_text_chunking.qmd \
+    chapters/ch25_image_preparation.qmd
 
-# Part VI: Industry-Specific Applications
-generate_part_epub "VI" "Industry-Specific Applications" \
-    chapters/ch25_financial_services.qmd \
-    chapters/ch26_healthcare_life_sciences.qmd \
-    chapters/ch27_retail_ecommerce.qmd \
-    chapters/ch28_manufacturing_industry40.qmd \
-    chapters/ch29_media_entertainment.qmd \
-    chapters/ch30_scientific_computing.qmd \
-    chapters/ch31_defense_intelligence.qmd
+# Part VI: Cross-Industry Applications
+generate_part_epub "VI" "Cross-Industry Applications" \
+    chapters/ch26_cross_industry_patterns.qmd \
+    chapters/ch27_video_surveillance_analytics.qmd \
+    chapters/ch28_entity_resolution.qmd
 
-# Part VII: Future-Proofing & Optimization
-generate_part_epub "VII" "Future-Proofing and Optimization" \
-    chapters/ch32_performance_optimization.qmd \
-    chapters/ch33_security_privacy.qmd \
-    chapters/ch34_monitoring_observability.qmd \
-    chapters/ch35_future_trends.qmd
+# Part VII: Industry-Specific Applications
+generate_part_epub "VII" "Industry-Specific Applications" \
+    chapters/ch29_financial_services.qmd \
+    chapters/ch30_healthcare_life_sciences.qmd \
+    chapters/ch31_retail_ecommerce.qmd \
+    chapters/ch32_manufacturing_industry40.qmd \
+    chapters/ch33_media_entertainment.qmd \
+    chapters/ch34_scientific_computing.qmd \
+    chapters/ch35_defense_intelligence.qmd
 
-# Part VIII: Implementation Roadmap
-generate_part_epub "VIII" "Implementation Roadmap" \
-    chapters/ch36_organizational_transformation.qmd \
-    chapters/ch37_implementation_roadmap.qmd \
-    chapters/ch38_case_studies.qmd \
-    chapters/ch39_path_forward.qmd
+# Part VIII: Future-Proofing & Optimization
+generate_part_epub "VIII" "Future-Proofing and Optimization" \
+    chapters/ch36_performance_optimization.qmd \
+    chapters/ch37_security_privacy.qmd \
+    chapters/ch38_monitoring_observability.qmd \
+    chapters/ch39_future_trends.qmd
+
+# Part IX: Implementation Roadmap
+generate_part_epub "IX" "Implementation Roadmap" \
+    chapters/ch40_organizational_transformation.qmd \
+    chapters/ch41_implementation_roadmap.qmd \
+    chapters/ch42_case_studies.qmd \
+    chapters/ch43_embedding_governance.qmd \
+    chapters/ch44_path_forward.qmd
 
 # Create zip archive
 echo ""

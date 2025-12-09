@@ -2,6 +2,6 @@
   "version": "1.0.0",
   "embedding_dim": 128,
   "description": "Production model",
-  "registered_at": "2025-12-08T17:46:32.203340",
+  "registered_at": "2025-12-09T18:39:11.266819",
   "model_path": "models/product-embeddings-v1.0.0.pt"
 }

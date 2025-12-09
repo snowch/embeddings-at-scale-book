@@ -1,0 +1,489 @@
+# Text Embeddings {#sec-text-embeddings}
+
+::: callout-note
+## Chapter Overview
+
+This chapter covers text embeddings—the most mature and widely used embedding type. We explore what text embeddings are, when to use them, and the practical applications they enable. An optional advanced section explains how the underlying models learn to create these representations.
+:::
+
+## What Are Text Embeddings?
+
+Text embeddings convert words, sentences, or documents into dense numerical vectors that capture semantic meaning. Unlike simple approaches like bag-of-words or TF-IDF, embeddings understand that "happy" and "joyful" are related, even though they share no letters.
+
+The key insight: **text that appears in similar contexts should have similar embeddings**. This emerges from training on massive text corpora where the model learns to predict words from their surrounding context.
+
+## Word Embeddings
+
+The foundation of modern NLP, word embeddings map individual words to vectors:
+
+```{python}
+#| code-fold: false
+
+"""
+Word Embeddings: From Words to Vectors
+
+Word embeddings capture semantic relationships between individual words.
+Words with similar meanings cluster together in the embedding space.
+"""
+
+import os
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
+from sentence_transformers import SentenceTransformer
+from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
+
+# Use a sentence model to embed individual words
+model = SentenceTransformer('all-MiniLM-L6-v2')
+
+# Embed words across different categories
+words = {
+    'animals': ['cat', 'dog', 'elephant', 'whale'],
+    'vehicles': ['car', 'truck', 'airplane', 'boat'],
+    'colors': ['red', 'blue', 'green', 'yellow'],
+}
+
+all_words = [w for group in words.values() for w in group]
+embeddings = model.encode(all_words)
+
+# Show that words cluster by category
+print("Word similarities (same category = higher similarity):\n")
+print("Within categories:")
+print(f"  cat ↔ dog:      {cosine_similarity([embeddings[0]], [embeddings[1]])[0][0]:.3f}")
+print(f"  car ↔ truck:    {cosine_similarity([embeddings[4]], [embeddings[5]])[0][0]:.3f}")
+print(f"  red ↔ blue:     {cosine_similarity([embeddings[8]], [embeddings[9]])[0][0]:.3f}")
+
+print("\nAcross categories:")
+print(f"  cat ↔ car:      {cosine_similarity([embeddings[0]], [embeddings[4]])[0][0]:.3f}")
+print(f"  dog ↔ red:      {cosine_similarity([embeddings[1]], [embeddings[8]])[0][0]:.3f}")
+```
+
+**Key characteristics:**
+
+- One vector per word (static, context-independent in classic models)
+- Typically 100-300 dimensions
+- Captures synonyms, analogies, and semantic relationships
+
+## Sentence and Document Embeddings
+
+Modern applications need to embed entire sentences or documents:
+
+```{python}
+#| code-fold: false
+
+"""
+Sentence Embeddings: Capturing Complete Thoughts
+
+Sentence embeddings represent the meaning of entire sentences,
+enabling semantic search and similarity comparison.
+"""
+
+from sentence_transformers import SentenceTransformer
+from sklearn.metrics.pairwise import cosine_similarity
+
+model = SentenceTransformer('all-MiniLM-L6-v2')
+
+# Sentences with similar meaning but different words
+sentences = [
+    "The quick brown fox jumps over the lazy dog",
+    "A fast auburn fox leaps above a sleepy canine",
+    "Machine learning models require lots of training data",
+    "AI systems need substantial amounts of examples to learn",
+]
+
+embeddings = model.encode(sentences)
+
+print("Sentence similarities:\n")
+print("Similar meaning (paraphrases):")
+print(f"  Sentence 1 ↔ 2: {cosine_similarity([embeddings[0]], [embeddings[1]])[0][0]:.3f}")
+print(f"  Sentence 3 ↔ 4: {cosine_similarity([embeddings[2]], [embeddings[3]])[0][0]:.3f}")
+
+print("\nDifferent topics:")
+print(f"  Sentence 1 ↔ 3: {cosine_similarity([embeddings[0]], [embeddings[2]])[0][0]:.3f}")
+```
+
+## When to Use Text Embeddings
+
+Text embeddings are the right choice for:
+
+- **Semantic search**—finding documents by meaning, not just keywords (see @sec-semantic-search)
+- **RAG systems**—retrieval-augmented generation for LLMs (see @sec-rag-at-scale)
+- **Text classification and clustering**—grouping similar documents
+- **Sentiment analysis**—understanding opinion and emotion
+- **Recommendation systems**—content-based filtering (see @sec-recommendation-systems)
+- **Duplicate detection**—finding near-duplicate content (see @sec-entity-resolution)
+- **Customer support**—ticket routing and similar issue finding (see @sec-cross-industry-patterns)
+
+## Popular Text Embedding Models
+
+| Model | Dimensions | Speed | Quality | Best For |
+|-------|-----------|-------|---------|----------|
+| [all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2) | 384 | Fast | Good | General purpose |
+| [all-mpnet-base-v2](https://huggingface.co/sentence-transformers/all-mpnet-base-v2) | 768 | Medium | Better | Higher quality needs |
+| [text-embedding-3-small](https://platform.openai.com/docs/guides/embeddings) | 1536 | API | Excellent | Production systems |
+| [text-embedding-3-large](https://platform.openai.com/docs/guides/embeddings) | 3072 | API | Best | Maximum quality |
+
+: Popular text embedding models {.striped}
+
+## Classification, Clustering, and Sentiment Analysis {#sec-text-classification-clustering}
+
+Once you have text embeddings, three foundational tasks become straightforward: **classification** (assigning labels), **clustering** (discovering groups), and **sentiment analysis** (a special case of classification). All three leverage the same principle—similar texts have similar embeddings.
+
+### Classification with Embeddings
+
+Train a simple classifier on top of frozen embeddings, or use nearest-neighbor approaches:
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Text Classifier"
+import numpy as np
+from collections import Counter
+
+
+class EmbeddingClassifier:
+    """Simple k-NN classifier using embeddings."""
+
+    def __init__(self, encoder, k: int = 5):
+        self.encoder = encoder
+        self.k = k
+        self.embeddings = []
+        self.labels = []
+
+    def fit(self, texts: list, labels: list):
+        """Embed texts and store with their labels."""
+        self.embeddings = [self.encoder.encode(text) for text in texts]
+        self.labels = labels
+
+    def predict(self, text: str) -> str:
+        """Predict label using k-NN."""
+        query_emb = self.encoder.encode(text)
+
+        # Cosine similarity: (A · B) / (||A|| × ||B||)
+        distances = []
+        for i, emb in enumerate(self.embeddings):
+            dist = np.dot(query_emb, emb) / (np.linalg.norm(query_emb) * np.linalg.norm(emb))
+            distances.append((dist, self.labels[i]))
+
+        # Get k nearest neighbors
+        distances.sort(reverse=True)
+        k_nearest = [label for _, label in distances[: self.k]]
+
+        # Return most common label
+        return Counter(k_nearest).most_common(1)[0][0]
+
+
+# Example: Sentiment classification
+from sentence_transformers import SentenceTransformer
+encoder = SentenceTransformer('all-MiniLM-L6-v2')
+
+classifier = EmbeddingClassifier(encoder, k=3)
+classifier.fit(
+    texts=["Great product!", "Loved it", "Terrible", "Waste of money", "Amazing quality"],
+    labels=["positive", "positive", "negative", "negative", "positive"],
+)
+print(f"Prediction: {classifier.predict('This is wonderful!')}")
+```
+
+### Clustering with Embeddings
+
+Clustering discovers natural groups in your data without predefined labels:
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Text Clustering"
+import numpy as np
+from typing import List, Dict
+
+
+class EmbeddingClusterer:
+    """K-means clustering on text embeddings."""
+
+    def __init__(self, encoder, n_clusters: int = 3):
+        self.encoder = encoder
+        self.n_clusters = n_clusters
+        self.centroids = None
+
+    def fit(self, texts: List[str], max_iters: int = 100):
+        """Cluster texts and return assignments."""
+        embeddings = np.array([self.encoder.encode(text) for text in texts])
+
+        # Initialize centroids by picking k random embeddings as starting points
+        indices = np.random.choice(len(embeddings), self.n_clusters, replace=False)
+        self.centroids = embeddings[indices].copy()
+
+        for _ in range(max_iters):
+            # Assign points to nearest centroid
+            assignments = []
+            for emb in embeddings:
+                distances = [np.linalg.norm(emb - c) for c in self.centroids]
+                assignments.append(np.argmin(distances))
+
+            # Update centroids
+            new_centroids = []
+            for i in range(self.n_clusters):
+                cluster_points = embeddings[np.array(assignments) == i]
+                if len(cluster_points) > 0:
+                    new_centroids.append(cluster_points.mean(axis=0))
+                else:
+                    new_centroids.append(self.centroids[i])
+
+            self.centroids = np.array(new_centroids)
+
+        return assignments
+
+    def get_cluster_examples(self, texts: List[str], assignments: List[int]) -> Dict[int, List[str]]:
+        """Group texts by cluster."""
+        clusters = {i: [] for i in range(self.n_clusters)}
+        for text, cluster_id in zip(texts, assignments):
+            clusters[cluster_id].append(text)
+        return clusters
+
+
+# Example: Topic discovery
+texts = [
+    "Chop the onions and garlic finely",
+    "Simmer the sauce for twenty minutes",
+    "The telescope discovered a new exoplanet",
+    "Astronauts completed their spacewalk today",
+    "Heavy rain expected throughout the weekend",
+    "Temperatures will drop below freezing tonight",
+]
+
+np.random.seed(42)
+clusterer = EmbeddingClusterer(encoder, n_clusters=3)
+assignments = clusterer.fit(texts)
+clusters = clusterer.get_cluster_examples(texts, assignments)
+for cluster_id, examples in clusters.items():
+    print(f"\nCluster {cluster_id}:")
+    for text in examples:
+        print(f"  - {text}")
+```
+
+### Sentiment Analysis
+
+Use anchor texts to define sentiment regions in embedding space:
+
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show Sentiment Analyzer"
+import numpy as np
+from typing import Tuple
+
+
+class SentimentAnalyzer:
+    """Embedding-based sentiment analysis using anchor texts."""
+
+    def __init__(self, encoder):
+        self.encoder = encoder
+        positive_anchors = ["excellent", "amazing", "wonderful", "fantastic", "love it"]
+        negative_anchors = ["terrible", "awful", "horrible", "hate it", "worst ever"]
+
+        self.positive_centroid = np.mean(
+            [encoder.encode(t) for t in positive_anchors], axis=0
+        )
+        self.negative_centroid = np.mean(
+            [encoder.encode(t) for t in negative_anchors], axis=0
+        )
+
+    def analyze(self, text: str) -> Tuple[str, float]:
+        """Return sentiment label and confidence score."""
+        emb = self.encoder.encode(text)
+
+        pos_sim = np.dot(emb, self.positive_centroid) / (
+            np.linalg.norm(emb) * np.linalg.norm(self.positive_centroid)
+        )
+        neg_sim = np.dot(emb, self.negative_centroid) / (
+            np.linalg.norm(emb) * np.linalg.norm(self.negative_centroid)
+        )
+
+        score = pos_sim - neg_sim
+        label = "positive" if score > 0 else "negative"
+        return label, abs(score)
+
+
+analyzer = SentimentAnalyzer(encoder)
+for text in ["This product exceeded expectations!", "Complete waste of money"]:
+    label, conf = analyzer.analyze(text)
+    print(f"'{text[:30]}...' -> {label} ({conf:.2f})")
+```
+
+:::{.callout-tip}
+## Best Practices
+
+**For classification:**
+
+- Few-shot is often enough: 10-50 examples per class with good embeddings
+- k-NN for simplicity, logistic regression for speed
+- Fine-tune for best quality when you have thousands of examples
+
+**For clustering:**
+
+- Use elbow method or silhouette scores to find optimal k
+- Consider HDBSCAN when you don't know the number of clusters
+- Reduce dimensions with UMAP/t-SNE for visualization
+
+**For sentiment:**
+
+- Use domain-specific anchors (financial sentiment differs from product reviews)
+- Consider aspect-based sentiment for detailed analysis
+:::
+
+## Advanced: How Text Embedding Models Learn {.unnumbered}
+
+::: {.callout-note}
+## Optional Section
+This section explains how text embedding models actually learn. Understanding these fundamentals helps you choose the right model and diagnose issues. Skip this if you just need to use embeddings.
+:::
+
+### Word2Vec: The Breakthrough {#sec-word2vec}
+
+Word2Vec [@mikolov2013efficient] revolutionized NLP by showing that simple neural networks could learn rich semantic representations from raw text. The key insight: **words appearing in similar contexts should have similar embeddings**.
+
+The skip-gram model learns by predicting context words given a target word:
+
+```{python}
+#| code-fold: false
+
+"""
+Word2Vec Skip-Gram: Simplified Implementation
+"""
+
+import numpy as np
+
+vocab = ["the", "cat", "sat", "on", "mat", "dog", "rug"]
+vocab_size = len(vocab)
+embedding_dim = 4
+word_to_idx = {w: i for i, w in enumerate(vocab)}
+
+np.random.seed(42)
+W_target = np.random.randn(vocab_size, embedding_dim) * 0.1
+W_context = np.random.randn(vocab_size, embedding_dim) * 0.1
+
+
+def sigmoid(x):
+    return 1 / (1 + np.exp(-np.clip(x, -500, 500)))
+
+
+def train_skipgram_pair(target_word, context_word, negative_words, lr=0.1):
+    """Train on one (target, context) pair with negative sampling."""
+    global W_target, W_context
+
+    t_idx = word_to_idx[target_word]
+    c_idx = word_to_idx[context_word]
+
+    target_emb = W_target[t_idx]
+    context_emb = W_context[c_idx]
+
+    # Positive example: target and context should be similar
+    score = np.dot(target_emb, context_emb)
+    pred = sigmoid(score)
+    W_target[t_idx] -= lr * (pred - 1) * context_emb
+    W_context[c_idx] -= lr * (pred - 1) * target_emb
+
+    # Negative examples: target and random words should be dissimilar
+    for neg_word in negative_words:
+        n_idx = word_to_idx[neg_word]
+        neg_emb = W_context[n_idx]
+        score = np.dot(target_emb, neg_emb)
+        pred = sigmoid(score)
+        W_target[t_idx] -= lr * pred * neg_emb
+        W_context[n_idx] -= lr * pred * target_emb
+
+
+# Training corpus
+corpus = [["the", "cat", "sat", "on", "the", "mat"], ["the", "dog", "sat", "on", "the", "rug"]]
+
+for epoch in range(50):
+    for sentence in corpus:
+        for i, target in enumerate(sentence):
+            context_words = [sentence[j] for j in range(max(0, i-2), min(len(sentence), i+3)) if j != i]
+            negatives = [w for w in vocab if w not in context_words and w != target][:2]
+            for context in context_words:
+                train_skipgram_pair(target, context, negatives)
+
+
+def cosine_similarity(w1, w2):
+    v1, v2 = W_target[word_to_idx[w1]], W_target[word_to_idx[w2]]
+    return np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
+
+
+print("Learned similarities:")
+print(f"  cat ↔ dog: {cosine_similarity('cat', 'dog'):.3f}")
+print(f"  cat ↔ mat: {cosine_similarity('cat', 'mat'):.3f}")
+```
+
+### Transformers and BERT {#sec-transformers-bert}
+
+The transformer architecture [@vaswani2017attention] and BERT [@devlin2018bert] introduced **contextual embeddings**—the same word gets different representations based on context.
+
+The key innovation is the **attention mechanism**: when processing a word, the model can attend to all other words in the sentence.
+
+```{python}
+#| code-fold: false
+
+"""
+Demonstrating Contextual Embeddings
+
+The same word gets different embeddings in different contexts.
+"""
+
+from sentence_transformers import SentenceTransformer
+from sklearn.metrics.pairwise import cosine_similarity
+
+model = SentenceTransformer('all-MiniLM-L6-v2')
+
+sentences = [
+    "I deposited money at the bank",      # bank = financial institution
+    "The bank approved my loan",          # bank = financial institution
+    "We had a picnic on the river bank",  # bank = riverside
+    "Fish swim near the bank",            # bank = riverside
+]
+
+embeddings = model.encode(sentences)
+
+print("Contextual similarity:\n")
+labels = ["financial-1", "financial-2", "river-1", "river-2"]
+for i in range(len(sentences)):
+    for j in range(i + 1, len(sentences)):
+        sim = cosine_similarity([embeddings[i]], [embeddings[j]])[0][0]
+        print(f"  {labels[i]:12s} ↔ {labels[j]:12s}: {sim:.3f}")
+```
+
+**Why transformers dominate:**
+
+1. **Parallelization**: All positions processed simultaneously (unlike RNNs)
+2. **Long-range dependencies**: Attention connects distant words directly
+3. **Transfer learning**: Pre-trained models work across many tasks
+4. **Scalability**: Performance improves with more data and compute
+
+### Sentence Transformers {#sec-sentence-transformers}
+
+Sentence Transformers [@reimers2019sentence] fine-tune BERT-like models specifically for producing sentence embeddings. They use **contrastive learning** (see @sec-contrastive-learning): train the model to produce similar embeddings for related sentences, and push apart unrelated ones.
+
+## Key Takeaways
+
+- **Text embeddings** convert words, sentences, or documents into vectors capturing semantic meaning
+
+- **Similar text → similar vectors**: This enables semantic search, clustering, and classification without explicit rules
+
+- **Popular models** range from fast (MiniLM) to high-quality (OpenAI text-embedding-3) depending on your needs
+
+- **Word2Vec** learns from word co-occurrence patterns—words in similar contexts get similar embeddings
+
+- **Transformers (BERT)** create contextual embeddings where the same word gets different vectors based on surrounding context
+
+- **Sentence Transformers** adapt these for producing single embeddings for entire sentences
+
+## Looking Ahead
+
+Now that you understand text embeddings, @sec-image-video-embeddings explores how similar principles apply to visual data—images and video.
+
+## Further Reading
+
+- Mikolov, T., et al. (2013). "Efficient Estimation of Word Representations in Vector Space." *arXiv:1301.3781*
+- Vaswani, A., et al. (2017). "Attention Is All You Need." *NeurIPS*
+- Devlin, J., et al. (2018). "BERT: Pre-training of Deep Bidirectional Transformers." *arXiv:1810.04805*
+- Reimers, N. & Gurevych, I. (2019). "Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks." *arXiv:1908.10084*

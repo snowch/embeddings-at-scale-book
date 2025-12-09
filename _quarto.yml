@@ -22,69 +22,76 @@ book:
 
   chapters:
     - index.qmd
-    - part: "Part I: Foundation & Strategy"
+    - part: "Part I: Foundations"
       chapters:
         - chapters/ch01_embedding_revolution.qmd
-        - chapters/ch02_foundational_embedding_types.qmd
-        - chapters/ch03_advanced_embedding_patterns.qmd
-        - chapters/ch04_strategic_architecture.qmd
-        - chapters/ch05_similarity_distance_metrics.qmd
-        - chapters/ch06_vector_database_fundamentals.qmd
-        - chapters/ch07_embedding_model_fundamentals.qmd
+        - chapters/ch02_similarity_distance_metrics.qmd
+        - chapters/ch03_vector_database_fundamentals.qmd
 
-    - part: "Part II: Custom Embedding Development"
+    - part: "Part II: Embedding Types"
       chapters:
-        - chapters/ch08_custom_embedding_strategies.qmd
-        - chapters/ch09_contrastive_learning.qmd
-        - chapters/ch10_siamese_networks.qmd
-        - chapters/ch11_self_supervised_learning.qmd
-        - chapters/ch12_advanced_embedding_techniques.qmd
+        - chapters/ch04_text_embeddings.qmd
+        - chapters/ch05_image_video_embeddings.qmd
+        - chapters/ch06_multimodal_embeddings.qmd
+        - chapters/ch07_graph_embeddings.qmd
+        - chapters/ch08_timeseries_embeddings.qmd
+        - chapters/ch09_code_embeddings.qmd
+        - chapters/ch10_advanced_embedding_patterns.qmd
 
-    - part: "Part III: Production Engineering"
+    - part: "Part III: Core Applications"
       chapters:
-        - chapters/ch13_embedding_pipeline_engineering.qmd
-        - chapters/ch14_scaling_embedding_training.qmd
-        - chapters/ch15_embedding_quality_evaluation.qmd
-        - chapters/ch15_high_performance_vector_ops.qmd
-        - chapters/ch16_data_engineering.qmd
-        - chapters/ch17_text_chunking.qmd
-        - chapters/ch18_image_preparation.qmd
+        - chapters/ch11_rag_at_scale.qmd
+        - chapters/ch12_semantic_search.qmd
+        - chapters/ch13_recommendation_systems.qmd
 
-    - part: "Part IV: Core Application Patterns"
+    - part: "Part IV: Custom Embedding Development"
       chapters:
-        - chapters/ch19_rag_at_scale.qmd
-        - chapters/ch20_semantic_search.qmd
-        - chapters/ch21_recommendation_systems.qmd
+        - chapters/ch14_custom_embedding_strategies.qmd
+        - chapters/ch15_contrastive_learning.qmd
+        - chapters/ch16_siamese_networks.qmd
+        - chapters/ch17_self_supervised_learning.qmd
+        - chapters/ch18_advanced_embedding_techniques.qmd
 
-    - part: "Part V: Cross-Industry Applications"
+    - part: "Part V: Production Engineering"
       chapters:
-        - chapters/ch22_cross_industry_patterns.qmd
-        - chapters/ch23_video_surveillance_analytics.qmd
-        - chapters/ch24_entity_resolution.qmd
+        - chapters/ch19_embedding_pipeline_engineering.qmd
+        - chapters/ch20_scaling_embedding_training.qmd
+        - chapters/ch21_embedding_quality_evaluation.qmd
+        - chapters/ch22_high_performance_vector_ops.qmd
+        - chapters/ch23_data_engineering.qmd
+        - chapters/ch24_text_chunking.qmd
+        - chapters/ch25_image_preparation.qmd
 
-    - part: "Part VI: Industry-Specific Applications"
+    - part: "Part VI: Cross-Industry Applications"
       chapters:
-        - chapters/ch25_financial_services.qmd
-        - chapters/ch26_healthcare_life_sciences.qmd
-        - chapters/ch27_retail_ecommerce.qmd
-        - chapters/ch28_manufacturing_industry40.qmd
-        - chapters/ch29_media_entertainment.qmd
-        - chapters/ch30_scientific_computing.qmd
-        - chapters/ch31_defense_intelligence.qmd
+        - chapters/ch26_cross_industry_patterns.qmd
+        - chapters/ch27_video_surveillance_analytics.qmd
+        - chapters/ch28_entity_resolution.qmd
 
-    - part: "Part VII: Future-Proofing & Optimization"
+    - part: "Part VII: Industry-Specific Applications"
       chapters:
-        - chapters/ch32_performance_optimization.qmd
-        - chapters/ch33_security_privacy.qmd
-        - chapters/ch34_monitoring_observability.qmd
-        - chapters/ch35_future_trends.qmd
+        - chapters/ch29_financial_services.qmd
+        - chapters/ch30_healthcare_life_sciences.qmd
+        - chapters/ch31_retail_ecommerce.qmd
+        - chapters/ch32_manufacturing_industry40.qmd
+        - chapters/ch33_media_entertainment.qmd
+        - chapters/ch34_scientific_computing.qmd
+        - chapters/ch35_defense_intelligence.qmd
 
-    - part: "Part VIII: Implementation Roadmap"
+    - part: "Part VIII: Future-Proofing & Optimization"
       chapters:
-        - chapters/ch36_organizational_transformation.qmd
-        - chapters/ch37_implementation_roadmap.qmd
-        - chapters/ch38_case_studies.qmd
-        - chapters/ch39_path_forward.qmd
+        - chapters/ch36_performance_optimization.qmd
+        - chapters/ch37_security_privacy.qmd
+        - chapters/ch38_monitoring_observability.qmd
+        - chapters/ch39_future_trends.qmd
+
+    - part: "Part IX: Implementation Roadmap"
+      chapters:
+        - chapters/ch40_organizational_transformation.qmd
+        - chapters/ch41_implementation_roadmap.qmd
+        - chapters/ch42_case_studies.qmd
+        - chapters/ch43_embedding_governance.qmd
+        - chapters/ch44_path_forward.qmd
 
     - references.qmd
 

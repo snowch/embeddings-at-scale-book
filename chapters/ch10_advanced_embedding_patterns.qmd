@@ -3,7 +3,7 @@
 ::: callout-note
 ## Chapter Overview
 
-Production embedding systems rarely use single, off-the-shelf embeddings. This chapter covers the advanced patterns that power real-world systems: hybrid vectors combining multiple feature types, multi-vector representations for fine-grained matching, learned sparse embeddings for interpretability, and domain-specific patterns for security, time-series, and structured data. These patterns build on the foundational types from @sec-foundational-embedding-types.
+Production embedding systems rarely use single, off-the-shelf embeddings. This chapter covers the advanced patterns that power real-world systems: hybrid vectors combining multiple feature types, multi-vector representations for fine-grained matching, learned sparse embeddings for interpretability, and domain-specific patterns for security, time-series, and structured data. These patterns build on the foundational types covered in Chapters 4-9.
 :::
 
 ## Beyond Single Embeddings
@@ -905,7 +905,7 @@ print(f"\nLog similarity: {cosine_similarity([emb1], [emb2])[0][0]:.3f}")
 
 ## Looking Ahead
 
-With both foundational types and advanced patterns understood, @sec-strategic-architecture covers how to architect systems that deploy these embeddings at scale. For training custom embeddings with these patterns, @sec-custom-embedding-strategies provides guidance on when to build versus fine-tune.
+This completes Part II on embedding types. @sec-rag-at-scale begins Part III: Core Applications, showing how to build retrieval-augmented generation systems that put these embeddings to work. For training custom embeddings with these patterns, @sec-custom-embedding-strategies in Part IV provides guidance on when to build versus fine-tune.
 
 ## Further Reading
 

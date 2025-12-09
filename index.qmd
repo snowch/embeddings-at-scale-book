@@ -86,15 +86,68 @@ Each chapter builds upon previous concepts while remaining self-contained enough
 
 ## Book Structure
 
-This book is organized into seven parts covering 30 chapters:
+This book is organized into nine parts covering 44 chapters:
 
-1. **Foundation & Strategy** - Understanding the embedding revolution and designing architectures
-2. **Custom Embedding Development** - Building specialized embeddings for your use case
-3. **Production Engineering** - Scaling and operationalizing embedding systems
-4. **Advanced Applications** - Implementing sophisticated embedding-powered applications
-5. **Industry Applications** - Domain-specific solutions and case studies
-6. **Future-Proofing & Optimization** - Performance, security, and monitoring
-7. **Implementation Roadmap** - Practical guidance for organizational transformation
+1. **Foundations** - Understanding the embedding revolution, similarity metrics, and vector databases
+2. **Embedding Types** - Text, image, audio, video, multi-modal, graph, time-series, and code embeddings
+3. **Core Applications** - RAG, semantic search, and recommendation systems (practical value early)
+4. **Custom Embedding Development** - Building specialized embeddings for your domain
+5. **Production Engineering** - Scaling and operationalizing embedding systems
+6. **Cross-Industry Applications** - Patterns that work across multiple domains
+7. **Industry-Specific Applications** - Finance, healthcare, retail, manufacturing, media, scientific computing, and defense
+8. **Future-Proofing & Optimization** - Performance, security, and monitoring
+9. **Implementation Roadmap** - Organizational transformation and governance
+
+## Reading Paths
+
+Choose the path that matches your role and goals:
+
+::: {.callout-tip}
+## For Practitioners (Software Engineers, Data Scientists)
+**Goal**: Build embedding-powered applications quickly
+
+1. **Part I: Foundations** (Ch 1-3) - Core concepts
+2. **Part II: Embedding Types** (Ch 4-10) - Choose chapters for your data types
+3. **Part III: Core Applications** (Ch 11-13) - Build RAG, search, recommendations
+4. **Part V: Production Engineering** (Ch 19-25) - Deploy at scale
+
+*Skip*: Model internals sections (marked "Advanced: Optional"), governance details
+:::
+
+::: {.callout-tip}
+## For IT Leaders (CTOs, Technical Directors)
+**Goal**: Strategic planning and architecture decisions
+
+1. **Part I: Foundations** (Ch 1-3) - Strategic overview
+2. **Part III: Core Applications** (Ch 11-13) - Understand key use cases
+3. **Part VI-VII: Industry Applications** (Ch 26-35) - Your industry's patterns
+4. **Part IX: Implementation Roadmap** (Ch 40-44) - Transformation strategy
+
+*Skip*: Deep technical sections, model training details
+:::
+
+::: {.callout-tip}
+## For ML Engineers (Deep Learning Focus)
+**Goal**: Custom model development and optimization
+
+1. **Part I: Foundations** (Ch 1-3) - Core concepts
+2. **Part II: Embedding Types** (Ch 4-10) - All chapters including "Advanced" sections
+3. **Part IV: Custom Development** (Ch 14-18) - Contrastive learning, Siamese networks
+4. **Part V: Production Engineering** (Ch 19-25) - Training at scale
+
+*Include*: All "Advanced: How Models Learn" sections
+:::
+
+::: {.callout-tip}
+## For Data Engineers
+**Goal**: Build robust data pipelines for embeddings
+
+1. **Part I: Foundations** (Ch 1-3) - Vector database fundamentals
+2. **Part V: Production Engineering** (Ch 19-25) - Pipelines, chunking, data prep
+3. **Part VIII: Future-Proofing** (Ch 36-39) - Monitoring and optimization
+
+*Skip*: Model training details, industry-specific applications
+:::
 
 ## About the Author
 

@@ -1,0 +1,231 @@
+# Graph Embeddings {#sec-graph-embeddings}
+
+::: callout-note
+## Chapter Overview
+
+This chapter covers graph embeddings—representations that convert nodes, edges, and subgraphs into vectors capturing structural relationships. Unlike text or images where data is sequential or grid-like, graphs have arbitrary connectivity. We explore how graph embeddings learn representations where connected nodes (or nodes with similar neighborhoods) have similar vectors.
+:::
+
+## What Are Graph Embeddings?
+
+Graph embeddings convert nodes, edges, and subgraphs into vectors that capture structural relationships. A social network node might have 3 friends or 3,000—graph embeddings handle this arbitrary connectivity by learning that nodes with similar neighborhoods should have similar vectors.
+
+The key insight: **a node's meaning comes from its connections**. In a social network, people with similar friends likely have similar interests. In a molecule, atoms with similar bonding patterns have similar chemical properties.
+
+## Visualizing Graph Embeddings
+
+```{python}
+#| echo: false
+#| label: fig-graph-embedding
+#| fig-cap: "Graph embeddings: nodes in the same community (densely connected) map to nearby points in embedding space."
+import matplotlib.pyplot as plt
+import numpy as np
+
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
+
+# Left: Graph structure
+ax1.set_title('Graph structure', fontsize=11, fontweight='bold')
+# Community 1 (blue)
+community1_pos = {'Alice': (1, 2), 'Bob': (1.5, 2.8), 'Carol': (2, 2)}
+community1_labels = {'Alice': (-15, -15), 'Bob': (0, 10), 'Carol': (15, -15)}
+for name, pos in community1_pos.items():
+    ax1.scatter(*pos, s=200, c='#2196F3', edgecolors='black', linewidths=1.5, zorder=3)
+    ax1.annotate(name, pos, xytext=community1_labels[name], textcoords='offset points', ha='center', fontsize=9)
+ax1.plot([1, 1.5], [2, 2.8], 'k-', alpha=0.5)
+ax1.plot([1.5, 2], [2.8, 2], 'k-', alpha=0.5)
+ax1.plot([1, 2], [2, 2], 'k-', alpha=0.5)
+
+# Community 2 (orange)
+community2_pos = {'Xavier': (3.5, 2), 'Yuki': (4, 2.8), 'Zara': (4.5, 2)}
+community2_labels = {'Xavier': (-15, -15), 'Yuki': (0, 10), 'Zara': (15, -15)}
+for name, pos in community2_pos.items():
+    ax1.scatter(*pos, s=200, c='#FF9800', edgecolors='black', linewidths=1.5, zorder=3)
+    ax1.annotate(name, pos, xytext=community2_labels[name], textcoords='offset points', ha='center', fontsize=9)
+ax1.plot([3.5, 4], [2, 2.8], 'k-', alpha=0.5)
+ax1.plot([4, 4.5], [2.8, 2], 'k-', alpha=0.5)
+ax1.plot([3.5, 4.5], [2, 2], 'k-', alpha=0.5)
+
+# Weak link between communities
+ax1.plot([2, 3.5], [2, 2], 'k--', alpha=0.3)
+
+ax1.set_xlim(0.5, 5)
+ax1.set_ylim(1, 3.5)
+ax1.axis('off')
+
+# Right: Embedding space
+ax2.set_title('Embedding space', fontsize=11, fontweight='bold')
+emb1 = {'Alice': (1.2, 2.5), 'Bob': (1.5, 2.3), 'Carol': (1.0, 2.1)}
+emb1_labels = {'Alice': (8, 5), 'Bob': (8, 0), 'Carol': (-35, 0)}
+for name, pos in emb1.items():
+    ax2.scatter(*pos, s=200, c='#2196F3', edgecolors='black', linewidths=1.5, zorder=3)
+    ax2.annotate(name, pos, xytext=emb1_labels[name], textcoords='offset points', fontsize=9)
+
+emb2 = {'Xavier': (3.0, 1.2), 'Yuki': (3.3, 1.5), 'Zara': (3.5, 1.0)}
+emb2_labels = {'Xavier': (-40, 0), 'Yuki': (8, 5), 'Zara': (8, -5)}
+for name, pos in emb2.items():
+    ax2.scatter(*pos, s=200, c='#FF9800', edgecolors='black', linewidths=1.5, zorder=3)
+    ax2.annotate(name, pos, xytext=emb2_labels[name], textcoords='offset points', fontsize=9)
+
+ax2.set_xlabel('Embedding dim 1')
+ax2.set_ylabel('Embedding dim 2')
+ax2.set_xlim(0.5, 4)
+ax2.set_ylim(0.5, 3)
+
+plt.tight_layout()
+plt.show()
+```
+
+## Creating Graph Embeddings
+
+```{python}
+#| code-fold: false
+
+"""
+Graph Embeddings: Network Structure as Vectors
+"""
+
+import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
+
+# Simulated node embeddings from a social network
+# Real systems use Node2Vec, GraphSAGE, or GNN-based approaches
+np.random.seed(42)
+
+# Two friend groups: nodes in the same group have similar embeddings
+node_embeddings = {
+    # Community 1: Alice, Bob, Carol (densely connected)
+    'Alice': np.random.randn(64) + np.array([1, 0] + [0]*62),
+    'Bob': np.random.randn(64) + np.array([0.9, 0.1] + [0]*62),
+    'Carol': np.random.randn(64) + np.array([0.8, 0.2] + [0]*62),
+    # Community 2: Xavier, Yuki, Zara (densely connected)
+    'Xavier': np.random.randn(64) + np.array([0, 1] + [0]*62),
+    'Yuki': np.random.randn(64) + np.array([0.1, 0.9] + [0]*62),
+    'Zara': np.random.randn(64) + np.array([0.2, 0.8] + [0]*62),
+}
+
+print("Graph embedding similarities:\n")
+print("Within community (friends):")
+ab = cosine_similarity([node_embeddings['Alice']], [node_embeddings['Bob']])[0][0]
+ac = cosine_similarity([node_embeddings['Alice']], [node_embeddings['Carol']])[0][0]
+print(f"  Alice ↔ Bob:   {ab:.3f}")
+print(f"  Alice ↔ Carol: {ac:.3f}")
+
+print("\nAcross communities (not connected):")
+ax = cosine_similarity([node_embeddings['Alice']], [node_embeddings['Xavier']])[0][0]
+print(f"  Alice ↔ Xavier: {ax:.3f}")
+```
+
+Nodes in the same community have high similarity because they share connections. Alice, Bob, and Carol are all friends with each other, so their embeddings cluster together. Xavier is in a different friend group with no direct connection to Alice, resulting in lower similarity.
+
+## When to Use Graph Embeddings
+
+- **Social network analysis**—community detection, influence prediction, friend recommendation
+- **Recommendation systems**—user-item graphs, collaborative filtering (see @sec-recommendation-systems)
+- **Fraud detection**—identify suspicious patterns in transaction graphs (see @sec-financial-services)
+- **Knowledge graph completion**—predict missing relationships (see @sec-entity-resolution)
+- **Drug discovery**—molecule property prediction from molecular graphs (see @sec-healthcare-life-sciences)
+- **Supply chain analysis**—identify dependencies and bottlenecks
+
+## Popular Graph Architectures
+
+| Architecture | Type | Strengths | Use Cases |
+|-------------|------|-----------|-----------|
+| [Node2Vec](https://github.com/aditya-grover/node2vec) | Random walks | Simple, scalable | Homogeneous graphs |
+| [GraphSAGE](https://github.com/williamleif/GraphSAGE) | Neighborhood aggregation | Inductive learning | New nodes |
+| [GAT](https://github.com/PetarV-/GAT) | Graph attention | Weighted neighbors | Heterogeneous graphs |
+| [TransE](https://github.com/thunlp/OpenKE) | Translation-based | Link prediction | Knowledge graphs |
+
+: Graph embedding architectures {.striped}
+
+## Advanced: How Graph Models Learn {.unnumbered}
+
+::: {.callout-note}
+## Optional Section
+This section explains how graph embedding models learn structural patterns. Skip if you just need to use pre-built embeddings.
+:::
+
+### Node2Vec: Random Walks
+
+Node2Vec [@mikolov2013efficient] generates embeddings by performing random walks on the graph, then applying Word2Vec. The intuition: nodes that appear in similar "context" (nearby in random walks) should have similar embeddings.
+
+```python
+def node2vec_walk(graph, start_node, walk_length, p=1, q=1):
+    """Generate a random walk starting from a node."""
+    walk = [start_node]
+    while len(walk) < walk_length:
+        cur = walk[-1]
+        neighbors = list(graph.neighbors(cur))
+        if len(neighbors) == 0:
+            break
+        # Biased sampling based on p (return) and q (in-out) parameters
+        if len(walk) == 1:
+            walk.append(random.choice(neighbors))
+        else:
+            prev = walk[-2]
+            probs = []
+            for neighbor in neighbors:
+                if neighbor == prev:
+                    probs.append(1/p)  # Return to previous
+                elif graph.has_edge(neighbor, prev):
+                    probs.append(1)  # Same neighborhood
+                else:
+                    probs.append(1/q)  # Explore
+            probs = np.array(probs) / sum(probs)
+            walk.append(np.random.choice(neighbors, p=probs))
+    return walk
+```
+
+### GraphSAGE: Neighborhood Aggregation
+
+GraphSAGE learns embeddings by aggregating features from a node's neighbors:
+
+1. Sample a fixed number of neighbors for each node
+2. Aggregate neighbor embeddings (mean, max, or LSTM)
+3. Concatenate with the node's own embedding
+4. Apply a neural network layer
+
+This is **inductive**: it can generate embeddings for new nodes not seen during training.
+
+### Graph Attention Networks (GAT)
+
+GATs learn to weight neighbors differently based on their importance:
+
+```python
+def gat_attention(node_emb, neighbor_embs, attention_weights):
+    """Compute attention-weighted neighbor aggregation."""
+    # Compute attention scores for each neighbor
+    scores = []
+    for neighbor_emb in neighbor_embs:
+        combined = torch.cat([node_emb, neighbor_emb])
+        score = torch.exp(attention_weights @ combined)
+        scores.append(score)
+
+    # Normalize to get attention weights
+    attention = torch.softmax(torch.tensor(scores), dim=0)
+
+    # Weighted aggregation
+    aggregated = sum(a * emb for a, emb in zip(attention, neighbor_embs))
+    return aggregated
+```
+
+## Key Takeaways
+
+- **Graph embeddings** capture network structure—connected nodes and nodes with similar neighborhoods have similar vectors
+
+- **The core principle**: a node's meaning comes from its connections, not just its features
+
+- **Random walks** (Node2Vec) treat graphs like text, generating "sentences" of nodes to train Word2Vec
+
+- **Neighborhood aggregation** (GraphSAGE, GAT) directly combines neighbor information, enabling inductive learning
+
+- **Applications** span social networks, recommendations, fraud detection, and molecular property prediction
+
+## Looking Ahead
+
+Now that you understand graph embeddings, @sec-timeseries-embeddings explores time-series embeddings—representations that capture temporal patterns and dynamics.
+
+## Further Reading
+
+- Grover, A. & Leskovec, J. (2016). "node2vec: Scalable Feature Learning for Networks." *KDD*
+- Hamilton, W., et al. (2017). "Inductive Representation Learning on Large Graphs." *NeurIPS*
+- Veličković, P., et al. (2018). "Graph Attention Networks." *ICLR*

@@ -367,7 +367,7 @@ In practice, you have three options for obtaining these models:
 
 Most teams start with pre-trained models and progress to fine-tuning as needs grow.
 
-For deeper coverage: @sec-foundational-embedding-types covers the different data types you can embed (text, images, audio, etc.), @sec-advanced-embedding-patterns covers advanced types like hybrid embeddings and multi-vector representations, and @sec-embedding-model-fundamentals explains the underlying neural network architectures.
+For deeper coverage: Part II covers the different data types you can embed—@sec-text-embeddings (text), @sec-image-video-embeddings (images, audio, video), @sec-multimodal-embeddings (multi-modal), @sec-graph-embeddings (graphs), @sec-timeseries-embeddings (time-series), and @sec-code-embeddings (code). Each chapter includes an "Advanced" section explaining how the models learn. @sec-advanced-embedding-patterns covers patterns like hybrid embeddings and multi-vector representations.
 
 ### Types of Embeddings
 
@@ -393,13 +393,13 @@ Each type requires different model architectures and training approaches, for ex
 - **Multi-modal embeddings** (like CLIP) align text and images in a shared space
 - **Graph embeddings** use message-passing networks that aggregate neighborhood information
 
-We explore each foundational type in depth in @sec-foundational-embedding-types. Production systems often combine and extend these foundations using advanced patterns—hybrid vectors, multi-vector representations, learned sparse embeddings, and more—which we cover in @sec-advanced-embedding-patterns. How embedding models learn these representations is explained in @sec-embedding-model-fundamentals.
+We explore each foundational type in depth in Part II (Chapters 4-9). Production systems often combine and extend these foundations using advanced patterns—hybrid vectors, multi-vector representations, learned sparse embeddings, and more—which we cover in @sec-advanced-embedding-patterns. Each embedding type chapter includes an "Advanced" section explaining how models learn these representations.
 
 ### Embeddings in Action: Concrete Examples
 
 **Word Embeddings**
 
-In @lst-word-embedding-basics we used hand-crafted values to illustrate the concept. Here we use a pre-trained sentence transformer model ([all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2)) to create real embeddings—we explain how these models learn in @sec-embedding-model-fundamentals:
+In @lst-word-embedding-basics we used hand-crafted values to illustrate the concept. Here we use a pre-trained sentence transformer model ([all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2)) to create real embeddings—we explain how these models learn in the "Advanced" section of @sec-text-embeddings:
 
 ```{python}
 #| label: lst-sentence-transformer-words
@@ -1279,7 +1279,7 @@ Use this template to calculate total ROI for an embedding project:
 
 ## Looking Ahead
 
-@sec-foundational-embedding-types provides a comprehensive tour of text, image, audio, video, and other foundational embedding types—the building blocks you'll combine and extend. You'll learn when to use each type and how they're created. Then @sec-advanced-embedding-patterns covers the advanced patterns (hybrid vectors, multi-vector representations, learned sparse embeddings) that power production systems.
+@sec-similarity-distance-metrics explores the mathematics of similarity—how to measure distances and relationships in embedding space. This understanding is essential before diving into Part II's comprehensive tour of embedding types: text, image, audio, video, multi-modal, graph, time-series, and code. Each chapter in Part II covers both when to use that embedding type and how the models learn, with advanced sections for those who want deeper understanding. @sec-advanced-embedding-patterns then covers the advanced patterns (hybrid vectors, multi-vector representations, learned sparse embeddings) that power production systems.
 
 The revolution is here. The question is no longer whether to adopt embeddings, but how quickly you can build an embedding-native organization that leaves competitors behind.
 

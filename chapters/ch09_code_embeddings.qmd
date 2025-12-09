@@ -1,0 +1,218 @@
+# Code Embeddings {#sec-code-embeddings}
+
+::: callout-note
+## Chapter Overview
+
+This chapter covers code embeddings—representations that convert source code into vectors capturing program semantics. We explore how these embeddings understand what code does, not just how it's written, enabling applications from semantic code search to vulnerability detection.
+:::
+
+## What Are Code Embeddings?
+
+Code embeddings convert source code into vectors that capture program semantics—what the code does, not just how it's written. Two functions that sum a list of numbers should have similar embeddings whether implemented with a loop or the built-in `sum()` function.
+
+The challenge: syntax varies widely while functionality remains the same. Variable names, formatting, and implementation choices differ between programmers, but the underlying logic may be identical. Code embeddings must see through surface differences to capture semantic similarity.
+
+## Creating Code Embeddings
+
+```{python}
+#| code-fold: false
+
+"""
+Code Embeddings: Source Code as Vectors
+"""
+
+from sentence_transformers import SentenceTransformer
+from sklearn.metrics.pairwise import cosine_similarity
+
+# General text model for demo (production: use CodeBERT, StarCoder, etc.)
+model = SentenceTransformer('all-MiniLM-L6-v2')
+
+# Same functionality, different implementations
+code_snippets = {
+    'sum_loop': '''
+def sum_numbers(nums):
+    total = 0
+    for n in nums:
+        total += n
+    return total
+''',
+    'sum_builtin': '''
+def sum_numbers(numbers):
+    return sum(numbers)
+''',
+    'reverse_loop': '''
+def reverse_list(lst):
+    result = []
+    for i in range(len(lst)-1, -1, -1):
+        result.append(lst[i])
+    return result
+''',
+    'reverse_slice': '''
+def reverse_list(items):
+    return items[::-1]
+''',
+}
+
+embeddings = {name: model.encode(code) for name, code in code_snippets.items()}
+
+print(f"Embedding dimension: {len(embeddings['sum_loop'])}\n")
+print("Code embedding similarities:\n")
+print("Same functionality, different implementation:")
+sum_sim = cosine_similarity([embeddings['sum_loop']], [embeddings['sum_builtin']])[0][0]
+rev_sim = cosine_similarity([embeddings['reverse_loop']], [embeddings['reverse_slice']])[0][0]
+print(f"  sum (loop) ↔ sum (builtin):       {sum_sim:.3f}")
+print(f"  reverse (loop) ↔ reverse (slice): {rev_sim:.3f}")
+
+print("\nDifferent functionality:")
+cross_sim = cosine_similarity([embeddings['sum_loop']], [embeddings['reverse_loop']])[0][0]
+print(f"  sum ↔ reverse:                    {cross_sim:.3f}")
+```
+
+Functions with the same purpose cluster together even with different implementations. The two sum functions are more similar to each other than to the reverse functions, and vice versa.
+
+## When to Use Code Embeddings
+
+- **Semantic code search**—find code by what it does, not just keywords
+- **Code clone detection**—identify copied or similar code across repositories
+- **Vulnerability detection**—find code patterns similar to known vulnerabilities
+- **Code recommendation**—suggest similar functions or implementations
+- **Repository organization**—automatically categorize and tag code
+- **License compliance**—detect potentially copied code for legal review
+
+## Popular Code Architectures
+
+| Architecture | Type | Strengths | Use Cases |
+|-------------|------|-----------|-----------|
+| [CodeBERT](https://github.com/microsoft/CodeBERT) | BERT-style | Multi-language | Search, clone detection |
+| [GraphCodeBERT](https://github.com/microsoft/CodeBERT) | Graph-enhanced | Data flow awareness | Bug detection |
+| [StarCoder](https://github.com/bigcode-project/starcoder) | Large model | 80+ languages | Code generation |
+| [CodeT5](https://github.com/salesforce/CodeT5) | Encoder-decoder | Understanding + generation | Code summarization |
+
+: Code embedding architectures {.striped}
+
+## Advanced: How Code Models Learn {.unnumbered}
+
+::: {.callout-note}
+## Optional Section
+This section explains how code embedding models capture program semantics. Skip if you just need to use pre-built embeddings.
+:::
+
+### Code as Natural Language
+
+The simplest approach treats code as text and applies standard NLP techniques. This works surprisingly well because code has structure, naming conventions, and patterns that convey meaning.
+
+```python
+# These look different but serve the same purpose
+# A text model picks up on shared vocabulary: "sum", "numbers", "return"
+
+def sum_numbers_v1(nums):
+    return sum(nums)
+
+def sum_numbers_v2(numbers):
+    total = 0
+    for n in numbers:
+        total = total + n
+    return total
+```
+
+### Abstract Syntax Trees (AST)
+
+More sophisticated models parse code into its structural representation:
+
+```python
+import ast
+
+code = "def add(a, b): return a + b"
+tree = ast.parse(code)
+
+# The AST captures structure:
+# FunctionDef(name='add', args=['a', 'b'], body=[Return(BinOp(...))])
+```
+
+Training on ASTs helps models understand that variable names don't change program behavior.
+
+### Data Flow Graphs
+
+GraphCodeBERT goes further by modeling how data flows through programs:
+
+```python
+# Data flow: x → y → z
+x = input()
+y = x.upper()
+z = len(y)
+```
+
+Understanding data flow helps detect bugs where data is used before initialization or after it's freed.
+
+### Contrastive Training
+
+CodeBERT and similar models are trained with contrastive objectives:
+
+1. **Natural Language → Code**: Match documentation to the code it describes
+2. **Code → Code**: Match semantically equivalent implementations
+3. **Negative sampling**: Push apart unrelated code pairs
+
+```python
+# Positive pair: documentation matches code
+doc = "Returns the sum of all numbers in the list"
+code = "def sum_list(nums): return sum(nums)"
+
+# Negative pair: documentation doesn't match
+doc = "Returns the sum of all numbers in the list"
+code = "def reverse_list(lst): return lst[::-1]"
+```
+
+## Practical Considerations
+
+### Embedding Granularity
+
+Decide what to embed based on your use case:
+
+- **Function-level**: Best for code search and clone detection
+- **File-level**: Good for repository organization
+- **Line/block-level**: Useful for vulnerability detection
+
+### Multi-Language Support
+
+Models like StarCoder support 80+ programming languages. For cross-language search:
+
+```python
+# A universal code model embeds these similarly
+# because they both sort a list
+
+# Python
+sorted_list = sorted(items)
+
+# JavaScript
+const sortedList = items.sort();
+```
+
+### Handling Long Code
+
+Code often exceeds model context limits. Strategies include:
+
+1. **Chunking**: Split into functions/classes
+2. **Hierarchical encoding**: Embed chunks, then combine
+3. **Summarization**: Use docstrings/comments plus key lines
+
+## Key Takeaways
+
+- **Code embeddings** capture what code does, not just how it's written—semantically equivalent implementations cluster together
+
+- **General text models** work for basic tasks, but **specialized models** (CodeBERT, StarCoder) understand programming language structure
+
+- **Training approaches** range from treating code as text to parsing ASTs and data flow graphs
+
+- **Applications** include semantic search, clone detection, vulnerability finding, and code recommendation
+
+- **Granularity matters**: embed functions for search, files for organization, blocks for vulnerability detection
+
+## Looking Ahead
+
+This completes Part II on embedding types. @sec-advanced-embedding-patterns explores advanced patterns like hybrid embeddings, multi-vector representations, and quantized embeddings that extend these foundational types.
+
+## Further Reading
+
+- Feng, Z., et al. (2020). "CodeBERT: A Pre-Trained Model for Programming and Natural Languages." *EMNLP Findings*
+- Guo, D., et al. (2021). "GraphCodeBERT: Pre-training Code Representations with Data Flow." *ICLR*
+- Li, R., et al. (2023). "StarCoder: may the source be with you!" *arXiv:2305.06161*

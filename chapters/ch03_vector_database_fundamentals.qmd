@@ -707,7 +707,7 @@ Key strategies for minimizing global latency:
 
 ## Looking Ahead
 
-@sec-embedding-model-fundamentals completes Part I by exploring embedding model fundamentals—understanding how models like Word2Vec, BERT, and CLIP work under the hood, which helps you choose and fine-tune the right model for your use case.
+Part II begins with @sec-text-embeddings, exploring text embeddings—the most common type you'll encounter. You'll learn to create embeddings for words, sentences, and documents, with an optional "Advanced" section explaining how models like Word2Vec, BERT, and Sentence Transformers work under the hood. Subsequent chapters cover image, multi-modal, graph, time-series, and code embeddings.
 
 ## Further Reading
 
