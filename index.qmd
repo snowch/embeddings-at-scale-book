@@ -6,6 +6,14 @@
 This book is currently a **work in progress**. Content may be incomplete, subject to change, or contain errors. Feedback and suggestions are welcome.
 :::
 
+::: {.content-hidden when-format="epub"}
+::: {.callout-tip appearance="simple"}
+## Support This Book
+
+If you find this book helpful, please [star the repository on GitHub](https://github.com/snowch/embeddings-at-scale-book)! It helps others discover the book and motivates continued development.
+:::
+:::
+
 ## Welcome to Embeddings at Scale
 
 **Building Tomorrow's AI with Vector Databases at 256+ Trillion Row Scale**
