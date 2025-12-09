@@ -39,6 +39,9 @@ Word embeddings capture semantic relationships between individual words.
 Words with similar meanings cluster together in the embedding space.
 """
 
+import os
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
@@ -602,16 +605,82 @@ See @sec-image-embedding-models for details on how these architectures work.
 
 ## Audio Embeddings {#sec-audio-embedding-types}
 
-Audio embeddings capture acoustic features from speech, music, and environmental sounds. Let's create embeddings from real audio using MFCC (Mel-frequency cepstral coefficients) features:
+Audio embeddings convert sound into vectors that capture acoustic properties—pitch, timbre, rhythm, and spectral characteristics. Unlike raw waveform comparison, embeddings understand that two recordings of the same spoken word are similar even with different speakers, background noise, or recording equipment.
+
+The example below uses MFCC (Mel-frequency cepstral coefficients), a classic signal processing technique—not a neural network, but a fixed mathematical transformation that extracts acoustic features. MFCCs transform audio into a representation that mimics human hearing—emphasizing frequencies we're sensitive to while compressing less important details. While modern systems use learned embeddings from models like Wav2Vec2, MFCCs remain useful as a baseline and for understanding what acoustic features matter.
+
+We extract 20 values per time frame, called *coefficients*—each describes a different aspect of the sound's frequency content (overall loudness, balance between low and high frequencies, etc.). Since audio clips vary in length (a 3-second clip has more frames than a 1-second clip), we aggregate across time using mean and standard deviation to create a fixed-size embedding that works regardless of duration:
+
+```{python}
+#| echo: false
+#| label: fig-mfcc-aggregation
+#| fig-cap: "MFCC aggregation: 20 coefficients per frame become a 40-dimensional embedding via mean and standard deviation."
+import matplotlib.pyplot as plt
+from matplotlib.patches import FancyBboxPatch
+
+fig, ax = plt.subplots(figsize=(10, 7))
+ax.set_xlim(0, 10)
+ax.set_ylim(0, 8)
+ax.axis('off')
+
+# Consistent spacing: boxes are 0.8 tall, gaps are 0.6, arrows span the gaps
+box_height = 0.8
+gap = 0.6
+
+# Box 1: Audio waveform (y = 6.4 to 7.2)
+y1 = 6.4
+box1 = FancyBboxPatch((3.5, y1), 3, box_height, boxstyle="round,pad=0.05",
+                       facecolor='#E8F4FD', edgecolor='#2196F3', linewidth=2)
+ax.add_patch(box1)
+ax.text(5, y1 + box_height/2, 'Audio file (e.g. mp3, wav)', ha='center', va='center', fontsize=11, fontweight='bold')
+
+# Arrow 1
+ax.annotate('', xy=(5, y1 - gap + 0.1), xytext=(5, y1 - 0.1), arrowprops=dict(arrowstyle='->', color='gray', lw=2))
+ax.text(5.8, y1 - gap/2, 'split into ~25ms frames', ha='left', va='center', fontsize=9, style='italic', color='#666')
+
+# Box 2: Frames (y = 4.6 to 5.6)
+y2 = y1 - gap - box_height - 0.2
+box2 = FancyBboxPatch((1, y2), 8, box_height + 0.2, boxstyle="round,pad=0.05",
+                       facecolor='#FFF3E0', edgecolor='#FF9800', linewidth=2)
+ax.add_patch(box2)
+ax.text(1.8, y2 + 0.5, 'Frame 1\n[20 vals]', ha='center', va='center', fontsize=9)
+ax.text(3.6, y2 + 0.5, 'Frame 2\n[20 vals]', ha='center', va='center', fontsize=9)
+ax.text(5.4, y2 + 0.5, 'Frame 3\n[20 vals]', ha='center', va='center', fontsize=9)
+ax.text(6.6, y2 + 0.5, '...', ha='center', va='center', fontsize=12)
+ax.text(8, y2 + 0.5, 'Frame N\n[20 vals]', ha='center', va='center', fontsize=9)
+
+# Arrow 2
+ax.annotate('', xy=(5, y2 - gap + 0.1), xytext=(5, y2 - 0.1), arrowprops=dict(arrowstyle='->', color='gray', lw=2))
+ax.text(5.8, y2 - gap/2, 'aggregate across frames', ha='left', va='center', fontsize=9, style='italic', color='#666')
+
+# Box 3: Mean/Std (y = 2.8 to 3.8)
+y3 = y2 - gap - box_height - 0.2
+box3 = FancyBboxPatch((1.5, y3), 7, box_height + 0.2, boxstyle="round,pad=0.05",
+                       facecolor='#E8F5E9', edgecolor='#4CAF50', linewidth=2)
+ax.add_patch(box3)
+ax.text(5, y3 + 0.65, 'Mean across all frames:  [20 values]', ha='center', va='center', fontsize=10)
+ax.text(5, y3 + 0.25, 'Std across all frames:     [20 values]', ha='center', va='center', fontsize=10)
+
+# Arrow 3
+ax.annotate('', xy=(5, y3 - gap + 0.1), xytext=(5, y3 - 0.1), arrowprops=dict(arrowstyle='->', color='gray', lw=2))
+ax.text(5.8, y3 - gap/2, 'concatenate', ha='left', va='center', fontsize=9, style='italic', color='#666')
+
+# Box 4: Final embedding (y = 1.0 to 1.8)
+y4 = y3 - gap - box_height
+box4 = FancyBboxPatch((2.5, y4), 5, box_height, boxstyle="round,pad=0.05",
+                       facecolor='#F3E5F5', edgecolor='#9C27B0', linewidth=2)
+ax.add_patch(box4)
+ax.text(5, y4 + box_height/2, 'Audio embedding: [40 values]', ha='center', va='center', fontsize=11, fontweight='bold')
+
+plt.tight_layout()
+plt.show()
+```
 
 ```{python}
 #| code-fold: false
 
 """
-Audio Embeddings: Real Audio to Vectors
-
-We'll use librosa to extract MFCC features from actual audio,
-creating embeddings that capture timbral characteristics.
+Audio Embeddings: Sound as Vectors
 """
 
 import numpy as np
@@ -620,8 +689,9 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 def audio_to_embedding(audio, sr, n_mfcc=20):
     """Convert audio waveform to a fixed-size embedding using MFCCs."""
+    # Extract MFCCs: 20 coefficients per time frame
     mfccs = librosa.feature.mfcc(y=audio, sr=sr, n_mfcc=n_mfcc)
-    # Aggregate over time: mean and std of each coefficient
+    # Aggregate over time: mean captures average timbre, std captures variation
     return np.concatenate([mfccs.mean(axis=1), mfccs.std(axis=1)])
 
 # Load librosa's built-in trumpet sample
@@ -630,7 +700,7 @@ trumpet_embedding = audio_to_embedding(audio, sr)
 
 # Create variations to demonstrate similarity
 trumpet_slow = librosa.effects.time_stretch(audio, rate=0.8)
-trumpet_pitch_up = librosa.effects.pitch_shift(audio, sr=sr, n_steps=4)
+trumpet_pitch_up = librosa.effects.pitch_shift(audio, sr=sr, n_steps=12)  # One octave up
 
 # Generate embeddings for each variation
 embeddings = {
@@ -659,22 +729,26 @@ sim_variations = cosine_similarity(
 print(f"  Slower ↔ Higher pitch:     {sim_variations:.3f}")
 ```
 
-The tempo change preserves timbre (high similarity), while pitch shifting alters the spectral characteristics more significantly.
+When comparing audio embeddings, cosine similarity measures how acoustically similar two sounds are. Notice that all similarities are high (>0.97)—this is by design. MFCCs capture timbre (the trumpet's characteristic "brassy" quality) rather than absolute pitch or tempo. The tempo change preserves timbre almost perfectly (1.000), while shifting pitch by an octave causes only a small drop (~0.98) because the overall spectral shape remains trumpet-like. This robustness is useful for applications like speaker identification, where you want to match voices regardless of speaking speed or emotional pitch variations.
 
-**Popular audio embedding models:**
+How do MFCCs capture sound? Audio is first split into short overlapping frames (typically 25ms). For each frame, we compute the frequency spectrum, then apply a mel filterbank that groups frequencies into bands matching human perception—more resolution at low frequencies where we hear pitch differences, less at high frequencies. The cepstral coefficients compress this further, capturing the overall "shape" of the spectrum. The result: a compact representation of timbre that's robust to volume changes.
 
-- **Wav2Vec2**: Self-supervised speech representations
-- **Whisper**: Multi-task speech model (transcription + embeddings)
-- **CLAP**: Audio-text alignment (like CLIP for audio)
-- **VGGish**: Audio event classification embeddings
+**When to use audio embeddings:** Content moderation, audio fingerprinting, speaker identification, music recommendation, podcast and video search, sound event detection, voice cloning detection, acoustic quality control, wildlife monitoring, and medical diagnostics from sounds (coughs, heartbeats).
 
-**When to use audio embeddings:**
+This book covers music recommendation with audio embeddings in @sec-recommendation-systems. If you'd like to see other audio applications covered in future editions, reach out to the author.
 
-- Voice search and speaker identification
-- Music recommendation and similarity
-- Sound event detection and classification
-- Audio fingerprinting
-- Podcast/video content search
+**Popular architectures:**
+
+| Architecture | Type | Strengths | Use Cases |
+|-------------|------|-----------|-----------|
+| [Wav2Vec2](https://huggingface.co/facebook/wav2vec2-base) | Self-supervised | Rich speech features | Speech recognition, speaker ID |
+| [Whisper](https://github.com/openai/whisper) | Multi-task | Transcription + embeddings | Speech search, subtitles |
+| [CLAP](https://github.com/LAION-AI/CLAP) | Multi-modal | Audio-text alignment | Zero-shot audio classification |
+| [VGGish](https://github.com/tensorflow/models/tree/master/research/audioset/vggish) | CNN | General audio events | Sound classification |
+
+: Audio embedding architectures {.striped}
+
+See @sec-embedding-model-fundamentals for details on how text and image embedding models work. For audio models, the linked documentation above provides architecture details, or explore the [Hugging Face Audio Course](https://huggingface.co/learn/audio-course) for a comprehensive introduction.
 
 ## Video Embeddings {#sec-video-embedding-types}
 
