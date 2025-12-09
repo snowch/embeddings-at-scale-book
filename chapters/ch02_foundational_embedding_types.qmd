@@ -1130,23 +1130,23 @@ import numpy as np
 
 fig, ax = plt.subplots(figsize=(8, 5))
 
-# Simulated 2D positions for text and images
+# Simulated 2D positions for text and images - spread out to avoid overlap
 np.random.seed(42)
 concepts = {
-    'cat': {'text': (1.0, 2.5), 'image': (1.2, 2.3)},
-    'dog': {'text': (1.8, 2.0), 'image': (1.6, 2.2)},
-    'car': {'text': (4.0, 1.0), 'image': (3.8, 1.2)},
+    'cat': {'text': (0.8, 2.8), 'image': (1.0, 2.5), 'text_offset': (-40, 5), 'img_offset': (10, -20)},
+    'dog': {'text': (2.2, 1.5), 'image': (2.0, 1.8), 'text_offset': (10, -20), 'img_offset': (-50, 10)},
+    'car': {'text': (4.2, 0.8), 'image': (4.0, 1.1), 'text_offset': (10, -20), 'img_offset': (-50, 5)},
 }
 
 # Plot text embeddings (squares)
 for concept, positions in concepts.items():
     ax.scatter(*positions['text'], marker='s', s=150, c='#2196F3', edgecolors='black', linewidths=1.5, zorder=3)
-    ax.annotate(f'"{concept}"', positions['text'], xytext=(10, 10), textcoords='offset points', fontsize=10)
+    ax.annotate(f'"{concept}"', positions['text'], xytext=positions['text_offset'], textcoords='offset points', fontsize=10)
 
 # Plot image embeddings (circles)
 for concept, positions in concepts.items():
     ax.scatter(*positions['image'], marker='o', s=150, c='#FF9800', edgecolors='black', linewidths=1.5, zorder=3)
-    ax.annotate(f'{concept}.jpg', positions['image'], xytext=(10, -15), textcoords='offset points', fontsize=10)
+    ax.annotate(f'{concept}.jpg', positions['image'], xytext=positions['img_offset'], textcoords='offset points', fontsize=10)
 
 # Draw lines connecting matching text-image pairs
 for concept, positions in concepts.items():
