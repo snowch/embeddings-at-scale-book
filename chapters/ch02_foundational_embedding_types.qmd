@@ -930,145 +930,286 @@ See @sec-embedding-model-fundamentals for details on how text and image embeddin
 
 ## Multi-Modal Embeddings {#sec-multimodal-embedding-types}
 
-Multi-modal embeddings align different data types in a shared space:
+Multi-modal embeddings map different data types—text, images, audio—into a shared vector space where they can be directly compared. This enables powerful cross-modal capabilities: searching images with text queries, finding text descriptions for images, or classifying images without any training examples.
+
+The key insight is training two encoders (e.g., one for text, one for images) so that matching pairs produce similar vectors. CLIP, trained on 400 million image-text pairs from the internet, learns that "a photo of a cat" and an actual cat photo should have nearby embeddings.
+
+```{python}
+#| echo: false
+#| label: fig-multimodal-space
+#| fig-cap: "Multi-modal embeddings: text and images mapped to a shared space where matching concepts are close together."
+import matplotlib.pyplot as plt
+import numpy as np
+
+fig, ax = plt.subplots(figsize=(8, 5))
+
+# Simulated 2D positions for text and images
+np.random.seed(42)
+concepts = {
+    'cat': {'text': (1.0, 2.5), 'image': (1.2, 2.3)},
+    'dog': {'text': (1.8, 2.0), 'image': (1.6, 2.2)},
+    'car': {'text': (4.0, 1.0), 'image': (3.8, 1.2)},
+}
+
+# Plot text embeddings (squares)
+for concept, positions in concepts.items():
+    ax.scatter(*positions['text'], marker='s', s=150, c='#2196F3', edgecolors='black', linewidths=1.5, zorder=3)
+    ax.annotate(f'"{concept}"', positions['text'], xytext=(10, 10), textcoords='offset points', fontsize=10)
+
+# Plot image embeddings (circles)
+for concept, positions in concepts.items():
+    ax.scatter(*positions['image'], marker='o', s=150, c='#FF9800', edgecolors='black', linewidths=1.5, zorder=3)
+    ax.annotate(f'{concept}.jpg', positions['image'], xytext=(10, -15), textcoords='offset points', fontsize=10)
+
+# Draw lines connecting matching text-image pairs
+for concept, positions in concepts.items():
+    ax.plot([positions['text'][0], positions['image'][0]],
+            [positions['text'][1], positions['image'][1]],
+            'g--', alpha=0.5, linewidth=2)
+
+# Legend
+ax.scatter([], [], marker='s', s=100, c='#2196F3', edgecolors='black', label='Text embeddings')
+ax.scatter([], [], marker='o', s=100, c='#FF9800', edgecolors='black', label='Image embeddings')
+ax.plot([], [], 'g--', alpha=0.5, linewidth=2, label='Matching pairs (close)')
+
+ax.set_xlabel('Embedding dimension 1')
+ax.set_ylabel('Embedding dimension 2')
+ax.set_title('Shared embedding space: text and images aligned')
+ax.legend(loc='upper right')
+ax.set_xlim(0, 5)
+ax.set_ylim(0, 3.5)
+plt.tight_layout()
+plt.show()
+```
 
 ```{python}
 #| code-fold: false
 
 """
-Multi-Modal Embeddings: Bridging Modalities
-
-Multi-modal models like CLIP learn a shared embedding space where
-text and images can be directly compared. This enables:
-- Text-to-image search ("find images of cats")
-- Image-to-text search (find descriptions for an image)
-- Zero-shot classification (classify without training examples)
+Multi-Modal Embeddings: Text and Images in Shared Space
 """
 
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 
-# Simulated CLIP-style embeddings where text and images share a space
+# Simulated CLIP-style embeddings (real CLIP uses 512-768 dimensions)
+# Key property: matching text-image pairs have similar vectors
 np.random.seed(42)
 
-# In a real CLIP model, these would be 512-768 dimensional
-# and text/image of the same concept would have similar vectors
 embeddings = {
-    # Text embeddings
+    # Text embeddings (from text encoder)
     'text: a photo of a cat': np.array([0.8, 0.1, 0.2, 0.1]),
     'text: a picture of a dog': np.array([0.7, 0.3, 0.2, 0.1]),
     'text: a red sports car': np.array([0.1, 0.1, 0.9, 0.3]),
-    # Image embeddings (would come from image encoder)
+    # Image embeddings (from image encoder)
     'image: cat_photo.jpg': np.array([0.75, 0.15, 0.25, 0.1]),
     'image: dog_photo.jpg': np.array([0.65, 0.35, 0.15, 0.15]),
     'image: car_photo.jpg': np.array([0.15, 0.1, 0.85, 0.35]),
 }
 
-print("Multi-modal embedding alignment:\n")
-print("Text queries matched to images:")
+print("Multi-modal text-to-image search:\n")
+print("Query: 'a photo of a cat'\n")
 
 text_cat = embeddings['text: a photo of a cat']
+results = []
 for name, emb in embeddings.items():
     if name.startswith('image:'):
         sim = cosine_similarity([text_cat], [emb])[0][0]
-        print(f"  'a photo of a cat' ↔ {name}: {sim:.3f}")
+        results.append((name, sim))
+
+# Sort by similarity
+for name, sim in sorted(results, key=lambda x: -x[1]):
+    print(f"  {sim:.3f}  {name.replace('image: ', '')}")
 ```
 
-**Multi-modal embedding models:**
+The cat image ranks highest for the cat query because CLIP learned to align text descriptions with matching images. This enables zero-shot image classification: to classify an image, compare it against text embeddings like "a photo of a cat", "a photo of a dog", etc., and pick the highest similarity.
 
-- **CLIP** (OpenAI): Text-image alignment, 400M image-text pairs
-- **BLIP/BLIP-2**: Image captioning + retrieval
-- **ImageBind** (Meta): Aligns 6 modalities (image, text, audio, depth, thermal, IMU)
-- **LLaVA**: Large language model with vision
+**When to use multi-modal embeddings:** Cross-modal search (text→image, image→text), zero-shot image classification, image captioning, visual question answering, and product search with text and images.
 
-**When to use multi-modal embeddings:**
+This book covers multi-modal search in @sec-semantic-search. If you'd like to see other multi-modal applications covered in future editions, reach out to the author.
 
-- Cross-modal search (text→image, image→text)
-- Zero-shot image classification
-- Image captioning
-- Visual question answering
-- Product search with text and images
+**Popular architectures:**
+
+| Architecture | Type | Strengths | Use Cases |
+|-------------|------|-----------|-----------|
+| [CLIP](https://github.com/openai/CLIP) | Text-image | Fast, versatile | Search, classification |
+| [BLIP-2](https://github.com/salesforce/LAVIS) | Text-image | Captioning + retrieval | Image understanding |
+| [ImageBind](https://github.com/facebookresearch/ImageBind) | 6 modalities | Audio, depth, thermal | Multi-sensor fusion |
+| [LLaVA](https://github.com/haotian-liu/LLaVA) | Vision-language | Conversational | Visual Q&A |
+
+: Multi-modal embedding architectures {.striped}
+
+See @sec-embedding-model-fundamentals for details on how text and image embedding models work.
 
 ## Graph Embeddings {#sec-graph-embedding-types}
 
-Graph embeddings represent nodes, edges, and subgraphs in vector space:
+Graph embeddings convert nodes, edges, and subgraphs into vectors that capture structural relationships. Unlike text or images where data is sequential or grid-like, graphs have arbitrary connectivity—a social network node might have 3 friends or 3,000. Graph embeddings learn representations where connected nodes (or nodes with similar neighborhoods) have similar vectors.
+
+The key insight is that a node's meaning comes from its connections. In a social network, people with similar friends likely have similar interests. In a molecule, atoms with similar bonding patterns have similar chemical properties. Graph embedding algorithms capture this by aggregating information from neighbors.
+
+```{python}
+#| echo: false
+#| label: fig-graph-embedding
+#| fig-cap: "Graph embeddings: nodes in the same community (densely connected) map to nearby points in embedding space."
+import matplotlib.pyplot as plt
+import numpy as np
+
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
+
+# Left: Graph structure
+ax1.set_title('Graph structure', fontsize=11, fontweight='bold')
+# Community 1 (blue)
+community1_pos = {'Alice': (1, 2), 'Bob': (1.5, 2.8), 'Carol': (2, 2)}
+for name, pos in community1_pos.items():
+    ax1.scatter(*pos, s=200, c='#2196F3', edgecolors='black', linewidths=1.5, zorder=3)
+    ax1.annotate(name, pos, xytext=(0, -20), textcoords='offset points', ha='center', fontsize=9)
+# Edges within community 1
+ax1.plot([1, 1.5], [2, 2.8], 'k-', alpha=0.5)
+ax1.plot([1.5, 2], [2.8, 2], 'k-', alpha=0.5)
+ax1.plot([1, 2], [2, 2], 'k-', alpha=0.5)
+
+# Community 2 (orange)
+community2_pos = {'Xavier': (3.5, 2), 'Yuki': (4, 2.8), 'Zara': (4.5, 2)}
+for name, pos in community2_pos.items():
+    ax1.scatter(*pos, s=200, c='#FF9800', edgecolors='black', linewidths=1.5, zorder=3)
+    ax1.annotate(name, pos, xytext=(0, -20), textcoords='offset points', ha='center', fontsize=9)
+# Edges within community 2
+ax1.plot([3.5, 4], [2, 2.8], 'k-', alpha=0.5)
+ax1.plot([4, 4.5], [2.8, 2], 'k-', alpha=0.5)
+ax1.plot([3.5, 4.5], [2, 2], 'k-', alpha=0.5)
+
+# Weak link between communities
+ax1.plot([2, 3.5], [2, 2], 'k--', alpha=0.3)
+
+ax1.set_xlim(0.5, 5)
+ax1.set_ylim(1, 3.5)
+ax1.axis('off')
+
+# Right: Embedding space
+ax2.set_title('Embedding space', fontsize=11, fontweight='bold')
+# Community 1 embeddings (clustered)
+emb1 = {'Alice': (1.2, 2.5), 'Bob': (1.4, 2.3), 'Carol': (1.1, 2.2)}
+for name, pos in emb1.items():
+    ax2.scatter(*pos, s=200, c='#2196F3', edgecolors='black', linewidths=1.5, zorder=3)
+    ax2.annotate(name, pos, xytext=(5, 5), textcoords='offset points', fontsize=9)
+
+# Community 2 embeddings (clustered separately)
+emb2 = {'Xavier': (3.2, 1.2), 'Yuki': (3.4, 1.4), 'Zara': (3.1, 1.0)}
+for name, pos in emb2.items():
+    ax2.scatter(*pos, s=200, c='#FF9800', edgecolors='black', linewidths=1.5, zorder=3)
+    ax2.annotate(name, pos, xytext=(5, 5), textcoords='offset points', fontsize=9)
+
+ax2.set_xlabel('Embedding dim 1')
+ax2.set_ylabel('Embedding dim 2')
+ax2.set_xlim(0.5, 4)
+ax2.set_ylim(0.5, 3)
+
+plt.tight_layout()
+plt.show()
+```
 
 ```{python}
 #| code-fold: false
 
 """
-Graph Embeddings: Relationships as Vectors
-
-Graph embeddings capture structural relationships between entities.
-Nodes that are connected or share neighbors get similar embeddings.
-
-Applications: Knowledge graphs, social networks, molecule structures
+Graph Embeddings: Network Structure as Vectors
 """
 
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 
 # Simulated node embeddings from a social network
-# In practice, use models like Node2Vec, GraphSAGE, or GNN-based approaches
+# Real systems use Node2Vec, GraphSAGE, or GNN-based approaches
 np.random.seed(42)
 
-# Imagine a graph where:
-# - Alice, Bob, Carol are in the same friend group
-# - Xavier, Yuki, Zara are in a different friend group
-# - Nodes in the same community should have similar embeddings
-
+# Two friend groups: nodes in the same group have similar embeddings
 node_embeddings = {
+    # Community 1: Alice, Bob, Carol (densely connected)
     'Alice': np.random.randn(64) + np.array([1, 0] + [0]*62),
     'Bob': np.random.randn(64) + np.array([0.9, 0.1] + [0]*62),
     'Carol': np.random.randn(64) + np.array([0.8, 0.2] + [0]*62),
+    # Community 2: Xavier, Yuki, Zara (densely connected)
     'Xavier': np.random.randn(64) + np.array([0, 1] + [0]*62),
     'Yuki': np.random.randn(64) + np.array([0.1, 0.9] + [0]*62),
     'Zara': np.random.randn(64) + np.array([0.2, 0.8] + [0]*62),
 }
 
-print("Graph embedding similarities (same community = higher):\n")
-print("Within community 1:")
+print("Graph embedding similarities:\n")
+print("Within community (friends):")
 ab = cosine_similarity([node_embeddings['Alice']], [node_embeddings['Bob']])[0][0]
 ac = cosine_similarity([node_embeddings['Alice']], [node_embeddings['Carol']])[0][0]
 print(f"  Alice ↔ Bob:   {ab:.3f}")
 print(f"  Alice ↔ Carol: {ac:.3f}")
 
-print("\nAcross communities:")
+print("\nAcross communities (not connected):")
 ax = cosine_similarity([node_embeddings['Alice']], [node_embeddings['Xavier']])[0][0]
 print(f"  Alice ↔ Xavier: {ax:.3f}")
 ```
 
-**Graph embedding methods:**
+Nodes in the same community have high similarity because they share connections. Alice, Bob, and Carol are all friends with each other, so their embeddings cluster together. Xavier is in a different friend group with no direct connection to Alice, resulting in lower similarity.
 
-| Method | Approach | Best For |
-|--------|----------|----------|
-| Node2Vec | Random walks + Word2Vec | Homogeneous graphs |
-| GraphSAGE | Neighborhood aggregation | Inductive learning |
-| GAT | Attention over neighbors | Weighted importance |
-| Knowledge Graph Embeddings | TransE, RotatE, etc. | Link prediction |
+**When to use graph embeddings:** Social network analysis, recommendation systems (user-item graphs), knowledge graph completion, fraud detection (transaction graphs), and drug discovery (molecular graphs).
 
-: Graph embedding methods {.striped}
+This book covers entity resolution with graph techniques in @sec-entity-resolution. If you'd like to see other graph applications covered in future editions, reach out to the author.
 
-**When to use graph embeddings:**
+**Popular architectures:**
 
-- Social network analysis
-- Recommendation systems (user-item graphs)
-- Knowledge graph completion
-- Fraud detection (transaction graphs)
-- Drug discovery (molecular graphs)
+| Architecture | Type | Strengths | Use Cases |
+|-------------|------|-----------|-----------|
+| [Node2Vec](https://github.com/aditya-grover/node2vec) | Random walks | Simple, scalable | Homogeneous graphs |
+| [GraphSAGE](https://github.com/williamleif/GraphSAGE) | Neighborhood aggregation | Inductive learning | New nodes |
+| [GAT](https://github.com/PetarV-/GAT) | Graph attention | Weighted neighbors | Heterogeneous graphs |
+| [TransE](https://github.com/thunlp/OpenKE) | Translation-based | Link prediction | Knowledge graphs |
+
+: Graph embedding architectures {.striped}
+
+See @sec-embedding-model-fundamentals for details on how embedding models learn.
 
 ## Time-Series Embeddings {#sec-timeseries-embedding-types}
 
-Time-series embeddings capture temporal patterns and dynamics:
+Time-series embeddings convert sequences of measurements over time into vectors that capture temporal patterns—trends, seasonality, cycles, and anomalies. Two sensors with similar behavior patterns (e.g., both showing daily cycles) will have similar embeddings, even if their absolute values differ.
+
+The challenge with time-series is capturing patterns at multiple scales: short-term fluctuations, medium-term trends, and long-term seasonality. Like audio, time-series vary in length, so embeddings must aggregate temporal information into fixed-size vectors.
+
+The example below demonstrates a simple statistical approach: extract features that summarize the time-series behavior. More sophisticated methods use learned representations from LSTMs, Transformers, or contrastive learning.
+
+```{python}
+#| echo: false
+#| label: fig-timeseries-patterns
+#| fig-cap: "Time-series patterns: sine waves and upward trends have distinct signatures that embeddings capture."
+import matplotlib.pyplot as plt
+import numpy as np
+
+np.random.seed(42)
+t = np.linspace(0, 4*np.pi, 100)
+
+fig, axes = plt.subplots(1, 3, figsize=(10, 3))
+
+# Sine wave
+axes[0].plot(t, np.sin(t) + np.random.randn(100) * 0.1, color='#2196F3', linewidth=1.5)
+axes[0].set_title('Sine wave pattern', fontsize=10)
+axes[0].set_xlabel('Time')
+axes[0].set_ylabel('Value')
+
+# Upward trend
+axes[1].plot(t, t/10 + np.random.randn(100) * 0.2, color='#4CAF50', linewidth=1.5)
+axes[1].set_title('Upward trend', fontsize=10)
+axes[1].set_xlabel('Time')
+
+# Random noise
+axes[2].plot(t, np.random.randn(100), color='#FF9800', linewidth=1.5)
+axes[2].set_title('Random noise', fontsize=10)
+axes[2].set_xlabel('Time')
+
+plt.tight_layout()
+plt.show()
+```
 
 ```{python}
 #| code-fold: false
 
 """
-Time-Series Embeddings: Patterns Over Time
-
-Time-series embeddings capture temporal dynamics, trends, and patterns.
-Similar time-series (e.g., similar sensor readings) cluster together.
+Time-Series Embeddings: Temporal Patterns as Vectors
 """
 
 import numpy as np
@@ -1076,90 +1217,92 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 np.random.seed(42)
 
-# Simulate different time-series patterns
 def generate_pattern(pattern_type, length=100):
+    """Generate synthetic time-series with specific patterns."""
     t = np.linspace(0, 4*np.pi, length)
     if pattern_type == 'sine':
         return np.sin(t) + np.random.randn(length) * 0.1
-    elif pattern_type == 'cosine':
-        return np.cos(t) + np.random.randn(length) * 0.1
     elif pattern_type == 'increasing':
         return t/10 + np.random.randn(length) * 0.2
-    elif pattern_type == 'decreasing':
-        return -t/10 + 5 + np.random.randn(length) * 0.2
     else:
         return np.random.randn(length)
 
-# Simple embedding: statistical features (real systems use learned embeddings)
-def simple_ts_embedding(series):
+def timeseries_embedding(series):
+    """Extract statistical features as a simple embedding."""
     return np.array([
-        np.mean(series),
-        np.std(series),
-        np.max(series) - np.min(series),
-        np.mean(np.diff(series)),  # trend
-        np.corrcoef(series[:-1], series[1:])[0,1],  # autocorrelation
+        np.mean(series),                              # level
+        np.std(series),                               # variability
+        np.max(series) - np.min(series),              # range
+        np.mean(np.diff(series)),                     # trend (avg change)
+        np.corrcoef(series[:-1], series[1:])[0, 1],   # autocorrelation
     ])
 
-# Generate and embed time series
+# Generate time-series with different patterns
 patterns = {
     'sine_wave_1': generate_pattern('sine'),
     'sine_wave_2': generate_pattern('sine'),
     'trend_up_1': generate_pattern('increasing'),
     'trend_up_2': generate_pattern('increasing'),
-    'random_1': generate_pattern('random'),
 }
 
-embeddings = {name: simple_ts_embedding(ts) for name, ts in patterns.items()}
+embeddings = {name: timeseries_embedding(ts) for name, ts in patterns.items()}
 
+print(f"Embedding dimension: {len(embeddings['sine_wave_1'])} (5 statistical features)\n")
 print("Time-series embedding similarities:\n")
-print("Similar patterns cluster together:")
+print("Same pattern type:")
 sine_sim = cosine_similarity([embeddings['sine_wave_1']], [embeddings['sine_wave_2']])[0][0]
 trend_sim = cosine_similarity([embeddings['trend_up_1']], [embeddings['trend_up_2']])[0][0]
-cross_sim = cosine_similarity([embeddings['sine_wave_1']], [embeddings['trend_up_1']])[0][0]
+print(f"  Sine wave 1 ↔ Sine wave 2: {sine_sim:.3f}")
+print(f"  Trend up 1 ↔ Trend up 2:   {trend_sim:.3f}")
 
-print(f"  Sine wave 1 ↔ Sine wave 2:  {sine_sim:.3f}")
-print(f"  Trend up 1 ↔ Trend up 2:    {trend_sim:.3f}")
-print(f"  Sine wave ↔ Trend up:       {cross_sim:.3f}")
+print("\nDifferent pattern types:")
+cross_sim = cosine_similarity([embeddings['sine_wave_1']], [embeddings['trend_up_1']])[0][0]
+print(f"  Sine wave ↔ Trend up:      {cross_sim:.3f}")
 ```
 
-**Time-series embedding approaches:**
+Time-series with the same pattern type have high similarity because they share statistical properties (similar autocorrelation for sine waves, similar trend for increasing patterns). Different pattern types have lower similarity because their fundamental characteristics differ.
 
-- **Learned features**: LSTMs, Transformers, TCNs trained on time-series
-- **Self-supervised**: Contrastive learning on augmented time-series
-- **Statistical**: Hand-crafted features (mean, variance, entropy, etc.)
-- **Frequency domain**: FFT-based representations
+The statistical approach above is simple but limited—it can't capture complex patterns like "spike followed by gradual recovery." Modern approaches use learned embeddings from neural networks trained on large time-series datasets.
 
-**When to use time-series embeddings:**
+**When to use time-series embeddings:** Anomaly detection in sensor data, predictive maintenance, financial pattern recognition, health monitoring (ECG, EEG), and IoT device fingerprinting.
 
-- Anomaly detection in sensor data
-- Predictive maintenance
-- Financial pattern recognition
-- Health monitoring (ECG, EEG)
-- IoT device fingerprinting
+This book covers time-series applications in manufacturing (@sec-manufacturing-industry40) and financial services (@sec-financial-services). If you'd like to see other time-series applications covered in future editions, reach out to the author.
+
+**Popular architectures:**
+
+| Architecture | Type | Strengths | Use Cases |
+|-------------|------|-----------|-----------|
+| Statistical features | Hand-crafted | Simple, interpretable | Baseline, small data |
+| [TSFresh](https://github.com/blue-yonder/tsfresh) | Auto feature extraction | Comprehensive | General purpose |
+| LSTM/GRU | Recurrent | Captures sequences | Variable length |
+| [Temporal Fusion Transformer](https://github.com/google-research/google-research/tree/master/tft) | Attention | Multi-horizon | Forecasting |
+
+: Time-series embedding architectures {.striped}
+
+See @sec-embedding-model-fundamentals for details on how embedding models learn.
 
 ## Code Embeddings {#sec-code-embedding-types}
 
-Code embeddings represent programs, functions, and code snippets:
+Code embeddings convert source code into vectors that capture program semantics—what the code does, not just how it's written. Two functions that sum a list of numbers should have similar embeddings whether implemented with a loop or the built-in `sum()` function.
+
+The challenge with code is that syntax varies widely while functionality remains the same. Variable names, formatting, and implementation choices differ between programmers, but the underlying logic may be identical. Code embeddings must see through surface differences to capture semantic similarity.
+
+The example below uses a general text model for demonstration. Production systems use specialized code models (CodeBERT, StarCoder) trained on millions of code repositories that understand programming language syntax and semantics.
 
 ```{python}
 #| code-fold: false
 
 """
-Code Embeddings: Programs as Vectors
-
-Code embeddings capture the semantics of source code, enabling:
-- Code search (find code by description)
-- Clone detection (find duplicate/similar code)
-- Bug detection (identify anomalous patterns)
+Code Embeddings: Source Code as Vectors
 """
 
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 
-# Use a code-aware model (or general sentence transformer for demo)
+# General text model for demo (production: use CodeBERT, StarCoder, etc.)
 model = SentenceTransformer('all-MiniLM-L6-v2')
 
-# Code snippets with similar functionality but different implementations
+# Same functionality, different implementations
 code_snippets = {
     'sum_loop': '''
 def sum_numbers(nums):
@@ -1187,31 +1330,37 @@ def reverse_list(items):
 
 embeddings = {name: model.encode(code) for name, code in code_snippets.items()}
 
+print(f"Embedding dimension: {len(embeddings['sum_loop'])}\n")
 print("Code embedding similarities:\n")
-print("Functionally similar code clusters together:")
+print("Same functionality, different implementation:")
 sum_sim = cosine_similarity([embeddings['sum_loop']], [embeddings['sum_builtin']])[0][0]
 rev_sim = cosine_similarity([embeddings['reverse_loop']], [embeddings['reverse_slice']])[0][0]
-cross_sim = cosine_similarity([embeddings['sum_loop']], [embeddings['reverse_loop']])[0][0]
-
-print(f"  sum (loop) ↔ sum (builtin):     {sum_sim:.3f}")
+print(f"  sum (loop) ↔ sum (builtin):       {sum_sim:.3f}")
 print(f"  reverse (loop) ↔ reverse (slice): {rev_sim:.3f}")
-print(f"  sum ↔ reverse:                   {cross_sim:.3f}")
+
+print("\nDifferent functionality:")
+cross_sim = cosine_similarity([embeddings['sum_loop']], [embeddings['reverse_loop']])[0][0]
+print(f"  sum ↔ reverse:                    {cross_sim:.3f}")
 ```
 
-**Code embedding models:**
+Functions with the same purpose cluster together even with different implementations. The two sum functions are more similar to each other than to the reverse functions, and vice versa. This enables powerful applications like "find code similar to this function" or "detect if this code was copied from somewhere."
 
-- **CodeBERT**: BERT-style model trained on code
-- **GraphCodeBERT**: Incorporates data flow graphs
-- **StarCoder**: Large code model with embeddings
-- **Codex/GPT-4**: Can generate embeddings via API
+**When to use code embeddings:** Semantic code search, code clone detection, vulnerability detection, code recommendation, and repository organization.
 
-**When to use code embeddings:**
+This book doesn't include dedicated code embedding chapters. If you'd like to see code applications covered in future editions, reach out to the author.
 
-- Semantic code search
-- Code clone detection
-- Vulnerability detection
-- Code recommendation
-- Repository organization
+**Popular architectures:**
+
+| Architecture | Type | Strengths | Use Cases |
+|-------------|------|-----------|-----------|
+| [CodeBERT](https://github.com/microsoft/CodeBERT) | BERT-style | Multi-language | Search, clone detection |
+| [GraphCodeBERT](https://github.com/microsoft/CodeBERT) | Graph-enhanced | Data flow awareness | Bug detection |
+| [StarCoder](https://github.com/bigcode-project/starcoder) | Large model | 80+ languages | Code generation |
+| [CodeT5](https://github.com/salesforce/CodeT5) | Encoder-decoder | Understanding + generation | Code summarization |
+
+: Code embedding architectures {.striped}
+
+See @sec-embedding-model-fundamentals for details on how embedding models learn.
 
 ## Choosing the Right Embedding Type
 
