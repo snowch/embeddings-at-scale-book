@@ -836,6 +836,60 @@ Video embeddings convert video clips into vectors that capture both visual conte
 
 The challenge with video is combining spatial information (what's in each frame) with temporal information (how things change over time). The simplest approach extracts image embeddings from sampled frames and aggregates them. More sophisticated models process multiple frames together to capture motion directly.
 
+Just as images are 3D arrays (height × width × 3 channels), videos add a fourth dimension: time. A video is a sequence of frames, each of which is an image:
+
+```{python}
+#| echo: false
+#| label: fig-video-4d-structure
+#| fig-cap: "A video is a 4D array: frames × height × width × 3 RGB channels. Each frame is a complete image."
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+import numpy as np
+
+fig = plt.figure(figsize=(10, 5))
+ax = fig.add_subplot(111, projection='3d')
+
+# Draw multiple frames stacked along time axis
+n_frames = 5
+frame_colors = plt.cm.viridis(np.linspace(0.3, 0.9, n_frames))
+
+for i in range(n_frames):
+    # Each frame is offset along x-axis (time)
+    x_offset = i * 0.25
+
+    # Draw frame as a rectangle
+    frame_verts = [
+        [x_offset, 0, 0],
+        [x_offset, 1, 0],
+        [x_offset, 1, 1],
+        [x_offset, 0, 1]
+    ]
+    ax.add_collection3d(Poly3DCollection([frame_verts], alpha=0.7,
+                                          facecolor=frame_colors[i],
+                                          edgecolor='black', linewidth=1))
+
+    # Label first, middle, and last frames
+    if i == 0:
+        ax.text(x_offset - 0.1, 0.5, 1.1, f'Frame 1', fontsize=9, ha='center')
+    elif i == n_frames - 1:
+        ax.text(x_offset + 0.2, 0.5, 1.25, f'Frame N', fontsize=9, ha='center')
+
+# Draw arrow showing time direction
+ax.quiver(0, -0.3, 0.5, 1, 0, 0, arrow_length_ratio=0.1, color='black', linewidth=2)
+ax.text(-0.15, -0.3, 0.5, 'Time', fontsize=10, ha='right')
+
+ax.set_xlabel('')
+ax.set_ylabel('')
+ax.set_zlabel('')
+ax.set_title('Video as a 4D array: N frames × (height, width, 3)', fontsize=11, fontweight='bold')
+ax.view_init(elev=20, azim=-60)
+ax.set_xticks([])
+ax.set_yticks([])
+ax.set_zticks([])
+plt.tight_layout()
+plt.show()
+```
+
 The example below demonstrates the frame sampling approach: we extract image embeddings from frames sampled throughout a video, then average them to create a single video embedding. Since videos vary in length, aggregation (like we saw with audio) produces a fixed-size embedding regardless of duration.
 
 ```{python}
@@ -902,6 +956,9 @@ box4 = FancyBboxPatch((2.5, y4), 5, box_height, boxstyle="round,pad=0.05",
 ax.add_patch(box4)
 ax.text(5, y4 + box_height/2, 'Video embedding: [2048 values]', ha='center', va='center', fontsize=11, fontweight='bold')
 
+# Note about dimension
+ax.text(5, y4 - 0.3, '(2048 is ResNet50; other models vary)', ha='center', va='top', fontsize=8, style='italic', color='#666')
+
 plt.tight_layout()
 plt.show()
 ```
@@ -930,6 +987,9 @@ model.load_state_dict(weights.get_state_dict(progress=False))
 model.eval()
 feature_extractor = torch.nn.Sequential(*list(model.children())[:-1])
 
+# Normalize using ImageNet statistics: the mean and std of RGB values across
+# 1.2M training images. This ensures our input has the same distribution the
+# model was trained on. These specific values are standard for ImageNet models.
 preprocess = transforms.Compose([
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
@@ -987,9 +1047,56 @@ print(f"  Running ↔ Cooking: {run_cook:.3f}  (different scenes)")
 print(f"  Jogging ↔ Cooking: {jog_cook:.3f}  (different scenes)")
 ```
 
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show video frame visualization code"
+#| label: fig-video-frames
+#| fig-cap: "Sample frames from each video. Running and jogging share similar green outdoor tones, while cooking has warm orange/red indoor tones."
+import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
+
+fig = plt.figure(figsize=(12, 4))
+gs = gridspec.GridSpec(3, 7, width_ratios=[3, 0.3, 3, 0.3, 3, 0.3, 3], hspace=0.15, wspace=0.05)
+
+videos = [
+    ('Running', running_frames),
+    ('Cooking', cooking_frames),
+    ('Jogging', jogging_frames),
+]
+
+for row, (name, frames) in enumerate(videos):
+    # Show 4 sample frames from the video
+    frame_indices = [0, 1, 3, 4]  # Sample frames
+
+    for col, fidx in enumerate(frame_indices):
+        ax = fig.add_subplot(gs[row, col * 2])
+        ax.imshow(frames[fidx])
+        if row == 0:
+            ax.set_title(f'Frame {fidx + 1}', fontsize=9)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        for spine in ax.spines.values():
+            spine.set_visible(False)
+
+        # Add video name label on left side of first frame
+        if col == 0:
+            ax.text(-0.15, 0.5, name, fontsize=10, fontweight='bold',
+                    transform=ax.transAxes, ha='right', va='center')
+
+        # Add arrow between frames (except last)
+        if col < 3:
+            ax_arrow = fig.add_subplot(gs[row, col * 2 + 1])
+            ax_arrow.text(0.5, 0.5, '→', fontsize=14, ha='center', va='center', color='gray')
+            ax_arrow.axis('off')
+
+plt.suptitle('Video frames: similar scenes have similar color patterns across time', fontsize=11, fontweight='bold', y=0.98)
+plt.show()
+```
+
 When comparing video embeddings, similar activities and scenes cluster together. Running and jogging videos both contain outdoor scenes with similar color palettes (greens, blues), so their embeddings are close. Cooking videos have warm indoor tones (oranges, reds) that differ significantly from outdoor activities.
 
-The frame sampling approach shown above is simple but misses motion information—it can't distinguish "sitting down" from "standing up" since both might have similar individual frames. More advanced approaches process frames together.
+The frame sampling approach shown above is simple but misses motion information—it can't distinguish "sitting down" from "standing up" since both might have similar individual frames. More advanced architectures like SlowFast and Video Swin (see table below) process multiple frames together using 3D convolutions or temporal attention, capturing how pixels change over time to understand motion and actions.
 
 **When to use video embeddings:** Action recognition and search, video recommendation, content moderation, surveillance and anomaly detection, video summarization, sports analytics, and gesture recognition.
 
