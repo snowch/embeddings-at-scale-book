@@ -1322,21 +1322,23 @@ fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
 
 # Left: Graph structure
 ax1.set_title('Graph structure', fontsize=11, fontweight='bold')
-# Community 1 (blue)
+# Community 1 (blue) - triangle with Bob at top
 community1_pos = {'Alice': (1, 2), 'Bob': (1.5, 2.8), 'Carol': (2, 2)}
+community1_labels = {'Alice': (-15, -15), 'Bob': (0, 10), 'Carol': (15, -15)}
 for name, pos in community1_pos.items():
     ax1.scatter(*pos, s=200, c='#2196F3', edgecolors='black', linewidths=1.5, zorder=3)
-    ax1.annotate(name, pos, xytext=(0, -20), textcoords='offset points', ha='center', fontsize=9)
+    ax1.annotate(name, pos, xytext=community1_labels[name], textcoords='offset points', ha='center', fontsize=9)
 # Edges within community 1
 ax1.plot([1, 1.5], [2, 2.8], 'k-', alpha=0.5)
 ax1.plot([1.5, 2], [2.8, 2], 'k-', alpha=0.5)
 ax1.plot([1, 2], [2, 2], 'k-', alpha=0.5)
 
-# Community 2 (orange)
+# Community 2 (orange) - triangle with Yuki at top
 community2_pos = {'Xavier': (3.5, 2), 'Yuki': (4, 2.8), 'Zara': (4.5, 2)}
+community2_labels = {'Xavier': (-15, -15), 'Yuki': (0, 10), 'Zara': (15, -15)}
 for name, pos in community2_pos.items():
     ax1.scatter(*pos, s=200, c='#FF9800', edgecolors='black', linewidths=1.5, zorder=3)
-    ax1.annotate(name, pos, xytext=(0, -20), textcoords='offset points', ha='center', fontsize=9)
+    ax1.annotate(name, pos, xytext=community2_labels[name], textcoords='offset points', ha='center', fontsize=9)
 # Edges within community 2
 ax1.plot([3.5, 4], [2, 2.8], 'k-', alpha=0.5)
 ax1.plot([4, 4.5], [2.8, 2], 'k-', alpha=0.5)
@@ -1351,17 +1353,19 @@ ax1.axis('off')
 
 # Right: Embedding space
 ax2.set_title('Embedding space', fontsize=11, fontweight='bold')
-# Community 1 embeddings (clustered)
-emb1 = {'Alice': (1.2, 2.5), 'Bob': (1.4, 2.3), 'Carol': (1.1, 2.2)}
+# Community 1 embeddings (clustered) - spread out labels to avoid overlap
+emb1 = {'Alice': (1.2, 2.5), 'Bob': (1.5, 2.3), 'Carol': (1.0, 2.1)}
+emb1_labels = {'Alice': (8, 5), 'Bob': (8, 0), 'Carol': (-35, 0)}
 for name, pos in emb1.items():
     ax2.scatter(*pos, s=200, c='#2196F3', edgecolors='black', linewidths=1.5, zorder=3)
-    ax2.annotate(name, pos, xytext=(5, 5), textcoords='offset points', fontsize=9)
+    ax2.annotate(name, pos, xytext=emb1_labels[name], textcoords='offset points', fontsize=9)
 
-# Community 2 embeddings (clustered separately)
-emb2 = {'Xavier': (3.2, 1.2), 'Yuki': (3.4, 1.4), 'Zara': (3.1, 1.0)}
+# Community 2 embeddings (clustered separately) - spread out labels
+emb2 = {'Xavier': (3.0, 1.2), 'Yuki': (3.3, 1.5), 'Zara': (3.5, 1.0)}
+emb2_labels = {'Xavier': (-40, 0), 'Yuki': (8, 5), 'Zara': (8, -5)}
 for name, pos in emb2.items():
     ax2.scatter(*pos, s=200, c='#FF9800', edgecolors='black', linewidths=1.5, zorder=3)
-    ax2.annotate(name, pos, xytext=(5, 5), textcoords='offset points', fontsize=9)
+    ax2.annotate(name, pos, xytext=emb2_labels[name], textcoords='offset points', fontsize=9)
 
 ax2.set_xlabel('Embedding dim 1')
 ax2.set_ylabel('Embedding dim 2')
