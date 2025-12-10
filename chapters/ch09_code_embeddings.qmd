@@ -10,7 +10,9 @@ This chapter covers code embeddings—representations that convert source code i
 
 Code embeddings convert source code into vectors that capture program semantics—what the code does, not just how it's written. Two functions that sum a list of numbers should have similar embeddings whether implemented with a loop or the built-in `sum()` function.
 
-The challenge: syntax varies widely while functionality remains the same. Variable names, formatting, and implementation choices differ between programmers, but the underlying logic may be identical. Code embeddings must see through surface differences to capture semantic similarity.
+The challenge with code is that syntax varies widely while functionality remains the same. Variable names, formatting, and implementation choices differ between programmers, but the underlying logic may be identical. Code embeddings must see through surface differences to capture semantic similarity.
+
+The example below uses a general text model for demonstration. Production systems use specialized code models (CodeBERT, StarCoder) trained on millions of code repositories that understand programming language syntax and semantics.
 
 ## Creating Code Embeddings
 
@@ -68,16 +70,13 @@ cross_sim = cosine_similarity([embeddings['sum_loop']], [embeddings['reverse_loo
 print(f"  sum ↔ reverse:                    {cross_sim:.3f}")
 ```
 
-Functions with the same purpose cluster together even with different implementations. The two sum functions are more similar to each other than to the reverse functions, and vice versa.
+Functions with the same purpose cluster together even with different implementations. The two sum functions are more similar to each other than to the reverse functions, and vice versa. This enables powerful applications like "find code similar to this function" or "detect if this code was copied from somewhere."
 
-## When to Use Code Embeddings
+## When to Use Code Embeddings {#sec-code-embedding-types}
 
-- **Semantic code search**—find code by what it does, not just keywords
-- **Code clone detection**—identify copied or similar code across repositories
-- **Vulnerability detection**—find code patterns similar to known vulnerabilities
-- **Code recommendation**—suggest similar functions or implementations
-- **Repository organization**—automatically categorize and tag code
-- **License compliance**—detect potentially copied code for legal review
+**When to use code embeddings:** Semantic code search, code clone detection, vulnerability detection, code recommendation, and repository organization.
+
+This book doesn't include dedicated code embedding chapters. If you'd like to see code applications covered in future editions, reach out to the author.
 
 ## Popular Code Architectures
 
@@ -89,6 +88,8 @@ Functions with the same purpose cluster together even with different implementat
 | [CodeT5](https://github.com/salesforce/CodeT5) | Encoder-decoder | Understanding + generation | Code summarization |
 
 : Code embedding architectures {.striped}
+
+See @sec-embedding-model-fundamentals for details on how embedding models learn.
 
 ## Advanced: How Code Models Learn {.unnumbered}
 

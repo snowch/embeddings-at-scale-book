@@ -103,15 +103,15 @@ cross_sim = cosine_similarity([embeddings['sine_wave_1']], [embeddings['trend_up
 print(f"  Sine wave ↔ Trend up:      {cross_sim:.3f}")
 ```
 
-Time-series with the same pattern type have high similarity because they share statistical properties. The statistical approach above is simple but limited—modern approaches use learned embeddings from neural networks trained on large time-series datasets.
+Time-series with the same pattern type have high similarity because they share statistical properties (similar autocorrelation for sine waves, similar trend for increasing patterns). Different pattern types have lower similarity because their fundamental characteristics differ.
 
-## When to Use Time-Series Embeddings
+The statistical approach above is simple but limited—it can't capture complex patterns like "spike followed by gradual recovery." Modern approaches use learned embeddings from neural networks trained on large time-series datasets.
 
-- **Anomaly detection**—identify unusual patterns in sensor data (see @sec-manufacturing-industry40)
-- **Predictive maintenance**—find similar equipment behavior patterns
-- **Financial pattern recognition**—detect trading patterns and market regimes (see @sec-financial-services)
-- **Health monitoring**—classify ECG, EEG, and other biosignals (see @sec-healthcare-life-sciences)
-- **IoT device fingerprinting**—identify devices by their traffic patterns
+## When to Use Time-Series Embeddings {#sec-timeseries-embedding-types}
+
+**When to use time-series embeddings:** Anomaly detection in sensor data, predictive maintenance, financial pattern recognition, health monitoring (ECG, EEG), and IoT device fingerprinting.
+
+This book covers time-series applications in financial services (@sec-financial-services) and manufacturing (@sec-manufacturing-industry40). If you'd like to see other time-series applications covered in future editions, reach out to the author.
 
 ## Popular Time-Series Architectures
 
@@ -123,6 +123,8 @@ Time-series with the same pattern type have high similarity because they share s
 | [Temporal Fusion Transformer](https://github.com/google-research/google-research/tree/master/tft) | Attention | Multi-horizon | Forecasting |
 
 : Time-series embedding architectures {.striped}
+
+See @sec-embedding-model-fundamentals for details on how embedding models learn.
 
 ## Advanced: Learned Time-Series Embeddings {.unnumbered}
 
