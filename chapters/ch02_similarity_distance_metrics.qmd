@@ -26,6 +26,71 @@ Cosine similarity measures the angle between two vectors, ignoring their magnitu
 $$\text{cosine\_similarity}(\mathbf{A}, \mathbf{B}) = \frac{\mathbf{A} \cdot \mathbf{B}}{||\mathbf{A}|| \times ||\mathbf{B}||} = \frac{\sum_{i=1}^{n} A_i B_i}{\sqrt{\sum_{i=1}^{n} A_i^2} \times \sqrt{\sum_{i=1}^{n} B_i^2}}$$
 
 ```{python}
+#| label: fig-cosine-similarity
+#| fig-cap: "Cosine similarity measures the angle θ between vectors, ignoring magnitude. Vectors A and B point in similar directions (high similarity) while C points differently (low similarity)."
+#| code-fold: true
+#| code-summary: "Show visualization code"
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+fig, ax = plt.subplots(figsize=(7, 5))
+
+# Vectors from origin
+origin = [0, 0]
+A = [3, 2]
+B = [4.5, 3]  # Similar direction to A
+C = [1, 4]    # Different direction
+
+# Draw vectors
+ax.annotate('', xy=A, xytext=origin, arrowprops=dict(arrowstyle='->', color='#2563eb', lw=2.5))
+ax.annotate('', xy=B, xytext=origin, arrowprops=dict(arrowstyle='->', color='#16a34a', lw=2.5))
+ax.annotate('', xy=C, xytext=origin, arrowprops=dict(arrowstyle='->', color='#dc2626', lw=2.5))
+
+# Labels
+ax.text(A[0]+0.15, A[1]+0.15, 'A', fontsize=14, fontweight='bold', color='#2563eb')
+ax.text(B[0]+0.15, B[1]+0.15, 'B', fontsize=14, fontweight='bold', color='#16a34a')
+ax.text(C[0]+0.15, C[1]+0.15, 'C', fontsize=14, fontweight='bold', color='#dc2626')
+
+# Draw angle arc between A and B
+angle_A = np.arctan2(A[1], A[0])
+angle_B = np.arctan2(B[1], B[0])
+theta = np.linspace(angle_A, angle_B, 20)
+r = 1.2
+ax.plot(r * np.cos(theta), r * np.sin(theta), 'k-', lw=1.5)
+ax.text(1.4, 0.85, 'θ (small)', fontsize=11)
+
+# Draw angle arc between A and C
+angle_C = np.arctan2(C[1], C[0])
+theta2 = np.linspace(angle_A, angle_C, 30)
+r2 = 0.8
+ax.plot(r2 * np.cos(theta2), r2 * np.sin(theta2), 'k--', lw=1.5)
+ax.text(0.3, 1.0, 'θ (large)', fontsize=11)
+
+# Calculate similarities
+def cosine_sim(a, b):
+    return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+
+sim_AB = cosine_sim(A, B)
+sim_AC = cosine_sim(A, C)
+
+# Add similarity values
+ax.text(3.5, 0.3, f'cos(A,B) = {sim_AB:.2f}', fontsize=11, color='#16a34a', fontweight='bold')
+ax.text(0.3, 3.5, f'cos(A,C) = {sim_AC:.2f}', fontsize=11, color='#dc2626', fontweight='bold')
+
+ax.set_xlim(-0.5, 5.5)
+ax.set_ylim(-0.5, 4.5)
+ax.set_aspect('equal')
+ax.axhline(y=0, color='gray', linewidth=0.5)
+ax.axvline(x=0, color='gray', linewidth=0.5)
+ax.set_xlabel('Dimension 1', fontsize=11)
+ax.set_ylabel('Dimension 2', fontsize=11)
+ax.grid(True, alpha=0.3)
+plt.tight_layout()
+plt.show()
+```
+
+```{python}
 #| code-fold: false
 
 """
@@ -68,6 +133,56 @@ Euclidean distance measures the straight-line distance between two points:
 $$\text{euclidean}(\mathbf{A}, \mathbf{B}) = \sqrt{\sum_{i=1}^{n} (A_i - B_i)^2} = ||\mathbf{A} - \mathbf{B}||_2$$
 
 ```{python}
+#| label: fig-euclidean-distance
+#| fig-cap: "Euclidean distance measures the straight-line distance between points. Unlike cosine similarity, magnitude matters—point B is far from A despite pointing in a similar direction."
+#| code-fold: true
+#| code-summary: "Show visualization code"
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+fig, ax = plt.subplots(figsize=(7, 5))
+
+# Points in 2D space
+A = np.array([1, 1])
+B = np.array([4, 3])
+C = np.array([2, 4])
+
+# Plot points
+ax.scatter(*A, s=150, c='#2563eb', zorder=5, edgecolors='white', linewidths=2)
+ax.scatter(*B, s=150, c='#16a34a', zorder=5, edgecolors='white', linewidths=2)
+ax.scatter(*C, s=150, c='#dc2626', zorder=5, edgecolors='white', linewidths=2)
+
+# Labels
+ax.text(A[0]-0.3, A[1]+0.3, 'A', fontsize=14, fontweight='bold', color='#2563eb')
+ax.text(B[0]+0.15, B[1]+0.2, 'B', fontsize=14, fontweight='bold', color='#16a34a')
+ax.text(C[0]+0.15, C[1]+0.2, 'C', fontsize=14, fontweight='bold', color='#dc2626')
+
+# Draw distance lines
+ax.plot([A[0], B[0]], [A[1], B[1]], 'g--', lw=2, alpha=0.7)
+ax.plot([A[0], C[0]], [A[1], C[1]], 'r--', lw=2, alpha=0.7)
+
+# Calculate distances
+dist_AB = np.linalg.norm(A - B)
+dist_AC = np.linalg.norm(A - C)
+
+# Midpoint labels
+mid_AB = (A + B) / 2
+mid_AC = (A + C) / 2
+ax.text(mid_AB[0]+0.1, mid_AB[1]-0.3, f'd = {dist_AB:.2f}', fontsize=11, color='#16a34a', fontweight='bold')
+ax.text(mid_AC[0]-0.6, mid_AC[1]+0.1, f'd = {dist_AC:.2f}', fontsize=11, color='#dc2626', fontweight='bold')
+
+ax.set_xlim(0, 5)
+ax.set_ylim(0, 5)
+ax.set_aspect('equal')
+ax.set_xlabel('Dimension 1', fontsize=11)
+ax.set_ylabel('Dimension 2', fontsize=11)
+ax.grid(True, alpha=0.3)
+plt.tight_layout()
+plt.show()
+```
+
+```{python}
 #| code-fold: false
 
 """
@@ -108,6 +223,56 @@ print("\nNote: v1 and v2 are FAR by Euclidean but IDENTICAL by cosine!")
 The dot product is the unnormalized version of cosine similarity:
 
 $$\text{dot\_product}(\mathbf{A}, \mathbf{B}) = \mathbf{A} \cdot \mathbf{B} = \sum_{i=1}^{n} A_i B_i$$
+
+```{python}
+#| label: fig-dot-product
+#| fig-cap: "Dot product combines angle AND magnitude. Vectors B and C point in the same direction as A, but B (longer) has a higher dot product. Compare to cosine similarity where B and C would be equal."
+#| code-fold: true
+#| code-summary: "Show visualization code"
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+fig, ax = plt.subplots(figsize=(7, 5))
+
+origin = [0, 0]
+A = np.array([2, 1.5])
+B = np.array([4, 3])      # Same direction as A, 2x magnitude
+C = np.array([1, 0.75])   # Same direction as A, 0.5x magnitude
+
+# Draw vectors
+ax.annotate('', xy=A, xytext=origin, arrowprops=dict(arrowstyle='->', color='#2563eb', lw=2.5))
+ax.annotate('', xy=B, xytext=origin, arrowprops=dict(arrowstyle='->', color='#16a34a', lw=2.5))
+ax.annotate('', xy=C, xytext=origin, arrowprops=dict(arrowstyle='->', color='#dc2626', lw=2.5))
+
+# Labels
+ax.text(A[0]+0.1, A[1]+0.2, 'A', fontsize=14, fontweight='bold', color='#2563eb')
+ax.text(B[0]+0.1, B[1]+0.2, 'B (2× length)', fontsize=12, fontweight='bold', color='#16a34a')
+ax.text(C[0]+0.1, C[1]+0.2, 'C (0.5× length)', fontsize=12, fontweight='bold', color='#dc2626')
+
+# Calculate dot products
+dot_AB = np.dot(A, B)
+dot_AC = np.dot(A, C)
+cos_AB = dot_AB / (np.linalg.norm(A) * np.linalg.norm(B))
+cos_AC = dot_AC / (np.linalg.norm(A) * np.linalg.norm(C))
+
+# Add comparison box
+textstr = f'A · B = {dot_AB:.1f}\nA · C = {dot_AC:.1f}\n\ncos(A,B) = {cos_AB:.2f}\ncos(A,C) = {cos_AC:.2f}'
+props = dict(boxstyle='round', facecolor='wheat', alpha=0.8)
+ax.text(0.98, 0.98, textstr, transform=ax.transAxes, fontsize=11,
+        verticalalignment='top', horizontalalignment='right', bbox=props)
+
+ax.set_xlim(-0.5, 5)
+ax.set_ylim(-0.5, 4)
+ax.set_aspect('equal')
+ax.axhline(y=0, color='gray', linewidth=0.5)
+ax.axvline(x=0, color='gray', linewidth=0.5)
+ax.set_xlabel('Dimension 1', fontsize=11)
+ax.set_ylabel('Dimension 2', fontsize=11)
+ax.grid(True, alpha=0.3)
+plt.tight_layout()
+plt.show()
+```
 
 ```{python}
 #| code-fold: false
@@ -153,6 +318,63 @@ Manhattan distance sums the absolute differences along each dimension:
 $$\text{manhattan}(\mathbf{A}, \mathbf{B}) = \sum_{i=1}^{n} |A_i - B_i| = ||\mathbf{A} - \mathbf{B}||_1$$
 
 ```{python}
+#| label: fig-manhattan-distance
+#| fig-cap: "Manhattan distance follows a 'city block' path along axes (orange), while Euclidean takes the direct route (blue dashed). Manhattan = |4-1| + |3-1| = 5, while Euclidean = 3.61."
+#| code-fold: true
+#| code-summary: "Show visualization code"
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+fig, ax = plt.subplots(figsize=(7, 5))
+
+A = np.array([1, 1])
+B = np.array([4, 3])
+
+# Plot points
+ax.scatter(*A, s=150, c='#2563eb', zorder=5, edgecolors='white', linewidths=2)
+ax.scatter(*B, s=150, c='#16a34a', zorder=5, edgecolors='white', linewidths=2)
+
+# Labels
+ax.text(A[0]-0.35, A[1]+0.2, 'A', fontsize=14, fontweight='bold', color='#2563eb')
+ax.text(B[0]+0.15, B[1]+0.2, 'B', fontsize=14, fontweight='bold', color='#16a34a')
+
+# Euclidean (direct line)
+ax.plot([A[0], B[0]], [A[1], B[1]], 'b--', lw=2.5, label='Euclidean (L2)', alpha=0.7)
+
+# Manhattan (city block path)
+ax.plot([A[0], B[0]], [A[1], A[1]], 'orange', lw=3, solid_capstyle='round')
+ax.plot([B[0], B[0]], [A[1], B[1]], 'orange', lw=3, solid_capstyle='round', label='Manhattan (L1)')
+
+# Add arrows to show direction
+ax.annotate('', xy=(2.5, 1), xytext=(1.5, 1), arrowprops=dict(arrowstyle='->', color='orange', lw=2))
+ax.annotate('', xy=(4, 2), xytext=(4, 1.5), arrowprops=dict(arrowstyle='->', color='orange', lw=2))
+
+# Calculate distances
+euclidean = np.linalg.norm(A - B)
+manhattan = np.sum(np.abs(A - B))
+
+# Add distance labels
+ax.text(2.5, 0.6, f'|Δx| = 3', fontsize=11, ha='center', color='#ea580c', fontweight='bold')
+ax.text(4.4, 2, f'|Δy| = 2', fontsize=11, va='center', color='#ea580c', fontweight='bold')
+
+# Legend with values
+ax.text(0.02, 0.98, f'Euclidean: {euclidean:.2f}\nManhattan: {manhattan:.0f}',
+        transform=ax.transAxes, fontsize=11, verticalalignment='top',
+        bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8))
+
+ax.set_xlim(0, 5)
+ax.set_ylim(0, 4)
+ax.set_aspect('equal')
+ax.set_xlabel('Dimension 1', fontsize=11)
+ax.set_ylabel('Dimension 2', fontsize=11)
+ax.grid(True, alpha=0.3)
+ax.legend(loc='lower right')
+plt.tight_layout()
+plt.show()
+```
+
+```{python}
 #| code-fold: false
 
 """
@@ -191,6 +413,67 @@ print(f"  Manhattan (L1): {manhattan:.4f}")
 Hamming distance counts the number of positions where values differ. For binary embeddings:
 
 $$\text{hamming}(\mathbf{A}, \mathbf{B}) = \sum_{i=1}^{n} \mathbf{1}[A_i \neq B_i]$$
+
+```{python}
+#| label: fig-hamming-distance
+#| fig-cap: "Hamming distance counts differing positions. Vectors A and B differ in 2 positions (red), giving Hamming distance = 2. Used for binary embeddings where comparison is a fast XOR operation."
+#| code-fold: true
+#| code-summary: "Show visualization code"
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+fig, ax = plt.subplots(figsize=(8, 3))
+
+# Binary vectors
+A = [1, 0, 1, 1, 0, 1, 0, 0]
+B = [1, 0, 1, 0, 0, 1, 0, 1]
+
+n = len(A)
+y_A, y_B = 1.5, 0.5
+
+# Draw boxes for each bit
+for i in range(n):
+    # Determine if bits match
+    match = A[i] == B[i]
+    color = '#22c55e' if match else '#ef4444'
+
+    # Vector A
+    rect_A = plt.Rectangle((i, y_A - 0.35), 0.9, 0.7,
+                            facecolor='#dbeafe', edgecolor='#2563eb', lw=2)
+    ax.add_patch(rect_A)
+    ax.text(i + 0.45, y_A, str(A[i]), ha='center', va='center',
+            fontsize=14, fontweight='bold', color='#2563eb')
+
+    # Vector B
+    rect_B = plt.Rectangle((i, y_B - 0.35), 0.9, 0.7,
+                            facecolor='#dcfce7' if match else '#fee2e2',
+                            edgecolor='#16a34a' if match else '#ef4444', lw=2)
+    ax.add_patch(rect_B)
+    ax.text(i + 0.45, y_B, str(B[i]), ha='center', va='center',
+            fontsize=14, fontweight='bold', color='#16a34a' if match else '#ef4444')
+
+    # Mark differences with X
+    if not match:
+        ax.text(i + 0.45, y_B - 0.65, '✗', ha='center', va='center',
+                fontsize=16, color='#ef4444', fontweight='bold')
+
+# Labels
+ax.text(-0.7, y_A, 'A:', ha='right', va='center', fontsize=14, fontweight='bold', color='#2563eb')
+ax.text(-0.7, y_B, 'B:', ha='right', va='center', fontsize=14, fontweight='bold', color='#16a34a')
+
+# Calculate Hamming distance
+hamming = sum(1 for a, b in zip(A, B) if a != b)
+ax.text(n/2, -0.5, f'Hamming distance = {hamming} (positions 3 and 7 differ)',
+        ha='center', fontsize=12, fontweight='bold')
+
+ax.set_xlim(-1, n + 0.5)
+ax.set_ylim(-1, 2.5)
+ax.set_aspect('equal')
+ax.axis('off')
+plt.tight_layout()
+plt.show()
+```
 
 ```{python}
 #| code-fold: false
@@ -236,6 +519,51 @@ See @sec-quantized-embeddings for more on binary and quantized embeddings.
 Jaccard similarity measures overlap between sets:
 
 $$\text{jaccard}(\mathbf{A}, \mathbf{B}) = \frac{|A \cap B|}{|A \cup B|}$$
+
+```{python}
+#| label: fig-jaccard-similarity
+#| fig-cap: "Jaccard similarity = intersection / union. Sets A and B share 3 elements (green overlap) out of 5 total unique elements, giving Jaccard = 3/5 = 0.60."
+#| code-fold: true
+#| code-summary: "Show visualization code"
+
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.patches import Circle
+
+fig, ax = plt.subplots(figsize=(7, 4))
+
+# Create Venn diagram circles
+circle_A = Circle((0.35, 0.5), 0.3, facecolor='#bfdbfe', edgecolor='#2563eb', lw=3, alpha=0.7)
+circle_B = Circle((0.55, 0.5), 0.3, facecolor='#bbf7d0', edgecolor='#16a34a', lw=3, alpha=0.7)
+
+ax.add_patch(circle_A)
+ax.add_patch(circle_B)
+
+# Add intersection coloring (approximate with a polygon)
+theta = np.linspace(0, 2*np.pi, 100)
+# Highlight intersection area conceptually
+ax.text(0.45, 0.5, '3', fontsize=20, fontweight='bold', ha='center', va='center', color='#166534')
+
+# Labels for sets
+ax.text(0.2, 0.5, '1', fontsize=16, fontweight='bold', ha='center', va='center', color='#1e40af')
+ax.text(0.7, 0.5, '1', fontsize=16, fontweight='bold', ha='center', va='center', color='#166534')
+
+# Set labels
+ax.text(0.2, 0.85, 'A', fontsize=18, fontweight='bold', ha='center', color='#2563eb')
+ax.text(0.7, 0.85, 'B', fontsize=18, fontweight='bold', ha='center', color='#16a34a')
+
+# Explanation
+ax.text(0.45, 0.08, '|A ∩ B| = 3    |A ∪ B| = 5    Jaccard = 3/5 = 0.60',
+        fontsize=12, ha='center', fontweight='bold',
+        bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8))
+
+ax.set_xlim(0, 0.9)
+ax.set_ylim(0, 1)
+ax.set_aspect('equal')
+ax.axis('off')
+plt.tight_layout()
+plt.show()
+```
 
 ```{python}
 #| code-fold: false
