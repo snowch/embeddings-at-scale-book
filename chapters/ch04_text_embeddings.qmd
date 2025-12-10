@@ -489,6 +489,7 @@ W_context = np.random.randn(vocab_size, embedding_dim) * 0.1
 
 
 def sigmoid(x):
+    """Squash any value to range (0, 1). Clip prevents overflow."""
     return 1 / (1 + np.exp(-np.clip(x, -500, 500)))
 
 
