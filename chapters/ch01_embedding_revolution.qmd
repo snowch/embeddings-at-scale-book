@@ -75,11 +75,7 @@ In this toy example, 'king' and 'queen' have similar embeddings because they're 
 ::: {.callout-tip icon="false"}
 ## Understanding Cosine Similarity
 
-Cosine similarity measures how similar two vectors are by calculating the cosine of the angle between them. It's the most common similarity metric for embeddings.
-
-**The Math:** $$\text{cosine\_similarity}(\mathbf{A}, \mathbf{B}) = \frac{\mathbf{A} \cdot \mathbf{B}}{||\mathbf{A}|| \times ||\mathbf{B}||} = \frac{\sum_{i=1}^{n} A_i B_i}{\sqrt{\sum_{i=1}^{n} A_i^2} \times \sqrt{\sum_{i=1}^{n} B_i^2}}$$
-
-**Intuition:**
+Cosine similarity measures how similar two vectors are by calculating the cosine of the angle between them—it asks "are these vectors pointing in the same direction?" regardless of their lengths.
 
 ```{python}
 #| label: fig-cosine-similarity
@@ -99,19 +95,16 @@ ax1.set_aspect('equal')
 ax1.axhline(y=0, color='lightgray', linestyle='-', linewidth=0.5)
 ax1.axvline(x=0, color='lightgray', linestyle='-', linewidth=0.5)
 
-# King vector - angle ~10° from x-axis
 king1 = np.array([0.98, 0.17])
 ax1.annotate('', xy=king1, xytext=(0, 0),
             arrowprops=dict(arrowstyle='->', color='#2563eb', lw=2.5))
 ax1.text(king1[0] + 0.05, king1[1] - 0.08, 'king', fontsize=12, fontweight='bold', color='#2563eb')
 
-# Queen vector - angle ~42° (32° from king for cos≈0.85)
 queen = np.array([0.74, 0.67])
 ax1.annotate('', xy=queen, xytext=(0, 0),
             arrowprops=dict(arrowstyle='->', color='#dc2626', lw=2.5))
 ax1.text(queen[0] + 0.05, queen[1] + 0.02, 'queen', fontsize=12, fontweight='bold', color='#dc2626')
 
-# Draw angle arc
 theta1 = np.linspace(np.arctan2(king1[1], king1[0]), np.arctan2(queen[1], queen[0]), 20)
 arc_r = 0.3
 ax1.plot(arc_r * np.cos(theta1), arc_r * np.sin(theta1), 'g-', lw=2)
@@ -128,19 +121,16 @@ ax2.set_aspect('equal')
 ax2.axhline(y=0, color='lightgray', linestyle='-', linewidth=0.5)
 ax2.axvline(x=0, color='lightgray', linestyle='-', linewidth=0.5)
 
-# King vector - same angle ~10° from x-axis
 king2 = np.array([0.98, 0.17])
 ax2.annotate('', xy=king2, xytext=(0, 0),
             arrowprops=dict(arrowstyle='->', color='#2563eb', lw=2.5))
 ax2.text(king2[0] + 0.05, king2[1] - 0.08, 'king', fontsize=12, fontweight='bold', color='#2563eb')
 
-# Apple vector - angle ~68° (58° from king for cos≈0.53)
 apple = np.array([0.38, 0.93])
 ax2.annotate('', xy=apple, xytext=(0, 0),
             arrowprops=dict(arrowstyle='->', color='#16a34a', lw=2.5))
 ax2.text(apple[0] - 0.12, apple[1] + 0.02, 'apple', fontsize=12, fontweight='bold', color='#16a34a')
 
-# Draw angle arc
 theta2 = np.linspace(np.arctan2(king2[1], king2[0]), np.arctan2(apple[1], apple[0]), 30)
 ax2.plot(arc_r * np.cos(theta2), arc_r * np.sin(theta2), 'g-', lw=2)
 ax2.text(0.22, 0.22, 'θ', fontsize=14, color='green', fontweight='bold')
@@ -152,33 +142,13 @@ plt.tight_layout()
 plt.show()
 ```
 
-**Key Properties:**
+Values range from 1.0 (identical direction) to -1.0 (opposite direction), with 0 meaning unrelated. Crucially, cosine similarity ignores magnitude—`[1, 2, 3]` and `[2, 4, 6]` have similarity of 1.0 because they point in the same direction.
 
--   **Range**: Returns values from -1 to 1
-    -   `1.0`: Vectors point in same direction (identical meaning)
-    -   `0.0`: Vectors are orthogonal/perpendicular (unrelated)
-    -   `-1.0`: Vectors point in opposite directions (opposite meaning)
+::: {.callout-warning}
+**Similarity vs Distance:** Some functions return cosine *distance* (`1 - similarity`) where lower = more similar. For example, `scipy.spatial.distance.cosine()` returns distance, while `sklearn.metrics.pairwise.cosine_similarity()` returns similarity. Always check which convention a function uses!
+:::
 
-**Similarity vs Distance—Watch the Convention:** Cosine *similarity* uses higher values for more similar items. But some functions return cosine *distance* (defined as `1 - similarity`), where *lower* values mean more similar. For example, `scipy.spatial.distance.cosine()` returns distance (0–2), while `sklearn.metrics.pairwise.cosine_similarity()` returns similarity (-1 to 1). Always check which convention a function uses!
--   **Magnitude-independent**: Only considers direction, not length
-    -   `[1, 2, 3]` and `[2, 4, 6]` have similarity of 1.0 (same direction)
-    -   This means we don't need to normalize our embeddings beforehand
-
-**Concrete Example:**
-
-Given $\text{king} = [0.9, 0.8, 0.1]$ and $\text{queen} = [0.9, 0.8, 0.9]$:
-
-$$
-\begin{aligned}
-\text{Dot product} &= (0.9 \times 0.9) + (0.8 \times 0.8) + (0.1 \times 0.9) \\
-&= 0.81 + 0.64 + 0.09 = 1.54 \\[1em]
-\|\text{king}\| &= \sqrt{0.9^2 + 0.8^2 + 0.1^2} = \sqrt{1.46} \approx 1.21 \\[0.5em]
-\|\text{queen}\| &= \sqrt{0.9^2 + 0.8^2 + 0.9^2} = \sqrt{2.26} \approx 1.50 \\[1em]
-\text{cosine\_similarity} &= \frac{1.54}{1.21 \times 1.50} \approx 0.85 \rightarrow \text{Very similar!}
-\end{aligned}
-$$
-
-Cosine is preferred over Euclidean distance because it's scale-invariant—a document's meaning shouldn't change based on length. For a comprehensive comparison of similarity metrics—including when to use Euclidean, dot product, and others—see @sec-similarity-distance-metrics.
+For the mathematical formula, worked examples, and comparison with other metrics (Euclidean, dot product, Manhattan, etc.), see @sec-similarity-distance-metrics.
 :::
 
 ### From Discrete to Continuous: Why Embeddings Matter
