@@ -213,6 +213,84 @@ While HNSW is excellent for recall and latency, IVF-PQ excels at massive scale w
 - **IVF (Inverted File)**: Partition vectors into clusters using k-means. At query time, only search the nearest clusters instead of all vectors.
 - **Product Quantization (PQ)**: Split each vector into subvectors and quantize each independently. A 768-dim vector becomes ~96 bytes instead of 3KB—32x compression.
 
+```{python}
+#| label: fig-ivf-pq
+#| fig-cap: "IVF-PQ: (Left) IVF partitions space into clusters—query searches only nearby cells (green), skipping distant ones (gray). (Right) PQ compresses each vector by splitting into subvectors and storing cluster IDs instead of floats."
+#| echo: false
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11, 4.5))
+
+# Left panel: IVF clustering
+np.random.seed(42)
+
+# Generate cluster centers
+centers = np.array([[1.5, 1.5], [4, 1], [2.5, 3.5], [5, 3.5], [1, 4.5], [4.5, 5]])
+colors = ['#d1d5db', '#d1d5db', '#22c55e', '#22c55e', '#d1d5db', '#d1d5db']  # Gray for skipped, green for searched
+
+# Generate points around each center
+for i, (center, color) in enumerate(zip(centers, colors)):
+    points = center + np.random.randn(15, 2) * 0.4
+    ax1.scatter(points[:, 0], points[:, 1], c=color, s=30, alpha=0.6, edgecolors='white', linewidths=0.5)
+    ax1.scatter(*center, c=color, s=150, marker='s', edgecolors='black', linewidths=1.5, zorder=5)
+
+# Query point
+query = np.array([3.2, 2.8])
+ax1.scatter(*query, c='#ef4444', s=200, marker='*', zorder=10, edgecolors='black', linewidths=1)
+ax1.text(query[0] + 0.2, query[1] + 0.2, 'Query', fontsize=11, fontweight='bold', color='#ef4444')
+
+# Draw circles around searched clusters
+for center in [centers[2], centers[3]]:
+    circle = plt.Circle(center, 1.0, fill=False, color='#22c55e', linewidth=2, linestyle='--')
+    ax1.add_patch(circle)
+
+ax1.set_xlim(-0.5, 6.5)
+ax1.set_ylim(-0.5, 6.5)
+ax1.set_aspect('equal')
+ax1.set_title('IVF: Search only nearby clusters\n(2 of 6 clusters → 3x speedup)', fontsize=11, fontweight='bold')
+ax1.axis('off')
+
+# Legend
+ax1.scatter([], [], c='#22c55e', s=80, marker='s', label='Searched clusters')
+ax1.scatter([], [], c='#d1d5db', s=80, marker='s', label='Skipped clusters')
+ax1.legend(loc='lower right', fontsize=9)
+
+# Right panel: Product Quantization
+ax2.set_xlim(0, 10)
+ax2.set_ylim(0, 6)
+
+# Original vector (top)
+ax2.text(0.5, 5.2, 'Original: 768 floats (3,072 bytes)', fontsize=10, fontweight='bold')
+for i in range(8):
+    rect = plt.Rectangle((0.5 + i * 1.1, 4.3), 1.0, 0.7, facecolor='#3b82f6', edgecolor='white', linewidth=1)
+    ax2.add_patch(rect)
+    ax2.text(1.0 + i * 1.1, 4.65, f'd{i*96}-{(i+1)*96-1}', fontsize=7, ha='center', va='center', color='white')
+
+# Arrow
+ax2.annotate('', xy=(5, 3.8), xytext=(5, 4.2), arrowprops=dict(arrowstyle='->', color='black', lw=2))
+ax2.text(5.5, 4.0, 'Split & quantize', fontsize=9, va='center')
+
+# Compressed (bottom)
+ax2.text(0.5, 3.2, 'Compressed: 8 cluster IDs (8 bytes)', fontsize=10, fontweight='bold', color='#16a34a')
+for i in range(8):
+    rect = plt.Rectangle((0.5 + i * 1.1, 2.3), 1.0, 0.7, facecolor='#22c55e', edgecolor='white', linewidth=1)
+    ax2.add_patch(rect)
+    ax2.text(1.0 + i * 1.1, 2.65, f'{np.random.randint(0, 256)}', fontsize=9, ha='center', va='center', color='white', fontweight='bold')
+
+# Compression ratio
+ax2.text(5, 1.3, '32x compression', fontsize=14, ha='center', fontweight='bold', color='#16a34a',
+         bbox=dict(boxstyle='round', facecolor='#dcfce7', edgecolor='#22c55e', linewidth=2))
+
+ax2.set_aspect('equal')
+ax2.set_title('PQ: Quantize subvectors to cluster IDs', fontsize=11, fontweight='bold')
+ax2.axis('off')
+
+plt.tight_layout()
+plt.show()
+```
+
 **Tuning IVF-PQ Parameters**
 
 | Parameter | What it controls | Small (10M) | Medium (1B) | Large (100B+) |
