@@ -579,6 +579,7 @@ vocab_size = len(vocab)
 embedding_dim = 4  # Small for demo; production uses 100-300 dimensions
 word_to_idx = {w: i for i, w in enumerate(vocab)}
 
+# Initialize two embedding matrices with small random values
 np.random.seed(42)
 W_target = np.random.randn(vocab_size, embedding_dim) * 0.1
 W_context = np.random.randn(vocab_size, embedding_dim) * 0.1
