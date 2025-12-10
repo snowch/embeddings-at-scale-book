@@ -232,24 +232,22 @@ import numpy as np
 
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
 
-# Left panel: vectors in same direction, offset perpendicular so dots don't overlap
+# Left panel: vectors from same origin, same direction, dashed lines layered
 origin = np.array([0, 0])
-# Base direction and perpendicular offset
 direction = np.array([3, 2])
-perp = np.array([-2, 3]) / np.linalg.norm([-2, 3]) * 0.12  # perpendicular unit vector scaled
 
 A = direction
-B = direction * 1.5 + perp      # offset up
-C = direction * 0.5 - perp      # offset down
+B = direction * 1.5
+C = direction * 0.5
 
-# All dotted lines, offset so they don't overlap
-ax1.annotate('', xy=A, xytext=origin, arrowprops=dict(arrowstyle='->', color='#2563eb', lw=2.5, linestyle=':'))
-ax1.annotate('', xy=B, xytext=origin + perp, arrowprops=dict(arrowstyle='->', color='#16a34a', lw=2.5, linestyle=':'))
-ax1.annotate('', xy=C, xytext=origin - perp, arrowprops=dict(arrowstyle='->', color='#dc2626', lw=2.5, linestyle=':'))
+# Draw longest first, then medium, then shortest - dashed lines so colors show through
+ax1.annotate('', xy=B, xytext=origin, arrowprops=dict(arrowstyle='->', color='#16a34a', lw=4, linestyle='--', alpha=0.7))
+ax1.annotate('', xy=A, xytext=origin, arrowprops=dict(arrowstyle='->', color='#2563eb', lw=3, linestyle='--'))
+ax1.annotate('', xy=C, xytext=origin, arrowprops=dict(arrowstyle='->', color='#dc2626', lw=2, linestyle='--'))
 
-ax1.text(A[0]+0.15, A[1]+0.25, 'A', fontsize=11, fontweight='bold', color='#2563eb')
-ax1.text(B[0]+0.15, B[1]+0.25, 'B (1.5×)', fontsize=11, fontweight='bold', color='#16a34a')
-ax1.text(C[0]+0.15, C[1]-0.35, 'C (0.5×)', fontsize=11, fontweight='bold', color='#dc2626')
+ax1.text(A[0]+0.15, A[1]+0.3, 'A', fontsize=11, fontweight='bold', color='#2563eb')
+ax1.text(B[0]+0.15, B[1]+0.2, 'B (1.5×)', fontsize=11, fontweight='bold', color='#16a34a')
+ax1.text(C[0]-0.7, C[1]+0.25, 'C (0.5×)', fontsize=11, fontweight='bold', color='#dc2626')
 
 ax1.set_xlim(-0.5, 5.5)
 ax1.set_ylim(-0.5, 4)
