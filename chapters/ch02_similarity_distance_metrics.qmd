@@ -28,8 +28,7 @@ $$\text{cosine\_similarity}(\mathbf{A}, \mathbf{B}) = \frac{\mathbf{A} \cdot \ma
 ```{python}
 #| label: fig-cosine-similarity
 #| fig-cap: "Cosine similarity measures the angle θ between vectors, ignoring magnitude. Vectors A and B point in similar directions (high similarity) while C points differently (low similarity)."
-#| code-fold: true
-#| code-summary: "Show visualization code"
+#| echo: false
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -76,7 +75,7 @@ sim_AC = cosine_sim(A, C)
 
 # Add similarity values
 ax.text(3.5, 0.3, f'cos(A,B) = {sim_AB:.2f}', fontsize=11, color='#16a34a', fontweight='bold')
-ax.text(0.3, 3.5, f'cos(A,C) = {sim_AC:.2f}', fontsize=11, color='#dc2626', fontweight='bold')
+ax.text(1.3, 3.3, f'cos(A,C) = {sim_AC:.2f}', fontsize=11, color='#dc2626', fontweight='bold')
 
 ax.set_xlim(-0.5, 5.5)
 ax.set_ylim(-0.5, 4.5)
@@ -135,8 +134,7 @@ $$\text{euclidean}(\mathbf{A}, \mathbf{B}) = \sqrt{\sum_{i=1}^{n} (A_i - B_i)^2}
 ```{python}
 #| label: fig-euclidean-distance
 #| fig-cap: "Euclidean distance measures the straight-line distance between points. Unlike cosine similarity, magnitude matters—point B is far from A despite pointing in a similar direction."
-#| code-fold: true
-#| code-summary: "Show visualization code"
+#| echo: false
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -227,8 +225,7 @@ $$\text{dot\_product}(\mathbf{A}, \mathbf{B}) = \mathbf{A} \cdot \mathbf{B} = \s
 ```{python}
 #| label: fig-dot-product
 #| fig-cap: "Dot product combines angle AND magnitude. Vectors B and C point in nearly the same direction as A, but B (longer) has a higher dot product. Cosine similarity would rate all three pairs equally since it ignores magnitude."
-#| code-fold: true
-#| code-summary: "Show visualization code"
+#| echo: false
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -242,10 +239,10 @@ A = np.array([3, 2])
 B = np.array([4.5, 3])       # 1.5x magnitude, same direction
 C = np.array([1.5, 1])       # 0.5x magnitude, same direction
 
-# Use different line styles: solid (thick), dashed (medium), dotted (thin)
+# Use different line styles: solid (thick), dashed (medium), dotted (lighter)
 ax1.annotate('', xy=B, xytext=origin, arrowprops=dict(arrowstyle='->', color='#16a34a', lw=4, linestyle='-'))
 ax1.annotate('', xy=A, xytext=origin, arrowprops=dict(arrowstyle='->', color='#2563eb', lw=2.5, linestyle='--'))
-ax1.annotate('', xy=C, xytext=origin, arrowprops=dict(arrowstyle='->', color='#dc2626', lw=2, linestyle=':'))
+ax1.annotate('', xy=C, xytext=origin, arrowprops=dict(arrowstyle='->', color='#dc2626', lw=1.5, linestyle=(0, (1, 1))))
 
 ax1.text(A[0]+0.15, A[1]+0.25, 'A (dashed)', fontsize=11, fontweight='bold', color='#2563eb')
 ax1.text(B[0]+0.15, B[1]+0.25, 'B 1.5× (solid)', fontsize=11, fontweight='bold', color='#16a34a')
@@ -335,8 +332,7 @@ $$\text{manhattan}(\mathbf{A}, \mathbf{B}) = \sum_{i=1}^{n} |A_i - B_i| = ||\mat
 ```{python}
 #| label: fig-manhattan-distance
 #| fig-cap: "Manhattan distance follows a 'city block' path along axes (orange), while Euclidean takes the direct route (blue dashed). Manhattan = |4-1| + |3-1| = 5, while Euclidean = 3.61."
-#| code-fold: true
-#| code-summary: "Show visualization code"
+#| echo: false
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -432,8 +428,7 @@ $$\text{hamming}(\mathbf{A}, \mathbf{B}) = \sum_{i=1}^{n} \mathbf{1}[A_i \neq B_
 ```{python}
 #| label: fig-hamming-distance
 #| fig-cap: "Hamming distance counts differing positions. Vectors A and B differ in 2 positions (red), giving Hamming distance = 2. Used for binary embeddings where comparison is a fast XOR operation."
-#| code-fold: true
-#| code-summary: "Show visualization code"
+#| echo: false
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -538,8 +533,7 @@ $$\text{jaccard}(\mathbf{A}, \mathbf{B}) = \frac{|A \cap B|}{|A \cup B|}$$
 ```{python}
 #| label: fig-jaccard-similarity
 #| fig-cap: "Jaccard similarity = intersection / union. Sets A and B share 3 elements (green overlap) out of 5 total unique elements, giving Jaccard = 3/5 = 0.60."
-#| code-fold: true
-#| code-summary: "Show visualization code"
+#| echo: false
 
 import matplotlib.pyplot as plt
 import numpy as np
