@@ -224,7 +224,7 @@ $$\text{dot\_product}(\mathbf{A}, \mathbf{B}) = \mathbf{A} \cdot \mathbf{B} = \s
 
 ```{python}
 #| label: fig-dot-product
-#| fig-cap: "Dot product combines angle AND magnitude. Vectors B and C point in nearly the same direction as A, but B (longer) has a higher dot product. Cosine similarity would rate all three pairs equally since it ignores magnitude."
+#| fig-cap: "Dot product combines angle AND magnitude. Vectors B and C point in the same direction as A, but B (longer) has a higher dot product. Cosine similarity rates both pairs equally since it ignores magnitude."
 #| echo: false
 
 import matplotlib.pyplot as plt
@@ -232,57 +232,80 @@ import numpy as np
 
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
 
-# Left panel: vectors from same origin, same direction, dashed lines layered
+# Left panel: three overlapping arrows with offset dashes
 origin = np.array([0, 0])
 direction = np.array([3, 2])
+unit = direction / np.linalg.norm(direction)
 
+# Vector endpoints
+C_end = direction * 0.5
+A_end = direction
+B_end = direction * 1.5
+
+# B is solid at the bottom
+ax1.plot([0, B_end[0]], [0, B_end[1]], color='#86efac', lw=2.5, solid_capstyle='butt', zorder=0)
+
+# A and C dashed on top with offset patterns
+ax1.plot([0, A_end[0]], [0, A_end[1]], color='#3b82f6', lw=2.5, linestyle=(0, (4, 8)), solid_capstyle='butt', zorder=2)
+ax1.plot([0, C_end[0]], [0, C_end[1]], color='#ef4444', lw=2.5, linestyle=(4, (4, 8)), solid_capstyle='butt', zorder=3)
+
+# Arrowheads
+for end, color in [(C_end, '#ef4444'), (A_end, '#3b82f6'), (B_end, '#86efac')]:
+    ax1.annotate('', xy=end, xytext=end - unit * 0.25,
+                 arrowprops=dict(arrowstyle='-|>', color=color, lw=1.5, mutation_scale=12))
+
+# Labels - all to the right of their endpoints
+ax1.text(B_end[0] + 0.15, B_end[1] - 0.4, 'B (1.5×)', fontsize=10, fontweight='bold', color='#16a34a')
+ax1.text(A_end[0] + 0.15, A_end[1] - 0.4, 'A', fontsize=10, fontweight='bold', color='#2563eb')
+ax1.text(C_end[0] + 0.1, C_end[1] - 0.4, 'C (0.5×)', fontsize=10, fontweight='bold', color='#dc2626')
+
+ax1.set_xlim(-0.3, 5.8)
+ax1.set_ylim(-0.5, 3.8)
+ax1.set_aspect('equal')
+ax1.axhline(y=0, color='#e5e5e5', linewidth=0.8)
+ax1.axvline(x=0, color='#e5e5e5', linewidth=0.8)
+ax1.set_xlabel('Dimension 1', fontsize=10)
+ax1.set_ylabel('Dimension 2', fontsize=10)
+ax1.set_title('Same direction, different magnitudes', fontsize=11, fontweight='bold')
+ax1.set_facecolor('white')
+for spine in ax1.spines.values():
+    spine.set_visible(False)
+
+# Right panel
 A = direction
 B = direction * 1.5
 C = direction * 0.5
 
-# Draw longest first, then medium, then shortest - dashed lines so colors show through
-ax1.annotate('', xy=B, xytext=origin, arrowprops=dict(arrowstyle='->', color='#16a34a', lw=4, linestyle='--', alpha=0.7))
-ax1.annotate('', xy=A, xytext=origin, arrowprops=dict(arrowstyle='->', color='#2563eb', lw=3, linestyle='--'))
-ax1.annotate('', xy=C, xytext=origin, arrowprops=dict(arrowstyle='->', color='#dc2626', lw=2, linestyle='--'))
-
-ax1.text(A[0]+0.15, A[1]+0.3, 'A', fontsize=11, fontweight='bold', color='#2563eb')
-ax1.text(B[0]+0.15, B[1]+0.2, 'B (1.5×)', fontsize=11, fontweight='bold', color='#16a34a')
-ax1.text(C[0]-0.7, C[1]+0.25, 'C (0.5×)', fontsize=11, fontweight='bold', color='#dc2626')
-
-ax1.set_xlim(-0.5, 5.5)
-ax1.set_ylim(-0.5, 4)
-ax1.set_aspect('equal')
-ax1.axhline(y=0, color='gray', linewidth=0.5)
-ax1.axvline(x=0, color='gray', linewidth=0.5)
-ax1.set_xlabel('Dimension 1', fontsize=11)
-ax1.set_ylabel('Dimension 2', fontsize=11)
-ax1.set_title('Vectors (similar direction, different lengths)', fontsize=11)
-ax1.grid(True, alpha=0.3)
-
-# Right panel: bar chart comparing metrics
 dot_AB = np.dot(A, B)
 dot_AC = np.dot(A, C)
 cos_AB = dot_AB / (np.linalg.norm(A) * np.linalg.norm(B))
 cos_AC = dot_AC / (np.linalg.norm(A) * np.linalg.norm(C))
 
 x = np.arange(2)
-width = 0.35
+width = 0.32
 
-bars1 = ax2.bar(x - width/2, [dot_AB, dot_AC], width, label='Dot Product', color=['#16a34a', '#dc2626'], alpha=0.8)
-bars2 = ax2.bar(x + width/2, [cos_AB * 20, cos_AC * 20], width, label='Cosine × 20', color=['#16a34a', '#dc2626'], alpha=0.4, hatch='//')
+# Solid bars for dot product
+ax2.bar(x - width/2, [dot_AB, dot_AC], width, color=['#16a34a', '#dc2626'], edgecolor='white', linewidth=1.5)
 
-ax2.set_ylabel('Value', fontsize=11)
-ax2.set_ylim(0, 26)  # Add top padding for labels and legend
-ax2.set_title('Dot product varies with length;\nCosine stays constant', fontsize=11)
+# Solid bars for cosine (no pattern)
+cos_scale = 20
+ax2.bar(x + width/2, [cos_AB * cos_scale, cos_AC * cos_scale], width, color=['#16a34a', '#dc2626'], alpha=0.5, edgecolor='white', linewidth=0.5)
+
+ax2.set_ylabel('Value', fontsize=10)
+ax2.set_ylim(0, 23)
+ax2.set_title('Dot product captures magnitude;\nCosine ignores it', fontsize=11, fontweight='bold')
 ax2.set_xticks(x)
-ax2.set_xticklabels(['A · B\nvs\ncos(A,B)', 'A · C\nvs\ncos(A,C)'])
-ax2.legend(loc='lower right')
+ax2.set_xticklabels(['A · B', 'A · C'], fontsize=10)
 
-# Add value labels
-ax2.text(0 - width/2, dot_AB + 0.5, f'{dot_AB:.1f}', ha='center', fontsize=10, fontweight='bold')
-ax2.text(1 - width/2, dot_AC + 0.5, f'{dot_AC:.1f}', ha='center', fontsize=10, fontweight='bold')
-ax2.text(0 + width/2, cos_AB * 20 + 0.5, f'{cos_AB:.2f}', ha='center', fontsize=10)
-ax2.text(1 + width/2, cos_AC * 20 + 0.5, f'{cos_AC:.2f}', ha='center', fontsize=10)
+ax2.set_facecolor('white')
+for spine in ['top', 'right']:
+    ax2.spines[spine].set_visible(False)
+
+# Labels above bars
+ax2.text(0 - width/2, dot_AB + 0.5, f'Dot: {dot_AB:.0f}', ha='center', va='bottom', fontsize=9, fontweight='bold', color='#16a34a')
+ax2.text(1 - width/2, dot_AC + 0.5, f'Dot: {dot_AC:.0f}', ha='center', va='bottom', fontsize=9, fontweight='bold', color='#dc2626')
+ax2.text(0 + width/2, (cos_AB * cos_scale) + 0.5, f'Cos: {cos_AB:.0f}', ha='center', va='bottom', fontsize=9, color='#16a34a')
+ax2.text(1 + width/2, (cos_AC * cos_scale) + 0.5, f'Cos: {cos_AC:.0f}', ha='center', va='bottom', fontsize=9, color='#dc2626')
 
 plt.tight_layout()
 plt.show()
