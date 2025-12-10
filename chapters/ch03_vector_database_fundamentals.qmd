@@ -91,34 +91,40 @@ Scaling to trillions of embeddings requires sophisticated indexing strategies th
 
 ### The Indexing Challenge at Scale
 
-Before diving into solutions, let's quantify what 1 trillion vectors actually means for memory, cost, and build time:
+Before diving into solutions, let's quantify what 1 trillion 768-dimensional vectors actually means:
+
+- **Storage**: Each vector is 768 floats × 4 bytes = 3KB. One trillion vectors = ~2.8 PB raw, plus ~50% overhead for HNSW graph structure.
+- **Memory cost**: If you wanted everything in RAM, you'd need thousands of high-memory machines at tens of millions per month.
+- **Build time**: HNSW takes ~100μs per vector insertion. Single-threaded, that's years. Even with massive parallelism, it's a significant operation.
+- **Query budget**: Users expect results in under 100ms. After network and processing overhead, the index search itself gets maybe 50ms—no room for brute force.
 
 ```{python}
-#| code-fold: false
+#| code-fold: true
+#| code-summary: "Show the math"
 
 # Scale parameters
 num_vectors = 1_000_000_000_000  # 1 trillion
 embedding_dim = 768
 bytes_per_float = 4
 
-# Memory: How much storage do we need?
+# Storage calculation
 raw_petabytes = (num_vectors * embedding_dim * bytes_per_float) / (1024 ** 5)
 with_index_pb = raw_petabytes * 1.5  # HNSW adds ~50% overhead
 
-# Cost: What if we put it all in RAM?
-machines_1tb = int(with_index_pb * 1024)  # AWS r6i.32xlarge has 1TB RAM
-monthly_cost = machines_1tb * 8.064 * 24 * 30  # $8.064/hour per machine
+# Cost if all in RAM (AWS r6i.32xlarge: 1TB RAM, $8.064/hour)
+machines_1tb = int(with_index_pb * 1024)
+monthly_cost = machines_1tb * 8.064 * 24 * 30
 
-# Build time: How long to index everything?
-build_seconds = (num_vectors * 100) / 1_000_000  # ~100μs per vector for HNSW
+# Build time (~100μs per vector for HNSW)
+build_seconds = (num_vectors * 100) / 1_000_000
 build_years = build_seconds / (60 * 60 * 24 * 365)
-parallel_days = (build_seconds / 10_000) / (60 * 60 * 24)  # With 10K machines
+parallel_hours = (build_seconds / 10_000) / (60 * 60)  # With 10K machines
 
 print(f"Storage:    {with_index_pb:,.0f} PB (embeddings + HNSW index)")
 print(f"Machines:   {machines_1tb:,} × 1TB RAM instances")
 print(f"Cost:       ${monthly_cost/1e6:,.0f}M/month if all in RAM")
-print(f"Build time: {build_years:,.0f} years single-machine, {parallel_days:.0f} days with 10K machines")
-print(f"Query:      Must return results in <50ms (leaves no room for brute force)")
+print(f"Build time: {build_years:,.0f} years single-machine, {parallel_hours:.0f} hours with 10K machines")
+print(f"Query:      Must return results in <50ms (no room for brute force)")
 ```
 
 Clearly, naïve approaches won't work. We need sophisticated indexing strategies.
@@ -127,11 +133,11 @@ Clearly, naïve approaches won't work. We need sophisticated indexing strategies
 
 HNSW is the gold standard for high-recall, low-latency vector search. Understanding how it works is essential for trillion-scale deployments.
 
-**Core Concept**: HNSW builds a multi-layer proximity graph where:
+**Core Concept**: HNSW builds a multi-layer graph where each vector is randomly assigned to a level (higher levels are exponentially rarer). Within each layer, vectors connect to their nearest neighbors. The key insight:
 
-- Upper layers have long-range connections (for fast navigation)
-- Lower layers have short-range connections (for high accuracy)
-- Search starts at top layer and descends, getting more refined
+- **Upper layers**: Few nodes, spread far apart → each hop covers large distances
+- **Bottom layer**: All nodes, densely packed → each hop is fine-grained
+- **Search**: Enter at top, greedily hop toward query, descend when stuck
 
 ```{python}
 #| label: fig-hnsw-navigation
@@ -188,89 +194,15 @@ plt.tight_layout()
 plt.show()
 ```
 
-```{python}
-#| echo: true
-#| code-fold: true
-#| code-summary: "Show HNSW deep dive implementation"
-import math
+**Tuning HNSW Parameters**
 
-class HNSWDeepDive:
-    """Understanding HNSW internals for scale"""
+| Parameter | What it controls | Small (1M) | Medium (100M) | Large (1B+) |
+|-----------|-----------------|------------|---------------|-------------|
+| **M** | Connections per node | 16 | 32 | 48-64 |
+| **ef_construction** | Build quality (candidates considered) | 100 | 200 | 400 |
+| **ef_search** | Query quality vs speed | 50 | 100 | 200 |
 
-    def __init__(self, M=16, ef_construction=200, max_level=5):
-        """
-        M: Max connections per node (typical: 16-64)
-        ef_construction: Candidates considered during build (typical: 100-500)
-        """
-        self.M = M
-        self.ef_construction = ef_construction
-        self.max_level = max_level
-        self.layers = [{} for _ in range(max_level + 1)]
-        self.entry_point = None
-
-    def complexity_analysis(self, num_vectors):
-        """Analyze HNSW complexity"""
-        num_layers = int(math.log(num_vectors) / math.log(self.M))
-        comparisons_per_layer = self.M
-        total_comparisons = num_layers * comparisons_per_layer
-        avg_connections = self.M * 1.5
-        memory_per_vector = avg_connections * 8  # 64-bit ID
-
-        return {
-            "num_layers": num_layers,
-            "comparisons_per_query": total_comparisons,
-            "memory_overhead_bytes": memory_per_vector,
-            "query_complexity": f"O(log N) ≈ {total_comparisons} comparisons",
-        }
-
-    def tune_for_scale(self):
-        """Tuning guidelines for trillion-scale"""
-        return {
-            "M": {"small_1m": 16, "medium_100m": 32, "large_10b": 48, "trillion_100t": 64},
-            "ef_construction": {"fast": 100, "balanced": 200, "high_quality": 400},
-            "ef_search": {"fast_low_recall": 50, "balanced": 100, "high_recall": 200},
-        }
-
-# Usage example
-hnsw = HNSWDeepDive(M=48, ef_construction=300)
-analysis = hnsw.complexity_analysis(num_vectors=100_000_000_000)
-print(f"HNSW for 100B vectors: {analysis['num_layers']} layers, {analysis['comparisons_per_query']} comparisons/query")
-```
-
-**HNSW at Trillion Scale: Practical Considerations**
-
-**Sharding**: Use horizontal sharding with 100M-1B vectors per shard. Query all shards in parallel, merge top-k. For optimization, use IVF-HNSW hybrid: IVF for coarse partitioning (5-10x speedup), HNSW within partitions.
-
-**Incremental Updates**:
-
-- *Online inserts*: Add to existing graph, O(log N × M × ef_construction), 10-100ms per insert
-- *Batch inserts*: Build mini-HNSW, merge with main graph
-- *Deletions*: Soft delete (filter at query time) with periodic rebuild
-- *Updates*: Delete + re-insert; rebuild when >20% of vectors changed
-
-**Memory Optimization**:
-
-- *Tiered storage*: Layer 0 in RAM, upper layers on SSD, embeddings on slow storage (60-80% reduction, <10ms latency impact)
-- *Graph compression*: 30-50% savings with slight decompression overhead
-- *32-bit IDs*: 50% savings on graph structure (limits to 4B vectors/shard)
-- *Memory-mapping*: Let OS manage hot/cold page paging
-
-```python
-def calculate_memory_savings():
-    """Memory savings from optimization techniques"""
-    vectors = 1_000_000_000  # 1B vectors
-    M, dim = 48, 768
-
-    # Baseline: everything in RAM
-    baseline_gb = (vectors * dim * 4 + vectors * M * 8) / (1024**3)
-
-    # Optimized: embeddings on SSD, 32-bit IDs, compression
-    optimized_gb = (vectors * M * 4 * 0.7) / (1024**3)
-
-    return f"Baseline: {baseline_gb:.0f} GB → Optimized: {optimized_gb:.0f} GB ({(1-optimized_gb/baseline_gb)*100:.0f}% savings)"
-
-# Output: Baseline: 3214 GB → Optimized: 125 GB (96% savings)
-```
+Higher M and ef values improve recall but increase memory and latency. At 1B vectors with M=48, expect ~6 layers and ~300 comparisons per query—orders of magnitude faster than brute force.
 
 ### Strategy 2: IVF (Inverted File Index) with Product Quantization
 
