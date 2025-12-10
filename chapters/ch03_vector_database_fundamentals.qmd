@@ -208,52 +208,20 @@ Higher M and ef values improve recall but increase memory and latency. At 1B vec
 
 While HNSW is excellent for recall and latency, IVF-PQ excels at massive scale with memory constraints.
 
-**Core Concept**: IVF partitions the space into Voronoi cells. Search checks only the cells nearest to query. Product Quantization compresses vectors 20-100x.
+**Core Concept**: IVF-PQ combines two techniques:
 
-```{python}
-#| echo: true
-#| code-fold: true
-#| code-summary: "Show IVF-PQ strategy implementation"
-import numpy as np
+- **IVF (Inverted File)**: Partition vectors into clusters using k-means. At query time, only search the nearest clusters instead of all vectors.
+- **Product Quantization (PQ)**: Split each vector into subvectors and quantize each independently. A 768-dim vector becomes ~96 bytes instead of 3KB—32x compression.
 
-class IVFPQStrategy:
-    """IVF with Product Quantization for memory efficiency"""
+**Tuning IVF-PQ Parameters**
 
-    def __init__(self, num_centroids=65536, num_subquantizers=8, bits_per_sq=8):
-        """
-        num_centroids: Number of Voronoi cells (typical: 4096-65536)
-        num_subquantizers: Divide vector into subvectors (typical: 8-16)
-        bits_per_sq: Bits per subquantizer (typical: 8 = 256 clusters)
-        """
-        self.num_centroids = num_centroids
-        self.num_subquantizers = num_subquantizers
-        self.bits_per_sq = bits_per_sq
+| Parameter | What it controls | Small (10M) | Medium (1B) | Large (100B+) |
+|-----------|-----------------|-------------|-------------|---------------|
+| **nlist** | Number of clusters | 1,024 | 16,384 | 65,536 |
+| **nprobe** | Clusters to search | 8 | 64 | 128 |
+| **M (PQ)** | Subquantizers | 16 | 48 | 96 |
 
-    def memory_analysis(self, num_vectors, embedding_dim):
-        """Compare memory usage vs uncompressed"""
-        # Uncompressed: float32
-        uncompressed_bytes = num_vectors * embedding_dim * 4
-
-        # IVF-PQ: centroids + codes
-        centroid_bytes = self.num_centroids * embedding_dim * 4
-        code_bytes_per_vector = self.num_subquantizers * (self.bits_per_sq // 8)
-        compressed_bytes = centroid_bytes + (num_vectors * code_bytes_per_vector)
-
-        compression_ratio = uncompressed_bytes / compressed_bytes
-
-        return {
-            "uncompressed_gb": uncompressed_bytes / (1024**3),
-            "compressed_gb": compressed_bytes / (1024**3),
-            "compression_ratio": f"{compression_ratio:.1f}x",
-            "savings_pct": f"{(1 - compressed_bytes / uncompressed_bytes) * 100:.1f}%",
-        }
-
-# Usage example
-ivf_pq = IVFPQStrategy(num_centroids=65536, num_subquantizers=96, bits_per_sq=8)
-memory = ivf_pq.memory_analysis(num_vectors=100_000_000_000, embedding_dim=768)
-print(f"Uncompressed: {memory['uncompressed_gb']:,.0f} GB")
-print(f"Compressed: {memory['compressed_gb']:,.0f} GB ({memory['compression_ratio']} compression)")
-```
+Higher nprobe improves recall but increases latency. At 100B vectors with 96 subquantizers, expect 32x compression (286 TB → 9 TB) with 85-90% recall.
 
 **HNSW vs IVF-PQ Trade-offs**
 
@@ -271,23 +239,6 @@ print(f"Compressed: {memory['compressed_gb']:,.0f} GB ({memory['compression_rati
 - **HNSW**: High recall (>95%), low latency (<100ms p99), frequent updates, sufficient memory
 - **IVF-PQ**: Memory constrained, can tolerate 85-90% recall, infrequent updates, trillion+ scale
 - **Hybrid IVF-HNSW**: Best of both—IVF for coarse search, HNSW within partitions
-
-```python
-def recommend_index_strategy(num_vectors, memory_budget_gb, recall_requirement, latency_p99_ms):
-    """Recommend index strategy based on requirements"""
-    embedding_dim = 768
-    raw_data_gb = (num_vectors * embedding_dim * 4) / (1024**3)
-    hnsw_memory_gb = raw_data_gb * 1.7
-    ivf_pq_memory_gb = raw_data_gb * 0.03
-
-    if memory_budget_gb >= hnsw_memory_gb and recall_requirement >= 0.95 and latency_p99_ms <= 100:
-        return "HNSW"
-    if memory_budget_gb < hnsw_memory_gb and recall_requirement < 0.90:
-        return "IVF-PQ"
-    if recall_requirement >= 0.93:
-        return "Hybrid IVF-HNSW"
-    return "IVF-PQ with high n_probe"
-```
 
 ### Strategy 3: Data Distribution at Scale
 
@@ -323,70 +274,15 @@ Data replication ensures availability and durability at scale.
 
 :::{.callout-note}
 ## VAST Data Platform Approach
-This section will cover VAST Data Platform's built-in data protection mechanisms, including its approach to replication, erasure coding, and automatic failover. VAST provides enterprise-grade data protection without requiring manual replication configuration.
+This section will cover VAST Data Platform's built-in data protection and failure recovery mechanisms, including:
+
+- **Data Protection**: VAST's approach to erasure coding and data redundancy
+- **Automatic Failover**: How VAST handles node and disk failures transparently
+- **Disaster Recovery**: Multi-site replication and recovery capabilities
+- **Self-Healing**: Automatic detection and recovery from failures
+
+VAST provides enterprise-grade reliability without requiring manual configuration of replication, sharding, or failover logic.
 :::
-
-### Failure Modes and Recovery
-
-:::{.callout-warning}
-## Node Failure
-**Probability**: High (MTBF ~3-5 years per machine)
-**Impact**: Loss of one shard or replica
-**Detection**: Heartbeat timeout (10-30 seconds)
-**Recovery**: Remove from load balancer → serve from replica → spawn replacement → rebuild index (5-30 minutes)
-**Data Loss**: None with proper replication
-:::
-
-:::{.callout-warning}
-## Disk Failure
-**Probability**: Medium (MTBF ~4 years per disk)
-**Detection**: I/O errors, SMART metrics
-**Recovery**: Switch to replica → replace disk → restore from backup → rebuild index (1-4 hours)
-:::
-
-:::{.callout-warning}
-## Network Partition
-**Probability**: Medium (datacenter network issues)
-**Impact**: Subset of nodes unreachable
-**Recovery**: Serve from available partition with graceful degradation (partial results), resync after partition resolves
-:::
-
-:::{.callout-caution}
-## Index Corruption
-**Probability**: Low but critical
-**Detection**: Checksums, recall monitoring (sudden drop), user reports
-**Recovery**: Rollback to previous version or rebuild from raw embeddings (1-8 hours)
-:::
-
-:::{.callout-caution}
-## Query of Death
-**Probability**: Low but high impact (cascading failures)
-**Prevention**: Query timeouts, input validation, circuit breakers, load shedding
-:::
-
-### Disaster Recovery
-
-For region-level failures, maintain multi-region replication with automated failover:
-
-1. Detect region failure via health checks
-2. Update DNS/routing to backup region
-3. Promote backup region to primary
-4. Scale up if needed
-5. Investigate and restore primary region
-6. Resync and failback
-
-Target RPO <5 minutes, RTO <15 minutes. Cost: 2x infrastructure for active-active deployment.
-
-### Chaos Engineering
-
-Test failures proactively using tools like Chaos Monkey, Gremlin, or LitmusChaos:
-
-- Terminate random nodes (10% of fleet)
-- Inject network latency (100-500ms)
-- Simulate datacenter partitions
-- Corrupt index files
-
-Run weekly in staging, monthly in production. Success criteria: query success rate >99.9%, latency within SLA, automatic recovery without human intervention.
 
 ### Coordination and Cluster Management
 
@@ -441,46 +337,6 @@ Key benchmark dimensions for vector databases:
 | **Scalability** | Latency/memory vs size | Test at 1M, 10M, 100M, 1B, 10B vectors |
 
 Standard benchmark datasets include SIFT-1M (1M vectors, 128 dims), Deep1B (1B vectors, 96 dims), and LAION-5B (5B vectors, 768 dims). However, production data provides the most accurate benchmarks since query distributions differ from academic datasets.
-
-```python
-import numpy as np
-import time
-
-def measure_recall(index, embeddings, k=10, num_queries=100):
-    """Measure recall@k by comparing approximate vs exact search"""
-    total_recall = 0
-    for _ in range(num_queries):
-        query_idx = np.random.randint(0, len(embeddings))
-        query = embeddings[query_idx]
-
-        # Ground truth: brute force exact search
-        distances = np.linalg.norm(embeddings - query, axis=1)
-        true_top_k = set(np.argsort(distances)[:k])
-
-        # Approximate search
-        approx_top_k = set(index.search(query, k=k))
-
-        recall = len(true_top_k & approx_top_k) / k
-        total_recall += recall
-
-    return total_recall / num_queries
-
-def benchmark_latency(index, embedding_dim, num_queries=10000):
-    """Measure query latency percentiles"""
-    latencies = []
-    for _ in range(num_queries):
-        query = np.random.randn(embedding_dim).astype(np.float32)
-        start = time.time()
-        index.search(query, k=10)
-        latencies.append((time.time() - start) * 1000)
-
-    latencies = np.array(latencies)
-    return {
-        'p50_ms': np.percentile(latencies, 50),
-        'p95_ms': np.percentile(latencies, 95),
-        'p99_ms': np.percentile(latencies, 99)
-    }
-```
 
 ### Load Testing and Capacity Planning
 
