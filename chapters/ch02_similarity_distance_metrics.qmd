@@ -226,51 +226,65 @@ $$\text{dot\_product}(\mathbf{A}, \mathbf{B}) = \mathbf{A} \cdot \mathbf{B} = \s
 
 ```{python}
 #| label: fig-dot-product
-#| fig-cap: "Dot product combines angle AND magnitude. Vectors B and C point in the same direction as A, but B (longer) has a higher dot product. Compare to cosine similarity where B and C would be equal."
+#| fig-cap: "Dot product combines angle AND magnitude. Vectors B and C point in nearly the same direction as A, but B (longer) has a higher dot product. Cosine similarity would rate all three pairs equally since it ignores magnitude."
 #| code-fold: true
 #| code-summary: "Show visualization code"
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-fig, ax = plt.subplots(figsize=(7, 5))
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
 
+# Left panel: vectors with slight offset for visibility
 origin = [0, 0]
-A = np.array([2, 1.5])
-B = np.array([4, 3])      # Same direction as A, 2x magnitude
-C = np.array([1, 0.75])   # Same direction as A, 0.5x magnitude
+# Base direction
+A = np.array([3, 2])
+# Same direction, different magnitudes (slight visual offset)
+B = np.array([4.5, 3.1])     # ~1.5x magnitude, tiny angle offset
+C = np.array([1.5, 0.9])     # ~0.5x magnitude, tiny angle offset
 
-# Draw vectors with different styles to distinguish overlapping lines
-# Draw longest first (B), then medium (A), then shortest (C)
-ax.annotate('', xy=B, xytext=origin, arrowprops=dict(arrowstyle='->', color='#16a34a', lw=4))
-ax.annotate('', xy=A, xytext=origin, arrowprops=dict(arrowstyle='->', color='#2563eb', lw=3))
-ax.annotate('', xy=C, xytext=origin, arrowprops=dict(arrowstyle='->', color='#dc2626', lw=2))
+ax1.annotate('', xy=A, xytext=origin, arrowprops=dict(arrowstyle='->', color='#2563eb', lw=3))
+ax1.annotate('', xy=B, xytext=origin, arrowprops=dict(arrowstyle='->', color='#16a34a', lw=3))
+ax1.annotate('', xy=C, xytext=origin, arrowprops=dict(arrowstyle='->', color='#dc2626', lw=3))
 
-# Labels - position them away from the line
-ax.text(A[0]-0.3, A[1]+0.35, 'A', fontsize=14, fontweight='bold', color='#2563eb')
-ax.text(B[0]+0.15, B[1]+0.25, 'B (2×)', fontsize=12, fontweight='bold', color='#16a34a')
-ax.text(C[0]+0.15, C[1]-0.35, 'C (0.5×)', fontsize=12, fontweight='bold', color='#dc2626')
+ax1.text(A[0]+0.1, A[1]+0.2, 'A', fontsize=14, fontweight='bold', color='#2563eb')
+ax1.text(B[0]+0.1, B[1]+0.2, 'B (1.5×)', fontsize=12, fontweight='bold', color='#16a34a')
+ax1.text(C[0]+0.1, C[1]-0.3, 'C (0.5×)', fontsize=12, fontweight='bold', color='#dc2626')
 
-# Calculate dot products
+ax1.set_xlim(-0.5, 5.5)
+ax1.set_ylim(-0.5, 4)
+ax1.set_aspect('equal')
+ax1.axhline(y=0, color='gray', linewidth=0.5)
+ax1.axvline(x=0, color='gray', linewidth=0.5)
+ax1.set_xlabel('Dimension 1', fontsize=11)
+ax1.set_ylabel('Dimension 2', fontsize=11)
+ax1.set_title('Vectors (similar direction, different lengths)', fontsize=11)
+ax1.grid(True, alpha=0.3)
+
+# Right panel: bar chart comparing metrics
 dot_AB = np.dot(A, B)
 dot_AC = np.dot(A, C)
 cos_AB = dot_AB / (np.linalg.norm(A) * np.linalg.norm(B))
 cos_AC = dot_AC / (np.linalg.norm(A) * np.linalg.norm(C))
 
-# Add comparison box - position in lower right to avoid overlap
-textstr = f'A · B = {dot_AB:.1f}  (longer → bigger)\nA · C = {dot_AC:.1f}  (shorter → smaller)\n\ncos(A,B) = cos(A,C) = {cos_AB:.2f}\n(same direction → same cosine)'
-props = dict(boxstyle='round', facecolor='wheat', alpha=0.9)
-ax.text(0.98, 0.02, textstr, transform=ax.transAxes, fontsize=10,
-        verticalalignment='bottom', horizontalalignment='right', bbox=props)
+x = np.arange(2)
+width = 0.35
 
-ax.set_xlim(-0.5, 5)
-ax.set_ylim(-0.5, 4)
-ax.set_aspect('equal')
-ax.axhline(y=0, color='gray', linewidth=0.5)
-ax.axvline(x=0, color='gray', linewidth=0.5)
-ax.set_xlabel('Dimension 1', fontsize=11)
-ax.set_ylabel('Dimension 2', fontsize=11)
-ax.grid(True, alpha=0.3)
+bars1 = ax2.bar(x - width/2, [dot_AB, dot_AC], width, label='Dot Product', color=['#16a34a', '#dc2626'], alpha=0.8)
+bars2 = ax2.bar(x + width/2, [cos_AB * 20, cos_AC * 20], width, label='Cosine × 20', color=['#16a34a', '#dc2626'], alpha=0.4, hatch='//')
+
+ax2.set_ylabel('Value', fontsize=11)
+ax2.set_title('Dot product varies with length;\nCosine stays constant', fontsize=11)
+ax2.set_xticks(x)
+ax2.set_xticklabels(['A · B\nvs\ncos(A,B)', 'A · C\nvs\ncos(A,C)'])
+ax2.legend(loc='upper right')
+
+# Add value labels
+ax2.text(0 - width/2, dot_AB + 0.5, f'{dot_AB:.1f}', ha='center', fontsize=10, fontweight='bold')
+ax2.text(1 - width/2, dot_AC + 0.5, f'{dot_AC:.1f}', ha='center', fontsize=10, fontweight='bold')
+ax2.text(0 + width/2, cos_AB * 20 + 0.5, f'{cos_AB:.2f}', ha='center', fontsize=10)
+ax2.text(1 + width/2, cos_AC * 20 + 0.5, f'{cos_AC:.2f}', ha='center', fontsize=10)
+
 plt.tight_layout()
 plt.show()
 ```
