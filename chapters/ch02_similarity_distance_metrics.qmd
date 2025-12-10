@@ -251,8 +251,8 @@ ax1.plot([0, C_end[0]], [0, C_end[1]], color='#ef4444', lw=2.5, linestyle=(4, (4
 
 # Arrowheads
 for end, color in [(C_end, '#ef4444'), (A_end, '#3b82f6'), (B_end, '#86efac')]:
-    ax1.annotate('', xy=end, xytext=end - unit * 0.25,
-                 arrowprops=dict(arrowstyle='-|>', color=color, lw=1.5, mutation_scale=12))
+    ax1.annotate('', xy=end, xytext=end - unit * 0.3,
+                 arrowprops=dict(arrowstyle='-|>', color=color, lw=2, mutation_scale=18))
 
 # Labels - all to the right of their endpoints
 ax1.text(B_end[0] + 0.15, B_end[1] - 0.4, 'B (1.5×)', fontsize=10, fontweight='bold', color='#16a34a')
