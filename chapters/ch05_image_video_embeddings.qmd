@@ -654,7 +654,7 @@ This book covers video surveillance applications in @sec-video-surveillance. If 
 
 For video model architecture details, see the linked documentation above.
 
-## Advanced: How Visual Models Learn {.unnumbered}
+## Advanced: How Visual Models Learn
 
 ::: {.callout-note}
 ## Optional Section

@@ -194,7 +194,7 @@ This book covers multi-modal search in @sec-semantic-search. If you'd like to se
 
 : Multi-modal embedding architectures {.striped}
 
-## Advanced: Multi-Modal Fusion Strategies {.unnumbered}
+## Advanced: Multi-Modal Fusion Strategies
 
 ::: {.callout-note}
 ## Optional Section

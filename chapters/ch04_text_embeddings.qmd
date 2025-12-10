@@ -454,7 +454,7 @@ The number in parentheses is the confidence score—the difference between cosin
 - **Aspect-based**: Reviews often mix sentiment across topics ("great battery, terrible screen"). First extract aspects (product features, service elements), then run sentiment analysis on each aspect separately to understand what users love and hate.
 :::
 
-## Advanced: How Text Embedding Models Learn {.unnumbered}
+## Advanced: How Text Embedding Models Learn
 
 ::: {.callout-note}
 ## Optional Section

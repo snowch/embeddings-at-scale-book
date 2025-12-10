@@ -132,7 +132,7 @@ Nodes in the same community have high similarity because they share connections.
 
 : Graph embedding architectures {.striped}
 
-## Advanced: How Graph Models Learn {.unnumbered}
+## Advanced: How Graph Models Learn
 
 ::: {.callout-note}
 ## Optional Section
