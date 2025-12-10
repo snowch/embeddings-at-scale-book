@@ -55,83 +55,15 @@ This insight unlocks massive performance gains:
 | **Performance** | O(log N) with index | O(log N) even without perfect accuracy |
 | **Use Case** | Exact match, transactions | Semantic similarity, recommendations |
 
-The key insight: trading a small amount of accuracy for massive speed gains. Finding the top-10 most similar items from 256T vectors via exact search is infeasible—approximate search with HNSW achieves 95%+ correct results in <100ms.
+The key insight: trading a small amount of accuracy for massive speed gains. Finding the top-10 most similar items from 256T vectors via exact search is infeasible—approximate nearest neighbor (ANN) algorithms achieve 95%+ recall in milliseconds.
 
 **Principle 2: Geometry Matters More Than Algebra**
 
-Vector databases leverage geometric properties of high-dimensional spaces:
+Vector databases exploit geometric structure rather than brute-force computation. Similar embeddings cluster together in space, and similarity metrics like cosine and Euclidean distance have properties that enable clever indexing shortcuts. For a detailed comparison of these metrics and when to use each, see @sec-similarity-distance-metrics.
 
-```{python}
-#| echo: true
-#| code-fold: true
-#| code-summary: "Show geometric intuition for vector similarity"
-import numpy as np
+**Principle 3: Index Structure is Everything**
 
-class GeometricIntuition:
-    """Understanding vector similarity through geometry"""
-
-    def demonstrate_similarity_measures(self):
-        """Common similarity metrics and their geometric meaning"""
-        embedding_a = np.array([0.5, 0.3, 0.8, 0.1])
-        embedding_b = np.array([0.6, 0.4, 0.7, 0.2])
-
-        # Euclidean distance (L2) - straight-line distance
-        l2_distance = np.linalg.norm(embedding_a - embedding_b)
-
-        # Cosine similarity - angle between vectors (most common)
-        cosine_sim = np.dot(embedding_a, embedding_b) / (
-            np.linalg.norm(embedding_a) * np.linalg.norm(embedding_b)
-        )
-
-        # Inner product - projection of one vector onto another
-        inner_product = np.dot(embedding_a, embedding_b)
-
-        return {"l2_distance": l2_distance, "cosine_similarity": cosine_sim, "inner_product": inner_product}
-
-# Usage example
-geo = GeometricIntuition()
-measures = geo.demonstrate_similarity_measures()
-print(f"L2 distance: {measures['l2_distance']:.4f}")
-print(f"Cosine similarity: {measures['cosine_similarity']:.4f}")
-```
-
-**Principle 3: Hierarchical Navigation is Key**
-
-The breakthrough insight: you don't need to compare with all vectors, just navigate through the space efficiently.
-
-```{python}
-#| echo: true
-#| code-fold: true
-#| code-summary: "Show hierarchical navigation concept"
-class HierarchicalNavigation:
-    """How hierarchical structures enable fast search"""
-
-    def hierarchical_solution(self):
-        """Multi-level navigation reduces comparisons"""
-        # Level 0 (coarsest): 1,000 centroids
-        # Level 1: 1M centroids, Level 2: 1B, Level 3: 1T, Level 4: 256T vectors
-        # Search: compare with 1,000 at each level, descend to best
-
-        comparisons_per_level = 1000
-        num_levels = 5
-        total_comparisons = comparisons_per_level * num_levels
-
-        return {
-            "total_comparisons": total_comparisons,
-            "speedup": f"{256_000_000_000_000 / total_comparisons:.2e}x faster",
-            "latency": "<100ms vs 6 years",
-        }
-
-# Usage example
-nav = HierarchicalNavigation()
-result = nav.hierarchical_solution()
-print(f"Total comparisons: {result['total_comparisons']:,}")
-print(f"Speedup: {result['speedup']}")
-```
-
-**Principle 4: Index Structure is Everything**
-
-The choice of index structure determines performance, accuracy, and scalability:
+You don't need to compare against all vectors—the right index structure lets you navigate efficiently. The choice determines performance, accuracy, and scalability:
 
 | Index | Build Time | Query Time | Memory | Accuracy | Max Scale | Use Case |
 |-------|-----------|------------|--------|----------|-----------|----------|
@@ -143,23 +75,6 @@ The choice of index structure determines performance, accuracy, and scalability:
 
 HNSW is the gold standard for high-performance production systems due to its best accuracy/speed tradeoff at scale.
 
-### Production Vector Database Architecture
-
-A production-grade vector database at trillion-row scale needs these core layers:
-
-- **Ingestion**: API gateway, validation, batching, rate limiting (100K-1M embeddings/sec)
-- **Storage**: Raw embeddings (cold/S3), indices (hot/SSD), metadata (separate DB), WAL
-- **Index**: HNSW graphs, IVF, product quantization, background rebuilder
-- **Query**: Parser, planner, distributed executor, result aggregator, LRU cache
-- **Metadata**: Filter optimizer, join coordinator (pre-filter vs post-filter)
-- **Serving**: Load balancer, router, circuit breaker, adaptive throttling
-- **Monitoring**: Latency percentiles, QPS, recall@k, resource utilization, alerts
-
-**Key design patterns for trillion-scale:**
-
-- *Caching*: LRU query cache, hot index pages in memory (>80% hit rate target)
-- *Versioning*: Multi-version indices for zero-downtime updates and A/B testing
-
 :::{.callout-note}
 ## VAST Data Platform Approach
 This section will cover VAST Data Platform's approach to data distribution and storage architecture, which differs from traditional sharding patterns. VAST's unified storage architecture eliminates many of the manual sharding decisions required by other vector databases.
@@ -170,19 +85,19 @@ This section will cover VAST Data Platform's approach to data distribution and s
 The most expensive mistake: starting with single-node architecture and retrofitting for scale. Design for distribution from day one, even if you start with one machine. The patterns are the same, only the scale changes.
 :::
 
-## Indexing Strategies for 256+ Trillion Rows
+## Indexing Strategies at Scale
 
-Scaling to 256 trillion embeddings requires sophisticated indexing strategies that balance accuracy, speed, memory, and build time. This section explores battle-tested approaches.
+Scaling to trillions of embeddings requires sophisticated indexing strategies that balance accuracy, speed, memory, and build time. This section explores battle-tested approaches.
 
 ### The Indexing Challenge at Scale
 
-Before diving into solutions, let's quantify what 256 trillion vectors actually means for memory, cost, and build time:
+Before diving into solutions, let's quantify what 1 trillion vectors actually means for memory, cost, and build time:
 
 ```{python}
 #| code-fold: false
 
 # Scale parameters
-num_vectors = 256_000_000_000_000  # 256 trillion
+num_vectors = 1_000_000_000_000  # 1 trillion
 embedding_dim = 768
 bytes_per_float = 4
 
@@ -201,7 +116,7 @@ parallel_days = (build_seconds / 10_000) / (60 * 60 * 24)  # With 10K machines
 
 print(f"Storage:    {with_index_pb:,.0f} PB (embeddings + HNSW index)")
 print(f"Machines:   {machines_1tb:,} × 1TB RAM instances")
-print(f"Cost:       ${monthly_cost/1e9:.0f}B/month if all in RAM")
+print(f"Cost:       ${monthly_cost/1e6:,.0f}M/month if all in RAM")
 print(f"Build time: {build_years:,.0f} years single-machine, {parallel_days:.0f} days with 10K machines")
 print(f"Query:      Must return results in <50ms (leaves no room for brute force)")
 ```
@@ -217,6 +132,61 @@ HNSW is the gold standard for high-recall, low-latency vector search. Understand
 - Upper layers have long-range connections (for fast navigation)
 - Lower layers have short-range connections (for high accuracy)
 - Search starts at top layer and descends, getting more refined
+
+```{python}
+#| label: fig-hnsw-navigation
+#| fig-cap: "HNSW navigation: enter at sparse top layer, greedily hop to neighbors closest to query, descend when you can't improve. With 1T vectors in ~15 layers, this turns O(N) brute force into O(log N) traversal."
+#| echo: false
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+fig, ax = plt.subplots(figsize=(9, 5))
+
+layers = [
+    {"y": 4, "nodes": 3, "label": "Layer 2 (entry)", "color": "#3b82f6", "size": 200},
+    {"y": 2.5, "nodes": 8, "label": "Layer 1", "color": "#8b5cf6", "size": 120},
+    {"y": 1, "nodes": 20, "label": "Layer 0 (base)", "color": "#6b7280", "size": 60},
+]
+
+np.random.seed(42)
+all_positions = {}
+
+for layer in layers:
+    y = layer["y"]
+    n = layer["nodes"]
+    x_positions = np.linspace(0.5, 9.5, n) + np.random.uniform(-0.2, 0.2, n)
+    for i, x in enumerate(x_positions):
+        ax.scatter(x, y, s=layer["size"], c=layer["color"], zorder=3, edgecolors='white', linewidths=1.5)
+        all_positions[(layer["y"], i)] = (x, y)
+    ax.text(-0.3, y, layer["label"], fontsize=10, va='center', ha='right', fontweight='bold', color=layer["color"])
+
+search_x = [all_positions[(4, 1)][0], all_positions[(2.5, 3)][0], all_positions[(1, 8)][0]]
+search_y = [4, 2.5, 1]
+
+for i in range(len(search_x) - 1):
+    ax.annotate('', xy=(search_x[i+1], search_y[i+1]), xytext=(search_x[i], search_y[i]),
+                arrowprops=dict(arrowstyle='->', color='#ef4444', lw=2.5))
+
+for x, y in zip(search_x, search_y):
+    ax.scatter(x, y, s=300, facecolors='none', edgecolors='#ef4444', linewidths=3, zorder=4)
+
+ax.scatter(search_x[-1] + 0.3, 0.2, s=150, c='#ef4444', marker='*', zorder=5)
+ax.text(search_x[-1] + 0.5, 0.2, 'Query', fontsize=10, va='center', color='#ef4444', fontweight='bold')
+ax.annotate('', xy=(search_x[-1], 0.85), xytext=(search_x[-1] + 0.25, 0.35),
+            arrowprops=dict(arrowstyle='->', color='#ef4444', lw=1.5, linestyle='--'))
+
+ax.text(9.8, 4, '3 nodes\n~3 comparisons', fontsize=9, va='center', color='#3b82f6')
+ax.text(9.8, 2.5, '8 nodes\n~8 comparisons', fontsize=9, va='center', color='#8b5cf6')
+ax.text(9.8, 1, '20 nodes\n~20 comparisons', fontsize=9, va='center', color='#6b7280')
+
+ax.set_xlim(-1.5, 11.5)
+ax.set_ylim(-0.3, 5)
+ax.axis('off')
+ax.set_title('HNSW Search: ~30 comparisons instead of checking all nodes', fontsize=11, fontweight='bold')
+plt.tight_layout()
+plt.show()
+```
 
 ```{python}
 #| echo: true
