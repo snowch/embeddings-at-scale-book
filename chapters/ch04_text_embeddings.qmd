@@ -514,6 +514,72 @@ plt.show()
 The implementation below shows the core training loop: for each target-context pair from real text, push their embeddings closer together; for random "negative" pairs, push them apart. After enough iterations, similar words cluster in embedding space.
 
 ```{python}
+#| echo: false
+#| label: fig-skipgram-training
+#| fig-cap: "Training pushes positive pairs (target + context) together and negative pairs (target + random) apart."
+import matplotlib.pyplot as plt
+
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 3))
+
+# Left: Positive pair - pull together
+ax1.set_xlim(0, 10)
+ax1.set_ylim(0, 4)
+ax1.axis('off')
+ax1.set_title('Positive pair: pull together', fontsize=11, fontweight='bold', color='#2E7D32')
+
+# Before
+ax1.scatter([2], [2.5], s=200, c='#FFEB3B', edgecolors='#F57C00', linewidths=2, zorder=5)
+ax1.text(2, 2.5, 'sat', ha='center', va='center', fontsize=10, fontweight='bold')
+ax1.scatter([4], [2.5], s=200, c='#E3F2FD', edgecolors='#1976D2', linewidths=2, zorder=5)
+ax1.text(4, 2.5, 'cat', ha='center', va='center', fontsize=10)
+ax1.annotate('', xy=(3.3, 2.5), xytext=(2.7, 2.5),
+            arrowprops=dict(arrowstyle='<->', color='#2E7D32', lw=2))
+ax1.text(3, 1.8, 'pull', ha='center', va='center', fontsize=9, color='#2E7D32', fontweight='bold')
+
+# After
+ax1.scatter([7], [2.5], s=200, c='#FFEB3B', edgecolors='#F57C00', linewidths=2, zorder=5)
+ax1.text(7, 2.5, 'sat', ha='center', va='center', fontsize=10, fontweight='bold')
+ax1.scatter([8], [2.5], s=200, c='#E3F2FD', edgecolors='#1976D2', linewidths=2, zorder=5)
+ax1.text(8, 2.5, 'cat', ha='center', va='center', fontsize=10)
+
+ax1.annotate('', xy=(6, 2.5), xytext=(5, 2.5),
+            arrowprops=dict(arrowstyle='->', color='#666', lw=1.5))
+
+ax1.text(3, 3.5, 'before', ha='center', fontsize=9, color='#666')
+ax1.text(7.5, 3.5, 'after', ha='center', fontsize=9, color='#666')
+
+# Right: Negative pair - push apart
+ax2.set_xlim(0, 10)
+ax2.set_ylim(0, 4)
+ax2.axis('off')
+ax2.set_title('Negative pair: push apart', fontsize=11, fontweight='bold', color='#C62828')
+
+# Before
+ax2.scatter([2.5], [2.5], s=200, c='#FFEB3B', edgecolors='#F57C00', linewidths=2, zorder=5)
+ax2.text(2.5, 2.5, 'sat', ha='center', va='center', fontsize=10, fontweight='bold')
+ax2.scatter([3.5], [2.5], s=200, c='#FFCDD2', edgecolors='#C62828', linewidths=2, zorder=5)
+ax2.text(3.5, 2.5, 'rug', ha='center', va='center', fontsize=10)
+ax2.annotate('', xy=(3.2, 2.5), xytext=(2.8, 2.5),
+            arrowprops=dict(arrowstyle='<->', color='#C62828', lw=2))
+ax2.text(3, 1.8, 'push', ha='center', va='center', fontsize=9, color='#C62828', fontweight='bold')
+
+# After
+ax2.scatter([6.5], [2.5], s=200, c='#FFEB3B', edgecolors='#F57C00', linewidths=2, zorder=5)
+ax2.text(6.5, 2.5, 'sat', ha='center', va='center', fontsize=10, fontweight='bold')
+ax2.scatter([9], [2.5], s=200, c='#FFCDD2', edgecolors='#C62828', linewidths=2, zorder=5)
+ax2.text(9, 2.5, 'rug', ha='center', va='center', fontsize=10)
+
+ax2.annotate('', xy=(5.5, 2.5), xytext=(4.5, 2.5),
+            arrowprops=dict(arrowstyle='->', color='#666', lw=1.5))
+
+ax2.text(3, 3.5, 'before', ha='center', fontsize=9, color='#666')
+ax2.text(7.75, 3.5, 'after', ha='center', fontsize=9, color='#666')
+
+plt.tight_layout()
+plt.show()
+```
+
+```{python}
 #| code-fold: false
 
 """
