@@ -548,6 +548,8 @@ print(f"  cat ↔ dog: {cosine_similarity('cat', 'dog'):.3f}")
 print(f"  cat ↔ mat: {cosine_similarity('cat', 'mat'):.3f}")
 ```
 
+Why is cat↔mat higher than cat↔dog? In our tiny corpus, "cat" and "mat" appear in the same sentence, sharing more context words. Word2Vec learns from co-occurrence patterns in the training data—with millions of sentences, "cat" and "dog" would cluster together as animals, but our two-sentence corpus doesn't capture that relationship.
+
 ### Transformers and BERT {#sec-transformers-bert}
 
 The transformer architecture [@vaswani2017attention] and BERT [@devlin2018bert] introduced **contextual embeddings**—the same word gets different representations based on context.
