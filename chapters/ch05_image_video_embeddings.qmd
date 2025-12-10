@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import numpy as np
 
-fig = plt.figure(figsize=(8, 3.5))
+fig = plt.figure(figsize=(8, 3))
 ax = fig.add_subplot(111, projection='3d')
 
 w, h, c = 224, 224, 3
@@ -49,13 +49,14 @@ for i, j in [(0,1), (1,2), (2,3), (3,0), (4,5), (5,6), (6,7), (7,4), (0,4), (1,5
 ax.set_xlabel('Width (224 px)', fontsize=10)
 ax.set_ylabel('Height (224 px)', fontsize=10)
 ax.set_zlabel('Channels', fontsize=10)
-ax.set_title('Image as a 3D array: (224, 224, 3)', fontsize=11, fontweight='bold', pad=-10)
+ax.set_title('Image as a 3D array: (224, 224, 3)', fontsize=11, fontweight='bold', y=0.95)
 ax.view_init(elev=20, azim=45)
 ax.set_box_aspect([1, 1, 0.3])
 ax.set_xticks([])
 ax.set_yticks([])
 ax.set_zticks([])
-plt.subplots_adjust(top=1.0, bottom=0.0, left=0.0, right=1.0)
+
+plt.tight_layout()
 plt.show()
 ```
 
