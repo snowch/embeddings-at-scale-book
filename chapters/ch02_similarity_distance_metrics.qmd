@@ -239,14 +239,14 @@ A = np.array([3, 2])
 B = np.array([4.5, 3])       # 1.5x magnitude, same direction
 C = np.array([1.5, 1])       # 0.5x magnitude, same direction
 
-# Use different line styles: solid (thick), dashed (medium), dotted (fine)
-ax1.annotate('', xy=B, xytext=origin, arrowprops=dict(arrowstyle='->', color='#16a34a', lw=4, linestyle='-'))
-ax1.annotate('', xy=A, xytext=origin, arrowprops=dict(arrowstyle='->', color='#2563eb', lw=2.5, linestyle='--'))
-ax1.annotate('', xy=C, xytext=origin, arrowprops=dict(arrowstyle='->', color='#dc2626', lw=1, linestyle=(0, (1, 2))))
+# All dotted lines with varying opacity to distinguish
+ax1.annotate('', xy=B, xytext=origin, arrowprops=dict(arrowstyle='->', color='#16a34a', lw=3, linestyle=':', alpha=1.0))
+ax1.annotate('', xy=A, xytext=origin, arrowprops=dict(arrowstyle='->', color='#2563eb', lw=3, linestyle=':', alpha=0.6))
+ax1.annotate('', xy=C, xytext=origin, arrowprops=dict(arrowstyle='->', color='#dc2626', lw=3, linestyle=':', alpha=0.4))
 
-ax1.text(A[0]+0.15, A[1]+0.25, 'A (dashed)', fontsize=11, fontweight='bold', color='#2563eb')
-ax1.text(B[0]+0.15, B[1]+0.25, 'B 1.5× (solid)', fontsize=11, fontweight='bold', color='#16a34a')
-ax1.text(C[0]+0.15, C[1]-0.35, 'C 0.5× (dotted)', fontsize=11, fontweight='bold', color='#dc2626')
+ax1.text(A[0]+0.15, A[1]+0.25, 'A', fontsize=11, fontweight='bold', color='#2563eb')
+ax1.text(B[0]+0.15, B[1]+0.25, 'B (1.5×)', fontsize=11, fontweight='bold', color='#16a34a')
+ax1.text(C[0]+0.15, C[1]-0.35, 'C (0.5×)', fontsize=11, fontweight='bold', color='#dc2626')
 
 ax1.set_xlim(-0.5, 5.5)
 ax1.set_ylim(-0.5, 4)
@@ -271,11 +271,11 @@ bars1 = ax2.bar(x - width/2, [dot_AB, dot_AC], width, label='Dot Product', color
 bars2 = ax2.bar(x + width/2, [cos_AB * 20, cos_AC * 20], width, label='Cosine × 20', color=['#16a34a', '#dc2626'], alpha=0.4, hatch='//')
 
 ax2.set_ylabel('Value', fontsize=11)
-ax2.set_ylim(0, 24)  # Add top padding for labels
+ax2.set_ylim(0, 26)  # Add top padding for labels and legend
 ax2.set_title('Dot product varies with length;\nCosine stays constant', fontsize=11)
 ax2.set_xticks(x)
 ax2.set_xticklabels(['A · B\nvs\ncos(A,B)', 'A · C\nvs\ncos(A,C)'])
-ax2.legend(loc='upper right')
+ax2.legend(loc='upper right', bbox_to_anchor=(1.0, 0.95))
 
 # Add value labels
 ax2.text(0 - width/2, dot_AB + 0.5, f'{dot_AB:.1f}', ha='center', fontsize=10, fontweight='bold')
