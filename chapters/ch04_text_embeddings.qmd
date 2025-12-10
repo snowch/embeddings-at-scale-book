@@ -467,6 +467,50 @@ Word2Vec [@mikolov2013efficient] revolutionized NLP by showing that simple neura
 
 Word2Vec uses a technique called *skip-gram*: given a target word, predict the words that typically appear nearby. For example, given "cat", predict that "furry", "pet", and "meow" often appear in the same sentences. By training on millions of such predictions, the model learns that "cat" and "dog" should have similar embeddings (both appear near "pet", "feed", "vet") while "cat" and "algebra" should be far apart.
 
+```{python}
+#| echo: false
+#| label: fig-skipgram-concept
+#| fig-cap: "Skip-gram: given a target word, predict context words within a window. Here, 'sat' predicts 'the', 'cat', 'on', 'the'."
+import matplotlib.pyplot as plt
+from matplotlib.patches import FancyBboxPatch
+
+fig, ax = plt.subplots(figsize=(10, 2.5))
+ax.set_xlim(0, 10)
+ax.set_ylim(0, 2.5)
+ax.axis('off')
+
+words = ["the", "cat", "sat", "on", "the", "mat"]
+x_positions = [1, 2.5, 4, 5.5, 7, 8.5]
+target_idx = 2  # "sat"
+
+# Draw words
+for i, (word, x) in enumerate(zip(words, x_positions)):
+    if i == target_idx:
+        # Target word - highlighted
+        box = FancyBboxPatch((x-0.4, 0.9), 0.8, 0.6, boxstyle="round,pad=0.05",
+                             facecolor='#FFEB3B', edgecolor='#F57C00', linewidth=2)
+        ax.add_patch(box)
+        ax.text(x, 1.2, word, ha='center', va='center', fontsize=12, fontweight='bold')
+        ax.text(x, 0.5, 'target', ha='center', va='center', fontsize=9, color='#666')
+    elif 0 < i < 5 and i != target_idx:  # Context words (window=2)
+        box = FancyBboxPatch((x-0.4, 0.9), 0.8, 0.6, boxstyle="round,pad=0.05",
+                             facecolor='#E3F2FD', edgecolor='#1976D2', linewidth=1.5)
+        ax.add_patch(box)
+        ax.text(x, 1.2, word, ha='center', va='center', fontsize=12)
+        ax.text(x, 0.5, 'context', ha='center', va='center', fontsize=9, color='#666')
+        # Arrow from target to context
+        ax.annotate('', xy=(x, 1.5), xytext=(x_positions[target_idx], 1.5),
+                   arrowprops=dict(arrowstyle='->', color='#1976D2', lw=1.5,
+                                 connectionstyle='arc3,rad=0.2'))
+    else:
+        ax.text(x, 1.2, word, ha='center', va='center', fontsize=12, color='#999')
+
+ax.text(5, 2.2, 'Window size = 2', ha='center', va='center', fontsize=10, style='italic', color='#666')
+
+plt.tight_layout()
+plt.show()
+```
+
 The implementation below shows the core training loop: for each target-context pair from real text, push their embeddings closer together; for random "negative" pairs, push them apart. After enough iterations, similar words cluster in embedding space.
 
 ```{python}
