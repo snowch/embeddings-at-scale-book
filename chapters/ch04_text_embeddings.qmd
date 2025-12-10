@@ -465,7 +465,7 @@ This section explains how text embedding models actually learn. Understanding th
 
 Word2Vec [@mikolov2013efficient] revolutionized NLP by showing that simple neural networks could learn rich semantic representations from raw text. The key insight: **words appearing in similar contexts should have similar embeddings**.
 
-The skip-gram model learns by predicting context words given a target word:
+Word2Vec uses a technique called *skip-gram*: given a target word, predict the words that typically appear nearby. For example, given "cat", predict that "furry", "pet", and "meow" often appear in the same sentences. By training on millions of such predictions, the model learns that "cat" and "dog" should have similar embeddings (both appear near "pet", "feed", "vet") while "cat" and "algebra" should be far apart:
 
 ```{python}
 #| code-fold: false
