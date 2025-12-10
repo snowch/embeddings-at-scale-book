@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import numpy as np
 
-fig = plt.figure(figsize=(8, 5))
+fig = plt.figure(figsize=(8, 3.5))
 ax = fig.add_subplot(111, projection='3d')
 
 w, h, c = 224, 224, 3
