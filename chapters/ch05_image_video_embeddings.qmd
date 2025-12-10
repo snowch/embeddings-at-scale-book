@@ -228,9 +228,74 @@ See @sec-image-embedding-models for details on how these architectures work.
 
 Audio embeddings convert sound into vectors that capture acoustic properties—pitch, timbre, rhythm, and spectral characteristics. Unlike raw waveform comparison, embeddings understand that two recordings of the same spoken word are similar even with different speakers, background noise, or recording equipment.
 
-### How Audio Is Represented
+The example below uses MFCC (Mel-frequency cepstral coefficients), a classic signal processing technique—not a neural network, but a fixed mathematical transformation that extracts acoustic features. MFCCs transform audio into a representation that mimics human hearing—emphasizing frequencies we're sensitive to while compressing less important details. While modern systems use learned embeddings from models like Wav2Vec2, MFCCs remain useful as a baseline and for understanding what acoustic features matter.
 
-Audio is processed by first splitting into short overlapping frames (typically 25ms), then extracting features from each frame. MFCC (Mel-frequency cepstral coefficients) is a classic technique that transforms audio into a representation mimicking human hearing.
+We extract 20 values per time frame, called *coefficients*—each describes a different aspect of the sound's frequency content (overall loudness, balance between low and high frequencies, etc.). Since audio clips vary in length (a 3-second clip has more frames than a 1-second clip), we aggregate across time using mean and standard deviation to create a fixed-size embedding that works regardless of duration:
+
+```{python}
+#| echo: false
+#| label: fig-mfcc-aggregation
+#| fig-cap: "MFCC aggregation: 20 coefficients per frame become a 40-dimensional embedding via mean and standard deviation."
+import matplotlib.pyplot as plt
+from matplotlib.patches import FancyBboxPatch
+
+fig, ax = plt.subplots(figsize=(10, 5))
+ax.set_xlim(0, 10)
+ax.set_ylim(0.5, 7.5)
+ax.axis('off')
+
+# Consistent spacing: boxes are 0.8 tall, gaps are 0.6, arrows span the gaps
+box_height = 0.8
+gap = 0.6
+
+# Box 1: Audio file
+y1 = 6.4
+box1 = FancyBboxPatch((3.5, y1), 3, box_height, boxstyle="round,pad=0.05",
+                       facecolor='#E8F4FD', edgecolor='#2196F3', linewidth=2)
+ax.add_patch(box1)
+ax.text(5, y1 + box_height/2, 'Audio file (e.g. mp3, wav)', ha='center', va='center', fontsize=11, fontweight='bold')
+
+# Arrow 1
+ax.annotate('', xy=(5, y1 - gap + 0.1), xytext=(5, y1 - 0.1), arrowprops=dict(arrowstyle='->', color='gray', lw=2))
+ax.text(5.8, y1 - gap/2, 'split into ~25ms frames', ha='left', va='center', fontsize=9, style='italic', color='#666')
+
+# Box 2: Frames (y = 4.6 to 5.6)
+y2 = y1 - gap - box_height - 0.2
+box2 = FancyBboxPatch((1, y2), 8, box_height + 0.2, boxstyle="round,pad=0.05",
+                       facecolor='#FFF3E0', edgecolor='#FF9800', linewidth=2)
+ax.add_patch(box2)
+ax.text(1.8, y2 + 0.5, 'Frame 1\n[20 vals]', ha='center', va='center', fontsize=9)
+ax.text(3.6, y2 + 0.5, 'Frame 2\n[20 vals]', ha='center', va='center', fontsize=9)
+ax.text(5.4, y2 + 0.5, 'Frame 3\n[20 vals]', ha='center', va='center', fontsize=9)
+ax.text(6.6, y2 + 0.5, '...', ha='center', va='center', fontsize=12)
+ax.text(8, y2 + 0.5, 'Frame N\n[20 vals]', ha='center', va='center', fontsize=9)
+
+# Arrow 2
+ax.annotate('', xy=(5, y2 - gap + 0.1), xytext=(5, y2 - 0.1), arrowprops=dict(arrowstyle='->', color='gray', lw=2))
+ax.text(5.8, y2 - gap/2, 'aggregate across frames', ha='left', va='center', fontsize=9, style='italic', color='#666')
+
+# Box 3: Mean/Std (y = 2.8 to 3.8)
+y3 = y2 - gap - box_height - 0.2
+box3 = FancyBboxPatch((1.5, y3), 7, box_height + 0.2, boxstyle="round,pad=0.05",
+                       facecolor='#E8F5E9', edgecolor='#4CAF50', linewidth=2)
+ax.add_patch(box3)
+ax.text(5, y3 + 0.65, 'Mean across all frames:  [20 values]', ha='center', va='center', fontsize=10)
+ax.text(5, y3 + 0.25, 'Std across all frames:     [20 values]', ha='center', va='center', fontsize=10)
+
+# Arrow 3
+ax.annotate('', xy=(5, y3 - gap + 0.1), xytext=(5, y3 - 0.1), arrowprops=dict(arrowstyle='->', color='gray', lw=2))
+ax.text(5.8, y3 - gap/2, 'concatenate', ha='left', va='center', fontsize=9, style='italic', color='#666')
+
+# Box 4: Final embedding (y = 1.0 to 1.8)
+y4 = y3 - gap - box_height
+box4 = FancyBboxPatch((2.5, y4), 5, box_height, boxstyle="round,pad=0.05",
+                       facecolor='#F3E5F5', edgecolor='#9C27B0', linewidth=2)
+ax.add_patch(box4)
+ax.text(5, y4 + box_height/2, 'Audio embedding: [40 values]', ha='center', va='center', fontsize=11, fontweight='bold')
+
+plt.tight_layout()
+plt.show()
+```
 
 ```{python}
 #| code-fold: false
@@ -256,8 +321,9 @@ trumpet_embedding = audio_to_embedding(audio, sr)
 
 # Create variations to demonstrate similarity
 trumpet_slow = librosa.effects.time_stretch(audio, rate=0.8)
-trumpet_pitch_up = librosa.effects.pitch_shift(audio, sr=sr, n_steps=12)
+trumpet_pitch_up = librosa.effects.pitch_shift(audio, sr=sr, n_steps=12)  # One octave up
 
+# Generate embeddings for each variation
 embeddings = {
     'trumpet_original': trumpet_embedding,
     'trumpet_slower': audio_to_embedding(trumpet_slow, sr),
@@ -266,39 +332,177 @@ embeddings = {
 
 print(f"Embedding dimension: {len(trumpet_embedding)} (20 MFCCs × 2 stats)\n")
 
+# Compare similarities
 print("Audio embedding similarities:")
-sim_slow = cosine_similarity([embeddings['trumpet_original']], [embeddings['trumpet_slower']])[0][0]
+sim_slow = cosine_similarity(
+    [embeddings['trumpet_original']], [embeddings['trumpet_slower']]
+)[0][0]
 print(f"  Original ↔ Slower tempo:   {sim_slow:.3f}")
 
-sim_pitch = cosine_similarity([embeddings['trumpet_original']], [embeddings['trumpet_higher_pitch']])[0][0]
+sim_pitch = cosine_similarity(
+    [embeddings['trumpet_original']], [embeddings['trumpet_higher_pitch']]
+)[0][0]
 print(f"  Original ↔ Higher pitch:   {sim_pitch:.3f}")
+
+sim_variations = cosine_similarity(
+    [embeddings['trumpet_slower']], [embeddings['trumpet_higher_pitch']]
+)[0][0]
+print(f"  Slower ↔ Higher pitch:     {sim_variations:.3f}")
 ```
 
-### When to Use Audio Embeddings
+When comparing audio embeddings, cosine similarity measures how acoustically similar two sounds are. Notice that all similarities are high (>0.97)—this is by design. MFCCs capture timbre (the trumpet's characteristic "brassy" quality) rather than absolute pitch or tempo. The tempo change preserves timbre almost perfectly (1.000), while shifting pitch by an octave causes only a small drop (~0.98) because the overall spectral shape remains trumpet-like. This robustness is useful for applications like speaker identification, where you want to match voices regardless of speaking speed or emotional pitch variations.
 
-- **Speaker identification**—match voices regardless of what's said
-- **Music recommendation**—find similar songs by acoustic features
-- **Audio fingerprinting**—identify songs from short clips
-- **Sound event detection**—classify environmental sounds
-- **Voice cloning detection**—identify synthetic speech
+How do MFCCs capture sound? Audio is first split into short overlapping frames (typically 25ms). For each frame, we compute the frequency spectrum, then apply a mel filterbank that groups frequencies into bands matching human perception—more resolution at low frequencies where we hear pitch differences, less at high frequencies. The cepstral coefficients compress this further, capturing the overall "shape" of the spectrum. The result: a compact representation of timbre that's robust to volume changes.
 
-### Popular Audio Architectures
+**When to use audio embeddings:** Content moderation, audio fingerprinting, speaker identification, music recommendation, podcast and video search, sound event detection, voice cloning detection, acoustic quality control, wildlife monitoring, and medical diagnostics from sounds (coughs, heartbeats).
+
+This book covers music recommendation with audio embeddings in @sec-recommendation-systems. If you'd like to see other audio applications covered in future editions, reach out to the author.
+
+**Popular architectures:**
 
 | Architecture | Type | Strengths | Use Cases |
 |-------------|------|-----------|-----------|
-| [Wav2Vec2](https://huggingface.co/facebook/wav2vec2-base) | Self-supervised | Rich speech features | Speech recognition |
-| [Whisper](https://github.com/openai/whisper) | Multi-task | Transcription + embeddings | Speech search |
-| [CLAP](https://github.com/LAION-AI/CLAP) | Multi-modal | Audio-text alignment | Zero-shot classification |
+| [Wav2Vec2](https://huggingface.co/facebook/wav2vec2-base) | Self-supervised | Rich speech features | Speech recognition, speaker ID |
+| [Whisper](https://github.com/openai/whisper) | Multi-task | Transcription + embeddings | Speech search, subtitles |
+| [CLAP](https://github.com/LAION-AI/CLAP) | Multi-modal | Audio-text alignment | Zero-shot audio classification |
+| [VGGish](https://github.com/tensorflow/models/tree/master/research/audioset/vggish) | CNN | General audio events | Sound classification |
 
 : Audio embedding architectures {.striped}
 
+See @sec-embedding-model-fundamentals for details on how text and image embedding models work. For audio models, the linked documentation above provides architecture details, or explore the [Hugging Face Audio Course](https://huggingface.co/learn/audio-course) for a comprehensive introduction.
+
 ## Video Embeddings {#sec-video-embedding-types}
 
-Video embeddings convert video clips into vectors that capture both visual content and temporal dynamics—actions, motion patterns, scene transitions, and narrative flow. Unlike image embeddings that capture a single moment, video embeddings understand that "sitting down" and "standing up" are different actions even though individual frames might look similar.
+Video embeddings convert video clips into vectors that capture both visual content and temporal dynamics—actions, motion patterns, scene transitions, and narrative flow. Unlike image embeddings that capture a single moment, video embeddings understand that "a person sitting down" and "a person standing up" are different actions even though individual frames might look similar.
 
-### How Video Is Represented
+The challenge with video is combining spatial information (what's in each frame) with temporal information (how things change over time). The simplest approach extracts image embeddings from sampled frames and aggregates them. More sophisticated models process multiple frames together to capture motion directly.
 
-Videos add a fourth dimension to images: time. A video is a sequence of frames, each of which is an image. The simplest approach extracts image embeddings from sampled frames and aggregates them:
+Just as images are 3D arrays (height × width × 3 channels), videos add a fourth dimension: time. A video is a sequence of frames, each of which is an image:
+
+```{python}
+#| echo: false
+#| label: fig-video-4d-structure
+#| fig-cap: "A video is a 4D array: frames × height × width × 3 RGB channels. Each frame is a complete image."
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+import numpy as np
+
+fig = plt.figure(figsize=(10, 5))
+ax = fig.add_subplot(111, projection='3d')
+
+# Draw multiple frames stacked along time axis
+n_frames = 5
+frame_colors = plt.cm.viridis(np.linspace(0.3, 0.9, n_frames))
+
+for i in range(n_frames):
+    # Each frame is offset along x-axis (time)
+    x_offset = i * 0.25
+
+    # Draw frame as a rectangle
+    frame_verts = [
+        [x_offset, 0, 0],
+        [x_offset, 1, 0],
+        [x_offset, 1, 1],
+        [x_offset, 0, 1]
+    ]
+    ax.add_collection3d(Poly3DCollection([frame_verts], alpha=0.7,
+                                          facecolor=frame_colors[i],
+                                          edgecolor='black', linewidth=1))
+
+    # Label first, middle, and last frames
+    if i == 0:
+        ax.text(x_offset - 0.1, 0.5, 1.1, f'Frame 1', fontsize=9, ha='center')
+    elif i == n_frames - 1:
+        ax.text(x_offset + 0.2, 0.5, 1.25, f'Frame N', fontsize=9, ha='center')
+
+# Draw arrow showing time direction
+ax.quiver(0, -0.3, 0.5, 1, 0, 0, arrow_length_ratio=0.1, color='black', linewidth=2)
+ax.text(-0.15, -0.3, 0.5, 'Time', fontsize=10, ha='right')
+
+ax.set_xlabel('')
+ax.set_ylabel('')
+ax.set_zlabel('')
+ax.set_title('Video as a 4D array: N frames × (height, width, 3)', fontsize=11, fontweight='bold')
+ax.view_init(elev=20, azim=-60)
+ax.set_xticks([])
+ax.set_yticks([])
+ax.set_zticks([])
+plt.tight_layout()
+plt.show()
+```
+
+The example below demonstrates the frame sampling approach: we extract image embeddings from frames sampled throughout a video, then average them to create a single video embedding. Since videos vary in length, aggregation (like we saw with audio) produces a fixed-size embedding regardless of duration.
+
+```{python}
+#| echo: false
+#| label: fig-video-aggregation
+#| fig-cap: "Video embedding via frame sampling: extract image embeddings from sampled frames, then aggregate into a single video embedding."
+import matplotlib.pyplot as plt
+from matplotlib.patches import FancyBboxPatch
+
+fig, ax = plt.subplots(figsize=(10, 5.5))
+ax.set_xlim(0, 10)
+ax.set_ylim(0, 7.5)
+ax.axis('off')
+
+# Consistent spacing
+box_height = 0.8
+gap = 0.6
+
+# Box 1: Video file
+y1 = 6.4
+box1 = FancyBboxPatch((3, y1), 4, box_height, boxstyle="round,pad=0.05",
+                       facecolor='#E8F4FD', edgecolor='#2196F3', linewidth=2)
+ax.add_patch(box1)
+ax.text(5, y1 + box_height/2, 'Video file (e.g. mp4, avi)', ha='center', va='center', fontsize=11, fontweight='bold')
+
+# Arrow 1
+ax.annotate('', xy=(5, y1 - gap + 0.1), xytext=(5, y1 - 0.1), arrowprops=dict(arrowstyle='->', color='gray', lw=2))
+ax.text(5.8, y1 - gap/2, 'sample frames (e.g. 1 per second)', ha='left', va='center', fontsize=9, style='italic', color='#666')
+
+# Box 2: Frames
+y2 = y1 - gap - box_height - 0.2
+box2 = FancyBboxPatch((1, y2), 8, box_height + 0.2, boxstyle="round,pad=0.05",
+                       facecolor='#FFF3E0', edgecolor='#FF9800', linewidth=2)
+ax.add_patch(box2)
+ax.text(1.8, y2 + 0.5, 'Frame 1', ha='center', va='center', fontsize=9)
+ax.text(3.6, y2 + 0.5, 'Frame 2', ha='center', va='center', fontsize=9)
+ax.text(5.4, y2 + 0.5, 'Frame 3', ha='center', va='center', fontsize=9)
+ax.text(6.6, y2 + 0.5, '...', ha='center', va='center', fontsize=12)
+ax.text(8, y2 + 0.5, 'Frame N', ha='center', va='center', fontsize=9)
+
+# Arrow 2
+ax.annotate('', xy=(5, y2 - gap + 0.1), xytext=(5, y2 - 0.1), arrowprops=dict(arrowstyle='->', color='gray', lw=2))
+ax.text(5.8, y2 - gap/2, 'embed each frame (e.g. ResNet)', ha='left', va='center', fontsize=9, style='italic', color='#666')
+
+# Box 3: Frame embeddings
+y3 = y2 - gap - box_height - 0.2
+box3 = FancyBboxPatch((1, y3), 8, box_height + 0.2, boxstyle="round,pad=0.05",
+                       facecolor='#E8F5E9', edgecolor='#4CAF50', linewidth=2)
+ax.add_patch(box3)
+ax.text(1.8, y3 + 0.5, '[2048 vals]', ha='center', va='center', fontsize=9)
+ax.text(3.6, y3 + 0.5, '[2048 vals]', ha='center', va='center', fontsize=9)
+ax.text(5.4, y3 + 0.5, '[2048 vals]', ha='center', va='center', fontsize=9)
+ax.text(6.6, y3 + 0.5, '...', ha='center', va='center', fontsize=12)
+ax.text(8, y3 + 0.5, '[2048 vals]', ha='center', va='center', fontsize=9)
+
+# Arrow 3
+ax.annotate('', xy=(5, y3 - gap + 0.1), xytext=(5, y3 - 0.1), arrowprops=dict(arrowstyle='->', color='gray', lw=2))
+ax.text(5.8, y3 - gap/2, 'aggregate (mean across frames)', ha='left', va='center', fontsize=9, style='italic', color='#666')
+
+# Box 4: Video embedding
+y4 = y3 - gap - box_height
+box4 = FancyBboxPatch((2.5, y4), 5, box_height, boxstyle="round,pad=0.05",
+                       facecolor='#F3E5F5', edgecolor='#9C27B0', linewidth=2)
+ax.add_patch(box4)
+ax.text(5, y4 + box_height/2, 'Video embedding: [2048 values]', ha='center', va='center', fontsize=11, fontweight='bold')
+
+# Note about dimension
+ax.text(5, y4 - 0.3, '(2048 is ResNet50; other models vary)', ha='center', va='top', fontsize=8, style='italic', color='#666')
+
+plt.tight_layout()
+plt.show()
+```
 
 ```{python}
 #| code-fold: false
@@ -313,6 +517,7 @@ from torchvision import models, transforms
 from torchvision.models import ResNet50_Weights
 from sklearn.metrics.pairwise import cosine_similarity
 
+# Suppress download messages
 import logging
 logging.getLogger('torch').setLevel(logging.ERROR)
 
@@ -323,28 +528,48 @@ model.load_state_dict(weights.get_state_dict(progress=False))
 model.eval()
 feature_extractor = torch.nn.Sequential(*list(model.children())[:-1])
 
+# Normalize using ImageNet statistics: the mean and std of RGB values across
+# 1.2M training images. This ensures our input has the same distribution the
+# model was trained on. These specific values are standard for ImageNet models.
 preprocess = transforms.Compose([
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
 ])
 
 def frames_to_video_embedding(frames):
-    """Convert a list of frames to a video embedding."""
+    """Convert a list of frames (as numpy arrays) to a video embedding."""
     frame_embeddings = []
     for frame in frames:
+        # Convert numpy array to tensor and preprocess
         if frame.dtype == np.uint8:
             frame = frame.astype(np.float32) / 255.0
         tensor = preprocess(frame).unsqueeze(0)
         with torch.no_grad():
             emb = feature_extractor(tensor).squeeze().numpy()
         frame_embeddings.append(emb)
+    # Aggregate: mean across all frames
     return np.mean(frame_embeddings, axis=0)
 
-# Simulate video frames
-running_frames = [np.full((224, 224, 3), [0.2, 0.6 + i*0.05, 0.2], dtype=np.float32) for i in range(5)]
-cooking_frames = [np.full((224, 224, 3), [0.8, 0.4 + i*0.02, 0.1], dtype=np.float32) for i in range(5)]
-jogging_frames = [np.full((224, 224, 3), [0.25, 0.55 + i*0.05, 0.25], dtype=np.float32) for i in range(5)]
+# Simulate video frames as colored images (224x224 RGB)
+# "Running video": frames transition from green (grass) to blue (sky) - outdoor motion
+running_frames = [
+    np.full((224, 224, 3), [0.2, 0.6 + i*0.05, 0.2], dtype=np.float32)  # Green to lighter
+    for i in range(5)
+]
 
+# "Cooking video": frames stay warm orange/red tones - kitchen scene
+cooking_frames = [
+    np.full((224, 224, 3), [0.8, 0.4 + i*0.02, 0.1], dtype=np.float32)  # Warm tones
+    for i in range(5)
+]
+
+# "Jogging video": similar to running - outdoor greens and blues
+jogging_frames = [
+    np.full((224, 224, 3), [0.25, 0.55 + i*0.05, 0.25], dtype=np.float32)  # Similar greens
+    for i in range(5)
+]
+
+# Generate video embeddings
 embeddings = {
     'running': frames_to_video_embedding(running_frames),
     'cooking': frames_to_video_embedding(cooking_frames),
@@ -356,27 +581,80 @@ print("Video embedding similarities:")
 
 run_jog = cosine_similarity([embeddings['running']], [embeddings['jogging']])[0][0]
 run_cook = cosine_similarity([embeddings['running']], [embeddings['cooking']])[0][0]
+jog_cook = cosine_similarity([embeddings['jogging']], [embeddings['cooking']])[0][0]
+
 print(f"  Running ↔ Jogging: {run_jog:.3f}  (similar outdoor scenes)")
 print(f"  Running ↔ Cooking: {run_cook:.3f}  (different scenes)")
+print(f"  Jogging ↔ Cooking: {jog_cook:.3f}  (different scenes)")
 ```
 
-### When to Use Video Embeddings
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show video frame visualization code"
+#| label: fig-video-frames
+#| fig-cap: "Sample frames from each video. Running and jogging share similar green outdoor tones, while cooking has warm orange/red indoor tones."
+import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
 
-- **Action recognition**—classify activities in videos
-- **Video recommendation**—find similar content
-- **Surveillance**—detect anomalies and track activities (see @sec-video-surveillance)
-- **Sports analytics**—analyze plays and techniques
-- **Content moderation**—detect prohibited video content
+fig = plt.figure(figsize=(12, 4))
+gs = gridspec.GridSpec(3, 7, width_ratios=[3, 0.3, 3, 0.3, 3, 0.3, 3], hspace=0.15, wspace=0.05)
 
-### Popular Video Architectures
+videos = [
+    ('Running', running_frames),
+    ('Cooking', cooking_frames),
+    ('Jogging', jogging_frames),
+]
+
+for row, (name, frames) in enumerate(videos):
+    # Show 4 sample frames from the video
+    frame_indices = [0, 1, 3, 4]  # Sample frames
+
+    for col, fidx in enumerate(frame_indices):
+        ax = fig.add_subplot(gs[row, col * 2])
+        ax.imshow(frames[fidx])
+        if row == 0:
+            ax.set_title(f'Frame {fidx + 1}', fontsize=9)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        for spine in ax.spines.values():
+            spine.set_visible(False)
+
+        # Add video name label on left side of first frame
+        if col == 0:
+            ax.text(-0.15, 0.5, name, fontsize=10, fontweight='bold',
+                    transform=ax.transAxes, ha='right', va='center')
+
+        # Add arrow between frames (except last)
+        if col < 3:
+            ax_arrow = fig.add_subplot(gs[row, col * 2 + 1])
+            ax_arrow.text(0.5, 0.5, '→', fontsize=14, ha='center', va='center', color='gray')
+            ax_arrow.axis('off')
+
+plt.suptitle('Video frames: similar scenes have similar color patterns across time', fontsize=11, fontweight='bold', y=0.98)
+plt.show()
+```
+
+When comparing video embeddings, similar activities and scenes cluster together. Running and jogging videos both contain outdoor scenes with similar color palettes (greens, blues), so their embeddings are close. Cooking videos have warm indoor tones (oranges, reds) that differ significantly from outdoor activities.
+
+The frame sampling approach shown above is simple but misses motion information—it can't distinguish "sitting down" from "standing up" since both might have similar individual frames. More advanced architectures like SlowFast and Video Swin (see table below) process multiple frames together using 3D convolutions or temporal attention, capturing how pixels change over time to understand motion and actions.
+
+**When to use video embeddings:** Action recognition and search, video recommendation, content moderation, surveillance and anomaly detection, video summarization, sports analytics, and gesture recognition.
+
+This book covers video surveillance applications in @sec-video-surveillance. If you'd like to see other video applications covered in future editions, reach out to the author.
+
+**Popular architectures:**
 
 | Architecture | Type | Strengths | Use Cases |
 |-------------|------|-----------|-----------|
-| Frame sampling + CNN | Simple | Fast, no motion | Scene classification |
-| [SlowFast](https://github.com/facebookresearch/SlowFast) | 3D CNN | Captures motion | Action recognition |
-| [Video Swin](https://github.com/SwinTransformer/Video-Swin-Transformer) | Transformer | Best accuracy | High-quality needs |
+| Frame sampling + CNN | Aggregated image embeddings | Simple, fast (no motion) | Scene classification |
+| [SlowFast](https://github.com/facebookresearch/SlowFast) | Two-pathway 3D CNN | Captures fast and slow motion | Action recognition |
+| [X3D](https://github.com/facebookresearch/SlowFast) | Efficient 3D CNN | Mobile-friendly | Real-time applications |
+| [Video Swin](https://github.com/SwinTransformer/Video-Swin-Transformer) | Video transformer | State-of-the-art accuracy | High-quality requirements |
 
 : Video embedding architectures {.striped}
+
+See @sec-embedding-model-fundamentals for details on how text and image embedding models work. For video models, the linked documentation above provides architecture details.
 
 ## Advanced: How Visual Models Learn {.unnumbered}
 

@@ -117,14 +117,11 @@ print(f"  Alice ↔ Xavier: {ax:.3f}")
 
 Nodes in the same community have high similarity because they share connections. Alice, Bob, and Carol are all friends with each other, so their embeddings cluster together. Xavier is in a different friend group with no direct connection to Alice, resulting in lower similarity.
 
-## When to Use Graph Embeddings
+## When to Use Graph Embeddings {#sec-graph-embedding-types}
 
-- **Social network analysis**—community detection, influence prediction, friend recommendation
-- **Recommendation systems**—user-item graphs, collaborative filtering (see @sec-recommendation-systems)
-- **Fraud detection**—identify suspicious patterns in transaction graphs (see @sec-financial-services)
-- **Knowledge graph completion**—predict missing relationships (see @sec-entity-resolution)
-- **Drug discovery**—molecule property prediction from molecular graphs (see @sec-healthcare-life-sciences)
-- **Supply chain analysis**—identify dependencies and bottlenecks
+**When to use graph embeddings:** Social network analysis (community detection, influence prediction, friend recommendation), recommendation systems with user-item graphs (see @sec-recommendation-systems), knowledge graph completion to predict missing relationships (see @sec-entity-resolution), fraud detection to identify suspicious patterns in transaction graphs (see @sec-financial-services), drug discovery for molecule property prediction from molecular graphs (see @sec-healthcare-life-sciences), and supply chain analysis to identify dependencies and bottlenecks.
+
+See @sec-embedding-model-fundamentals for details on how graph embedding models work.
 
 ## Popular Graph Architectures
 

@@ -6,18 +6,16 @@
 This chapter covers multi-modal embeddings—representations that map different data types (text, images, audio) into a shared vector space where they can be directly compared. We explore how these unified spaces enable powerful cross-modal capabilities like searching images with text queries, zero-shot classification, and multi-sensor fusion.
 :::
 
-## What Are Multi-Modal Embeddings?
+## Multi-Modal Embeddings {#sec-multimodal-embedding-types}
 
-Multi-modal embeddings map different data types into a **shared vector space** where they can be directly compared. This enables powerful cross-modal capabilities: searching images with text queries, finding text descriptions for images, or categorizing images without any training examples.
-
-The key insight is training two (or more) encoders so that matching pairs produce similar vectors. CLIP, trained on 400 million image-text pairs from the internet, learns that "a photo of a cat" and an actual cat photo should have nearby embeddings.
+Multi-modal embeddings map different data types—text, images, audio—into a shared vector space where they can be directly compared. This enables powerful cross-modal capabilities: searching images with text queries, finding text descriptions for images, or categorizing images without any training examples.
 
 ::: {.callout-note}
 ## Zero-Shot Categorization via Embeddings
-**Zero-shot categorization** means assigning categories the model was never explicitly trained on—and it works through embedding similarity, not a traditional classifier. Instead of training a "sunset vs ocean vs forest" classifier, you describe categories in text ("a photo of a sunset"), embed both the text and image, and find the closest match. The model generalizes from its pre-training on millions of image-text pairs to recognize new concepts.
+**Zero-shot categorization** means assigning categories the model was never explicitly trained on—and it works through embedding similarity, not a traditional classifier. Instead of training a "sunset vs ocean vs forest" classifier, you describe categories in text ("a photo of a sunset"), embed both the text and image, and find the closest match. The model generalizes from its pre-training on millions of image-text pairs to recognize new concepts. This is sometimes called "zero-shot classification," but the mechanism is pure embedding similarity.
 :::
 
-## How Multi-Modal Spaces Work
+The key insight is training two encoders (e.g., one for text, one for images) so that matching pairs produce similar vectors. CLIP, trained on 400 million image-text pairs from the internet, learns that "a photo of a cat" and an actual cat photo should have nearby embeddings:
 
 ```{python}
 #| echo: false
@@ -57,15 +55,17 @@ shared_box = FancyBboxPatch((4.5, 0.5), 5.2, 4.0, boxstyle="round,pad=0.1",
 ax.add_patch(shared_box)
 ax.text(7.1, 4.2, 'Shared Embedding Space', ha='center', va='center', fontsize=11, fontweight='bold')
 
-# Concept clusters
+# Sunset cluster (upper left in space) - text and image close together
 ax.scatter([5.5], [3.2], marker='o', s=108, c='#1976D2', edgecolors='black', zorder=5)
 ax.scatter([5.9], [3.0], marker='s', s=108, c='#F57C00', edgecolors='black', zorder=5)
 ax.text(5.7, 3.55, 'sunset', fontsize=9, ha='center', fontweight='bold')
 
+# Ocean cluster (lower right in space) - text and image close together
 ax.scatter([8.2], [1.5], marker='o', s=108, c='#1976D2', edgecolors='black', zorder=5)
 ax.scatter([8.6], [1.3], marker='s', s=108, c='#F57C00', edgecolors='black', zorder=5)
 ax.text(8.4, 1.85, 'ocean', fontsize=9, ha='center', fontweight='bold')
 
+# Legend
 ax.scatter([], [], marker='o', s=80, c='#1976D2', edgecolors='black', label='Text embedding')
 ax.scatter([], [], marker='s', s=80, c='#F57C00', edgecolors='black', label='Image embedding')
 ax.legend(loc='lower right', fontsize=9, framealpha=0.9)
@@ -73,8 +73,6 @@ ax.legend(loc='lower right', fontsize=9, framealpha=0.9)
 plt.subplots_adjust(left=0.02, right=0.98, top=0.95, bottom=0.05)
 plt.show()
 ```
-
-## Zero-Shot Image Classification with CLIP
 
 ```{python}
 #| code-fold: false
@@ -95,10 +93,11 @@ from sklearn.metrics.pairwise import cosine_similarity
 import warnings
 import logging
 
+# Suppress download progress and warnings
 logging.getLogger("transformers").setLevel(logging.ERROR)
 warnings.filterwarnings("ignore")
 
-# Load CLIP model
+# Load CLIP model (downloads ~600MB on first run)
 model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
 processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32", use_fast=True)
 
@@ -123,17 +122,23 @@ text_labels = [
     "a photo of a green forest",
 ]
 
-# Encode both modalities
+# Preprocess: resize images and tokenize text into tensors the model expects
 image_inputs = processor(images=list(images.values()), return_tensors="pt", padding=True)
 text_inputs = processor(text=text_labels, return_tensors="pt", padding=True)
 
+# torch.no_grad() disables gradient computation since we're only generating
+# embeddings, not training. This saves memory and speeds up computation.
 with torch.no_grad():
+    # Each encoder maps its input to a 512-dim vector in the shared space
     image_embeds = model.get_image_features(**image_inputs).numpy()
     text_embeds = model.get_text_features(**text_inputs).numpy()
 
-# Compare via cosine similarity
+# Compare each image embedding to each text embedding using cosine similarity.
+# High similarity = the image and text describe the same concept.
 similarities = cosine_similarity(image_embeds, text_embeds)
 
+# Zero-shot = categorize without training on these specific categories
+# We compare image embeddings to text embeddings and pick the closest match
 print("Zero-shot categorization: matching images to text descriptions\n")
 print(f"Embedding dimension: {image_embeds.shape[1]}\n")
 
@@ -143,16 +148,42 @@ for i, img_name in enumerate(images.keys()):
     print(f"          scores: {[f'{s:.2f}' for s in similarities[i]]}\n")
 ```
 
-## When to Use Multi-Modal Embeddings
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show image and embedding visualization code"
+#| label: fig-multimodal-space
+#| fig-cap: "CLIP zero-shot categorization: images match text descriptions via embedding similarity. Each image's embedding is closest to the semantically matching text."
+import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
 
-- **Cross-modal search**—find images using text queries, or find text descriptions for images
-- **Zero-shot classification**—categorize images without training on specific categories
-- **Visual question answering**—answer questions about image content
-- **Product search**—search catalogs using both text and uploaded images (see @sec-semantic-search)
-- **Content moderation**—match policy descriptions to visual content
-- **Multi-sensor fusion**—combine camera, audio, and other sensor data
+fig = plt.figure(figsize=(10, 3.5))
+gs = gridspec.GridSpec(1, 3, wspace=0.3)
 
-## Popular Multi-Modal Architectures
+for idx, (name, img) in enumerate(images.items()):
+    ax = fig.add_subplot(gs[0, idx])
+    ax.imshow(img)
+    ax.set_title(f'{name.title()}', fontsize=11, fontweight='bold')
+
+    # Show similarity scores below
+    scores_text = '\n'.join([f'{text_labels[j].split("of ")[-1][:20]}: {similarities[idx][j]:.2f}'
+                             for j in range(len(text_labels))])
+    ax.set_xlabel(scores_text, fontsize=9)
+    ax.set_xticks([])
+    ax.set_yticks([])
+
+plt.suptitle('CLIP matches images to text descriptions via shared embeddings', fontsize=11, fontweight='bold')
+plt.subplots_adjust(top=0.85)
+plt.show()
+```
+
+The key insight is that CLIP learns a shared space where semantically matching content—regardless of modality—has similar embeddings. The "sunset" image has warm orange pixels, and CLIP places it near the text "sunset with warm orange colors" because it learned this association from millions of image-text pairs. This enables zero-shot categorization: to categorize an image, compare it against text embeddings and pick the highest similarity—no training on your specific categories required.
+
+**When to use multi-modal embeddings:** Cross-modal search (text→image, image→text), zero-shot image categorization, image captioning, visual question answering, and product search with text and images.
+
+This book covers multi-modal search in @sec-semantic-search. If you'd like to see other multi-modal applications covered in future editions, reach out to the author.
+
+**Popular architectures:**
 
 | Architecture | Type | Strengths | Use Cases |
 |-------------|------|-----------|-----------|
@@ -162,6 +193,8 @@ for i, img_name in enumerate(images.keys()):
 | [LLaVA](https://github.com/haotian-liu/LLaVA) | Vision-language | Conversational | Visual Q&A |
 
 : Multi-modal embedding architectures {.striped}
+
+See @sec-embedding-model-fundamentals for details on how text and image embedding models work.
 
 ## Advanced: Multi-Modal Fusion Strategies {.unnumbered}
 
