@@ -500,7 +500,8 @@ def sigmoid(x):
 def train_skipgram_pair(target_word, context_word, negative_words, lr=0.1):
     """Train on one (target, context) pair with negative sampling.
 
-    Example: in "the cat sat", target="cat", context="the" or "sat".
+    Example: in "the cat sat", target="cat", context="the" or "sat",
+    negatives=["dog", "rug"] (random words not in context).
     """
     global W_target, W_context
 
