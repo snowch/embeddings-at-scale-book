@@ -19,6 +19,8 @@ Different metrics capture different notions of similarity. Two embeddings might 
 
 ## Cosine Similarity {#sec-cosine-similarity}
 
+We introduced cosine similarity briefly in @sec-embedding-revolution; here we cover it in depth alongside other metrics so you can make informed choices.
+
 Cosine similarity measures the angle between two vectors, ignoring their magnitudes:
 
 $$\text{cosine\_similarity}(\mathbf{A}, \mathbf{B}) = \frac{\mathbf{A} \cdot \mathbf{B}}{||\mathbf{A}|| \times ||\mathbf{B}||} = \frac{\sum_{i=1}^{n} A_i B_i}{\sqrt{\sum_{i=1}^{n} A_i^2} \times \sqrt{\sum_{i=1}^{n} B_i^2}}$$
