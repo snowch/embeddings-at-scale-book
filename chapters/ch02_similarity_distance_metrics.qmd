@@ -235,21 +235,21 @@ import numpy as np
 
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
 
-# Left panel: vectors with slight offset for visibility
+# Left panel: vectors in exact same direction, different line styles
 origin = [0, 0]
-# Base direction
+# All point in same direction (ratio 2:3)
 A = np.array([3, 2])
-# Same direction, different magnitudes (slight visual offset)
-B = np.array([4.5, 3.1])     # ~1.5x magnitude, tiny angle offset
-C = np.array([1.5, 0.9])     # ~0.5x magnitude, tiny angle offset
+B = np.array([4.5, 3])       # 1.5x magnitude, same direction
+C = np.array([1.5, 1])       # 0.5x magnitude, same direction
 
-ax1.annotate('', xy=A, xytext=origin, arrowprops=dict(arrowstyle='->', color='#2563eb', lw=3))
-ax1.annotate('', xy=B, xytext=origin, arrowprops=dict(arrowstyle='->', color='#16a34a', lw=3))
-ax1.annotate('', xy=C, xytext=origin, arrowprops=dict(arrowstyle='->', color='#dc2626', lw=3))
+# Use different line styles: solid, dashed, dotted
+ax1.annotate('', xy=B, xytext=origin, arrowprops=dict(arrowstyle='->', color='#16a34a', lw=3, linestyle='-'))
+ax1.annotate('', xy=A, xytext=origin, arrowprops=dict(arrowstyle='->', color='#2563eb', lw=3, linestyle='--'))
+ax1.annotate('', xy=C, xytext=origin, arrowprops=dict(arrowstyle='->', color='#dc2626', lw=3, linestyle=':'))
 
-ax1.text(A[0]+0.1, A[1]+0.2, 'A', fontsize=14, fontweight='bold', color='#2563eb')
-ax1.text(B[0]+0.1, B[1]+0.2, 'B (1.5×)', fontsize=12, fontweight='bold', color='#16a34a')
-ax1.text(C[0]+0.1, C[1]-0.3, 'C (0.5×)', fontsize=12, fontweight='bold', color='#dc2626')
+ax1.text(A[0]+0.15, A[1]+0.25, 'A (dashed)', fontsize=11, fontweight='bold', color='#2563eb')
+ax1.text(B[0]+0.15, B[1]+0.25, 'B 1.5× (solid)', fontsize=11, fontweight='bold', color='#16a34a')
+ax1.text(C[0]+0.15, C[1]-0.35, 'C 0.5× (dotted)', fontsize=11, fontweight='bold', color='#dc2626')
 
 ax1.set_xlim(-0.5, 5.5)
 ax1.set_ylim(-0.5, 4)
