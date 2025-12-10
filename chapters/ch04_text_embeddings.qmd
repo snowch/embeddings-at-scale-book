@@ -576,7 +576,7 @@ corpus = [["the", "cat", "sat", "on", "the", "mat"], ["the", "dog", "sat", "on",
 # Vocabulary: unique words extracted from corpus
 vocab = list(set(word for sentence in corpus for word in sentence))
 vocab_size = len(vocab)
-embedding_dim = 4
+embedding_dim = 4  # Small for demo; production uses 100-300 dimensions
 word_to_idx = {w: i for i, w in enumerate(vocab)}
 
 np.random.seed(42)
