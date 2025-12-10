@@ -589,15 +589,10 @@ Sentence Transformers [@reimers2019sentence] fine-tune BERT-like models specific
 ## Key Takeaways
 
 - **Text embeddings** convert words, sentences, or documents into vectors capturing semantic meaning
-
 - **Similar text → similar vectors**: This enables semantic search, clustering, and classification without explicit rules
-
 - **Popular models** range from fast (MiniLM) to high-quality (OpenAI text-embedding-3) depending on your needs
-
 - **Word2Vec** learns from word co-occurrence patterns—words in similar contexts get similar embeddings
-
 - **Transformers (BERT)** create contextual embeddings where the same word gets different vectors based on surrounding context
-
 - **Sentence Transformers** adapt these for producing single embeddings for entire sentences
 
 ## Looking Ahead

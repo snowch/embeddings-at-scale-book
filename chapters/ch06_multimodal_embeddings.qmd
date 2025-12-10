@@ -253,11 +253,8 @@ def attention_fusion(modality_embeddings):
 ## Key Takeaways
 
 - **Multi-modal embeddings** create a shared space where different data types (text, images, audio) can be directly compared
-
 - **Zero-shot classification** works by comparing embeddings to text descriptions—no training on specific categories required
-
 - **CLIP** is the most popular approach, trained on 400M image-text pairs to align visual and textual concepts
-
 - **Fusion strategies** determine how to combine modalities: early (before indexing), late (after retrieval), or attention-based (learned weighting)
 
 ## Looking Ahead

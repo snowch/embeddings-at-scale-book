@@ -695,13 +695,9 @@ This works because low-level features (edges, textures) transfer across domains�
 ## Key Takeaways
 
 - **Image embeddings** capture visual semantics—similar objects, colors, and textures cluster together regardless of exact pixel values
-
 - **Audio embeddings** capture acoustic properties—timbre, rhythm, and spectral features that identify sounds across variations
-
 - **Video embeddings** combine spatial and temporal information—understanding both what's in each frame and how things change over time
-
 - **CNNs** learn hierarchical features through convolution layers; **Vision Transformers** use attention to capture long-range relationships
-
 - **Transfer learning** is standard practice—start with pre-trained models and adapt to your domain
 
 ## Looking Ahead

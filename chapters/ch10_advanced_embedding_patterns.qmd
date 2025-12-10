@@ -890,17 +890,11 @@ print(f"\nLog similarity: {cosine_similarity([emb1], [emb2])[0][0]:.3f}")
 ## Key Takeaways
 
 - **Naive concatenation fails** when combining embeddings of different sizes—use weighted, normalized concatenation
-
 - **Entity embeddings** for categorical features outperform one-hot encoding by learning relationships between categories
-
 - **Multi-vector representations** (ColBERT) provide fine-grained matching at the cost of storage
-
 - **Matryoshka embeddings** enable quality/latency trade-offs at query time
-
 - **Learned sparse embeddings** (SPLADE) combine interpretability with semantic matching
-
 - **Time-series patterns** can be captured with ROCKET (fast, simple) or learned encoders (more expressive)
-
 - **Domain-specific embeddings** like security logs require thoughtful combination of semantic, categorical, numerical, and specialized features
 
 ## Looking Ahead

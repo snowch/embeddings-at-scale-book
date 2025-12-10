@@ -206,13 +206,9 @@ def gat_attention(node_emb, neighbor_embs, attention_weights):
 ## Key Takeaways
 
 - **Graph embeddings** capture network structure—connected nodes and nodes with similar neighborhoods have similar vectors
-
 - **The core principle**: a node's meaning comes from its connections, not just its features
-
 - **Random walks** (Node2Vec) treat graphs like text, generating "sentences" of nodes to train Word2Vec
-
 - **Neighborhood aggregation** (GraphSAGE, GAT) directly combines neighbor information, enabling inductive learning
-
 - **Applications** span social networks, recommendations, fraud detection, and molecular property prediction
 
 ## Looking Ahead

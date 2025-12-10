@@ -197,13 +197,9 @@ Code often exceeds model context limits. Strategies include:
 ## Key Takeaways
 
 - **Code embeddings** capture what code does, not just how it's written—semantically equivalent implementations cluster together
-
 - **General text models** work for basic tasks, but **specialized models** (CodeBERT, StarCoder) understand programming language structure
-
 - **Training approaches** range from treating code as text to parsing ASTs and data flow graphs
-
 - **Applications** include semantic search, clone detection, vulnerability finding, and code recommendation
-
 - **Granularity matters**: embed functions for search, files for organization, blocks for vulnerability detection
 
 ## Looking Ahead

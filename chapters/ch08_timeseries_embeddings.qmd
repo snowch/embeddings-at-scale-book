@@ -189,13 +189,9 @@ def time_series_augmentation(x):
 ## Key Takeaways
 
 - **Time-series embeddings** capture temporal patterns—trends, seasonality, and anomalies—in fixed-size vectors
-
 - **Statistical features** (mean, std, autocorrelation) provide simple baselines but miss complex patterns
-
 - **Neural approaches** (LSTM, TCN, Transformers) learn rich representations from data
-
 - **Multi-scale patterns** require architectures that capture both short-term and long-term dependencies
-
 - **Applications** include anomaly detection, predictive maintenance, financial analysis, and health monitoring
 
 ## Looking Ahead
