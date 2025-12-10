@@ -222,8 +222,6 @@ There are dozens of other applications including art style matching, stock photo
 
 : Image embedding architectures {.striped}
 
-See @sec-image-embedding-models for details on how these architectures work.
-
 ## Audio Embeddings {#sec-audio-embedding-types}
 
 Audio embeddings convert sound into vectors that capture acoustic properties—pitch, timbre, rhythm, and spectral characteristics. Unlike raw waveform comparison, embeddings understand that two recordings of the same spoken word are similar even with different speakers, background noise, or recording equipment.
@@ -369,7 +367,7 @@ This book covers music recommendation with audio embeddings in @sec-recommendati
 
 : Audio embedding architectures {.striped}
 
-See @sec-embedding-model-fundamentals for details on how text and image embedding models work. For audio models, the linked documentation above provides architecture details, or explore the [Hugging Face Audio Course](https://huggingface.co/learn/audio-course) for a comprehensive introduction.
+For audio model architecture details, see the linked documentation above or explore the [Hugging Face Audio Course](https://huggingface.co/learn/audio-course) for a comprehensive introduction.
 
 ## Video Embeddings {#sec-video-embedding-types}
 
@@ -654,7 +652,7 @@ This book covers video surveillance applications in @sec-video-surveillance. If 
 
 : Video embedding architectures {.striped}
 
-See @sec-embedding-model-fundamentals for details on how text and image embedding models work. For video models, the linked documentation above provides architecture details.
+For video model architecture details, see the linked documentation above.
 
 ## Advanced: How Visual Models Learn {.unnumbered}
 

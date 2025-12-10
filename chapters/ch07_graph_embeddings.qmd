@@ -121,8 +121,6 @@ Nodes in the same community have high similarity because they share connections.
 
 **When to use graph embeddings:** Social network analysis (community detection, influence prediction, friend recommendation), recommendation systems with user-item graphs (see @sec-recommendation-systems), knowledge graph completion to predict missing relationships (see @sec-entity-resolution), fraud detection to identify suspicious patterns in transaction graphs (see @sec-financial-services), drug discovery for molecule property prediction from molecular graphs (see @sec-healthcare-life-sciences), and supply chain analysis to identify dependencies and bottlenecks.
 
-See @sec-embedding-model-fundamentals for details on how graph embedding models work.
-
 ## Popular Graph Architectures
 
 | Architecture | Type | Strengths | Use Cases |

@@ -89,8 +89,6 @@ This book doesn't include dedicated code embedding chapters. If you'd like to se
 
 : Code embedding architectures {.striped}
 
-See @sec-embedding-model-fundamentals for details on how embedding models learn.
-
 ## Advanced: How Code Models Learn {.unnumbered}
 
 ::: {.callout-note}

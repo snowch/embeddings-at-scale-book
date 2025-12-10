@@ -194,8 +194,6 @@ This book covers multi-modal search in @sec-semantic-search. If you'd like to se
 
 : Multi-modal embedding architectures {.striped}
 
-See @sec-embedding-model-fundamentals for details on how text and image embedding models work.
-
 ## Advanced: Multi-Modal Fusion Strategies {.unnumbered}
 
 ::: {.callout-note}

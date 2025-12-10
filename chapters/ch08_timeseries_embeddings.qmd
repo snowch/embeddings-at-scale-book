@@ -124,8 +124,6 @@ This book covers time-series applications in financial services (@sec-financial-
 
 : Time-series embedding architectures {.striped}
 
-See @sec-embedding-model-fundamentals for details on how embedding models learn.
-
 ## Advanced: Learned Time-Series Embeddings {.unnumbered}
 
 ::: {.callout-note}
