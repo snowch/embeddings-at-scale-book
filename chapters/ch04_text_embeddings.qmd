@@ -492,7 +492,7 @@ for i, (word, x) in enumerate(zip(words, x_positions)):
         ax.add_patch(box)
         ax.text(x, 1.2, word, ha='center', va='center', fontsize=12, fontweight='bold')
         ax.text(x, 0.5, 'target', ha='center', va='center', fontsize=9, color='#666')
-    elif 0 < i < 5 and i != target_idx:  # Context words (window=2)
+    elif i < 5 and i != target_idx:  # Context words (window=2)
         box = FancyBboxPatch((x-0.4, 0.9), 0.8, 0.6, boxstyle="round,pad=0.05",
                              facecolor='#E3F2FD', edgecolor='#1976D2', linewidth=1.5)
         ax.add_patch(box)
