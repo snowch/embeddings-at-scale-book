@@ -516,7 +516,8 @@ def train_skipgram_pair(target_word, context_word, negative_words, lr=0.1):
     W_target[t_idx] -= lr * (pred - 1) * context_emb
     W_context[c_idx] -= lr * (pred - 1) * target_emb
 
-    # Negative examples: target and random words should be dissimilar
+    # Negative examples: push apart words that don't appear together.
+    # Without this, model would collapse all embeddings to the same point.
     for neg_word in negative_words:
         n_idx = word_to_idx[neg_word]
         neg_emb = W_context[n_idx]
