@@ -240,15 +240,16 @@ A = np.array([2, 1.5])
 B = np.array([4, 3])      # Same direction as A, 2x magnitude
 C = np.array([1, 0.75])   # Same direction as A, 0.5x magnitude
 
-# Draw vectors
-ax.annotate('', xy=A, xytext=origin, arrowprops=dict(arrowstyle='->', color='#2563eb', lw=2.5))
-ax.annotate('', xy=B, xytext=origin, arrowprops=dict(arrowstyle='->', color='#16a34a', lw=2.5))
-ax.annotate('', xy=C, xytext=origin, arrowprops=dict(arrowstyle='->', color='#dc2626', lw=2.5))
+# Draw vectors with different styles to distinguish overlapping lines
+# Draw longest first (B), then medium (A), then shortest (C)
+ax.annotate('', xy=B, xytext=origin, arrowprops=dict(arrowstyle='->', color='#16a34a', lw=4))
+ax.annotate('', xy=A, xytext=origin, arrowprops=dict(arrowstyle='->', color='#2563eb', lw=3))
+ax.annotate('', xy=C, xytext=origin, arrowprops=dict(arrowstyle='->', color='#dc2626', lw=2))
 
-# Labels
-ax.text(A[0]+0.1, A[1]+0.2, 'A', fontsize=14, fontweight='bold', color='#2563eb')
-ax.text(B[0]+0.1, B[1]+0.2, 'B (2× length)', fontsize=12, fontweight='bold', color='#16a34a')
-ax.text(C[0]+0.1, C[1]+0.2, 'C (0.5× length)', fontsize=12, fontweight='bold', color='#dc2626')
+# Labels - position them away from the line
+ax.text(A[0]-0.3, A[1]+0.35, 'A', fontsize=14, fontweight='bold', color='#2563eb')
+ax.text(B[0]+0.15, B[1]+0.25, 'B (2×)', fontsize=12, fontweight='bold', color='#16a34a')
+ax.text(C[0]+0.15, C[1]-0.35, 'C (0.5×)', fontsize=12, fontweight='bold', color='#dc2626')
 
 # Calculate dot products
 dot_AB = np.dot(A, B)
@@ -256,11 +257,11 @@ dot_AC = np.dot(A, C)
 cos_AB = dot_AB / (np.linalg.norm(A) * np.linalg.norm(B))
 cos_AC = dot_AC / (np.linalg.norm(A) * np.linalg.norm(C))
 
-# Add comparison box
-textstr = f'A · B = {dot_AB:.1f}\nA · C = {dot_AC:.1f}\n\ncos(A,B) = {cos_AB:.2f}\ncos(A,C) = {cos_AC:.2f}'
-props = dict(boxstyle='round', facecolor='wheat', alpha=0.8)
-ax.text(0.98, 0.98, textstr, transform=ax.transAxes, fontsize=11,
-        verticalalignment='top', horizontalalignment='right', bbox=props)
+# Add comparison box - position in lower right to avoid overlap
+textstr = f'A · B = {dot_AB:.1f}  (longer → bigger)\nA · C = {dot_AC:.1f}  (shorter → smaller)\n\ncos(A,B) = cos(A,C) = {cos_AB:.2f}\n(same direction → same cosine)'
+props = dict(boxstyle='round', facecolor='wheat', alpha=0.9)
+ax.text(0.98, 0.02, textstr, transform=ax.transAxes, fontsize=10,
+        verticalalignment='bottom', horizontalalignment='right', bbox=props)
 
 ax.set_xlim(-0.5, 5)
 ax.set_ylim(-0.5, 4)
