@@ -478,6 +478,7 @@ Word2Vec Skip-Gram: Simplified Implementation
 
 import numpy as np
 
+# Vocabulary: unique words we'll learn embeddings for
 vocab = ["the", "cat", "sat", "on", "mat", "dog", "rug"]
 vocab_size = len(vocab)
 embedding_dim = 4
@@ -519,7 +520,7 @@ def train_skipgram_pair(target_word, context_word, negative_words, lr=0.1):
         W_context[n_idx] -= lr * pred * target_emb
 
 
-# Training corpus
+# Training data: sentences we learn word relationships from
 corpus = [["the", "cat", "sat", "on", "the", "mat"], ["the", "dog", "sat", "on", "the", "rug"]]
 
 for epoch in range(50):
