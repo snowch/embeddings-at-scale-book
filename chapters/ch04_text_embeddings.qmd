@@ -638,11 +638,18 @@ def train_skipgram_pair(target_word, context_word, negative_words, lr=0.1):
         W_context[n_idx] -= lr * pred * target_emb
 
 
+# Train for 50 passes through the corpus
 for epoch in range(50):
     for sentence in corpus:
         for i, target in enumerate(sentence):
-            context_words = [sentence[j] for j in range(max(0, i-2), min(len(sentence), i+3)) if j != i]
+            # Context = words within 2 positions of target
+            start = max(0, i - 2)
+            end = min(len(sentence), i + 3)
+            context_words = [sentence[j] for j in range(start, end) if j != i]
+
+            # Negatives = random words not appearing near target
             negatives = [w for w in vocab if w not in context_words and w != target][:2]
+
             for context in context_words:
                 train_skipgram_pair(target, context, negatives)
 
