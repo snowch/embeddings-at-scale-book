@@ -232,17 +232,20 @@ import numpy as np
 
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
 
-# Left panel: vectors in exact same direction, different line styles
-origin = [0, 0]
-# All point in same direction (ratio 2:3)
-A = np.array([3, 2])
-B = np.array([4.5, 3])       # 1.5x magnitude, same direction
-C = np.array([1.5, 1])       # 0.5x magnitude, same direction
+# Left panel: vectors in same direction, offset perpendicular so dots don't overlap
+origin = np.array([0, 0])
+# Base direction and perpendicular offset
+direction = np.array([3, 2])
+perp = np.array([-2, 3]) / np.linalg.norm([-2, 3]) * 0.12  # perpendicular unit vector scaled
 
-# All dotted lines with varying opacity to distinguish
-ax1.annotate('', xy=B, xytext=origin, arrowprops=dict(arrowstyle='->', color='#16a34a', lw=3, linestyle=':', alpha=1.0))
-ax1.annotate('', xy=A, xytext=origin, arrowprops=dict(arrowstyle='->', color='#2563eb', lw=3, linestyle=':', alpha=0.6))
-ax1.annotate('', xy=C, xytext=origin, arrowprops=dict(arrowstyle='->', color='#dc2626', lw=3, linestyle=':', alpha=0.4))
+A = direction
+B = direction * 1.5 + perp      # offset up
+C = direction * 0.5 - perp      # offset down
+
+# All dotted lines, offset so they don't overlap
+ax1.annotate('', xy=A, xytext=origin, arrowprops=dict(arrowstyle='->', color='#2563eb', lw=2.5, linestyle=':'))
+ax1.annotate('', xy=B, xytext=origin + perp, arrowprops=dict(arrowstyle='->', color='#16a34a', lw=2.5, linestyle=':'))
+ax1.annotate('', xy=C, xytext=origin - perp, arrowprops=dict(arrowstyle='->', color='#dc2626', lw=2.5, linestyle=':'))
 
 ax1.text(A[0]+0.15, A[1]+0.25, 'A', fontsize=11, fontweight='bold', color='#2563eb')
 ax1.text(B[0]+0.15, B[1]+0.25, 'B (1.5×)', fontsize=11, fontweight='bold', color='#16a34a')
@@ -275,7 +278,7 @@ ax2.set_ylim(0, 26)  # Add top padding for labels and legend
 ax2.set_title('Dot product varies with length;\nCosine stays constant', fontsize=11)
 ax2.set_xticks(x)
 ax2.set_xticklabels(['A · B\nvs\ncos(A,B)', 'A · C\nvs\ncos(A,C)'])
-ax2.legend(loc='upper right', bbox_to_anchor=(1.0, 0.95))
+ax2.legend(loc='lower right')
 
 # Add value labels
 ax2.text(0 - width/2, dot_AB + 0.5, f'{dot_AB:.1f}', ha='center', fontsize=10, fontweight='bold')
