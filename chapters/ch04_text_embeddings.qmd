@@ -638,7 +638,8 @@ def train_skipgram_pair(target_word, context_word, negative_words, lr=0.1):
         W_context[n_idx] -= lr * pred * target_emb
 
 
-# Train for 50 passes through the corpus
+# Each epoch = one pass through corpus. Multiple passes needed because
+# each example only nudges embeddings slightly; repetition reinforces patterns.
 for epoch in range(50):
     for sentence in corpus:
         for i, target in enumerate(sentence):
