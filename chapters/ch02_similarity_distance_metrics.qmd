@@ -169,8 +169,8 @@ dist_AC = np.linalg.norm(A - C)
 # Midpoint labels - offset away from lines
 mid_AB = (A + B) / 2
 mid_AC = (A + C) / 2
-ax.text(mid_AB[0]+0.2, mid_AB[1]-0.4, f'd = {dist_AB:.2f}', fontsize=11, color='#16a34a', fontweight='bold')
-ax.text(mid_AC[0]-0.8, mid_AC[1]-0.2, f'd = {dist_AC:.2f}', fontsize=11, color='#dc2626', fontweight='bold')
+ax.text(mid_AB[0]+0.3, mid_AB[1]-0.5, f'd = {dist_AB:.2f}', fontsize=11, color='#16a34a', fontweight='bold')
+ax.text(mid_AC[0]-1.0, mid_AC[1]-0.5, f'd = {dist_AC:.2f}', fontsize=11, color='#dc2626', fontweight='bold')
 
 ax.set_xlim(0, 5)
 ax.set_ylim(0, 5)
