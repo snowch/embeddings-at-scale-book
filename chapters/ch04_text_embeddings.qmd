@@ -516,64 +516,46 @@ The implementation below shows the core training loop: for each target-context p
 ```{python}
 #| echo: false
 #| label: fig-skipgram-training
-#| fig-cap: "Training pushes positive pairs (target + context) together and negative pairs (target + random) apart."
+#| fig-cap: "Training pushes context words closer to target (green arrows) and negative samples farther away (red arrows)."
 import matplotlib.pyplot as plt
+import numpy as np
 
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 3))
+fig, ax = plt.subplots(figsize=(8, 4))
+ax.set_xlim(-0.5, 4.5)
+ax.set_ylim(-0.5, 3.5)
+ax.set_aspect('equal')
+ax.axis('off')
 
-# Left: Positive pair - pull together
-ax1.set_xlim(0, 10)
-ax1.set_ylim(0, 4)
-ax1.axis('off')
-ax1.set_title('Positive pair: pull together', fontsize=11, fontweight='bold', color='#2E7D32')
+# Target word (center)
+ax.scatter([2], [1.5], s=400, c='#FFEB3B', edgecolors='#F57C00', linewidth=2, zorder=5)
+ax.text(2, 1.5, 'sat', ha='center', va='center', fontsize=11, fontweight='bold')
+ax.text(2, 0.9, 'target', ha='center', va='center', fontsize=9, color='#666')
 
-# Before
-ax1.scatter([2], [2.5], s=200, c='#FFEB3B', edgecolors='#F57C00', linewidths=2, zorder=5)
-ax1.text(2, 2.5, 'sat', ha='center', va='center', fontsize=10, fontweight='bold')
-ax1.scatter([4], [2.5], s=200, c='#E3F2FD', edgecolors='#1976D2', linewidths=2, zorder=5)
-ax1.text(4, 2.5, 'cat', ha='center', va='center', fontsize=10)
-ax1.annotate('', xy=(3.3, 2.5), xytext=(2.7, 2.5),
-            arrowprops=dict(arrowstyle='<->', color='#2E7D32', lw=2))
-ax1.text(3, 1.8, 'pull', ha='center', va='center', fontsize=9, color='#2E7D32', fontweight='bold')
+# Context words - being pulled closer (green arrows)
+context_positions = [(0.8, 2.5), (3.2, 2.5)]
+context_words = ['cat', 'on']
+for (x, y), word in zip(context_positions, context_words):
+    ax.scatter([x], [y], s=300, c='#E3F2FD', edgecolors='#1976D2', linewidth=1.5, zorder=5)
+    ax.text(x, y, word, ha='center', va='center', fontsize=10)
+    # Green arrow toward target
+    dx, dy = (2 - x) * 0.3, (1.5 - y) * 0.3
+    ax.annotate('', xy=(x + dx, y + dy), xytext=(x, y),
+               arrowprops=dict(arrowstyle='->', color='#4CAF50', lw=2))
 
-# After
-ax1.scatter([7], [2.5], s=200, c='#FFEB3B', edgecolors='#F57C00', linewidths=2, zorder=5)
-ax1.text(7, 2.5, 'sat', ha='center', va='center', fontsize=10, fontweight='bold')
-ax1.scatter([8], [2.5], s=200, c='#E3F2FD', edgecolors='#1976D2', linewidths=2, zorder=5)
-ax1.text(8, 2.5, 'cat', ha='center', va='center', fontsize=10)
+ax.text(2, 3.2, 'pull closer', ha='center', va='center', fontsize=9, color='#4CAF50', fontweight='bold')
 
-ax1.annotate('', xy=(6, 2.5), xytext=(5, 2.5),
-            arrowprops=dict(arrowstyle='->', color='#666', lw=1.5))
+# Negative words - being pushed away (red arrows)
+neg_positions = [(0.5, 0.5), (3.5, 0.5)]
+neg_words = ['mat', 'rug']
+for (x, y), word in zip(neg_positions, neg_words):
+    ax.scatter([x], [y], s=300, c='#FFEBEE', edgecolors='#E53935', linewidth=1.5, zorder=5)
+    ax.text(x, y, word, ha='center', va='center', fontsize=10)
+    # Red arrow away from target
+    dx, dy = (x - 2) * 0.3, (y - 1.5) * 0.3
+    ax.annotate('', xy=(x + dx, y + dy), xytext=(x, y),
+               arrowprops=dict(arrowstyle='->', color='#E53935', lw=2))
 
-ax1.text(3, 3.5, 'before', ha='center', fontsize=9, color='#666')
-ax1.text(7.5, 3.5, 'after', ha='center', fontsize=9, color='#666')
-
-# Right: Negative pair - push apart
-ax2.set_xlim(0, 10)
-ax2.set_ylim(0, 4)
-ax2.axis('off')
-ax2.set_title('Negative pair: push apart', fontsize=11, fontweight='bold', color='#C62828')
-
-# Before
-ax2.scatter([2.5], [2.5], s=200, c='#FFEB3B', edgecolors='#F57C00', linewidths=2, zorder=5)
-ax2.text(2.5, 2.5, 'sat', ha='center', va='center', fontsize=10, fontweight='bold')
-ax2.scatter([3.5], [2.5], s=200, c='#FFCDD2', edgecolors='#C62828', linewidths=2, zorder=5)
-ax2.text(3.5, 2.5, 'rug', ha='center', va='center', fontsize=10)
-ax2.annotate('', xy=(3.2, 2.5), xytext=(2.8, 2.5),
-            arrowprops=dict(arrowstyle='<->', color='#C62828', lw=2))
-ax2.text(3, 1.8, 'push', ha='center', va='center', fontsize=9, color='#C62828', fontweight='bold')
-
-# After
-ax2.scatter([6.5], [2.5], s=200, c='#FFEB3B', edgecolors='#F57C00', linewidths=2, zorder=5)
-ax2.text(6.5, 2.5, 'sat', ha='center', va='center', fontsize=10, fontweight='bold')
-ax2.scatter([9], [2.5], s=200, c='#FFCDD2', edgecolors='#C62828', linewidths=2, zorder=5)
-ax2.text(9, 2.5, 'rug', ha='center', va='center', fontsize=10)
-
-ax2.annotate('', xy=(5.5, 2.5), xytext=(4.5, 2.5),
-            arrowprops=dict(arrowstyle='->', color='#666', lw=1.5))
-
-ax2.text(3, 3.5, 'before', ha='center', fontsize=9, color='#666')
-ax2.text(7.75, 3.5, 'after', ha='center', fontsize=9, color='#666')
+ax.text(2, -0.2, 'push apart', ha='center', va='center', fontsize=9, color='#E53935', fontweight='bold')
 
 plt.tight_layout()
 plt.show()
