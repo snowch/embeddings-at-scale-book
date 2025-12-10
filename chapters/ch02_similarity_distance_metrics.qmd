@@ -21,6 +21,8 @@ Different metrics capture different notions of similarity. Two embeddings might 
 
 We introduced cosine similarity briefly in @sec-embedding-revolution; here we cover it in depth alongside other metrics so you can make informed choices.
 
+Think of cosine similarity as asking "are these vectors pointing in the same direction?" regardless of how long they are. Two documents about machine learning will point in a similar direction in embedding space whether one is a tweet or a textbook—their *lengths* differ, but their *meaning* aligns. This makes cosine similarity ideal for text, where document length shouldn't affect semantic similarity.
+
 Cosine similarity measures the angle between two vectors, ignoring their magnitudes:
 
 $$\text{cosine\_similarity}(\mathbf{A}, \mathbf{B}) = \frac{\mathbf{A} \cdot \mathbf{B}}{||\mathbf{A}|| \times ||\mathbf{B}||} = \frac{\sum_{i=1}^{n} A_i B_i}{\sqrt{\sum_{i=1}^{n} A_i^2} \times \sqrt{\sum_{i=1}^{n} B_i^2}}$$
@@ -127,6 +129,8 @@ print(f"  v1 ↔ v3 (different direction): {cosine_similarity(v1, v3):.4f}")
 
 ## Euclidean Distance (L2) {#sec-euclidean-distance}
 
+Think of Euclidean distance as "how far would I walk in a straight line?" It measures absolute position in space—if you plotted embeddings as points on a map, Euclidean distance is the crow-flies distance between them. Unlike cosine similarity, magnitude matters: a short document and a long document will be far apart even if they discuss identical topics, simply because their embedding magnitudes differ.
+
 Euclidean distance measures the straight-line distance between two points:
 
 $$\text{euclidean}(\mathbf{A}, \mathbf{B}) = \sqrt{\sum_{i=1}^{n} (A_i - B_i)^2} = ||\mathbf{A} - \mathbf{B}||_2$$
@@ -217,6 +221,8 @@ print("\nNote: v1 and v2 are FAR by Euclidean but IDENTICAL by cosine!")
 **Warning**: Euclidean distance suffers from the **curse of dimensionality**. In high dimensions (768+), all points tend to become equidistant, reducing discriminative power.
 
 ## Dot Product (Inner Product) {#sec-dot-product}
+
+The dot product captures both direction *and* magnitude—think of it as "how much do these vectors agree, weighted by their strengths?" A user embedding strongly pointing toward "sci-fi" matched with a blockbuster sci-fi movie (large magnitude) scores higher than the same user matched with an obscure indie sci-fi film (small magnitude). This is why recommendation systems often use dot product: magnitude encodes confidence or importance.
 
 The dot product is the unnormalized version of cosine similarity:
 
@@ -350,6 +356,8 @@ print("\nDot product rewards both alignment AND magnitude")
 
 ## Manhattan Distance (L1) {#sec-manhattan-distance}
 
+Imagine navigating a city grid—you can't walk diagonally through buildings, only along streets. Manhattan distance measures how many blocks you'd walk: 3 blocks east plus 4 blocks north, not the 5-block diagonal shortcut. This axis-aligned measurement is more robust to outliers than Euclidean distance: one extreme dimension doesn't dominate the total like it would when squared.
+
 Manhattan distance sums the absolute differences along each dimension:
 
 $$\text{manhattan}(\mathbf{A}, \mathbf{B}) = \sum_{i=1}^{n} |A_i - B_i| = ||\mathbf{A} - \mathbf{B}||_1$$
@@ -445,6 +453,8 @@ print(f"  Manhattan (L1): {manhattan:.4f}")
 - **Robust similarity**: Less affected by a single large difference
 
 ## Hamming Distance {#sec-hamming-distance}
+
+Hamming distance answers a simple question: "how many bits need to flip to transform one vector into the other?" If you compress embeddings to binary codes (0s and 1s), comparing them becomes blazingly fast—just XOR the bit strings and count the 1s. This makes Hamming distance essential for billion-scale search where you trade some accuracy for 32× storage savings and hardware-accelerated comparison.
 
 Hamming distance counts the number of positions where values differ. For binary embeddings:
 
@@ -550,6 +560,8 @@ print(f"  b1 ↔ b3 (opposite): {hamming_distance(b1, b3)} bits differ, similari
 See @sec-quantized-embeddings for more on binary and quantized embeddings.
 
 ## Jaccard Similarity {#sec-jaccard-similarity}
+
+Jaccard similarity asks "what fraction of items do these two sets share?" If two users have watched 10 movies total between them, and 6 of those are the same, their Jaccard similarity is 6/10 = 0.6. It's intuitive for sparse, binary features like tags, categories, or bag-of-words representations where you care about presence/absence rather than counts or magnitudes.
 
 Jaccard similarity measures overlap between sets:
 
