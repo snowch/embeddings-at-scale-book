@@ -655,22 +655,71 @@ Why is cat↔mat higher than cat↔dog? In our tiny corpus, "cat" and "mat" appe
 
 The transformer architecture [@vaswani2017attention] and BERT [@devlin2018bert] introduced **contextual embeddings**—the same word gets different representations based on context.
 
-The key innovation is the **attention mechanism**: when processing a word, the model can attend to all other words in the sentence.
+The key innovation is the **attention mechanism**: when processing a word, the model can "look at" all other words in the sentence to understand meaning. Unlike Word2Vec (where "bank" always has the same embedding), transformers give "bank" different embeddings depending on whether the sentence mentions money or rivers.
+
+```{python}
+#| echo: false
+#| label: fig-attention-concept
+#| fig-cap: "Attention mechanism: when encoding 'bank', the model attends to other words to determine meaning. 'Money' and 'deposited' signal financial meaning."
+import matplotlib.pyplot as plt
+from matplotlib.patches import FancyBboxPatch
+
+fig, ax = plt.subplots(figsize=(10, 3))
+ax.set_xlim(0, 10)
+ax.set_ylim(0, 3)
+ax.axis('off')
+
+words = ["I", "deposited", "money", "at", "the", "bank"]
+x_positions = [1, 2.3, 3.8, 5, 6.2, 7.8]
+target_idx = 5  # "bank"
+
+# Attention weights (stronger for relevant context words)
+attention_weights = [0.1, 0.4, 0.5, 0.1, 0.1, 0.0]  # money and deposited get high attention
+
+for i, (word, x) in enumerate(zip(words, x_positions)):
+    if i == target_idx:
+        # Target word being encoded
+        box = FancyBboxPatch((x-0.4, 1.0), 0.9, 0.6, boxstyle="round,pad=0.05",
+                             facecolor='#FFEB3B', edgecolor='#F57C00', linewidth=2)
+        ax.add_patch(box)
+        ax.text(x, 1.3, word, ha='center', va='center', fontsize=11, fontweight='bold')
+        ax.text(x, 0.5, 'encoding', ha='center', va='center', fontsize=9, color='#666')
+    else:
+        # Context words with attention
+        alpha = 0.3 + attention_weights[i] * 0.7
+        box = FancyBboxPatch((x-0.4, 1.0), 0.9, 0.6, boxstyle="round,pad=0.05",
+                             facecolor='#E3F2FD', edgecolor='#1976D2', linewidth=1.5, alpha=alpha)
+        ax.add_patch(box)
+        ax.text(x, 1.3, word, ha='center', va='center', fontsize=11, alpha=alpha)
+
+        # Attention arrows (thickness = attention weight)
+        if attention_weights[i] > 0.2:
+            ax.annotate('', xy=(x, 1.6), xytext=(x_positions[target_idx], 1.6),
+                       arrowprops=dict(arrowstyle='<-', color='#1976D2',
+                                     lw=attention_weights[i]*4, alpha=0.7,
+                                     connectionstyle='arc3,rad=0.3'))
+
+ax.text(5, 2.6, '"money" and "deposited" signal financial meaning → bank = institution',
+        ha='center', va='center', fontsize=10, style='italic', color='#666')
+
+plt.tight_layout()
+plt.show()
+```
 
 ```{python}
 #| code-fold: false
 
 """
-Demonstrating Contextual Embeddings
-
-The same word gets different embeddings in different contexts.
+Contextual Embeddings: Same Word, Different Meanings
 """
 
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 
+# Load pre-trained transformer model
 model = SentenceTransformer('all-MiniLM-L6-v2')
 
+# Same word "bank" in different contexts
 sentences = [
     "I deposited money at the bank",      # bank = financial institution
     "The bank approved my loan",          # bank = financial institution
@@ -678,15 +727,18 @@ sentences = [
     "Fish swim near the bank",            # bank = riverside
 ]
 
+# Each sentence gets a single embedding capturing its full meaning
 embeddings = model.encode(sentences)
 
-print("Contextual similarity:\n")
+print("Sentence similarity (same meaning = higher score):\n")
 labels = ["financial-1", "financial-2", "river-1", "river-2"]
 for i in range(len(sentences)):
     for j in range(i + 1, len(sentences)):
         sim = cosine_similarity([embeddings[i]], [embeddings[j]])[0][0]
         print(f"  {labels[i]:12s} ↔ {labels[j]:12s}: {sim:.3f}")
 ```
+
+The financial sentences (0.486) are more similar to each other than to river sentences, and vice versa—but the differences aren't dramatic because sentence embeddings capture the *entire* sentence meaning, not just the word "bank". The shared structure ("at the bank", "near the bank") creates some similarity across meanings.
 
 **Why transformers dominate:**
 
