@@ -461,11 +461,18 @@ The number in parentheses is the confidence score—the difference between cosin
 This section explains how text embedding models actually learn. Understanding these fundamentals helps you choose the right model and diagnose issues. Skip this if you just need to use embeddings.
 :::
 
-### Word2Vec: The Breakthrough {#sec-word2vec}
+### Word2Vec: Static Word Embeddings {#sec-word2vec}
 
 Word2Vec [@mikolov2013efficient] revolutionized NLP by showing that simple neural networks could learn rich semantic representations from raw text. The key insight: **words appearing in similar contexts should have similar embeddings**.
 
 Word2Vec uses a technique called *skip-gram*: given a target word, predict the words that typically appear nearby. For example, given "cat", predict that "furry", "pet", and "meow" often appear in the same sentences. By training on millions of such predictions, the model learns that "cat" and "dog" should have similar embeddings (both appear near "pet", "feed", "vet") while "cat" and "algebra" should be far apart.
+
+::: {.callout-tip}
+## Key Resources
+- [Word2Vec paper](https://arxiv.org/abs/1301.3781) (Mikolov et al., 2013) — introduced Word2Vec and skip-gram
+- [Negative sampling paper](https://arxiv.org/abs/1310.4546) (Mikolov et al., 2013) — improved training efficiency
+- [Gensim library](https://radimrehurek.com/gensim/) — popular Python library for training Word2Vec
+:::
 
 ```{python}
 #| echo: false
@@ -651,11 +658,20 @@ print(f"  cat ↔ mat: {cosine_similarity('cat', 'mat'):.3f}")
 
 Why is cat↔mat higher than cat↔dog? In our tiny corpus, "cat" and "mat" appear in the same sentence, sharing more context words. Word2Vec learns from co-occurrence patterns in the training data—with millions of sentences, "cat" and "dog" would cluster together as animals, but our two-sentence corpus doesn't capture that relationship.
 
-### Transformers and BERT {#sec-transformers-bert}
+### BERT: Contextual Token Embeddings {#sec-transformers-bert}
 
 The transformer architecture [@vaswani2017attention] and BERT [@devlin2018bert] introduced **contextual embeddings**—the same word gets different representations based on context.
 
-The key innovation is the **attention mechanism**: when processing a word, the model can "look at" all other words in the sentence to understand meaning. Unlike Word2Vec (where "bank" always has the same embedding), transformers give "bank" different embeddings depending on whether the sentence mentions money or rivers.
+The key innovation is the **attention mechanism**: when processing a word, the model can "look at" all other words in the sentence to determine meaning. This is fundamentally different from Word2Vec:
+
+- **Word2Vec**: Context matters during *training* (learning from nearby words), but produces *static* embeddings. Once trained, "bank" always maps to the same vector—the model can't tell which meaning you intend.
+- **Transformers**: Context matters at *inference time*. Each time you encode a sentence, the model examines all surrounding words to compute a *contextual* embedding. "Bank" gets different vectors depending on whether the sentence mentions money or rivers.
+
+::: {.callout-tip}
+## Key Papers
+- [Attention Is All You Need](https://arxiv.org/abs/1706.03762) (Vaswani et al., 2017) — introduced the transformer architecture
+- [BERT: Pre-training of Deep Bidirectional Transformers](https://arxiv.org/abs/1810.04805) (Devlin et al., 2018) — applied transformers to create contextual embeddings
+:::
 
 ```{python}
 #| echo: false
@@ -706,6 +722,10 @@ plt.tight_layout()
 plt.show()
 ```
 
+Unlike Word2Vec (where we showed training from scratch), we won't implement transformer training here. Why? Scale. Word2Vec trains in minutes on a laptop with a few sentences. BERT was trained on 3.3 billion words using 64 TPUs for 4 days. The architecture is also far more complex—multi-head attention, layer normalization, positional encodings, and masked language modeling objectives.
+
+Instead, we use pre-trained models. The code below loads a model that's already learned contextual representations from massive text corpora:
+
 ```{python}
 #| code-fold: false
 
@@ -721,10 +741,10 @@ model = SentenceTransformer('all-MiniLM-L6-v2')
 
 # Same word "bank" in different contexts
 sentences = [
-    "I deposited money at the bank",      # bank = financial institution
-    "The bank approved my loan",          # bank = financial institution
-    "We had a picnic on the river bank",  # bank = riverside
-    "Fish swim near the bank",            # bank = riverside
+    "I deposited money at the bank",      # financial-1
+    "The bank approved my loan",          # financial-2
+    "We had a picnic on the river bank",  # river-1
+    "Fish swim near the bank",            # river-2
 ]
 
 # Each sentence gets a single embedding capturing its full meaning
@@ -738,18 +758,96 @@ for i in range(len(sentences)):
         print(f"  {labels[i]:12s} ↔ {labels[j]:12s}: {sim:.3f}")
 ```
 
-The financial sentences (0.486) are more similar to each other than to river sentences, and vice versa—but the differences aren't dramatic because sentence embeddings capture the *entire* sentence meaning, not just the word "bank". The shared structure ("at the bank", "near the bank") creates some similarity across meanings.
+The financial sentences (0.486) are more similar to each other than to river sentences, and vice versa—but the differences aren't dramatic. Is this a limitation? It depends on your use case:
+
+- **For sentence-level tasks** (semantic search, document clustering), this is fine. The embeddings correctly distinguish the sentence meanings, just not by a huge margin.
+- **For word-sense disambiguation** (detecting that "bank" means different things), you need token-level embeddings instead of sentence embeddings. BERT produces distinct embeddings for "bank" in each context—the pooling step that creates a single sentence embedding averages this information away.
+
+To get the contextual embedding for a specific word, use the underlying BERT model directly and extract the token's hidden state, rather than using a Sentence Transformer that pools all tokens together.
 
 **Why transformers dominate:**
 
-1. **Parallelization**: All positions processed simultaneously (unlike RNNs)
-2. **Long-range dependencies**: Attention connects distant words directly
-3. **Transfer learning**: Pre-trained models work across many tasks
-4. **Scalability**: Performance improves with more data and compute
+1. **Parallelization**: All words processed simultaneously. Earlier models (RNNs—Recurrent Neural Networks) processed words one at a time, left to right. This was slow and made training on large datasets impractical.
+2. **Long-range dependencies**: Attention connects distant words directly. In "The cat that I saw yesterday at the park was sleeping", attention links "cat" to "sleeping" without processing all words in between.
+3. **Transfer learning**: Pre-trained models work across many tasks without retraining from scratch.
+4. **Scalability**: Performance improves predictably with more data and compute.
 
-### Sentence Transformers {#sec-sentence-transformers}
+### Sentence Transformers: Whole-Sentence Embeddings {#sec-sentence-transformers}
 
-Sentence Transformers [@reimers2019sentence] fine-tune BERT-like models specifically for producing sentence embeddings. They use **contrastive learning** (see @sec-contrastive-learning): train the model to produce similar embeddings for related sentences, and push apart unrelated ones.
+The previous section covered BERT—a powerful architecture that produces *token-level* embeddings. But throughout this chapter, we've been using `SentenceTransformer` to get *sentence-level* embeddings. What's the connection?
+
+Sentence Transformers [@reimers2019sentence] are BERT models fine-tuned specifically for producing useful sentence embeddings. The problem: raw BERT produces one embedding per *token*, not per sentence. The naive fix—averaging all token embeddings—works poorly because it weights filler words ("the", "a") equally with meaningful ones.
+
+Sentence Transformers solve this using a *siamese* architecture: two identical BERT models process two sentences, then a pooling layer (typically mean or [CLS] token) produces one embedding each. Training uses **contrastive learning**—the model learns to produce similar embeddings for related sentences (paraphrases, question-answer pairs) and dissimilar embeddings for unrelated ones.
+
+::: {.callout-tip}
+## Key Resources
+- [Sentence-BERT paper](https://arxiv.org/abs/1908.10084) (Reimers & Gurevych, 2019) — the original Sentence Transformers paper
+- [Sentence Transformers library](https://www.sbert.net/) — documentation and pre-trained models
+- [Hugging Face model hub](https://huggingface.co/sentence-transformers) — browse available models
+:::
+
+```{python}
+#| echo: false
+#| label: fig-sentence-transformer-training
+#| fig-cap: "Sentence Transformer training: a siamese network processes sentence pairs through identical BERT encoders. Paraphrases are pushed together; unrelated sentences are pushed apart."
+import matplotlib.pyplot as plt
+from matplotlib.patches import FancyBboxPatch
+
+fig, ax = plt.subplots(figsize=(10, 4.5))
+ax.set_xlim(0, 10)
+ax.set_ylim(0, 4.5)
+ax.axis('off')
+
+# Left BERT encoder
+box1 = FancyBboxPatch((0.5, 2), 2.5, 1.5, boxstyle="round,pad=0.1",
+                       facecolor='#E3F2FD', edgecolor='#1976D2', linewidth=2)
+ax.add_patch(box1)
+ax.text(1.75, 2.75, 'BERT\nEncoder', ha='center', va='center', fontsize=10, fontweight='bold')
+
+# Right BERT encoder (identical)
+box2 = FancyBboxPatch((7, 2), 2.5, 1.5, boxstyle="round,pad=0.1",
+                       facecolor='#E3F2FD', edgecolor='#1976D2', linewidth=2)
+ax.add_patch(box2)
+ax.text(8.25, 2.75, 'BERT\nEncoder', ha='center', va='center', fontsize=10, fontweight='bold')
+ax.text(8.25, 2.1, '(shared weights)', ha='center', va='center', fontsize=8, style='italic', color='#666')
+
+# Input sentences
+ax.text(1.75, 1.5, '"The cat is sleeping"', ha='center', va='center', fontsize=9, style='italic')
+ax.text(8.25, 1.5, '"A feline is napping"', ha='center', va='center', fontsize=9, style='italic')
+ax.annotate('', xy=(1.75, 2), xytext=(1.75, 1.7),
+           arrowprops=dict(arrowstyle='->', color='#666', lw=1.5))
+ax.annotate('', xy=(8.25, 2), xytext=(8.25, 1.7),
+           arrowprops=dict(arrowstyle='->', color='#666', lw=1.5))
+
+# Output embeddings
+ax.scatter([1.75], [4], s=200, c='#4CAF50', edgecolors='black', linewidth=1.5, zorder=5)
+ax.scatter([8.25], [4], s=200, c='#4CAF50', edgecolors='black', linewidth=1.5, zorder=5)
+ax.text(1.75, 4, 'e₁', ha='center', va='center', fontsize=10, fontweight='bold')
+ax.text(8.25, 4, 'e₂', ha='center', va='center', fontsize=10, fontweight='bold')
+ax.annotate('', xy=(1.75, 3.8), xytext=(1.75, 3.5),
+           arrowprops=dict(arrowstyle='->', color='#666', lw=1.5))
+ax.annotate('', xy=(8.25, 3.8), xytext=(8.25, 3.5),
+           arrowprops=dict(arrowstyle='->', color='#666', lw=1.5))
+
+# Similarity computation in middle
+ax.annotate('', xy=(3.5, 4), xytext=(6.5, 4),
+           arrowprops=dict(arrowstyle='<->', color='#4CAF50', lw=2))
+ax.text(5, 4.3, 'cosine similarity', ha='center', va='center', fontsize=9, color='#4CAF50')
+
+# Training signal
+ax.text(5, 0.8, 'Paraphrase pair → push embeddings closer', ha='center', va='center',
+        fontsize=10, color='#4CAF50', fontweight='bold')
+ax.text(5, 0.4, 'Unrelated pair → push embeddings apart', ha='center', va='center',
+        fontsize=10, color='#E53935', fontweight='bold')
+
+plt.tight_layout()
+plt.show()
+```
+
+The key insight: by training on millions of sentence pairs (from datasets like NLI, paraphrase corpora, and question-answer pairs), the model learns to capture semantic similarity—not just surface-level word overlap. This is why Sentence Transformers produce excellent embeddings out of the box, unlike raw BERT which needs task-specific fine-tuning.
+
+For a deeper dive into contrastive learning techniques, see @sec-contrastive-learning. For training your own sentence embeddings, see @sec-custom-embedding-strategies.
 
 ## Key Takeaways
 
