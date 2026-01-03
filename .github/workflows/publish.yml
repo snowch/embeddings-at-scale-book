@@ -91,6 +91,15 @@ jobs:
              index.log
              *.log
 
+      - name: Generate sitemap.xml
+        run: |
+          python scripts/generate-sitemap.py
+
+      - name: Copy robots.txt
+        run: |
+          cp robots.txt _book/robots.txt
+          echo "Copied robots.txt to _book/"
+
       - name: Ensure .nojekyll exists
         run: touch _book/.nojekyll
 
