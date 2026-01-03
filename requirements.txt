@@ -1,6 +1,9 @@
 # Python dependencies for Embeddings at Scale code examples
 # Install with: pip install -r requirements.txt
 
+# Build tools
+PyYAML>=6.0.0
+
 # Core ML & Deep Learning
 Pillow>=10.0.0
 bitsandbytes>=0.41.0

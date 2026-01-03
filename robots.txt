@@ -1,0 +1,16 @@
+# robots.txt for Embeddings at Scale book
+# https://snowch.github.io/embeddings-at-scale-book/
+
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://snowch.github.io/embeddings-at-scale-book/sitemap.xml
+
+# Crawl rate
+Crawl-delay: 1
+
+# Allow all content including PDFs and EPUBs
+Allow: /downloads/
+Allow: /*.pdf$
+Allow: /*.epub$
