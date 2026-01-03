@@ -109,6 +109,7 @@ format:
     code-copy: true
     code-overflow: wrap
     code-fold: true
+    include-in-header: head.html
     include-after-body: footer.html
 
   pdf:

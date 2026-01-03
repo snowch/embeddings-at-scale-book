@@ -5,6 +5,7 @@ import yaml
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any
+from xml.sax.saxutils import escape
 
 
 def extract_chapters_from_config(config_path: Path) -> List[str]:
@@ -49,7 +50,8 @@ def extract_chapters_from_config(config_path: Path) -> List[str]:
 
 def generate_sitemap(base_url: str, urls: List[str], output_path: Path):
     """Generate sitemap.xml file."""
-    today = datetime.now().strftime('%Y-%m-%d')
+    # Use W3C datetime format as preferred by Google
+    today = datetime.now().strftime('%Y-%m-%dT%H:%M:%S+00:00')
 
     # Start XML
     xml_lines = [
@@ -89,7 +91,7 @@ def generate_sitemap(base_url: str, urls: List[str], output_path: Path):
 
         xml_lines.extend([
             '  <url>',
-            f'    <loc>{full_url}</loc>',
+            f'    <loc>{escape(full_url)}</loc>',
             f'    <lastmod>{today}</lastmod>',
             f'    <changefreq>{changefreq}</changefreq>',
             f'    <priority>{priority}</priority>',
@@ -100,7 +102,7 @@ def generate_sitemap(base_url: str, urls: List[str], output_path: Path):
     for download_file in ['Embeddings-at-Scale.pdf', 'Embeddings-at-Scale.epub']:
         xml_lines.extend([
             '  <url>',
-            f'    <loc>{base_url}/downloads/{download_file}</loc>',
+            f'    <loc>{escape(f"{base_url}/downloads/{download_file}")}</loc>',
             f'    <lastmod>{today}</lastmod>',
             f'    <changefreq>monthly</changefreq>',
             f'    <priority>0.9</priority>',
