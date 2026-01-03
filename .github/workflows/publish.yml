@@ -95,6 +95,22 @@ jobs:
         run: |
           python scripts/generate-sitemap.py
 
+      - name: Validate sitemap.xml
+        run: |
+          python3 -c "
+          import xml.etree.ElementTree as ET
+          tree = ET.parse('_book/sitemap.xml')
+          root = tree.getroot()
+          namespaces = {'sm': 'http://www.sitemaps.org/schemas/sitemap/0.9'}
+          urls = root.findall('.//sm:url', namespaces)
+          print(f'✓ Sitemap is valid XML')
+          print(f'✓ Total URLs: {len(urls)}')
+          assert len(urls) > 0, 'Sitemap must contain at least one URL'
+          assert all(url.find('sm:loc', namespaces) is not None for url in urls), 'All URLs must have <loc> element'
+          print('✓ All URLs have required <loc> element')
+          print('✓ Sitemap validation passed')
+          "
+
       - name: Copy robots.txt
         run: |
           cp robots.txt _book/robots.txt
