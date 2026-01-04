@@ -170,6 +170,33 @@ def node2vec_walk(graph, start_node, walk_length, p=1, q=1):
     return walk
 ```
 
+### RDF2Vec: Knowledge Graph Embeddings
+
+RDF2Vec [@ristoski2016rdf2vec] adapts the Node2Vec approach for RDF knowledge graphs like DBpedia, Wikidata, and enterprise knowledge bases. Instead of treating nodes generically, it handles semantic triples (subject-predicate-object) and generates reusable entity embeddings.
+
+The approach extracts random walks from knowledge graphs, optionally incorporating Weisfeiler-Lehman subtree patterns to capture richer structural information, then applies Word2Vec to learn embeddings. Unlike task-specific methods, RDF2Vec produces general-purpose entity vectors that can be reused across multiple downstream applications.
+
+**Key advantages:**
+
+- **Pre-trained models available**: KGvec2go hosts embeddings for DBpedia, Wikidata, WordNet, and other major knowledge graphs
+- **Incremental updates**: Can adapt embeddings for graph updates without complete retraining
+- **Task-independent**: Same embeddings work for classification, link prediction, similarity search, and other tasks
+- **Production-ready**: PyRDF2Vec library provides easy implementation
+
+**When to use RDF2Vec:**
+
+- Entity classification in knowledge graphs
+- Knowledge graph completion and link prediction
+- Semantic search over structured enterprise data
+- Integration with existing RDF/SPARQL infrastructure
+- Applications requiring pre-computed embeddings from DBpedia or Wikidata
+
+**Resources:**
+
+- [PyRDF2Vec library](https://pyrdf2vec.readthedocs.io/) for implementation
+- [KGvec2go](http://kgvec2go.org/) for pre-trained embeddings
+- For comprehensive coverage, see *Embedding Knowledge Graphs with RDF2vec* [@paulheim2023rdf2vec]
+
 ### GraphSAGE: Neighborhood Aggregation
 
 GraphSAGE learns embeddings by aggregating features from a node's neighbors:
