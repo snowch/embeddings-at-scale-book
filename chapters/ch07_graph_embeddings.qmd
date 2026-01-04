@@ -126,6 +126,7 @@ Nodes in the same community have high similarity because they share connections.
 | Architecture | Type | Strengths | Use Cases |
 |-------------|------|-----------|-----------|
 | [Node2Vec](https://github.com/aditya-grover/node2vec) | Random walks | Simple, scalable | Homogeneous graphs |
+| [RDF2Vec](https://github.com/IBCNServices/pyRDF2Vec) | Random walks | Pre-trained KG models | RDF knowledge graphs |
 | [GraphSAGE](https://github.com/williamleif/GraphSAGE) | Neighborhood aggregation | Inductive learning | New nodes |
 | [GAT](https://github.com/PetarV-/GAT) | Graph attention | Weighted neighbors | Heterogeneous graphs |
 | [TransE](https://github.com/thunlp/OpenKE) | Translation-based | Link prediction | Knowledge graphs |
