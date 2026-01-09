@@ -219,173 +219,48 @@ Generic embeddings optimize for average performance across diverse tasks. Domain
 
 How fine-grained must similarity be?
 
-```python
-class SemanticGranularity:
-    """
-    Examples of semantic granularity requirements across domains
-    """
-
-    COARSE = {
-        'name': 'Coarse-grained',
-        'example': 'News article categorization',
-        'requirement': 'Distinguish broad topics (sports vs. politics vs. technology)',
-        'embedding_dim': '128-256 sufficient',
-        'training_data': '10K-100K examples'
-    }
-
-    MEDIUM = {
-        'name': 'Medium-grained',
-        'example': 'E-commerce product search',
-        'requirement': 'Distinguish product types and attributes (running shoes vs. hiking boots)',
-        'embedding_dim': '256-512 recommended',
-        'training_data': '100K-1M examples'
-    }
-
-    FINE = {
-        'name': 'Fine-grained',
-        'example': 'Legal document retrieval',
-        'requirement': 'Distinguish subtle legal distinctions (contract types, precedent applicability)',
-        'embedding_dim': '512-768 recommended',
-        'training_data': '1M-10M examples'
-    }
-
-    ULTRA_FINE = {
-        'name': 'Ultra-fine',
-        'example': 'Molecular drug discovery',
-        'requirement': 'Distinguish molecules with minor structural differences that dramatically affect properties',
-        'embedding_dim': '768-1024+ required',
-        'training_data': '10M+ examples or sophisticated augmentation'
-    }
-```
+| Granularity | Example Use Case | Requirement | Embedding Dim | Training Data |
+|-------------|------------------|-------------|---------------|---------------|
+| **Coarse-grained** | News article categorization | Distinguish broad topics (sports vs. politics vs. technology) | 128-256 | 10K-100K examples |
+| **Medium-grained** | E-commerce product search | Distinguish product types and attributes (running shoes vs. hiking boots) | 256-512 | 100K-1M examples |
+| **Fine-grained** | Legal document retrieval | Distinguish subtle legal distinctions (contract types, precedent applicability) | 512-768 | 1M-10M examples |
+| **Ultra-fine** | Molecular drug discovery | Distinguish molecules with minor structural differences that dramatically affect properties | 768-1024+ | 10M+ examples or sophisticated augmentation |
 
 **The Granularity-Dimension Relationship**: Finer semantic distinctions require higher-dimensional embeddings. You cannot reliably distinguish 10,000 fine-grained categories in 128 dimensions—the information simply doesn't fit.
 
 **2. Asymmetric Similarity**
 
-Are similarities symmetric or asymmetric?
+Are similarities symmetric or asymmetric? In asymmetric tasks, the query and document have fundamentally different characteristics:
 
-```python
-class AsymmetricSimilarity:
-    """
-    Handle asymmetric similarity (query → document differs from document → query)
-    """
+- **Queries** are typically short, focused, and incomplete
+- **Documents** are longer, complete, and information-rich
 
-    def __init__(self, embedding_dim=512):
-        self.query_encoder = QueryEncoder(embedding_dim)
-        self.document_encoder = DocumentEncoder(embedding_dim)
+The key architectural pattern: **use separate encoders for queries and documents**. For example, "running shoes" (query) → "Nike Air Zoom Pegasus..." (document) has HIGH similarity, but reversing this comparison yields LOWER similarity because the specific product name is too narrow.
 
-    def encode_query(self, query_text):
-        """
-        Encode query with query-specific model
-        Queries are typically short, focused, and incomplete
-        """
-        return self.query_encoder.encode(query_text)
+**Common Asymmetric Use Cases:**
 
-    def encode_document(self, document_text):
-        """
-        Encode document with document-specific model
-        Documents are longer, complete, and information-rich
-        """
-        return self.document_encoder.encode(document_text)
-
-    def similarity(self, query_embedding, document_embedding):
-        """
-        Asymmetric similarity: query → document
-        """
-        # In asymmetric setup, similarity is directional
-        # "running shoes" → "Nike Air Zoom Pegasus..." (HIGH similarity)
-        # "Nike Air Zoom Pegasus..." → "running shoes" (LOWER similarity - too specific)
-
-        return cosine_similarity(query_embedding, document_embedding)
-
-
-# Use cases requiring asymmetric similarity:
-asymmetric_use_cases = [
-    {
-        'domain': 'Question Answering',
-        'query': 'Short question',
-        'target': 'Long passage with answer',
-        'asymmetry': 'Question seeks answer; answer does not seek question'
-    },
-    {
-        'domain': 'Web Search',
-        'query': '2-5 keywords',
-        'target': 'Full web page content',
-        'asymmetry': 'Query is intent; document is content'
-    },
-    {
-        'domain': 'Image Search',
-        'query': 'Text description',
-        'target': 'Image',
-        'asymmetry': 'Cross-modal: text → image different from image → text'
-    },
-    {
-        'domain': 'Recommendation',
-        'query': 'User behavior history',
-        'target': 'Product catalog',
-        'asymmetry': 'User history implies preferences; products have features'
-    }
-]
-```
+| Domain | Query Type | Target Type | Why Asymmetric |
+|--------|-----------|-------------|----------------|
+| **Question Answering** | Short question | Long passage with answer | Question seeks answer; answer does not seek question |
+| **Web Search** | 2-5 keywords | Full web page content | Query is intent; document is content |
+| **Image Search** | Text description | Image | Cross-modal: text → image different from image → text |
+| **Recommendation** | User behavior history | Product catalog | User history implies preferences; products have features |
 
 **Why Asymmetric Matters**: Using symmetric embeddings (same encoder for queries and documents) for asymmetric tasks leaves performance on the table. Specialized encoders can optimize for each side's characteristics.
 
 **3. Multi-Faceted Similarity**
 
-Do items have multiple aspects of similarity?
+Do items have multiple aspects of similarity? Many domains require representing different facets of similarity in separate embedding spaces. The key architectural pattern: **use separate encoders for different aspects, then combine with weighted fusion**.
 
-```python
-class MultiFacetedEmbeddings:
-    """
-    Represent multiple facets of similarity in separate embedding spaces
-    """
+**Example: E-commerce Products**
 
-    def __init__(self):
-        # E-commerce example: products similar in different ways
-        self.visual_encoder = VisualEncoder()  # Visual appearance
-        self.functional_encoder = FunctionalEncoder()  # Use case/function
-        self.attribute_encoder = AttributeEncoder()  # Specific attributes (brand, price, etc.)
+Products can be similar in multiple independent ways:
 
-    def encode_product(self, product):
-        """
-        Encode product with multiple faceted embeddings
-        """
-        return {
-            'visual': self.visual_encoder.encode(product.images),
-            'functional': self.functional_encoder.encode(product.description),
-            'attributes': self.attribute_encoder.encode({
-                'brand': product.brand,
-                'price_tier': self.discretize_price(product.price),
-                'category': product.category
-            })
-        }
+- **Visual facet**: Appearance, color, texture, shape (image encoder)
+- **Functional facet**: Use case, purpose, features (text encoder on descriptions)
+- **Attribute facet**: Brand, price tier, category (structured data encoder)
 
-    def multi_faceted_search(self, query, facet_weights=None):
-        """
-        Search using multiple facets with different weights
-        """
-        if facet_weights is None:
-            facet_weights = {'visual': 0.4, 'functional': 0.4, 'attributes': 0.2}
-
-        # Encode query (may not have all facets)
-        query_embs = self.encode_query(query)
-
-        # Search each facet independently
-        results_by_facet = {}
-        for facet in query_embs:
-            results_by_facet[facet] = self.search_facet(
-                query_embs[facet],
-                facet_index=getattr(self, f'{facet}_index')
-            )
-
-        # Combine results with weighted fusion
-        final_results = self.fuse_facet_results(
-            results_by_facet,
-            weights=facet_weights
-        )
-
-        return final_results
-```
+At search time, encode the query for each applicable facet, search each facet independently, then combine results with weights like `{visual: 0.4, functional: 0.4, attributes: 0.2}`. This allows tuning the balance between "looks like" vs "used for" vs "same brand/price" depending on the query.
 
 **Multi-Faceted Use Cases**:
 
@@ -396,130 +271,36 @@ class MultiFacetedEmbeddings:
 
 **4. Temporal Dynamics**
 
-Does similarity change over time?
+Does similarity change over time? Real-world entities evolve: user interests shift, document relevance decays, product popularity cycles, and word meanings drift. Temporal embeddings capture this time dimension.
 
-```python
-class TemporalEmbeddings:
-    """
-    Handle time-varying embeddings
-    """
+**Architectural Approaches:**
 
-    def __init__(self, embedding_dim=512, time_encoding_dim=64):
-        self.static_encoder = StaticEncoder(embedding_dim - time_encoding_dim)
-        self.time_encoder = TimeEncoder(time_encoding_dim)
-        self.embedding_dim = embedding_dim
+1. **Time encoding**: Concatenate static content embedding with time encoding (positional or learned), resulting in embeddings like `[static_emb (448d), time_emb (64d)]`
+2. **Time-decayed similarity**: Apply exponential decay to similarity scores based on temporal distance (e.g., 180-day half-life: `decay = exp(-days/180)`)
+3. **Time-sliced embeddings**: Maintain separate embeddings per time window (quarterly, yearly)
 
-    def encode_with_time(self, content, timestamp):
-        """
-        Encode content with temporal context
-        """
-        # Static content embedding
-        static_emb = self.static_encoder.encode(content)
+**Temporal Use Cases:**
 
-        # Time encoding (positional encoding or learned)
-        time_emb = self.time_encoder.encode(timestamp)
-
-        # Concatenate
-        temporal_emb = torch.cat([static_emb, time_emb], dim=-1)
-
-        return temporal_emb
-
-    def time_decayed_similarity(self, query_time, document_time, document_emb):
-        """
-        Adjust similarity based on temporal distance
-        """
-        time_diff_days = abs((query_time - document_time).days)
-
-        # Exponential decay: more recent = more relevant
-        decay_factor = np.exp(-time_diff_days / 180)  # 180-day half-life
-
-        return document_emb * decay_factor
-
-
-# Domains requiring temporal awareness:
-temporal_use_cases = [
-    {
-        'domain': 'News Search',
-        'requirement': 'Recent articles more relevant for most queries',
-        'approach': 'Time decay on similarity scores'
-    },
-    {
-        'domain': 'Social Media',
-        'requirement': 'Trending topics change rapidly',
-        'approach': 'Short-window embeddings, frequent retraining'
-    },
-    {
-        'domain': 'Fashion/Trends',
-        'requirement': 'Style similarity depends on current trends',
-        'approach': 'Time-conditioned embeddings, seasonal retraining'
-    },
-    {
-        'domain': 'Scientific Research',
-        'requirement': 'Paradigm shifts change what\'s similar',
-        'approach': 'Period-specific embeddings (pre/post major discoveries)'
-    }
-]
-```
+| Domain | Requirement | Approach |
+|--------|-------------|----------|
+| **News Search** | Recent articles more relevant for most queries | Time decay on similarity scores |
+| **Social Media** | Trending topics change rapidly | Short-window embeddings, frequent retraining |
+| **Fashion/Trends** | Style similarity depends on current trends | Time-conditioned embeddings, seasonal retraining |
+| **Scientific Research** | Paradigm shifts change what's similar | Period-specific embeddings (pre/post major discoveries) |
 
 **5. Hierarchical Structure**
 
-Do your items have natural hierarchies?
+Do your items have natural hierarchies? Many domains have inherent taxonomies: product categories, organizational structures, disease classifications, and topic hierarchies. The key architectural pattern: **encode at different hierarchy levels with different dimensionality**.
 
-```python
-class HierarchicalEmbeddings:
-    """
-    Preserve hierarchical structure in embedding space
-    """
+**Example: E-commerce Hierarchy**
 
-    def __init__(self):
-        self.level_encoders = {
-            'category': Encoder(dim=256),    # Coarse level
-            'subcategory': Encoder(dim=512),  # Medium level
-            'product': Encoder(dim=768)       # Fine level
-        }
+- **Category** (coarse): "Electronics" → 256-dim embedding
+- **Subcategory** (medium): "Smartphones" → 512-dim embedding
+- **Product** (fine): "iPhone 15 Pro Max 256GB" → 768-dim embedding
 
-    def encode_hierarchical(self, item, level='product'):
-        """
-        Encode at different hierarchy levels
+Coarse queries ("electronics") match at category level, while fine queries ("iphone 15 pro max") match at product level. The system classifies query specificity and searches at the appropriate hierarchy level.
 
-        Example:
-          Category: "Electronics"
-          Subcategory: "Smartphones"
-          Product: "iPhone 15 Pro Max 256GB"
-        """
-        embeddings = {}
-
-        # Encode at each level in hierarchy
-        for level_name in ['category', 'subcategory', 'product']:
-            if level_name in item:
-                embeddings[level_name] = self.level_encoders[level_name].encode(
-                    item[level_name]
-                )
-
-            # Stop at requested level
-            if level_name == level:
-                break
-
-        return embeddings
-
-    def hierarchical_search(self, query, level='product'):
-        """
-        Search at appropriate hierarchy level
-
-        Coarse queries ("electronics") match at category level
-        Fine queries ("iphone 15 pro max") match at product level
-        """
-        # Classify query specificity
-        query_level = self.infer_query_level(query)
-
-        # Encode at appropriate level
-        query_emb = self.level_encoders[query_level].encode(query)
-
-        # Search at that level
-        results = self.search_at_level(query_emb, level=query_level)
-
-        return results
-```
+**Benefits**: Enables both broad exploration ("show me electronics") and precise matching ("find this exact phone model") within a unified architecture.
 
 ### Domain-Specific Training Objectives
 
@@ -1106,153 +887,58 @@ At trillion-row scale, the cost-performance trade-off becomes the dominant facto
 
 ### Total Cost of Ownership (TCO) Model
 
-```python
-class EmbeddingTCO:
-    """
-    Comprehensive TCO model for embedding systems
-    """
+Embedding TCO comprises four major components:
 
-    def __init__(self):
-        # Cloud pricing (approximate, as of 2024)
-        self.storage_cost_per_gb_month = 0.023  # S3 standard
-        self.compute_cost_per_hour = 3.0  # A100 GPU
-        self.inference_cost_per_million = 10.0  # Vector DB queries
+1. **Storage costs**: Embeddings + indexing overhead + replication
+2. **Training costs**: Model development + periodic retraining
+3. **Inference costs**: Query processing + vector database operations
+4. **Team costs**: Engineering, ML, and operations personnel
 
-    def calculate_tco(self, config, duration_years=3):
-        """
-        Calculate total cost of ownership
+```{python}
+#| echo: true
+#| code-fold: true
+#| code-summary: "Show storage cost calculation"
+def compute_storage_cost(num_embeddings, dim, duration_years=3):
+    """Calculate storage cost with realistic overhead"""
+    # Cloud pricing (approximate, as of 2024)
+    storage_cost_per_gb_month = 0.023  # S3 standard
 
-        Args:
-            config: {
-                'num_embeddings': 100_000_000_000,
-                'embedding_dim': 768,
-                'qps': 10_000,
-                'training_frequency_per_year': 4,
-                'team_size': 10
-            }
-        """
+    bytes_per_embedding = dim * 4  # float32
+    total_bytes = num_embeddings * bytes_per_embedding
 
-        # Component 1: Storage
-        storage_cost = self.compute_storage_cost(
-            config['num_embeddings'],
-            config['embedding_dim'],
-            duration_years
-        )
+    # Index overhead (HNSW adds ~50%)
+    indexed_bytes = total_bytes * 1.5
 
-        # Component 2: Training
-        training_cost = self.compute_training_cost(
-            config['num_embeddings'],
-            config['training_frequency_per_year'],
-            duration_years
-        )
+    # Replication (3x for availability)
+    replicated_bytes = indexed_bytes * 3
 
-        # Component 3: Inference
-        inference_cost = self.compute_inference_cost(
-            config['qps'],
-            duration_years
-        )
+    # Convert to GB
+    total_gb = replicated_bytes / (1024 ** 3)
 
-        # Component 4: Engineering team
-        team_cost = self.compute_team_cost(
-            config['team_size'],
-            duration_years
-        )
+    # Monthly cost
+    monthly_cost = total_gb * storage_cost_per_gb_month
 
-        # Total
-        total_cost = (
-            storage_cost +
-            training_cost +
-            inference_cost +
-            team_cost
-        )
+    # Total over duration
+    return monthly_cost * 12 * duration_years
 
-        return {
-            'total_cost_3_years': total_cost,
-            'annual_cost': total_cost / duration_years,
-            'breakdown': {
-                'storage': storage_cost,
-                'training': training_cost,
-                'inference': inference_cost,
-                'team': team_cost
-            },
-            'cost_per_embedding': total_cost / config['num_embeddings'],
-            'cost_per_million_queries': inference_cost / (
-                config['qps'] * 60 * 60 * 24 * 365 * duration_years / 1_000_000
-            )
-        }
-
-    def compute_storage_cost(self, num_embeddings, dim, duration_years):
-        """Storage cost with replication and indexing overhead"""
-        bytes_per_embedding = dim * 4  # float32
-        total_bytes = num_embeddings * bytes_per_embedding
-
-        # Index overhead (HNSW adds ~50%)
-        indexed_bytes = total_bytes * 1.5
-
-        # Replication (3x for availability)
-        replicated_bytes = indexed_bytes * 3
-
-        # Convert to GB
-        total_gb = replicated_bytes / (1024 ** 3)
-
-        # Monthly cost
-        monthly_cost = total_gb * self.storage_cost_per_gb_month
-
-        # Total over duration
-        return monthly_cost * 12 * duration_years
-
-    def optimize_for_budget(self, requirements, budget_annual):
-        """
-        Given requirements and budget, find optimal configuration
-        """
-        # Requirements: {'num_embeddings', 'qps', 'min_quality'}
-        # Budget: annual spending limit
-
-        # Explore dimension options
-        dimensions = [128, 256, 384, 512, 768]
-        configs = []
-
-        for dim in dimensions:
-            config = {
-                'num_embeddings': requirements['num_embeddings'],
-                'embedding_dim': dim,
-                'qps': requirements['qps'],
-                'training_frequency_per_year': 4,
-                'team_size': 10
-            }
-
-            tco = self.calculate_tco(config, duration_years=1)
-
-            # Estimate quality (simplified)
-            quality_score = self.estimate_quality(dim, requirements)
-
-            configs.append({
-                'dimension': dim,
-                'annual_cost': tco['annual_cost'],
-                'quality_score': quality_score,
-                'within_budget': tco['annual_cost'] <= budget_annual
-            })
-
-        # Filter to budget
-        viable = [c for c in configs if c['within_budget']]
-
-        if not viable:
-            return {
-                'recommendation': 'INSUFFICIENT_BUDGET',
-                'message': f"Minimum cost: ${min(c['annual_cost'] for c in configs):,.0f}/year"
-            }
-
-        # Choose highest quality within budget
-        best = max(viable, key=lambda c: c['quality_score'])
-
-        return {
-            'recommendation': 'OPTIMAL_CONFIG',
-            'dimension': best['dimension'],
-            'annual_cost': best['annual_cost'],
-            'quality_score': best['quality_score'],
-            'configurations_evaluated': configs
-        }
+# Example: 100B embeddings at 768 dimensions
+storage_cost_3yr = compute_storage_cost(
+    num_embeddings=100_000_000_000,
+    dim=768,
+    duration_years=3
+)
+print(f"Storage cost (100B embeddings, 768-dim, 3 years): ${storage_cost_3yr:,.0f}")
 ```
+
+**TCO Example (100B embeddings, 768-dim, 3 years)**:
+
+- Storage: ~$12M (embeddings + HNSW index + 3x replication)
+- Training: ~$5M (periodic retraining, 4x/year)
+- Inference: ~$25M (10K QPS @ $10/million queries)
+- Team: ~$5M (10-person team, fully loaded)
+- **Total: ~$47M over 3 years** (~$16M/year)
+
+**Cost optimization** through dimension reduction (768→256), quantization (float32→int8), and tiered storage can reduce total costs by 80-90%.
 
 ### Performance-Cost Pareto Frontier
 
@@ -1314,40 +1000,18 @@ print("Configuration space: 6 dims × 4 quantizations × 4 indices = 96 configs"
 
 **Strategy 1: Tiered Embeddings**
 
-Use different dimensions for different data tiers:
+Use different dimensions for different data tiers based on access frequency:
 
-```python
-class TieredEmbeddings:
-    """
-    Different embedding dimensions for different data tiers
-    """
+- **Hot tier** (>1000 queries/day): 768-dim embeddings for highest quality
+- **Warm tier** (10-1000 queries/day): 384-dim embeddings for good balance
+- **Cold tier** (<10 queries/day): 128-dim embeddings for acceptable quality at low cost
 
-    def __init__(self):
-        self.hot_encoder = HighDimEncoder(dim=768)   # Frequent queries
-        self.warm_encoder = MediumDimEncoder(dim=384)  # Moderate queries
-        self.cold_encoder = LowDimEncoder(dim=128)    # Rare queries
+**Cost savings example**:
 
-    def encode_with_tier(self, item, access_frequency):
-        """
-        Encode with appropriate dimension based on access frequency
-        """
-        if access_frequency > 1000:  # >1000 queries/day
-            # Hot tier: high quality, high cost justified
-            return self.hot_encoder.encode(item), 'hot'
-        elif access_frequency > 10:
-            # Warm tier: good quality, moderate cost
-            return self.warm_encoder.encode(item), 'warm'
-        else:
-            # Cold tier: acceptable quality, low cost
-            return self.cold_encoder.encode(item), 'cold'
-
-
-# Cost savings:
-# - 90% of embeddings in cold tier (128-dim): 83% storage savings
-# - 9% in warm tier (384-dim): 50% savings
-# - 1% in hot tier (768-dim): full quality
-# - Overall: ~80% storage cost reduction
-```
+- 90% of embeddings in cold tier (128-dim): 83% storage savings
+- 9% in warm tier (384-dim): 50% savings
+- 1% in hot tier (768-dim): full quality
+- **Overall: ~80% storage cost reduction**
 
 ## Key Takeaways
 

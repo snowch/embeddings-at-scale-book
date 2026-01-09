@@ -656,22 +656,9 @@ for i, k in enumerate(kept):
 
 ### Gradient Accumulation
 
-```{python}
-import torch
+Gradient accumulation simulates large batches by accumulating gradients over multiple micro-batches before updating weights. For example: 8 steps × 256 micro-batch = 2048 effective batch size.
 
-
-class GradientAccumulation:
-    """Simulate large batches through accumulation."""
-
-    def __init__(self, micro_batch=256, effective_batch=2048):
-        self.steps = effective_batch // micro_batch
-        print(f"Accumulating {self.steps} steps: {micro_batch} × {self.steps} = {effective_batch}")
-
-
-trainer = GradientAccumulation(micro_batch=256, effective_batch=2048)
-```
-
-**Note**: Gradient accumulation has a flaw for contrastive learning—each micro-batch only sees its own negatives. Use distributed training for truly large batches.
+**Critical limitation for contrastive learning**: Each micro-batch only sees its own negatives, not the full batch. This severely degrades contrastive loss quality. Use distributed training for truly large batches with proper negative sampling across the full batch.
 
 ### Distributed Contrastive Learning
 
