@@ -129,48 +129,32 @@ print(f"Recommendations for product 0: {recommendations}")
 
 **2. Knowledge Graph Embeddings**
 
-Medical ontologies, scientific taxonomies, and corporate knowledge bases benefit enormously from hyperbolic embeddings:
+Medical ontologies, scientific taxonomies, and corporate knowledge bases benefit enormously from hyperbolic embeddings. Example: ICD-10 disease hierarchies with 14,000+ diseases.
 
-```python
-def embed_medical_ontology():
-    """
-    Medical ontology example: Disease hierarchies
+**Disease Taxonomy Example:**
 
-    ICD-10 codes have 14,000+ diseases organized hierarchically
-    Hyperbolic embeddings in 10-20 dimensions outperform
-    Euclidean embeddings in 300-500 dimensions
-    """
-    # Example: Simplified disease taxonomy
-    disease_taxonomy = {
-        # Cardiovascular diseases
-        'myocardial_infarction': 'ischemic_heart_disease',
-        'angina': 'ischemic_heart_disease',
-        'ischemic_heart_disease': 'cardiovascular_disease',
-
-        'atrial_fibrillation': 'arrhythmia',
-        'ventricular_tachycardia': 'arrhythmia',
-        'arrhythmia': 'cardiovascular_disease',
-
-        # Respiratory diseases
-        'pneumonia': 'lower_respiratory_infection',
-        'bronchitis': 'lower_respiratory_infection',
-        'lower_respiratory_infection': 'respiratory_disease',
-
-        'asthma': 'chronic_respiratory_disease',
-        'copd': 'chronic_respiratory_disease',
-        'chronic_respiratory_disease': 'respiratory_disease',
-    }
-
-    trainer = HierarchicalEmbeddingTrainer(
-        disease_taxonomy,
-        embedding_dim=10,
-        curvature=1.0
-    )
-
-    trainer.train(num_epochs=2000, verbose=True)
-
-    return trainer
 ```
+cardiovascular_disease/
+├── ischemic_heart_disease/
+│   ├── myocardial_infarction
+│   └── angina
+└── arrhythmia/
+    ├── atrial_fibrillation
+    └── ventricular_tachycardia
+
+respiratory_disease/
+├── lower_respiratory_infection/
+│   ├── pneumonia
+│   └── bronchitis
+└── chronic_respiratory_disease/
+    ├── asthma
+    └── copd
+```
+
+**Hyperbolic embeddings** in 10-20 dimensions can outperform Euclidean embeddings in 300-500 dimensions for such hierarchies. Train using contrastive loss where:
+
+- Positive pairs: Parent-child relationships (e.g., "angina" ↔ "ischemic_heart_disease")
+- Negative pairs: Cross-hierarchy diseases (e.g., "angina" ↔ "pneumonia")
 
 :::{.callout-tip}
 ## Dimensionality Advantage
