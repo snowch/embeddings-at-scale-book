@@ -689,6 +689,7 @@ for stage, completion in progress.items():
 Your embedding journey represents more than technology adoption—it's organizational transformation creating new capabilities, new ways of working, and new sources of competitive advantage:
 
 **Immediate next steps** (Months 1-6):
+
 1. **Secure commitment**: Get executive sponsorship and funding for multi-year program
 2. **Build core team**: Recruit or assign 3-5 embedding specialists combining ML + infrastructure + domain expertise
 3. **Select initial application**: Choose high-value, achievable first use case proving value
@@ -696,6 +697,7 @@ Your embedding journey represents more than technology adoption—it's organizat
 5. **Define success metrics**: Clear business metrics and technical benchmarks for evaluation
 
 **Near-term goals** (Months 6-18):
+
 1. **Demonstrate value**: First production application delivering measurable business impact
 2. **Build platform**: Reusable embedding infrastructure supporting multiple applications
 3. **Develop expertise**: Train teams on embedding best practices through hands-on projects
@@ -703,6 +705,7 @@ Your embedding journey represents more than technology adoption—it's organizat
 5. **Establish governance**: Data quality, model management, monitoring standards
 
 **Medium-term objectives** (Years 2-3):
+
 1. **Scale enterprise-wide**: Embeddings become standard approach across organization
 2. **Build proprietary advantages**: Unique data, specialized models, domain expertise
 3. **Optimize operations**: Continuous improvement reducing costs while improving quality
@@ -710,6 +713,7 @@ Your embedding journey represents more than technology adoption—it's organizat
 5. **Establish thought leadership**: Publications, conferences, industry influence
 
 **Long-term vision** (Years 3-5):
+
 1. **Embedding-native operations**: AI-powered decision making across organization
 2. **Sustained competitive advantage**: Moats widening over time through compounding data and learning
 3. **Market leadership**: Recognized industry leader in embedding applications

@@ -505,6 +505,7 @@ Many organizations have valuable data they cannot share: medical records, financ
 ### The Federated Learning Paradigm
 
 Traditional centralized training:
+
 1. Collect all data in one place
 2. Train embedding model
 3. Deploy to all clients
@@ -512,6 +513,7 @@ Traditional centralized training:
 **Problem**: Data cannot be centralized due to privacy, regulations (GDPR, HIPAA), competitive concerns, or data volume.
 
 Federated training:
+
 1. Each client trains on local data
 2. Clients share model updates (gradients, embeddings)
 3. Central server aggregates updates

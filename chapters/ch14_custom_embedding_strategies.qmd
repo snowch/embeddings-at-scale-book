@@ -202,6 +202,7 @@ print(f"Fine-tuner initialized with model: {finetuner.base_model_name}")
 :::{.callout-important}
 ## Fine-Tuning Pitfalls
 Common mistakes that tank fine-tuning performance:
+
 1. **Insufficient data**: Need 10K+ examples minimum, 100K+ for best results
 2. **Poor negative sampling**: Random negatives too easy; model doesn't learn distinction
 3. **Catastrophic forgetting**: Fine-tuning destroys general capabilities; use lower learning rates
@@ -572,6 +573,7 @@ Most real-world embedding systems must optimize for multiple objectives simultan
 ### The Multi-Objective Challenge
 
 Consider an e-commerce search system. The embedding should:
+
 1. **Semantic relevance**: Match customer intent
 2. **Attribute accuracy**: Preserve product attributes (category, brand, price)
 3. **Personalization**: Adapt to user preferences
