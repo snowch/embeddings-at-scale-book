@@ -534,6 +534,7 @@ Some changes cannot be made backwards-compatible:
 - Removing entire entities
 
 For breaking changes:
+
 1. **Version bump**: Increment major version (v1 → v2)
 2. **Parallel operation**: Run both versions simultaneously
 3. **Gradual migration**: Migrate consumers incrementally
