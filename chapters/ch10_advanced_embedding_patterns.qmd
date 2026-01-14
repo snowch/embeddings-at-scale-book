@@ -195,7 +195,7 @@ print(f"Combined categorical embedding: {categorical_embedding.shape}")
 
 ### Numerical Feature Preprocessing
 
-Numerical features need careful preprocessing before embedding:
+Numerical features need careful preprocessing before embedding. Raw numerical values often span wildly different scales (bytes in millions, durations in milliseconds) and follow long-tail distributions. Without preprocessing, large-scale features dominate similarity calculations—the same problem as naive concatenation. Proper preprocessing ensures each feature contributes proportionally:
 
 ```{python}
 #| code-fold: false
