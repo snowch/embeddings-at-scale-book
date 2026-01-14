@@ -271,114 +271,17 @@ Single vectors compress all information into one point. Multi-vector representat
 
 ### ColBERT-Style Late Interaction
 
-ColBERT represents documents with one vector per token, enabling fine-grained matching:
-
-```{python}
-#| code-fold: false
-
-"""
-ColBERT-Style Multi-Vector Representation
-
-Instead of one vector per document, use one vector per token.
-Matching happens at the token level (late interaction).
-"""
-
-import numpy as np
-
-def simulate_colbert_encoding(text: str, dim: int = 128) -> np.ndarray:
-    """
-    Simulate ColBERT token-level encoding.
-
-    Returns: Matrix of shape (num_tokens, dim)
-    """
-    tokens = text.lower().split()
-    np.random.seed(hash(text) % 2**32)
-    # Each token gets its own embedding
-    return np.random.randn(len(tokens), dim)
-
-def colbert_similarity(query_vecs: np.ndarray, doc_vecs: np.ndarray) -> float:
-    """
-    ColBERT MaxSim: For each query token, find max similarity to any doc token.
-    Sum these max similarities.
-    """
-    # Compute all pairwise similarities
-    similarities = query_vecs @ doc_vecs.T  # (q_tokens, d_tokens)
-
-    # MaxSim: max over document tokens for each query token
-    max_sims = similarities.max(axis=1)
-
-    return max_sims.sum()
-
-# Example
-query = "machine learning models"
-doc1 = "deep learning neural network models for prediction"
-doc2 = "cooking recipes and kitchen equipment"
-
-query_vecs = simulate_colbert_encoding(query)
-doc1_vecs = simulate_colbert_encoding(doc1)
-doc2_vecs = simulate_colbert_encoding(doc2)
-
-sim1 = colbert_similarity(query_vecs, doc1_vecs)
-sim2 = colbert_similarity(query_vecs, doc2_vecs)
-
-print(f"Query: '{query}'")
-print(f"Query vectors shape: {query_vecs.shape}")
-print(f"\nDoc 1: '{doc1}'")
-print(f"Doc 1 vectors shape: {doc1_vecs.shape}")
-print(f"Similarity: {sim1:.2f}")
-print(f"\nDoc 2: '{doc2}'")
-print(f"Similarity: {sim2:.2f}")
-```
+ColBERT represents documents with one vector per token, enabling fine-grained matching. Instead of encoding a document into a single vector, ColBERT produces a matrix where each row is the embedding of a token. Matching uses "MaxSim" scoring: for each query token, find the most similar document token, then sum these maximum similarities.
 
 **When to use multi-vector:**
 - Fine-grained matching matters (exact phrase matching)
 - Documents are long and diverse
 - You can afford 10-100x storage overhead
+- Use libraries like `colbert-ir` or RAGatouille for production implementations
 
 ## Matryoshka Embeddings {#sec-matryoshka-embeddings}
 
-Matryoshka (nested doll) embeddings encode information hierarchically—the first N dimensions are a valid embedding on their own:
-
-```{python}
-#| code-fold: false
-
-"""
-Matryoshka Embeddings: Variable-Length Representations
-
-The first N dimensions form a valid embedding for any N.
-Trade off quality vs. efficiency at query time.
-"""
-
-import numpy as np
-from sklearn.metrics.pairwise import cosine_similarity
-
-# Simulate Matryoshka embeddings (trained to work at multiple dimensions)
-np.random.seed(42)
-
-def simulate_matryoshka_embedding(text: str, full_dim: int = 768) -> np.ndarray:
-    """
-    Simulate a Matryoshka embedding where prefixes are valid embeddings.
-    Real models are trained with a special loss to ensure this property.
-    """
-    np.random.seed(hash(text) % 2**32)
-    return np.random.randn(full_dim)
-
-texts = [
-    "machine learning for natural language processing",
-    "deep learning NLP models",
-    "cooking italian pasta recipes",
-]
-
-embeddings = [simulate_matryoshka_embedding(t) for t in texts]
-
-# Compare at different dimension prefixes
-print("Similarity at different dimensions:\n")
-for dim in [64, 128, 256, 768]:
-    truncated = [e[:dim] for e in embeddings]
-    sim_01 = cosine_similarity([truncated[0]], [truncated[1]])[0][0]
-    sim_02 = cosine_similarity([truncated[0]], [truncated[2]])[0][0]
-    print(f"  {dim} dims: ML↔DL={sim_01:.3f}, ML↔Cooking={sim_02:.3f}")
-```
+Matryoshka (nested doll) embeddings encode information hierarchically—the first N dimensions are a valid embedding on their own. Models are trained with a special loss function that ensures prefixes of the full embedding (e.g., first 64, 128, 256 dimensions) maintain semantic relationships at each truncation level.
 
 **Benefits of Matryoshka embeddings:**
 - Use short prefixes for fast initial retrieval
@@ -386,77 +289,30 @@ for dim in [64, 128, 256, 768]:
 - Adapt to latency/quality requirements at runtime
 - Reduce storage by storing only needed dimensions
 
+**Available models:**
+- Nomic AI's `nomic-embed-text-v1.5` (768→64 dims)
+- Voyage AI's models support variable dimensions
+- Sentence Transformers with Matryoshka training
+
 ## Learned Sparse Embeddings {#sec-learned-sparse-embeddings}
 
-SPLADE and similar models learn sparse representations that combine the best of dense and sparse retrieval:
+SPLADE and similar models learn sparse representations that combine the best of dense and sparse retrieval. Instead of fixed vocabulary matching like BM25, these models use transformers to predict importance weights for vocabulary terms, including expansion to semantically related terms not present in the original text.
 
-```{python}
-#| code-fold: false
-
-"""
-Learned Sparse Embeddings (SPLADE-style)
-
-Learn to predict which vocabulary terms are important for a document.
-Results in sparse vectors with interpretable dimensions (actual words).
-"""
-
-import numpy as np
-
-def simulate_splade_embedding(text: str, vocab_size: int = 30000) -> dict:
-    """
-    Simulate SPLADE-style sparse embedding.
-
-    Returns dict mapping vocabulary indices to importance weights.
-    Real SPLADE uses a transformer to predict term importance.
-    """
-    words = text.lower().split()
-    sparse = {}
-
-    np.random.seed(hash(text) % 2**32)
-
-    for word in words:
-        # Simulate vocabulary index
-        idx = hash(word) % vocab_size
-        # Simulate learned importance weight
-        weight = np.random.exponential(1.0)
-        sparse[idx] = max(sparse.get(idx, 0), weight)
-
-    # SPLADE also expands to related terms
-    for _ in range(len(words)):
-        expanded_idx = np.random.randint(vocab_size)
-        sparse[expanded_idx] = np.random.exponential(0.5)
-
-    return sparse
-
-def sparse_dot_product(sparse1: dict, sparse2: dict) -> float:
-    """Compute dot product of two sparse vectors."""
-    score = 0.0
-    for idx, weight1 in sparse1.items():
-        if idx in sparse2:
-            score += weight1 * sparse2[idx]
-    return score
-
-# Example
-query = "machine learning models"
-doc1 = "neural network deep learning"
-doc2 = "kitchen cooking recipes"
-
-q_sparse = simulate_splade_embedding(query)
-d1_sparse = simulate_splade_embedding(doc1)
-d2_sparse = simulate_splade_embedding(doc2)
-
-print(f"Query sparse embedding: {len(q_sparse)} non-zero terms")
-print(f"Doc 1 sparse embedding: {len(d1_sparse)} non-zero terms")
-print(f"Doc 2 sparse embedding: {len(d2_sparse)} non-zero terms")
-print(f"\nQuery ↔ Doc 1 (related): {sparse_dot_product(q_sparse, d1_sparse):.2f}")
-print(f"Query ↔ Doc 2 (unrelated): {sparse_dot_product(q_sparse, d2_sparse):.2f}")
-```
+**How it works:**
+1. Pass text through a transformer encoder
+2. For each vocabulary term, predict an importance weight
+3. Result is a sparse vector (typically 100-200 non-zero terms out of 30K vocabulary)
+4. Can be indexed with inverted indices for efficient retrieval
 
 **Benefits of learned sparse:**
 - Interpretable (dimensions correspond to vocabulary terms)
 - Works with inverted indices (fast exact matching)
-- Captures term expansion (related terms)
+- Captures term expansion (related terms automatically included)
 - Combines well with dense embeddings (hybrid search)
+
+**Available implementations:**
+- Primal library for SPLADE models
+- Pinecone and Qdrant support hybrid sparse+dense search
 
 ## Time-Series Pattern Embeddings {#sec-timeseries-pattern-embeddings}
 
@@ -547,65 +403,7 @@ print(f"  sine ↔ random: {cosine_similarity([embeddings['sine']], [embeddings[
 
 ### Learned Temporal Embeddings
 
-For more complex patterns, use neural networks:
-
-```{python}
-#| code-fold: false
-
-"""
-Learned Temporal Embeddings
-
-Use LSTMs, Transformers, or Temporal CNNs to learn time-series representations.
-This example shows a simplified LSTM-style encoding.
-"""
-
-import numpy as np
-
-class SimpleTemporalEncoder:
-    """
-    Simplified temporal encoder for illustration.
-    Production systems use PyTorch/TensorFlow LSTM or Transformer.
-    """
-
-    def __init__(self, hidden_dim: int = 64):
-        self.hidden_dim = hidden_dim
-        np.random.seed(42)
-        # Simplified: project statistics to hidden space
-        self.projection = np.random.randn(10, hidden_dim) * 0.1
-
-    def encode(self, series: np.ndarray) -> np.ndarray:
-        """Encode time-series to fixed-length embedding."""
-        # Extract temporal features
-        features = np.array([
-            np.mean(series),
-            np.std(series),
-            np.min(series),
-            np.max(series),
-            np.mean(np.diff(series)),  # Trend
-            np.std(np.diff(series)),   # Volatility
-            np.corrcoef(series[:-1], series[1:])[0, 1],  # Autocorrelation
-            len(np.where(np.diff(np.sign(series)))[0]),  # Zero crossings
-            np.percentile(series, 25),
-            np.percentile(series, 75),
-        ])
-        features = np.nan_to_num(features)
-
-        # Project to embedding space
-        embedding = np.tanh(features @ self.projection)
-        return embedding
-
-encoder = SimpleTemporalEncoder(hidden_dim=64)
-
-# Encode different patterns
-t = np.linspace(0, 4*np.pi, 100)
-embeddings = {
-    'periodic': encoder.encode(np.sin(t)),
-    'trending': encoder.encode(t / 10),
-    'volatile': encoder.encode(np.random.randn(100)),
-}
-
-print(f"Temporal embedding dimension: {len(embeddings['periodic'])}")
-```
+For more complex patterns beyond ROCKET's random features, production systems use neural architectures like LSTMs, Transformers, or Temporal CNNs to learn time-series representations. Libraries like `tsai`, `sktime`, and `darts` provide pre-built architectures for time-series embedding.
 
 ## Binary and Quantized Embeddings {#sec-quantized-embeddings}
 
@@ -673,76 +471,17 @@ print(f"  Binary:  {768 // 8} bytes ({768 * 4 / (768 // 8):.0f}x compression)")
 
 ## Session and Behavioral Embeddings {#sec-behavioral-embeddings}
 
-Embed user sessions and behaviors as sequences:
+User sessions and behavioral patterns can be embedded as sequences of actions. This captures patterns like "browsing behavior," "purchase intent," or "cart abandonment."
 
-```{python}
-#| code-fold: false
+**Approach:**
+1. Learn embeddings for atomic actions (clicks, views, purchases)
+2. Combine action sequences using:
+   - Weighted averaging (recent actions weighted more heavily)
+   - RNN/LSTM encoding for temporal dependencies
+   - Transformer self-attention for long sequences
+3. Use session embeddings for recommendations, anomaly detection, or user segmentation
 
-"""
-Session and Behavioral Embeddings
-
-Embed sequences of user actions to capture behavioral patterns.
-Similar sessions (browsing patterns) get similar embeddings.
-"""
-
-import numpy as np
-from sklearn.metrics.pairwise import cosine_similarity
-
-class SessionEncoder:
-    """Encode user sessions as embeddings."""
-
-    def __init__(self, action_vocab: list, embedding_dim: int = 64):
-        self.action_vocab = {a: i for i, a in enumerate(action_vocab)}
-        self.embedding_dim = embedding_dim
-        np.random.seed(42)
-        # Action embeddings (would be learned)
-        self.action_embeddings = np.random.randn(len(action_vocab), embedding_dim) * 0.1
-
-    def encode_session(self, actions: list) -> np.ndarray:
-        """Encode a session (sequence of actions) to single embedding."""
-        if not actions:
-            return np.zeros(self.embedding_dim)
-
-        # Get embeddings for each action
-        action_embs = []
-        for action in actions:
-            if action in self.action_vocab:
-                idx = self.action_vocab[action]
-                action_embs.append(self.action_embeddings[idx])
-
-        if not action_embs:
-            return np.zeros(self.embedding_dim)
-
-        # Combine with weighted average (recent actions weighted more)
-        weights = np.exp(np.linspace(-1, 0, len(action_embs)))
-        weights /= weights.sum()
-
-        session_emb = np.average(action_embs, axis=0, weights=weights)
-        return session_emb
-
-# Define action vocabulary
-actions = ['view_product', 'add_to_cart', 'remove_from_cart',
-           'view_category', 'search', 'checkout', 'view_reviews']
-
-encoder = SessionEncoder(actions)
-
-# Example sessions
-shopping_session = ['view_category', 'view_product', 'view_reviews',
-                    'add_to_cart', 'view_product', 'add_to_cart', 'checkout']
-browsing_session = ['view_category', 'view_product', 'view_category',
-                    'search', 'view_product', 'view_category']
-cart_abandon = ['view_product', 'add_to_cart', 'view_product',
-                'add_to_cart', 'remove_from_cart']
-
-emb_shopping = encoder.encode_session(shopping_session)
-emb_browsing = encoder.encode_session(browsing_session)
-emb_abandon = encoder.encode_session(cart_abandon)
-
-print("Session similarities:")
-print(f"  Shopping ↔ Browsing: {cosine_similarity([emb_shopping], [emb_browsing])[0][0]:.3f}")
-print(f"  Shopping ↔ Cart abandon: {cosine_similarity([emb_shopping], [emb_abandon])[0][0]:.3f}")
-print(f"  Browsing ↔ Cart abandon: {cosine_similarity([emb_browsing], [emb_abandon])[0][0]:.3f}")
-```
+**Libraries:** Merlin (NVIDIA), RecBole, and session-based recommendation frameworks provide implementations.
 
 ## Domain-Specific Embeddings {#sec-domain-specific-embeddings}
 
