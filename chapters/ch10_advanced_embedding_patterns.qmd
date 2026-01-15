@@ -140,6 +140,18 @@ print(f"  Numerical: 10 dims × {weights['numerical']} weight")
 print(f"  Domain: 5 dims × {weights['domain']} weight")
 ```
 
+**Tuning hybrid embedding weights:** The weights (0.50 text, 0.20 categorical, 0.15 numerical, 0.15 domain) are critical hyperparameters that determine the final embedding's behavior. Don't use equal weights—they ignore the relative importance of each feature type.
+
+**Three approaches to finding optimal weights:**
+
+1. **Grid search**: Try different weight combinations on a validation set measuring your downstream task (classification accuracy, retrieval recall, etc.). Start coarse (0.1 increments) then refine around the best region.
+
+2. **Learned weights**: Make weights trainable parameters in your model. Initialize near your intuition (0.5, 0.2, 0.15, 0.15), then let backpropagation optimize them. Add a softmax constraint to ensure they sum to 1.0.
+
+3. **Task-specific tuning**: For anomaly detection, boost numerical features (bytes, durations often reveal attacks). For semantic search, boost text. For compliance filtering, boost categorical (severity, event type).
+
+**Validation is essential**: Measure downstream task performance, not just embedding similarity. A hybrid embedding optimized for retrieval recall may differ from one optimized for classification accuracy. See @sec-custom-embedding-strategies for multi-objective optimization strategies.
+
 ### Entity Embeddings for Categorical Features
 
 Categorical features like "event type" or "product category" are often encoded as one-hot vectors—sparse, high-dimensional, and unable to capture relationships. Entity embeddings offer a better approach: learn dense, low-dimensional representations where similar categories have similar embeddings.
@@ -152,6 +164,21 @@ Categorical features like "event type" or "product category" are often encoded a
 - **Integration**: Learned embeddings combine smoothly with other features in hybrid embeddings
 
 **How it works:** Each categorical value gets an embedding vector (trainable parameters). During training, the model learns to position similar categories near each other in embedding space. In production, use PyTorch's `nn.Embedding` or TensorFlow's `tf.keras.layers.Embedding`.
+
+**Training entity embeddings:** These embeddings must be learned from your data—they're not pre-trained. You have two approaches:
+
+1. **End-to-end training**: Include `nn.Embedding` layers in your neural network and train on your downstream task (classification, ranking, etc.). The model learns to position similar categories nearby based on task performance.
+
+2. **Pre-training with co-occurrence**: If you have large unlabeled datasets, train embeddings by predicting co-occurrence patterns (e.g., which event types tend to appear together in sequences). This is analogous to Word2Vec but for categorical features.
+
+**Practical considerations:**
+
+- **Dimensionality**: Start with `min(50, num_categories // 2)` as a heuristic, then tune as a hyperparameter
+- **Regularization**: Use dropout on embeddings to prevent overfitting rare categories
+- **Cold start**: For new categories not seen during training, use the mean embedding or a learned "unknown" embedding
+- **Sharing**: Categories that appear in similar contexts should share embeddings (e.g., `event_type` embeddings shared across all security products)
+
+See @sec-custom-embedding-strategies for detailed guidance on training categorical embeddings and @sec-scaling-embedding-training for handling large categorical vocabularies efficiently.
 
 ```{python}
 #| code-fold: false
@@ -300,6 +327,17 @@ ColBERT (Contextualized Late Interaction over BERT) pioneered this approach for 
 - You can afford 10-100x storage overhead
 - Use libraries like `colbert-ir` or RAGatouille for production implementations
 
+**Fine-tuning ColBERT for your domain:** While you can use pre-trained ColBERT models, domain-specific fine-tuning significantly improves accuracy. Legal documents, medical records, and code repositories have specialized vocabularies and matching patterns that generic models miss.
+
+**Training approach:**
+
+1. **Start with pre-trained ColBERT**: Initialize from a model trained on MS MARCO or similar large corpus
+2. **Gather domain data**: Collect query-document pairs with relevance labels (clicks, ratings, or judgments)
+3. **Contrastive training**: For each query, train to score relevant documents higher than irrelevant ones
+4. **Storage-quality trade-off**: During fine-tuning, you can reduce embedding dimensions (128→64) to save storage, though this trades some accuracy
+
+Fine-tuning typically requires 10K-100K labeled query-document pairs and 1-2 days on a single GPU. See @sec-custom-embedding-strategies for guidance on when to fine-tune vs. use off-the-shelf models.
+
 ## Matryoshka Embeddings {#sec-matryoshka-embeddings}
 
 Traditional embeddings force a hard choice: use 384 dimensions (expensive storage, slow search) or 128 dimensions (cheaper but less accurate). Matryoshka embeddings eliminate this trade-off by encoding information hierarchically—the first N dimensions form a valid embedding for any N.
@@ -354,6 +392,22 @@ Dense embeddings (768 floats) excel at semantic matching but lack interpretabili
 
 - Primal library for SPLADE models
 - Pinecone and Qdrant support hybrid sparse+dense search
+
+**Training SPLADE models:** Unlike off-the-shelf dense embeddings, SPLADE models require training on your domain to learn effective term expansion patterns. The model must learn which vocabulary terms are semantically related and should co-activate.
+
+**Training approach:**
+
+1. **Architecture**: Start with a pre-trained BERT/RoBERTa encoder, add a vocabulary projection layer (768 hidden dims → 30K vocab terms) with ReLU activation and log saturation to enforce sparsity
+
+2. **Loss function**: Use contrastive loss over query-document pairs—maximize scores for relevant pairs, minimize for irrelevant pairs. Add FLOPS regularization to penalize excessive term activation (controls sparsity)
+
+3. **Data requirements**: Need query-document pairs with relevance judgments. 100K-1M pairs for general domain, 10K-100K for specialized domains where pre-training helps
+
+4. **Sparsity trade-off**: FLOPS regularization hyperparameter controls sparsity vs. quality. High regularization → 50-100 active terms (fast, interpretable). Low regularization → 200-300 active terms (more accurate, less sparse)
+
+**Domain adaptation:** Can fine-tune existing SPLADE models (trained on MS MARCO) for your domain with 10K-50K domain-specific pairs. This adapts term expansion patterns—medical SPLADE learns "MI" expands to "myocardial infarction", "heart attack", etc.
+
+See @sec-custom-embedding-strategies for guidance on training sparse models and @sec-scaling-embedding-training for handling large vocabularies efficiently.
 
 ## Time-Series Pattern Embeddings {#sec-timeseries-pattern-embeddings}
 
@@ -567,6 +621,28 @@ User behavior unfolds as sequences of actions over time: browsing products, addi
 
 Merlin (NVIDIA), RecBole, and session-based recommendation frameworks provide implementations.
 
+**Training session embeddings:** Action embeddings are the foundation of session embeddings and must be learned from your behavioral data. Unlike text or image embeddings where pre-trained models transfer well, behavioral patterns are highly platform-specific.
+
+**Training approach:**
+
+1. **Action embeddings**: Start with `nn.Embedding` for each action type (view_product, add_to_cart, etc.). Initialize randomly with dimension 32-128 based on vocabulary size.
+
+2. **Training objectives**: Multiple objectives work better than one:
+   - **Next-action prediction**: Given first N actions, predict action N+1 (like language modeling)
+   - **Session outcome prediction**: Predict whether session ends in purchase, bounce, or cart abandonment
+   - **Session-session similarity**: Contrastive loss—sessions from same user should be similar, sessions from different user behaviors (browsers vs. buyers) should differ
+
+3. **Sequence encoding**: Choose based on your data:
+   - **Weighted average**: Fast, works for short sessions (3-10 actions), recent actions weighted more
+   - **LSTM/GRU**: Captures temporal dependencies, good for medium sessions (10-50 actions)
+   - **Transformer**: Best for long sessions (50+ actions) with complex dependencies, but requires more data
+
+4. **Cold start handling**: New actions not seen during training need embeddings—use mean of existing embeddings or train a separate encoder that maps action features (category, price tier) to embeddings
+
+**Data requirements:** 100K-1M sessions for general behavioral modeling, 10K-100K if you have strong labels (purchases, conversions). Include negative examples (bounces, abandoned carts) to learn what *not* to recommend.
+
+See @sec-custom-embedding-strategies for multi-objective training strategies and @sec-scaling-embedding-training for handling large action vocabularies and user bases.
+
 ## Domain-Specific Embeddings {#sec-domain-specific-embeddings}
 
 Some domains require specialized embedding approaches.
@@ -705,6 +781,34 @@ print(f"Security log embedding dimension: {len(emb1)}")
 print(f"  Text: 384, Categorical: 12, Numerical: 3, Network: 5")
 print(f"\nLog similarity: {cosine_similarity([emb1], [emb2])[0][0]:.3f}")
 ```
+
+**Training security log embeddings:** While the code above uses simulated components, production security log embeddings require training both the categorical embeddings and the combination weights on your security data.
+
+**End-to-end training approach:**
+
+1. **Categorical embeddings**: Train `nn.Embedding` layers for event_type, severity, and other categorical fields on your log corpus. Use either:
+   - **Supervised**: Train on labeled anomaly detection task—embeddings learn to separate normal from malicious events
+   - **Self-supervised**: Predict co-occurrence patterns—events that appear together in attack sequences get similar embeddings
+
+2. **Weight optimization**: Make weights trainable parameters instead of fixed hyperparameters:
+   ```python
+   weights = nn.Parameter(torch.tensor([0.5, 0.2, 0.15, 0.15]))  # text, cat, num, domain
+   weights = F.softmax(weights, dim=0)  # Ensure they sum to 1.0
+   ```
+   The model learns optimal weights during training—for threat detection, numerical features may dominate; for compliance search, text may dominate.
+
+3. **Training objective**: Choose based on your use case:
+   - **Anomaly detection**: Contrastive loss—normal logs cluster together, anomalies far from normal cluster
+   - **Threat hunting**: Triplet loss—logs from same attack campaign close together, different campaigns far apart
+   - **Alert triage**: Classification loss—predict severity, alert priority, or true positive vs. false positive
+
+4. **Multi-task learning**: Train simultaneously on multiple objectives (anomaly detection + severity prediction + campaign clustering) with weighted loss combination. This prevents overfitting to one task.
+
+**Data requirements:** 10K-100K labeled logs for supervised training (rare events, known attacks), or 100K-1M unlabeled logs for self-supervised approaches. Include temporal features if training for time-series anomaly detection.
+
+**Domain specialization:** Pre-train on general security logs (OCSF corpus, public datasets) then fine-tune on your environment. This adapts embeddings to your specific threat landscape—healthcare sees different attacks than financial services.
+
+See @sec-custom-embedding-strategies for multi-objective training strategies and guidance on when domain-specific training justifies the cost vs. using off-the-shelf text embeddings with simple feature concatenation.
 
 ## Choosing the Right Pattern
 
