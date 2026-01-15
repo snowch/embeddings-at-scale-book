@@ -142,7 +142,16 @@ print(f"  Domain: 5 dims × {weights['domain']} weight")
 
 ### Entity Embeddings for Categorical Features
 
-Don't one-hot encode categorical features—learn embeddings for them:
+Categorical features like "event type" or "product category" are often encoded as one-hot vectors—sparse, high-dimensional, and unable to capture relationships. Entity embeddings offer a better approach: learn dense, low-dimensional representations where similar categories have similar embeddings.
+
+**Why entity embeddings work better than one-hot:**
+
+- **Dimensionality**: 7 categories → 7-dim one-hot vs 8-dim learned embedding (similar size, but embedding is dense)
+- **Relationships**: Captures that "login" and "logout" are related, while one-hot treats all categories as equally distant
+- **Generalization**: Rare categories benefit from learned structure
+- **Integration**: Learned embeddings combine smoothly with other features in hybrid embeddings
+
+**How it works:** Each categorical value gets an embedding vector (trainable parameters). During training, the model learns to position similar categories near each other in embedding space. In production, use PyTorch's `nn.Embedding` or TensorFlow's `tf.keras.layers.Embedding`.
 
 ```{python}
 #| code-fold: false
@@ -267,13 +276,25 @@ print("Processed features:", np.round(processed, 3))
 
 ## Multi-Vector Representations {#sec-multi-vector-representations}
 
-Single vectors compress all information into one point. Multi-vector representations preserve more detail by using multiple vectors per item.
+Single-vector embeddings face a fundamental trade-off: compress an entire document into one fixed-length vector, inevitably losing detail. For long documents or when precise phrase matching matters, this compression is too lossy. Multi-vector representations solve this by using multiple embeddings per item.
+
+**The key insight:** Instead of one 768-dim vector per document, use N vectors of 128 dims (one per token or sentence). Matching happens at the token level—find which query tokens match which document tokens. This preserves fine-grained information at the cost of 10-100x storage.
 
 ### ColBERT-Style Late Interaction
 
-ColBERT represents documents with one vector per token, enabling fine-grained matching. Instead of encoding a document into a single vector, ColBERT produces a matrix where each row is the embedding of a token. Matching uses "MaxSim" scoring: for each query token, find the most similar document token, then sum these maximum similarities.
+ColBERT (Contextualized Late Interaction over BERT) pioneered this approach for document retrieval. Instead of encoding a document into a single vector, ColBERT produces a matrix where each row is the contextualized embedding of a token.
+
+**How late interaction works:**
+
+1. **Encode**: Pass query and document through BERT, producing one vector per token
+2. **Index**: Store all document token vectors (this is the storage cost)
+3. **Retrieve**: For each query token, find its max similarity to any document token
+4. **Score**: Sum these max similarities—this is the document's relevance score
+
+**Why it works:** Allows exact phrase matching (if query token "machine" matches document token "machine" strongly, that's captured) while still using semantic embeddings. Much more accurate than single-vector for long documents or when specific terms matter.
 
 **When to use multi-vector:**
+
 - Fine-grained matching matters (exact phrase matching)
 - Documents are long and diverse
 - You can afford 10-100x storage overhead
@@ -281,46 +302,86 @@ ColBERT represents documents with one vector per token, enabling fine-grained ma
 
 ## Matryoshka Embeddings {#sec-matryoshka-embeddings}
 
-Matryoshka (nested doll) embeddings encode information hierarchically—the first N dimensions are a valid embedding on their own. Models are trained with a special loss function that ensures prefixes of the full embedding (e.g., first 64, 128, 256 dimensions) maintain semantic relationships at each truncation level.
+Traditional embeddings force a hard choice: use 384 dimensions (expensive storage, slow search) or 128 dimensions (cheaper but less accurate). Matryoshka embeddings eliminate this trade-off by encoding information hierarchically—the first N dimensions form a valid embedding for any N.
+
+**How they work:** Models are trained with a special multi-scale loss function. During training, the loss is computed not just on the full 768-dim embedding, but also on prefixes (first 64, 128, 256, 384 dims). This forces the model to pack the most important information into early dimensions, with refinements in later dimensions.
+
+**The key property:** You can truncate a 768-dim Matryoshka embedding to 128 dims and still get semantically meaningful results. Unlike simply training a 128-dim model (which might be more accurate at 128 dims), Matryoshka gives you flexibility—one model, multiple dimension options.
 
 **Benefits of Matryoshka embeddings:**
+
 - Use short prefixes for fast initial retrieval
 - Use full dimensions for final reranking
 - Adapt to latency/quality requirements at runtime
 - Reduce storage by storing only needed dimensions
 
 **Available models:**
+
 - Nomic AI's `nomic-embed-text-v1.5` (768→64 dims)
 - Voyage AI's models support variable dimensions
 - Sentence Transformers with Matryoshka training
 
 ## Learned Sparse Embeddings {#sec-learned-sparse-embeddings}
 
-SPLADE and similar models learn sparse representations that combine the best of dense and sparse retrieval. Instead of fixed vocabulary matching like BM25, these models use transformers to predict importance weights for vocabulary terms, including expansion to semantically related terms not present in the original text.
+Dense embeddings (768 floats) excel at semantic matching but lack interpretability and require specialized vector databases. Sparse retrieval (BM25) is interpretable and uses standard inverted indices, but misses semantic relationships. Learned sparse embeddings like SPLADE combine both: use transformers to create sparse vectors with interpretable dimensions.
+
+**The innovation:** Instead of encoding text into a dense 768-dim vector, predict an importance weight for each vocabulary term (30,000 terms). Most weights are zero—you get a sparse vector with 100-200 non-zero entries. Dimensions correspond to actual words, so you can see which terms matter.
+
+**Why this is powerful:**
+
+- **Semantic expansion**: The model learns to activate related terms not in the original text. Query "ML models" activates dimensions for "machine learning," "neural networks," "deep learning"
+- **Interpretability**: You can inspect which vocabulary terms fired and why
+- **Standard indexing**: Sparse vectors work with inverted indices—no need for specialized HNSW or IVF indexes
+- **Hybrid search**: Combine with dense embeddings for best of both worlds
+
+**How it differs from BM25:** BM25 activates exact term matches. SPLADE uses a transformer to learn which related terms should activate and with what weights. This captures semantics while maintaining sparsity.
 
 **How it works:**
+
 1. Pass text through a transformer encoder
 2. For each vocabulary term, predict an importance weight
 3. Result is a sparse vector (typically 100-200 non-zero terms out of 30K vocabulary)
 4. Can be indexed with inverted indices for efficient retrieval
 
 **Benefits of learned sparse:**
+
 - Interpretable (dimensions correspond to vocabulary terms)
 - Works with inverted indices (fast exact matching)
 - Captures term expansion (related terms automatically included)
 - Combines well with dense embeddings (hybrid search)
 
 **Available implementations:**
+
 - Primal library for SPLADE models
 - Pinecone and Qdrant support hybrid sparse+dense search
 
 ## Time-Series Pattern Embeddings {#sec-timeseries-pattern-embeddings}
 
-Beyond basic statistical features, production systems use learned representations for time-series patterns.
+Time-series data presents unique challenges for embeddings. Unlike text or images where pre-trained models excel, time-series patterns are highly domain-specific—a "normal" pattern in network traffic looks nothing like a "normal" pattern in heart rate data. Effective time-series embeddings must capture temporal structure: trends, seasonality, sudden changes, and oscillations.
+
+**What makes time-series different:**
+
+- **Variable length**: Sensor readings might have 100 or 10,000 time steps
+- **Temporal dependencies**: The order matters—shuffling time steps destroys meaning
+- **Scale sensitivity**: Amplitude, frequency, and phase all carry information
+- **Domain-specific patterns**: What constitutes "similar" varies by application
+
+**Two main approaches:** Random feature extraction (ROCKET) provides fast, training-free embeddings suitable for classification and similarity. Learned temporal encoders (LSTMs, Temporal CNNs, Transformers) require training data but can capture more complex patterns.
 
 ### ROCKET: Random Convolutional Kernels
 
-ROCKET transforms time-series into features using random convolutional kernels:
+Time-series data—sensor readings, stock prices, network traffic—require specialized embeddings that capture temporal patterns. ROCKET (RandOm Convolutional KErnel Transform) is a surprisingly effective approach: apply thousands of random convolutional kernels and extract simple statistics.
+
+**How ROCKET works:**
+
+1. **Generate random kernels**: Create kernels with random weights, random lengths (3-9), and random dilations (1, 2, 4)
+2. **Apply convolution**: Convolve each kernel with the time-series
+3. **Extract features**: For each convolution output, compute max value and proportion of positive values (PPV)
+4. **Result**: Fixed-length embedding (e.g., 10,000 features from 5,000 kernels × 2 statistics)
+
+**Why random kernels work:** Different kernels capture different patterns—oscillations, trends, sudden changes. With enough random kernels, you'll capture the patterns that matter. No training required—just apply and extract features.
+
+**When to use ROCKET:** Fast time-series classification, anomaly detection, or similarity search when you don't have labeled data to train a neural network. For more complex patterns or when you have labels, consider learned temporal models (LSTMs, Temporal CNNs).
 
 ```{python}
 #| code-fold: false
@@ -407,7 +468,17 @@ For more complex patterns beyond ROCKET's random features, production systems us
 
 ## Binary and Quantized Embeddings {#sec-quantized-embeddings}
 
-For massive scale, compress embeddings to reduce storage and accelerate search:
+At billion-vector scale, storage and memory become critical bottlenecks. A float32 embedding of 768 dimensions requires 3KB per vector—1 billion vectors need 3TB of storage. Quantization compresses embeddings while preserving much of their semantic structure.
+
+**What are quantized embeddings?**
+
+- **Binary embeddings**: Reduce each dimension to 1 bit (sign only), achieving 32x compression
+- **Product quantization (PQ)**: Learn codebooks to compress subvectors, typically 8-16x compression
+- **Scalar quantization**: Convert float32 → int8, achieving 4x compression with minimal quality loss
+
+**Why quantization works:** Embedding similarity is robust to small perturbations. You don't need full float32 precision to determine that two vectors are similar—the coarse structure (sign patterns, quantized values) captures most semantic information.
+
+**Trade-offs:** Binary embeddings lose ~10-20% recall compared to float32. Product quantization is more accurate but slower. The sweet spot: use quantized embeddings for first-stage retrieval (fast, approximate), then rerank top-k results with full precision.
 
 ```{python}
 #| code-fold: false
@@ -464,6 +535,7 @@ print(f"  Binary:  {768 // 8} bytes ({768 * 4 / (768 // 8):.0f}x compression)")
 ```
 
 **When to use quantized embeddings:**
+
 - Billions of vectors (storage constraints)
 - Latency-critical applications
 - First-stage retrieval (rerank with full precision)
@@ -471,9 +543,19 @@ print(f"  Binary:  {768 // 8} bytes ({768 * 4 / (768 // 8):.0f}x compression)")
 
 ## Session and Behavioral Embeddings {#sec-behavioral-embeddings}
 
-User sessions and behavioral patterns can be embedded as sequences of actions. This captures patterns like "browsing behavior," "purchase intent," or "cart abandonment."
+User behavior unfolds as sequences of actions over time: browsing products, adding to cart, searching, checking out. These sequences contain valuable signals—"browse many, buy one" looks different from "search, add to cart, checkout." Session embeddings capture these behavioral patterns as fixed-length vectors.
+
+**Why embed sessions:**
+
+- **Recommendation**: Find users with similar browsing patterns to suggest relevant products
+- **Anomaly detection**: Detect unusual behavioral sequences (potential fraud, bots)
+- **Intent prediction**: Predict whether a session will end in purchase, cart abandonment, or bounce
+- **User segmentation**: Cluster users by behavioral patterns for targeted campaigns
+
+**The challenge:** Sessions have variable length (3 actions vs 30 actions), temporal dependencies matter (order of actions carries meaning), and rare action combinations need to generalize. Simple bag-of-actions loses temporal structure; pure sequence models (LSTMs) can overfit.
 
 **Approach:**
+
 1. Learn embeddings for atomic actions (clicks, views, purchases)
 2. Combine action sequences using:
    - Weighted averaging (recent actions weighted more heavily)
@@ -481,7 +563,9 @@ User sessions and behavioral patterns can be embedded as sequences of actions. T
    - Transformer self-attention for long sequences
 3. Use session embeddings for recommendations, anomaly detection, or user segmentation
 
-**Libraries:** Merlin (NVIDIA), RecBole, and session-based recommendation frameworks provide implementations.
+**Libraries:**
+
+Merlin (NVIDIA), RecBole, and session-based recommendation frameworks provide implementations.
 
 ## Domain-Specific Embeddings {#sec-domain-specific-embeddings}
 
@@ -489,7 +573,17 @@ Some domains require specialized embedding approaches.
 
 ### Security Log Embeddings
 
-Combining semantic, categorical, numerical, and network features:
+Security logs exemplify the challenge of multi-modal, structured data. A single log event contains semantic text ("Failed login attempt"), categorical metadata (event type, severity), numerical metrics (bytes transferred, duration), and domain-specific features (IP addresses, ports). Effective security log embeddings must combine all of these meaningfully.
+
+**Why security logs need hybrid embeddings:**
+
+- **Semantic similarity alone fails**: Two "login" events with different IPs may be unrelated (one internal, one external attack)
+- **Structured features alone fail**: Metadata without message text loses critical context
+- **Scale mismatch**: Text embeddings (384 dims), categorical (12 dims), numerical (3 dims), network (5 dims) have wildly different scales
+
+**The hybrid approach:** This example demonstrates the weighted normalized concatenation pattern applied to a real-world use case. Each feature type gets its own embedding pipeline, then all are normalized and weighted before combination. Weights (50% text, 20% categorical, 15% numerical, 15% network) are hyperparameters tuned for your specific detection task.
+
+**Real-world extensions:** Use actual text encoders (sentence-transformers), train categorical embeddings on your log corpus, add temporal features (time-of-day embeddings), and tune weights on labeled anomaly data.
 
 ```{python}
 #| code-fold: false
