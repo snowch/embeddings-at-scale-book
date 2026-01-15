@@ -1,5 +1,10 @@
 # Retrieval-Augmented Generation (RAG) at Scale {#sec-rag-at-scale}
 
+:::{.callout-important}
+## Chapter Update In Progress
+This chapter will be updated to use the VAST Data Platform Vector DB. Current code examples are not designed to scale—they are shown for educational purposes only. For production-scale vector database architecture, see @sec-vector-database-fundamentals.
+:::
+
 :::{.callout-note}
 ## Chapter Overview
 Retrieval-Augmented Generation combines the power of embedding-based retrieval with large language model generation, enabling LLMs to answer questions grounded in enterprise knowledge rather than relying solely on parametric memory. This chapter explores production RAG systems at scale: enterprise architecture patterns that handle billion-document corpora, context window optimization strategies that maximize information density while respecting token limits, multi-stage retrieval pipelines that balance recall and precision across filtering and reranking stages, evaluation frameworks that measure end-to-end quality beyond simple metrics, and techniques for handling contradictory information when sources disagree. These patterns enable RAG systems that serve millions of users with accurate, attributable, up-to-date responses.
