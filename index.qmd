@@ -153,6 +153,14 @@ Choose the path that matches your role and goals:
 
 **[Chris Snow](https://snowch.github.io/)** is the author of *Embeddings at Scale*, bringing expertise in AI and machine learning to help organizations build transformative embedding systems.
 
+## About This Content
+
+This is a learning resource I created to deepen my own understanding of embeddings and vector databases at scale. It's freely available under [CC-BY-NC-4.0](https://creativecommons.org/licenses/by-nc/4.0/) license for educational purposes.
+
+**Not for sale. Will always remain free.**
+
+Built with AI assistance and extensive editing. If you find value in this, feel free to connect with me on [LinkedIn](https://www.linkedin.com/in/csnowuk/) or check out my work at [VAST Data](https://vastdata.com/) / [GitHub](https://github.com/snowch).
+
 ## Acknowledgments
 
 This book was created with assistance from AI tools:
