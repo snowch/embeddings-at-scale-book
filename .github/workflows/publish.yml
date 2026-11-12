@@ -67,6 +67,7 @@ jobs:
               <div>Built from commit: <code>$COMMIT_HASH</code></div>
               <div>© 2024 Chris Snow</div>
             </div>
+            <p>Licensed under <a href="https://creativecommons.org/licenses/by-nc/4.0/" rel="license">CC BY-NC 4.0</a>.</p>
           </footer>
           EOF
 
